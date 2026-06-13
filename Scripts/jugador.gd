@@ -13,6 +13,7 @@ extends CharacterBody3D
 @export var TIEMPO_COYOTE : float = 0.12
 @export var TIEMPO_BUFFER_SALTO : float = 0.12
 @export var MAX_SALTOS : int = 2
+@export var LIMITE_CAIDA_Y : float = -20.0
 
 # Gravedad predeterminada del proyecto
 var gravedad = ProjectSettings.get_setting("physics/3d/default_gravity")
@@ -21,6 +22,7 @@ var tiempo_desde_salto : float = 0.0
 var objetivo_rotacion_y : float = 0.0
 var objetivo_rotacion_x : float = 0.0
 var saltos_realizados : int = 0
+var posicion_inicial : Vector3
 
 @onready var pivote_camara = $Node3D
 @onready var controles_tactiles = get_node_or_null("../Controles_Tactiles")
@@ -29,6 +31,7 @@ func _ready():
 	objetivo_rotacion_y = rotation.y
 	if pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
+	posicion_inicial = global_position
 
 func _physics_process(delta):
 	# --- 1. CONTROL DE CÁMARA TÁCTIL ---
@@ -100,3 +103,10 @@ func _physics_process(delta):
 		velocity.z = move_toward(velocity.z, 0.0, tasa_frenado * delta)
 
 	move_and_slide()
+
+	if global_position.y < LIMITE_CAIDA_Y:
+		global_position = posicion_inicial
+		velocity = Vector3.ZERO
+		tiempo_desde_suelo = 0.0
+		tiempo_desde_salto = 0.0
+		saltos_realizados = 0

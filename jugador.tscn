@@ -4,7 +4,12 @@
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_omvyu"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16k11"]
+transparency = 1
+albedo_color = Color(1.3807716, 1.0712289, 0.38276297, 1)
+
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_8o684"]
+material = SubResource("StandardMaterial3D_16k11")
 
 [node name="Jugador" type="CharacterBody3D" unique_id=1234024379]
 collision_layer = 3
