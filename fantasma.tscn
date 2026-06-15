@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://bes5wq0vlvbx"]
+
+[ext_resource type="Script" uid="uid://c2xs0e7v9vwp" path="res://Scripts/fantasma.gd" id="1_fantasma"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_fantasma"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fantasma"]
+transparency = 2
+albedo_color = Color(0.4, 0.6, 1.0, 0.6)
+emission_enabled = true
+emission = Color(0.2, 0.4, 0.8, 1.0)
+emission_energy_multiplier = 0.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_fantasma"]
+material = SubResource("StandardMaterial3D_fantasma")
+
+[node name="Fantasma" type="CharacterBody3D" unique_id=1234024380]
+collision_layer = 3
+collision_mask = 3
+script = ExtResource("1_fantasma")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=542771578]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0, 0, 0, 1, 0, 0, 0)
+shape = SubResource("CapsuleShape3D_fantasma")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=407544265]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CapsuleMesh_fantasma")
+
+[node name="Node3D" type="Node3D" parent="." unique_id=1618272515]
+
+[node name="Camera3D" type="Camera3D" parent="Node3D" unique_id=1460626181]
+transform = Transform3D(1, 0, 0, 0, 0.93401134, 0.35724342, 0, -0.35724342, 0.93401134, 0, 2.5327091, 3.4745927)

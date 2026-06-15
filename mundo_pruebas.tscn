@@ -1,8 +1,10 @@
 [gd_scene format=3 uid="uid://c70wmkhtlmix2"]
 
+[ext_resource type="PackedScene" uid="uid://bes5wq0vlvbx" path="res://fantasma.tscn" id="1_fantasma"]
 [ext_resource type="PackedScene" uid="uid://ctqosdk7pn6nr" path="res://jugador.tscn" id="1_l5la3"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://controles_tactiles.tscn" id="1_qrrgk"]
 [ext_resource type="Texture2D" uid="uid://bkck6qaicewgo" path="res://Texturas/Provicionales/fondo-textura-suelo-marron_172107-1582.png" id="3_t2mlv"]
+[ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://Scripts/administrador_plataformas.gd" id="admin_plat"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_tj580"]
 sky_top_color = Color(0.47897124, 0.71860796, 0.66568565, 1)
@@ -39,10 +41,16 @@ material = SubResource("StandardMaterial3D_t2mlv")
 
 [node name="Mundo_Pruebas" type="Node3D" unique_id=406520819]
 
+[node name="AdministradorPlataformas" type="Node3D" parent="." unique_id=9999]
+script = ExtResource("admin_plat")
+
 [node name="Controles_Tactiles" parent="." unique_id=1456756494 instance=ExtResource("1_qrrgk")]
 
 [node name="Jugador" parent="." unique_id=1234024379 instance=ExtResource("1_l5la3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22444451, 1, 2.3451672)
+
+[node name="Fantasma" parent="." unique_id=1234024380 instance=ExtResource("1_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1, 2.3451672)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=4431013]
 environment = SubResource("Environment_qrrgk")
@@ -64,8 +72,8 @@ mesh = SubResource("BoxMesh_hbjrf")
 
 [node name="Caja_Fisica" type="StaticBody3D" parent="." unique_id=825728101]
 transform = Transform3D(4.2969394, 0, 0, 0, 0.1085708, 0, 0, 0, 3.6668274, 0.6455617, 1.5398353, -20.34966)
-collision_layer = 2
-collision_mask = 2
+collision_layer = 0
+collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Caja_Fisica" unique_id=473829149]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0)
@@ -77,8 +85,8 @@ mesh = SubResource("BoxMesh_qrrgk")
 
 [node name="Caja_Fisica2" type="StaticBody3D" parent="." unique_id=907235314]
 transform = Transform3D(6.3027854, 0, 0, 0, 0.21467756, 0, 0, 0, 3.6064734, 1.973844, 1.8129681, -26.177591)
-collision_layer = 2
-collision_mask = 2
+collision_layer = 0
+collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Caja_Fisica2" unique_id=167196249]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0)
@@ -90,8 +98,8 @@ mesh = SubResource("BoxMesh_qrrgk")
 
 [node name="Caja_Fisica3" type="StaticBody3D" parent="." unique_id=318125458]
 transform = Transform3D(3.1463752, 0, 0, 0, 0.21467756, 0, 0, 0, 3.6064734, -0.64555407, 3.0470085, -32.3174)
-collision_layer = 2
-collision_mask = 2
+collision_layer = 0
+collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Caja_Fisica3" unique_id=1146878204]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0)
@@ -103,8 +111,8 @@ mesh = SubResource("BoxMesh_qrrgk")
 
 [node name="Caja_Fisica4" type="StaticBody3D" parent="." unique_id=504704350]
 transform = Transform3D(15.367457, 0, 0, 0, 0.06448827, 0, 0, 0, 8.469247, -0.64555407, 4.1590786, -39.914665)
-collision_layer = 2
-collision_mask = 2
+collision_layer = 0
+collision_mask = 0
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Caja_Fisica4" unique_id=607653398]
 transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0)
