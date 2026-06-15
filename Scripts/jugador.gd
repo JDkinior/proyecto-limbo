@@ -28,12 +28,39 @@ var posicion_inicial : Vector3
 @onready var controles_tactiles = get_node_or_null("../Controles_Tactiles")
 
 func _ready():
+	# Inicializar visibilidad y UI
+	actualizar_visibilidad_local()
+
 	objetivo_rotacion_y = rotation.y
 	if pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
 	posicion_inicial = global_position
 
+func actualizar_visibilidad_local():
+	"""Configura la cámara y resetea la UI para el jugador vivo"""
+	var es_mio = is_multiplayer_authority()
+	
+	if pivote_camara and pivote_camara.has_node("Camera3D"):
+		pivote_camara.get_node("Camera3D").current = es_mio
+		
+	if es_mio and controles_tactiles:
+		print("[Jugador] Restaurando interfaz original...")
+		controles_tactiles.modulate = Color(1, 1, 1)
+		# Quitamos el shader de todos los elementos de la interfaz
+		_limpiar_shader_recursivo(controles_tactiles)
+
+func _limpiar_shader_recursivo(nodo: Node):
+	"""Elimina materiales de shader para recuperar texturas originales"""
+	if nodo is CanvasItem:
+		nodo.material = null
+		
+	for hijo in nodo.get_children():
+		_limpiar_shader_recursivo(hijo)
+
 func _physics_process(delta):
+	# Solo procesar input y movimiento si somos la autoridad local
+	if not is_multiplayer_authority(): return
+
 	# --- 1. CONTROL DE CÁMARA TÁCTIL ---
 
 	if controles_tactiles and pivote_camara:

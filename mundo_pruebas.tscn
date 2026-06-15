@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://bes5wq0vlvbx" path="res://fantasma.tscn" id="1_fantasma"]
 [ext_resource type="PackedScene" uid="uid://ctqosdk7pn6nr" path="res://jugador.tscn" id="1_l5la3"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://controles_tactiles.tscn" id="1_qrrgk"]
+[ext_resource type="Script" uid="uid://b8bvwaut6jq1b" path="res://Scripts/red_manager.gd" id="1_qxw81"]
 [ext_resource type="Texture2D" uid="uid://bkck6qaicewgo" path="res://Texturas/Provicionales/fondo-textura-suelo-marron_172107-1582.png" id="3_t2mlv"]
 [ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://Scripts/administrador_plataformas.gd" id="admin_plat"]
 
@@ -39,7 +40,10 @@ uv1_scale = Vector3(7, 7, 7)
 [sub_resource type="BoxMesh" id="BoxMesh_qrrgk"]
 material = SubResource("StandardMaterial3D_t2mlv")
 
-[node name="Mundo_Pruebas" type="Node3D" unique_id=406520819]
+[node name="Mundo_Pruebas" type="Node3D" unique_id=406520819 node_paths=PackedStringArray("jugador_vivo", "fantasma")]
+script = ExtResource("1_qxw81")
+jugador_vivo = NodePath("Jugador")
+fantasma = NodePath("Fantasma")
 
 [node name="AdministradorPlataformas" type="Node3D" parent="." unique_id=9999]
 script = ExtResource("admin_plat")

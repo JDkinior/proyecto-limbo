@@ -14,7 +14,10 @@ extends CharacterBody3D
 @export var TIEMPO_BUFFER_SALTO : float = 0.12
 @export var MAX_SALTOS : int = 2
 @export var LIMITE_CAIDA_Y : float = -20.0
-@export var RADIO_DETECCION : float = 10.0  # Radio para detectar plataformas cercanas
+@export var RADIO_DETECCION : float = 10.0  # Radio inicial del aura al activarse
+@export var VELOCIDAD_ENCOGIMIENTO : float = 2.5 # Qué tan rápido se reduce el radio por segundo
+@export var TIEMPO_RECARGA : float = 4.0      # Segundos que tarda en poder usarse de nuevo
+@export var fantasma_camera_environment: Environment # Entorno para la cámara del fantasma
 
 # Gravedad predeterminada del proyecto
 var gravedad = ProjectSettings.get_setting("physics/3d/default_gravity")
@@ -27,21 +30,98 @@ var posicion_inicial : Vector3
 
 # Sistema de plataformas
 var plataformas_activas : Dictionary = {}  # {nodo_path: bool}
-var plataforma_seleccionada : Node3D = null
-var plataformas_detectadas : Array = []
 var plataformas_registradas : Array = []
+var aura_activa : bool = false
+var aura_radio_actual : float = 0.0
+var tiempo_cooldown : float = 0.0
 
 @onready var pivote_camara = $Node3D
 @onready var controles_tactiles = get_node_or_null("../Controles_Tactiles")
 
+var _original_camera_environment: Environment
+
 func _ready():
+	# Ejecutamos la lógica de visibilidad inicial
+	actualizar_visibilidad_local()
+	
 	objetivo_rotacion_y = rotation.y
 	if pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
+		# Almacenar el entorno original de la cámara (probablemente null si usa WorldEnvironment)
+		if pivote_camara.has_node("Camera3D"):
+			_original_camera_environment = pivote_camara.get_node("Camera3D").environment
 	posicion_inicial = global_position
+
 	# Inicializar sistema de plataformas
 	_inicializar_plataformas()
 	print("[Fantasma] Inicializado en posición: ", global_position)
+
+func actualizar_visibilidad_local():
+	"""Configura qué elementos son visibles solo para el jugador que controla este personaje"""
+	var es_mio = is_multiplayer_authority()
+	
+	if has_node("Aura"):
+		$Aura.visible = false
+		
+	var camera = null
+	if pivote_camara and pivote_camara.has_node("Camera3D"):
+		camera = pivote_camara.get_node("Camera3D")
+		camera.current = es_mio
+
+	if es_mio and camera:
+		if fantasma_camera_environment:
+			camera.environment = fantasma_camera_environment
+		else:
+			# Si no hay entorno asignado, creamos un efecto de "visión espiritual" azulada
+			var base_env = _original_camera_environment
+			if not base_env:
+				# Intentamos obtener el del WorldEnvironment de la escena
+				var we = get_tree().root.find_child("WorldEnvironment", true, false)
+				if we: base_env = we.environment
+			
+			var env = base_env.duplicate() if base_env else Environment.new()
+			env.adjustment_enabled = true
+			
+			# Creamos una gradiente para la corrección de color (LUT 1D)
+			var grad = Gradient.new()
+			grad.colors = PackedColorArray([Color(0, 0, 0.1), Color(0.4, 0.6, 1.0)])
+			var tex = GradientTexture1D.new()
+			tex.gradient = grad
+			env.adjustment_color_correction = tex
+			
+			camera.environment = env
+	elif camera:
+		camera.environment = _original_camera_environment # Restablecer al entorno global
+
+	if es_mio and controles_tactiles:
+		print("[Fantasma] Aplicando interfaz azul...")
+		# Creamos un Shader en tiempo de ejecución para "forzar" el color azul 
+		# ignorando si la textura original es amarilla
+		var shader = Shader.new()
+		shader.code = "shader_type canvas_item; uniform vec4 color_solido : source_color; void fragment() { vec4 tex = texture(TEXTURE, UV); COLOR = vec4(color_solido.rgb, tex.a * color_solido.a); }"
+		var mat = ShaderMaterial.new()
+		mat.shader = shader
+		# Azul Cian brillante (R=0.1, G=0.5, B=1.5 para efecto glow)
+		mat.set_shader_parameter("color_solido", Color(0.101, 0.442, 1.5, 0.306))
+		
+		controles_tactiles.modulate = Color(1, 1, 1) # Reset del modulate global
+		
+		# Aplicamos el shader de forma recursiva a TODO lo que esté en la UI
+		_aplicar_shader_recursivo(controles_tactiles, mat)
+		
+		# Duplicamos el material específicamente para el botón de interactuar
+		# para que sus cambios de color por cooldown no afecten al resto de la UI
+		var btn_interact = controles_tactiles.get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
+		if btn_interact and btn_interact.material:
+			btn_interact.material = btn_interact.material.duplicate()
+
+func _aplicar_shader_recursivo(nodo: Node, material_shader: ShaderMaterial):
+	"""Aplica el material a todos los elementos visuales de la interfaz"""
+	if nodo is CanvasItem:
+		nodo.material = material_shader
+	
+	for hijo in nodo.get_children():
+		_aplicar_shader_recursivo(hijo, material_shader)
 
 func _inicializar_plataformas():
 	"""Encuentra todas las plataformas interactuables en el mundo"""
@@ -61,11 +141,16 @@ func _buscar_plataformas(nodo: Node) -> void:
 	if nodo is StaticBody3D and "Caja_Fisica" in nodo.name:
 		plataformas_registradas.append(nodo)
 		plataformas_activas[nodo.get_path()] = false  # Inicialmente desactivadas
+		# Forzamos el estado inicial: sólido para fantasma, intangible para vivo
+		_aplicar_estado_plataforma(nodo, false)
 	
 	for hijo in nodo.get_children():
 		_buscar_plataformas(hijo)
 
 func _physics_process(delta):
+	# Solo procesar input y movimiento si somos la autoridad local
+	if not is_multiplayer_authority(): return
+
 	# --- 1. CONTROL DE CÁMARA TÁCTIL ---
 	if controles_tactiles and pivote_camara:
 		var giro = controles_tactiles.consumir_arrastre()
@@ -128,74 +213,92 @@ func _physics_process(delta):
 		velocity.x = move_toward(velocity.x, 0, DESACELERACION_SUELO * delta)
 		velocity.z = move_toward(velocity.z, 0, DESACELERACION_SUELO * delta)
 
-	# --- 5. DETECCIÓN Y MANIPULACIÓN DE PLATAFORMAS ---
-	_actualizar_plataformas_detectadas()
-	_procesar_entrada_plataformas()
+	# --- 5. SISTEMA DE AURA TEMPORAL (Solo Autoridad) ---
+	if tiempo_cooldown > 0:
+		tiempo_cooldown -= delta
+		
+	# Activar aura con el botón de interacción definido en la UI ("interactuar")
+	if Input.is_action_just_pressed("interactuar") and not aura_activa and tiempo_cooldown <= 0:
+		aura_activa = true
+		aura_radio_actual = RADIO_DETECCION
+		if has_node("Aura"):
+			$Aura.visible = true
+			$Aura.scale = Vector3(aura_radio_actual, 1.0, aura_radio_actual)
+	
+	# Lógica de encogimiento
+	if aura_activa:
+		aura_radio_actual -= VELOCIDAD_ENCOGIMIENTO * delta
+		if has_node("Aura"):
+			$Aura.scale = Vector3(aura_radio_actual, 1.0, aura_radio_actual)
+			
+		if aura_radio_actual <= 0:
+			aura_activa = false
+			aura_radio_actual = 0.0
+			tiempo_cooldown = TIEMPO_RECARGA
+			if has_node("Aura"):
+				$Aura.visible = false
 
-	# --- 6. MOVIMIENTO FINAL ---
+	# --- 5.1 ACTUALIZAR VISUAL DEL BOTÓN (Solo Autoridad) ---
+	if controles_tactiles:
+		var btn = controles_tactiles.get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
+		if btn and btn.material:
+			if tiempo_cooldown > 0:
+				# Grisáceo y transparente durante la recarga
+				btn.material.set_shader_parameter("color_solido", Color(0.2, 0.2, 0.2, 0.3))
+			else:
+				# Azul brillante cuando está listo
+				btn.material.set_shader_parameter("color_solido", Color(0.101, 0.442, 1.5, 0.306))
+
+	# --- 6. DETECCIÓN Y MANIPULACIÓN DE PLATAFORMAS ---
+	_actualizar_proximidad_plataformas()
+
+	# --- 7. MOVIMIENTO FINAL ---
 	if global_position.y < LIMITE_CAIDA_Y:
 		global_position = posicion_inicial
 
 	move_and_slide()
 
-func _actualizar_plataformas_detectadas() -> void:
-	"""Detecta plataformas cercanas al fantasma usando distancia directa"""
-	plataformas_detectadas.clear()
-	
-	# Búsqueda simple basada en distancia
+func _actualizar_proximidad_plataformas() -> void:
+	"""Activa plataformas si el aura está activa y están dentro de su radio actual"""
 	for plataforma in plataformas_registradas:
-		var distancia = global_position.distance_to(plataforma.global_position)
-		if distancia <= RADIO_DETECCION:
-			plataformas_detectadas.append(plataforma)
+		var path = plataforma.get_path()
+		var esta_en_rango = false
+		
+		# Solo se activan si el aura está encendida y la plataforma está dentro del radio decreciente
+		if aura_activa:
+			var distancia = global_position.distance_to(plataforma.global_position)
+			esta_en_rango = distancia <= aura_radio_actual
+		
+		# Solo enviamos el RPC si el estado cambia para no saturar la red
+		var estado_actual = plataformas_activas.get(path, false)
+		
+		if esta_en_rango != estado_actual:
+			rpc_sincronizar_estado_plataforma.rpc(path, esta_en_rango)
+			print("[Fantasma] Proximidad: ", plataforma.name, " -> ", "ACTIVA" if esta_en_rango else "INACTIVA")
 
-func _procesar_entrada_plataformas() -> void:
-	"""Procesa la entrada para seleccionar/deseleccionar plataformas"""
-	# Detectar clic/tap o tecla ui_select
-	if Input.is_action_just_pressed("ui_select") and plataformas_detectadas.size() > 0:
-		# Seleccionar la plataforma más cercana
-		var plataforma_cercana = _obtener_plataforma_mas_cercana()
-		if plataforma_cercana:
-			_alternar_plataforma(plataforma_cercana)
-
-func _obtener_plataforma_mas_cercana() -> Node3D:
-	"""Obtiene la plataforma detectada más cercana al fantasma"""
-	var distancia_minima = INF
-	var plataforma_cercana = null
-	
-	for plataforma in plataformas_detectadas:
-		var distancia = global_position.distance_to(plataforma.global_position)
-		if distancia < distancia_minima:
-			distancia_minima = distancia
-			plataforma_cercana = plataforma
-	
-	return plataforma_cercana
-
-func _alternar_plataforma(plataforma: Node3D) -> void:
-	"""Alterna el estado de una plataforma (activa/inactiva)"""
-	var path = plataforma.get_path()
-	var estado_actual = plataformas_activas.get(path, false)
-	plataformas_activas[path] = not estado_actual
-	
-	# Cambiar la visibilidad y colisión de la plataforma
-	_aplicar_estado_plataforma(plataforma, plataformas_activas[path])
-	
-	print("[Fantasma] Plataforma '%s' %s (distancia: %.2f m)" % [
-		plataforma.name,
-		"ACTIVADA" if plataformas_activas[path] else "DESACTIVADA",
-		global_position.distance_to(plataforma.global_position)
-	])
+@rpc("any_peer", "call_local", "reliable")
+func rpc_sincronizar_estado_plataforma(camino_nodo: NodePath, activo: bool) -> void:
+	var plataforma = get_node_or_null(camino_nodo)
+	if plataforma:
+		plataformas_activas[camino_nodo] = activo
+		_aplicar_estado_plataforma(plataforma, activo)
+		
+		print("[Red] Plataforma '%s' sincronizada: %s" % [
+			plataforma.name, 
+			"ACTIVA" if activo else "INACTIVA"
+		])
 
 func _aplicar_estado_plataforma(plataforma: Node3D, activa: bool) -> void:
 	"""Aplica el estado de visibilidad y colisión a una plataforma"""
 	if activa:
-		# Activa: visible y colisionable con el jugador vivo
-		plataforma.collision_layer = 2
-		plataforma.collision_mask = 2
+		# Activa: sólido para vivo (2) y fantasma (8) -> valor 10
+		plataforma.collision_layer = 10
+		plataforma.collision_mask = 10
 		_cambiar_opacidad_plataforma(plataforma, 1.0)  # Visible
 	else:
-		# Inactiva: invisible y sin colisión
-		plataforma.collision_layer = 0
-		plataforma.collision_mask = 0
+		# Inactiva: solo sólido para el fantasma (8)
+		plataforma.collision_layer = 8
+		plataforma.collision_mask = 8
 		_cambiar_opacidad_plataforma(plataforma, 0.5)  # Semi-transparente
 
 func _cambiar_opacidad_plataforma(plataforma: Node3D, opacidad: float) -> void:
@@ -221,7 +324,11 @@ func obtener_plataformas_activas() -> Dictionary:
 
 func obtener_plataformas_detectadas() -> Array:
 	"""Retorna las plataformas actualmente detectadas"""
-	return plataformas_detectadas.duplicate()
+	var detectadas = []
+	for plat in plataformas_registradas:
+		if global_position.distance_to(plat.global_position) <= RADIO_DETECCION:
+			detectadas.append(plat)
+	return detectadas
 
 func reiniciar_posicion() -> void:
 	"""Reinicia el fantasma a su posición inicial"""
