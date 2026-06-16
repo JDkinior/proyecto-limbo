@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://c0thldihqr588"]
 
-[ext_resource type="Script" path="res://scripts/characters/fantasma.gd" id="1_fantasma"]
-[ext_resource type="Script" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
+[ext_resource type="Script" uid="uid://ctluysrmto2cl" path="res://scripts/characters/fantasma.gd" id="1_fantasma"]
+[ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08
@@ -11,8 +11,8 @@ transparency = 1
 albedo_color = Color(0.3647059, 0.6156863, 1, 0.5176471)
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_s731d"]
-height = 1.08
 material = SubResource("StandardMaterial3D_gdkjs")
+height = 1.08
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aura"]
 transparency = 1
@@ -34,16 +34,14 @@ properties/1/spawn = true
 properties/1/replication_mode = 1
 
 [node name="Fantasma" type="CharacterBody3D" unique_id=1234024380]
-script = ExtResource("1_fantasma")
 collision_layer = 4
 collision_mask = 5
+script = ExtResource("1_fantasma")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=106071983]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 shape = SubResource("CapsuleShape3D_gdkjs")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=407544265]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 mesh = SubResource("CapsuleMesh_s731d")
 
 [node name="Aura" type="MeshInstance3D" parent="." unique_id=9998]
@@ -58,5 +56,5 @@ transform = Transform3D(1, 0, 0, 0, 0.93401134, 0.35724342, 0, -0.35724342, 0.93
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=726978411]
 replication_config = SubResource("SceneReplicationConfig_fantasma")
 
-[node name="HabilidadAura" type="Node3D" parent="."]
+[node name="HabilidadAura" type="Node3D" parent="." unique_id=1968917712]
 script = ExtResource("2_aura_comp")

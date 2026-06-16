@@ -34,7 +34,11 @@ func _ready():
 		# Exclude layer 4 (Objetivo/Moneda) so coins are not visible.
 		camera.cull_mask = (1 << 0) | (1 << 1) | (1 << 2)  # layers 1 (default), 2 and 3
 
-	collision_mask |= 1 << 3  # Añade capa 4 (Objetivo/Moneda) al mask
+	# Fantasma pertenece SOLO a capa 3 (Plano Espiritual)
+	collision_layer = 1 << 2   # solo capa 3
+	# Máscara: detecta capa 1 (entorno), capa 3 (plataformas espirituales), capa 4 (monedas/objetivo)
+	# NO incluye capa 2 (Jugador) → no colisiona con el jugador
+	collision_mask = (1 << 0) | (1 << 2) | (1 << 3)
 
 	_inicializar_plataformas()
 

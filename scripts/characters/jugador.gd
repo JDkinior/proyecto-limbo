@@ -3,7 +3,11 @@ class_name Jugador
 
 func _ready():
 	super()
-	collision_mask |= 1 << 3  # enable layer 4 (Objetivo/Moneda)
+	# Jugador pertenece SOLO a capa 2 (Plano Físico)
+	collision_layer = 1 << 1   # solo capa 2
+	# Máscara: detecta capa 1 (entorno), capa 2 (plataformas físicas), capa 4 (monedas/objetivo)
+	# NO incluye capa 3 (Fantasma) → no colisiona con el fantasma
+	collision_mask = (1 << 0) | (1 << 1) | (1 << 3)
 	if is_instance_valid(RedManager):
 		RedManager.registrar_jugador(self)
 
