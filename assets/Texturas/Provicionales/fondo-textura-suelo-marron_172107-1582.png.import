@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bkck6qaicewgo"
-path.s3tc="res://.godot/imported/fondo-textura-suelo-marron_172107-1582.png-f57965827bdc51806c1578298cc012cb.s3tc.ctex"
+path.s3tc="res://.godot/imported/fondo-textura-suelo-marron_172107-1582.png-3e50ab9e2279c9b6d57211df5ac58a9b.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://Texturas/Provicionales/fondo-textura-suelo-marron_172107-1582.png"
-dest_files=["res://.godot/imported/fondo-textura-suelo-marron_172107-1582.png-f57965827bdc51806c1578298cc012cb.s3tc.ctex"]
+source_file="res://assets/Texturas/Provicionales/fondo-textura-suelo-marron_172107-1582.png"
+dest_files=["res://.godot/imported/fondo-textura-suelo-marron_172107-1582.png-3e50ab9e2279c9b6d57211df5ac58a9b.s3tc.ctex"]
 
 [params]
 

@@ -10,8 +10,8 @@ var anterior_estado: Dictionary = {}
 
 func _ready():
 	# Buscar referencias a los personajes
-	fantasma_ref = get_node_or_null("Fantasma")
-	jugador_ref = get_node_or_null("Jugador")
+	fantasma_ref = get_node_or_null("../Fantasma")
+	jugador_ref = get_node_or_null("../Jugador")
 	
 	if fantasma_ref:
 		print("AdministradorPlataformas: Fantasma encontrado")
@@ -58,15 +58,16 @@ func _notificar_cambio_plataforma(ruta_plataforma: String, activa: bool) -> void
 func _aplicar_colisiones_plataforma(plataforma: Node3D, activa: bool) -> void:
 	"""Aplica los cambios de colisión a una plataforma"""
 	if activa:
-		# Hacer la plataforma sólida y visible
-		plataforma.collision_layer = 2
-		plataforma.collision_mask = 2
+		# Activa: sólido para vivo (2) y fantasma (8) -> valor 10 (8+2)
+		plataforma.collision_layer = 10
+		plataforma.collision_mask = 10
 		_cambiar_opacidad_plataforma(plataforma, 1.0)
 		print("Plataforma %s activada" % plataforma.name)
 	else:
-		# Hacer la plataforma intangible y semi-transparente
-		plataforma.collision_layer = 0
-		plataforma.collision_mask = 0
+		# Inactiva: solo sólido para el fantasma (8)
+		# Esto permite que el fantasma camine sobre ella pero el vivo la atraviese
+		plataforma.collision_layer = 8
+		plataforma.collision_mask = 8
 		_cambiar_opacidad_plataforma(plataforma, 0.5)
 		print("Plataforma %s desactivada" % plataforma.name)
 

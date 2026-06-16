@@ -1,62 +1,52 @@
-extends CharacterBody3D
+extends CharacterBase
+class_name Fantasma
 
-@export var VELOCIDAD : float = 5.0
-@export var ACELERACION_SUELO : float = 24.0
-@export var DESACELERACION_SUELO : float = 30.0
-@export var ACELERACION_AIRE : float = 10.0
-@export var FUERZA_SALTO = 4.5
-@export var MULTIPLICADOR_SEGUNDO_SALTO : float = 0.9
-@export var MULTIPLICADOR_CAIDA : float = 1.9
-@export var MULTIPLICADOR_CORTE_SALTO : float = 2.2
-@export var SENSIBILIDAD_CAMARA = 0.005
-@export var SUAVIDAD_CAMARA : float = 18.0
-@export var TIEMPO_COYOTE : float = 0.12
+signal aura_estado_actualizado(activo: bool, progreso: float)
+
+@export_group("Movimiento Espectral")
+@export var FUERZA_SALTO = 6.0
+@export var MULTIPLICADOR_SEGUNDO_SALTO : float = 1.2
+@export var MULTIPLICADOR_CAIDA : float = 1.2
+@export var MULTIPLICADOR_CORTE_SALTO : float = 2.0
+@export var TIEMPO_COYOTE : float = 0.15
 @export var TIEMPO_BUFFER_SALTO : float = 0.12
 @export var MAX_SALTOS : int = 2
-@export var LIMITE_CAIDA_Y : float = -20.0
-@export var RADIO_DETECCION : float = 10.0  # Radio inicial del aura al activarse
-@export var VELOCIDAD_ENCOGIMIENTO : float = 2.5 # Qué tan rápido se reduce el radio por segundo
-@export var TIEMPO_RECARGA : float = 4.0      # Segundos que tarda en poder usarse de nuevo
-@export var fantasma_camera_environment: Environment # Entorno para la cámara del fantasma
 
-# Gravedad predeterminada del proyecto
-var gravedad = ProjectSettings.get_setting("physics/3d/default_gravity")
+@export_group("Configuración Visual")
+@export var fantasma_camera_environment: Environment # Entorno para la cámara del fantasma
+@export var RADIO_DETECCION : float = 10.0 # Radio máximo de detección para plataformas
+
 var tiempo_desde_suelo : float = 0.0
 var tiempo_desde_salto : float = 0.0
-var objetivo_rotacion_y : float = 0.0
-var objetivo_rotacion_x : float = 0.0
 var saltos_realizados : int = 0
-var posicion_inicial : Vector3
 
-# Sistema de plataformas
 var plataformas_activas : Dictionary = {}  # {nodo_path: bool}
 var plataformas_registradas : Array = []
-var aura_activa : bool = false
-var aura_radio_actual : float = 0.0
-var tiempo_cooldown : float = 0.0
-
-@onready var pivote_camara = $Node3D
-@onready var controles_tactiles = get_node_or_null("../Controles_Tactiles")
 
 var _original_camera_environment: Environment
+@onready var habilidad_aura = $HabilidadAura
 
 func _ready():
-	# Ejecutamos la lógica de visibilidad inicial
-	actualizar_visibilidad_local()
-	
-	objetivo_rotacion_y = rotation.y
-	if pivote_camara:
-		objetivo_rotacion_x = pivote_camara.rotation.x
-		# Almacenar el entorno original de la cámara (probablemente null si usa WorldEnvironment)
-		if pivote_camara.has_node("Camera3D"):
-			_original_camera_environment = pivote_camara.get_node("Camera3D").environment
-	posicion_inicial = global_position
+	super() # Inicializa cámara y posición desde CharacterBase
+	if pivote_camara and pivote_camara.has_node("Camera3D"):
+		_original_camera_environment = pivote_camara.get_node("Camera3D").environment
 
-	# Inicializar sistema de plataformas
 	_inicializar_plataformas()
-	print("[Fantasma] Inicializado en posición: ", global_position)
+
+	if is_instance_valid(RedManager):
+		RedManager.registrar_jugador(self)
+
+	if habilidad_aura:
+		habilidad_aura.radio_maximo = RADIO_DETECCION
+		habilidad_aura.estado_cambiado.connect(_on_aura_estado_cambiado)
+
+func _on_aura_estado_cambiado(activo: bool, progreso: float):
+	"""Manejador de señal del componente HabilidadAura"""
+	aura_estado_actualizado.emit(activo, progreso)
+	_actualizar_visual_boton_aura(activo, progreso)
 
 func actualizar_visibilidad_local():
+	super()
 	"""Configura qué elementos son visibles solo para el jugador que controla este personaje"""
 	var es_mio = is_multiplayer_authority()
 	
@@ -166,7 +156,7 @@ func _physics_process(delta):
 	# --- 2. GRAVEDAD ---
 	var salto_mantenido = Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept")
 	if not is_on_floor():
-		var gravedad_actual = gravedad
+		var gravedad_actual = gravity
 		if velocity.y < 0.0:
 			gravedad_actual *= MULTIPLICADOR_CAIDA
 		elif velocity.y > 0.0 and not salto_mantenido:
@@ -213,61 +203,35 @@ func _physics_process(delta):
 		velocity.x = move_toward(velocity.x, 0, DESACELERACION_SUELO * delta)
 		velocity.z = move_toward(velocity.z, 0, DESACELERACION_SUELO * delta)
 
-	# --- 5. SISTEMA DE AURA TEMPORAL (Solo Autoridad) ---
-	if tiempo_cooldown > 0:
-		tiempo_cooldown -= delta
-		
-	# Activar aura con el botón de interacción definido en la UI ("interactuar")
-	if Input.is_action_just_pressed("interactuar") and not aura_activa and tiempo_cooldown <= 0:
-		aura_activa = true
-		aura_radio_actual = RADIO_DETECCION
-		if has_node("Aura"):
-			$Aura.visible = true
-			$Aura.scale = Vector3(aura_radio_actual, 1.0, aura_radio_actual)
-	
-	# Lógica de encogimiento
-	if aura_activa:
-		aura_radio_actual -= VELOCIDAD_ENCOGIMIENTO * delta
-		if has_node("Aura"):
-			$Aura.scale = Vector3(aura_radio_actual, 1.0, aura_radio_actual)
-			
-		if aura_radio_actual <= 0:
-			aura_activa = false
-			aura_radio_actual = 0.0
-			tiempo_cooldown = TIEMPO_RECARGA
-			if has_node("Aura"):
-				$Aura.visible = false
+	# --- 5. ACTIVACIÓN DE AURA (Delegada al componente) ---
+	if Input.is_action_just_pressed("interactuar") and habilidad_aura:
+		habilidad_aura.intentar_activar()
 
-	# --- 5.1 ACTUALIZAR VISUAL DEL BOTÓN (Solo Autoridad) ---
-	if controles_tactiles:
-		var btn = controles_tactiles.get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
-		if btn and btn.material:
-			if tiempo_cooldown > 0:
-				# Grisáceo y transparente durante la recarga
-				btn.material.set_shader_parameter("color_solido", Color(0.2, 0.2, 0.2, 0.3))
-			else:
-				# Azul brillante cuando está listo
-				btn.material.set_shader_parameter("color_solido", Color(0.101, 0.442, 1.5, 0.306))
-
-	# --- 6. DETECCIÓN Y MANIPULACIÓN DE PLATAFORMAS ---
-	_actualizar_proximidad_plataformas()
-
-	# --- 7. MOVIMIENTO FINAL ---
+	# --- 6. MOVIMIENTO FINAL ---
 	if global_position.y < LIMITE_CAIDA_Y:
 		global_position = posicion_inicial
 
 	move_and_slide()
 
-func _actualizar_proximidad_plataformas() -> void:
+func _actualizar_visual_boton_aura(activo: bool, progreso: float):
+	"""Actualiza el color del botón en la UI según el estado del aura"""
+	if not controles_tactiles: return
+	var btn = controles_tactiles.get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
+	if btn and btn.material:
+		if not activo and progreso < 1.0 and progreso > 0: # Recargando
+			btn.material.set_shader_parameter("color_solido", Color(0.2, 0.2, 0.2, 0.3))
+		else: # Listo o Activo
+			btn.material.set_shader_parameter("color_solido", Color(0.101, 0.442, 1.5, 0.306))
+
+func _actualizar_proximidad_plataformas(radio_aura: float) -> void:
 	"""Activa plataformas si el aura está activa y están dentro de su radio actual"""
 	for plataforma in plataformas_registradas:
 		var path = plataforma.get_path()
 		var esta_en_rango = false
 		
-		# Solo se activan si el aura está encendida y la plataforma está dentro del radio decreciente
-		if aura_activa:
+		if habilidad_aura and habilidad_aura.esta_activa():
 			var distancia = global_position.distance_to(plataforma.global_position)
-			esta_en_rango = distancia <= aura_radio_actual
+			esta_en_rango = distancia <= radio_aura
 		
 		# Solo enviamos el RPC si el estado cambia para no saturar la red
 		var estado_actual = plataformas_activas.get(path, false)

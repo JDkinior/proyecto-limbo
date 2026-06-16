@@ -1,11 +1,10 @@
 [gd_scene format=3 uid="uid://c70wmkhtlmix2"]
 
-[ext_resource type="PackedScene" uid="uid://bes5wq0vlvbx" path="res://fantasma.tscn" id="1_fantasma"]
-[ext_resource type="PackedScene" uid="uid://ctqosdk7pn6nr" path="res://jugador.tscn" id="1_l5la3"]
-[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://controles_tactiles.tscn" id="1_qrrgk"]
-[ext_resource type="Script" uid="uid://b8bvwaut6jq1b" path="res://Scripts/red_manager.gd" id="1_qxw81"]
-[ext_resource type="Texture2D" uid="uid://bkck6qaicewgo" path="res://Texturas/Provicionales/fondo-textura-suelo-marron_172107-1582.png" id="3_t2mlv"]
-[ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://Scripts/administrador_plataformas.gd" id="admin_plat"]
+[ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="1_fantasma"]
+[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="1_l5la3"]
+[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="1_qrrgk"]
+[ext_resource type="Texture2D" uid="uid://bkck6qaicewgo" path="res://assets/Texturas/Provicionales/fondo-textura-suelo-marron_172107-1582.png" id="3_t2mlv"]
+[ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="admin_plat"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_tj580"]
 sky_top_color = Color(0.47897124, 0.71860796, 0.66568565, 1)
@@ -40,18 +39,12 @@ uv1_scale = Vector3(7, 7, 7)
 [sub_resource type="BoxMesh" id="BoxMesh_qrrgk"]
 material = SubResource("StandardMaterial3D_t2mlv")
 
-[node name="Mundo_Pruebas" type="Node3D" unique_id=406520819 node_paths=PackedStringArray("jugador_vivo", "fantasma")]
-script = ExtResource("1_qxw81")
-jugador_vivo = NodePath("Jugador")
-fantasma = NodePath("Fantasma")
+[node name="Mundo_Pruebas" type="Node3D" unique_id=406520819]
 
 [node name="AdministradorPlataformas" type="Node3D" parent="." unique_id=9999]
 script = ExtResource("admin_plat")
 
 [node name="Controles_Tactiles" parent="." unique_id=1456756494 instance=ExtResource("1_qrrgk")]
-
-[node name="Jugador" parent="." unique_id=1234024379 instance=ExtResource("1_l5la3")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22444451, 1, 2.3451672)
 
 [node name="Fantasma" parent="." unique_id=1234024380 instance=ExtResource("1_fantasma")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1, 2.3451672)
@@ -125,3 +118,6 @@ shape = SubResource("BoxShape3D_l5la3")
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Caja_Fisica4" unique_id=692135436]
 transform = Transform3D(0.7, 0, 0, 0, 32.276123, 0, 0, 0, 0.6999997, 0, -14.218689, 0)
 mesh = SubResource("BoxMesh_qrrgk")
+
+[node name="Jugador" parent="." unique_id=1234024379 instance=ExtResource("1_l5la3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2059557, 1.0131311, 1.4865632)

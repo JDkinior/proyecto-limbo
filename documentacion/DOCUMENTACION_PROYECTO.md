@@ -86,5 +86,15 @@ Implementar una comunicación de "Arriba hacia Abajo" (Llamadas de funciones) y 
 3.  **Comunicación**: El componente emite una señal informando el cambio de estado.
 4.  **Visual**: Los Shaders, la UI y los Efectos de Partículas reaccionan a la señal de forma independiente.
 
+
+
+
+### Notas:
+Si en el futuro quieres que el fantasma deje rastro o tenga efectos que el jugador vivo no deba ver nunca (incluso si están activos), la mejor práctica es usar Cull Layers:
+
+1. Pones el Aura en la Capa Visual 2.
+2. Configuras la cámara del Fantasma para ver capas 1 y 2.
+3. Configuras la cámara del Vivo para ver solo la capa 1. De esta forma, el motor ni siquiera intentará renderizar el aura en la cámara del jugador vivo.
+
 ---
 *Documento generado para el equipo de desarrollo de Proyecto Limbo.*

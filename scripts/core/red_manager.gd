@@ -1,10 +1,34 @@
-extends Node
+extends Node # Configurar como Autoload con nombre 'RedManager'
 
 const PORT = 7000
 const ADDRESS = "127.0.0.1" # Cambiar por IP pública para jugar por internet
 
-@export var jugador_vivo: CharacterBody3D
-@export var fantasma: CharacterBody3D
+var jugador_vivo: Jugador # Usamos el class_name específico
+var fantasma: Fantasma   # Usamos el class_name específico
+
+func registrar_jugador(p: CharacterBase):
+	if p is Fantasma: 
+		fantasma = p
+	elif p is Jugador:
+		jugador_vivo = p
+	
+	_intentar_asignar_autoridades()
+
+func _intentar_asignar_autoridades():
+	if not multiplayer.multiplayer_peer: return
+	
+	if multiplayer.is_server() and jugador_vivo:
+		jugador_vivo.set_multiplayer_authority(1)
+		# El fantasma recibirá autoridad cuando el peer se conecte
+
+func _personajes_listos() -> bool:
+	if not jugador_vivo:
+		push_warning("[Red] No se encontro el Jugador. Revisa que la escena tenga un nodo con script Jugador.")
+		return false
+	if not fantasma:
+		push_warning("[Red] No se encontro el Fantasma. Revisa que la escena tenga un nodo con script Fantasma.")
+		return false
+	return true
 
 func _ready():
 	# Configuración inicial: Por defecto nadie tiene autoridad hasta conectar
@@ -50,6 +74,8 @@ func _input(event):
 			if has_node("MenuRed"): get_node("MenuRed").queue_free()
 
 func crear_partida():
+	if not _personajes_listos(): return
+
 	var peer = ENetMultiplayerPeer.new()
 	var error = peer.create_server(PORT, 2) # Máximo 2 jugadores
 	if error != OK:
@@ -82,6 +108,8 @@ func unirse_a_partida():
 	print("[Red] Intentando conectar al servidor...")
 
 func _al_conectarse_al_servidor():
+	if not _personajes_listos(): return
+
 	var id = multiplayer.get_unique_id()
 	# El CLIENTE toma la autoridad del Fantasma
 	fantasma.set_multiplayer_authority(id)
@@ -95,7 +123,7 @@ func _al_conectarse_al_servidor():
 
 func _on_peer_connected(id):
 	# Si somos el host y alguien se conecta, le damos la autoridad del fantasma
-	if multiplayer.is_server():
+	if multiplayer.is_server() and _personajes_listos():
 		fantasma.set_multiplayer_authority(id)
 		jugador_vivo.actualizar_visibilidad_local()
 		fantasma.actualizar_visibilidad_local()
