@@ -1,6 +1,6 @@
 # Proyecto Limbo - Documentacion Tecnica Actual
 
-Ultima actualizacion de este documento: 2026-06-16.
+Ultima actualizacion de este documento: 2026-06-16 (sesion nocturna).
 
 Este archivo describe el estado actual de Proyecto Limbo para que una persona o una IA pueda continuar el desarrollo sin perder contexto. Debe leerse como la fuente tecnica viva del proyecto: arquitectura, archivos, conexiones, reglas de red, flujo de control, convenciones y puntos delicados.
 
@@ -27,6 +27,7 @@ Datos importantes:
 - Fisica: Jolt Physics.
 - Autoload activo:
   - `RedManager`: `scripts/core/red_manager.gd`.
+  - `ScoreManager`: `scripts/core/score_manager.gd` (singleton de puntuacion, agregado 2026-06-16).
   - `_mcp_game_helper`: helper del addon `godot_ai`.
 - Controles tactiles:
   - `input_devices/pointing/emulate_touch_from_mouse=true`, util para probar controles moviles con mouse.
@@ -44,9 +45,22 @@ Nota importante: actualmente la logica de movimiento base usa `Input.get_vector(
 
 Capas fisicas nombradas:
 
-- Layer 1: `Estructura_Global`.
-- Layer 2: `Plano_Fisico`.
-- Layer 3: `Plano_Espiritual`.
+- Layer 1: `Estructura_Global` (entorno, suelo, paredes).
+- Layer 2: `Plano_Fisico` (Jugador Vivo).
+- Layer 3: `Plano_Espiritual` (Fantasma).
+- Layer 4: `Objetivo_Moneda` (monedas y objetivo de nivel, agregada 2026-06-16).
+
+Resumen rapido de colisiones entre capas:
+
+| Nodo | `collision_layer` | `collision_mask` | Colisiona con |
+| --- | --- | --- | --- |
+| Entorno/Suelo | Capa 1 (`1`) | Capa 1 (`1`) | Todo lo que escuche capa 1 |
+| Jugador | Capa 2 (`0b0010`) | Capas 1, 2, 4 (`0b1011`) | Entorno, plataformas fisicas, monedas/objetivo |
+| Fantasma | Capa 3 (`0b0100`) | Capas 1, 3, 4 (`0b1101`) | Entorno, plataformas espirituales, monedas/objetivo |
+| Moneda/Coin | Capa 4 (`0b1000`) | Capas 2, 3 (`0b0110`) | Jugador y Fantasma |
+| Goal/Objetivo | Capa 4 (`0b1000`) | Capas 2, 3 (`0b0110`) | Jugador y Fantasma |
+
+Nota critica: Jugador y Fantasma NO colisionan entre si. Jugador solo esta en capa 2, Fantasma solo en capa 3, y ninguno escucha la capa del otro.
 
 ## 3. Estructura De Carpetas
 
@@ -80,6 +94,10 @@ scripts/
   core/
     administrador_plataformas.gd
     red_manager.gd
+    score_manager.gd          # NUEVO: singleton de puntuacion
+  objects/
+    coin.gd                    # NUEVO: moneda coleccionable
+    goal.gd                    # NUEVO: objetivo de nivel
   ui/
     area_camara.gd
     boton_tactil_visual.gd
@@ -134,10 +152,11 @@ Script:
 
 - `scripts/characters/jugador.gd`.
 
-Colisiones actuales:
+Colisiones actuales (configuradas por codigo en `_ready()`):
 
-- `collision_layer = 4`.
-- `collision_mask = 3`.
+- `collision_layer = 1 << 1` → solo capa 2 (`Plano_Fisico`).
+- `collision_mask = (1 << 0) | (1 << 1) | (1 << 3)` → capas 1 (entorno), 2 (plataformas fisicas), 4 (monedas/objetivo).
+- NO incluye capa 3 en mask → no colisiona con el Fantasma.
 
 ### `scenes/characters/fantasma.tscn`
 
@@ -158,10 +177,16 @@ Scripts:
 - `scripts/characters/fantasma.gd`.
 - `scripts/characters/habilidad_aura.gd`.
 
-Colisiones actuales:
+Colisiones actuales (configuradas por codigo en `_ready()`):
 
-- `collision_layer = 4`.
-- `collision_mask = 5`.
+- `collision_layer = 1 << 2` → solo capa 3 (`Plano_Espiritual`).
+- `collision_mask = (1 << 0) | (1 << 2) | (1 << 3)` → capas 1 (entorno), 3 (plataformas espirituales), 4 (monedas/objetivo).
+- NO incluye capa 2 en mask → no colisiona con el Jugador.
+
+Camera cull_mask:
+
+- La camara del Fantasma usa `cull_mask = (1 << 0) | (1 << 1) | (1 << 2)` → renderiza capas 1, 2 y 3.
+- Excluye capa 4 → las monedas y el objetivo NO se dibujan en la pantalla del Fantasma, aunque este sigue pudiendo detectarlas por colision.
 
 ### `scenes/ui/controles_tactiles.tscn`
 
@@ -594,6 +619,16 @@ Durante juego
   Aura emite radio actualizado
   Fantasma activa plataformas en rango
   Plataformas se sincronizan por RPC
+
+  Jugador o Fantasma tocan moneda
+    Moneda llama rpc("_remover_para_todos")
+    ScoreManager incrementa puntuacion
+    Moneda desaparece en todos los peers
+
+  Ambos personajes tocan el Goal simultaneamente
+    Goal verifica que haya Jugador + Fantasma dentro
+    Goal llama rpc("rpc_change_scene", next_scene_path)
+    Todos los peers cambian a la escena siguiente
 ```
 
 ## 12. Diferencias Actuales Entre Personajes
@@ -602,13 +637,17 @@ Durante juego
 | --- | --- | --- |
 | Script | `jugador.gd` | `fantasma.gd` |
 | Base | `CharacterBase` | `CharacterBase` |
+| Collision layer | Capa 2 (`Plano_Fisico`) | Capa 3 (`Plano_Espiritual`) |
+| Collision mask | Capas 1, 2, 4 | Capas 1, 3, 4 |
+| Colision mutua | No colisionan entre si | No colisionan entre si |
 | Saltos | 2 | 1 |
 | Altura salto | Normal | Alta |
 | Caida | Rapida/fisica | Lenta/levitacion |
 | UI | Amarilla/original | Azul por shader |
-| Vision | Normal | Azul espiritual |
+| Vision | Normal | Azul espiritual (cull_mask excluye capa 4) |
 | Habilidad | Ninguna especial todavia | Aura temporal |
 | Plataformas | Solo usa activas | Detecta/activa con aura |
+| Monedas | Ve y recoge | Recoge pero NO ve (cull_mask) |
 | Red | Host ID 1 | Cliente |
 
 ## 13. Convenciones Importantes Para Futuras IA
@@ -717,6 +756,7 @@ Prioridad alta:
 3. Crear barra/indicador de energia del aura en UI.
 4. Crear menu principal real para Host/Join e IP.
 5. Validar red en dos instancias de Godot.
+6. Agregar UI de puntuacion (Label) que escuche `ScoreManager.score_changed`.
 
 Prioridad media:
 
@@ -727,13 +767,15 @@ Prioridad media:
 3. Implementar muerte/respawn sincronizado.
 4. Crear primera sala puzzle cooperativa.
 5. Separar entornos visuales en recursos `.tres` bien nombrados.
+6. Crear escenas `.tscn` para Coin y Goal con nodos preconfigurados (Area3D + CollisionShape3D + MeshInstance3D).
+7. Agregar efectos visuales/sonido a la recogida de monedas y al completar nivel.
 
 Prioridad baja:
 
-1. Ajustar cull layers para que efectos exclusivos del Fantasma no se rendericen en la camara del Vivo.
-2. Mejorar materiales y modelos temporales.
-3. Agregar sonidos de salto, aura y activacion de plataformas.
-4. Agregar feedback visual cuando una plataforma entra en rango del aura.
+1. Mejorar materiales y modelos temporales.
+2. Agregar sonidos de salto, aura y activacion de plataformas.
+3. Agregar feedback visual cuando una plataforma entra en rango del aura.
+4. Considerar pantalla de victoria/resumen al completar nivel antes de cambiar escena.
 
 ## 16. Como Agregar Una Nueva Habilidad
 
@@ -810,6 +852,7 @@ Completado:
 
 - Reorganizacion principal de carpetas.
 - `RedManager` como Autoload.
+- `ScoreManager` como Autoload (singleton de puntuacion).
 - Base compartida `CharacterBase`.
 - Jugador y Fantasma heredando de `CharacterBase`.
 - Aura componentizada en `HabilidadAura`.
@@ -817,6 +860,11 @@ Completado:
 - Fantasma diferenciado con salto unico alto y caida lenta.
 - Plataformas activables por aura con sincronizacion RPC.
 - Camaras locales segun autoridad multiplayer.
+- Sistema de monedas (`coin.gd`) con eliminacion sincronizada por RPC.
+- Objetivo de nivel (`goal.gd`) que requiere ambos personajes para activarse, con cambio de escena sincronizado por RPC.
+- Jugador y Fantasma NO colisionan entre si (capas 2 y 3 separadas, sin incluir la capa del otro en mask).
+- Camera cull_mask del Fantasma excluye capa 4 → monedas/objetivo no se renderizan en su pantalla.
+- Capa 4 (`Objetivo_Moneda`) creada y estandarizada para objetos coleccionables y objetivo.
 
 Pendiente o mejorable:
 
@@ -827,8 +875,116 @@ Pendiente o mejorable:
 - Barra visual de energia/cooldown.
 - Respawn sincronizado por red.
 - Validacion automatica con Godot desde consola.
+- UI de puntuacion (Label que escuche `ScoreManager.score_changed`).
+- Crear escenas `.tscn` para Coin y Goal con nodos preconfigurados.
+- Efectos visuales/sonido para recogida de monedas y completar nivel.
+- Pantalla de victoria/resumen antes de cambiar escena.
 
-## 20. Archivos Que Una IA Deberia Leer Primero
+## 20. Sistema De Objetos Interactivos (Nuevo)
+
+### `scripts/objects/coin.gd`
+
+Clase:
+
+```gdscript
+extends Area3D
+```
+
+Responsabilidades:
+
+- Representar una moneda coleccionable.
+- Incrementar la puntuacion mediante `ScoreManager`.
+- Eliminarse de forma sincronizada en todos los peers via RPC.
+
+Variable exportada:
+
+- `value: int = 1` → puntos que otorga al recogerla.
+
+Colisiones:
+
+- `collision_layer = 1 << 3` → capa 4 (`Objetivo_Moneda`).
+- `collision_mask = (1 << 1) | (1 << 2)` → detecta capas 2 (Jugador) y 3 (Fantasma).
+
+Flujo:
+
+1. Un personaje entra en el area.
+2. Si el peer tiene autoridad, llama `ScoreManager.add_score(value)`.
+3. Llama `rpc("_remover_para_todos")` para eliminar la moneda en todos los peers.
+4. `queue_free()` local como respaldo.
+
+Nota visual: la camara del Fantasma tiene `cull_mask` sin capa 4, por lo que las monedas no se ven en su pantalla, aunque puede recogerlas.
+
+### `scripts/objects/goal.gd`
+
+Clase:
+
+```gdscript
+extends Area3D
+```
+
+Responsabilidades:
+
+- Representar el objetivo de nivel.
+- Cambiar de escena solo cuando ambos personajes (Jugador y Fantasma) estan dentro simultaneamente.
+- Sincronizar el cambio de escena en todos los peers.
+
+Variable exportada:
+
+- `next_scene_path: String = "res://scenes/levels/mundo_pruebas.tscn"` → ruta de la siguiente escena. Configurable desde el inspector.
+
+Colisiones:
+
+- `collision_layer = 1 << 3` → capa 4 (`Objetivo_Moneda`).
+- `collision_mask = (1 << 1) | (1 << 2)` → detecta capas 2 y 3.
+
+Flujo:
+
+1. Cada vez que un personaje entra, se agrega a `_cuerpos_dentro`.
+2. Cada vez que un personaje sale, se remueve de `_cuerpos_dentro`.
+3. `_verificar_activacion()` comprueba si hay al menos un `Jugador` y un `Fantasma`.
+4. Si ambos estan presentes y el peer tiene autoridad, llama `rpc("rpc_change_scene", next_scene_path)`.
+5. El RPC ejecuta `get_tree().change_scene_to_file(path)` en todos los peers.
+
+### `scripts/core/score_manager.gd`
+
+Clase:
+
+```gdscript
+extends Node
+```
+
+Es Autoload con nombre `ScoreManager`.
+
+Responsabilidades:
+
+- Mantener la variable `score: int`.
+- Emitir la senal `score_changed(new_score)` al incrementar.
+- Funcion `add_score(value)` para sumar puntos.
+
+Pendiente:
+
+- Crear un nodo de UI (Label) que escuche `score_changed` y muestre el puntaje.
+- Evaluar si la puntuacion debe sincronizarse por red o si cada peer lleva su propia cuenta.
+
+### Como Agregar Una Nueva Moneda Al Nivel
+
+1. Crear un `Area3D` en la escena del nivel.
+2. Asignar el script `scripts/objects/coin.gd`.
+3. Agregar un `CollisionShape3D` hijo (esfera o caja pequena).
+4. Agregar un `MeshInstance3D` hijo para la representacion visual.
+5. En el inspector, configurar `value` si se quiere un valor distinto de 1.
+6. Las capas se configuran automaticamente por codigo.
+
+### Como Agregar El Objetivo De Nivel
+
+1. Crear un `Area3D` en la escena del nivel.
+2. Asignar el script `scripts/objects/goal.gd`.
+3. Agregar un `CollisionShape3D` hijo (zona donde deben pararse ambos personajes).
+4. Agregar representacion visual (mesh, particulas, modelo).
+5. En el inspector, configurar `next_scene_path` con la ruta de la siguiente escena.
+6. Ambos personajes deben estar dentro simultaneamente para activar el cambio.
+
+## 21. Archivos Que Una IA Deberia Leer Primero
 
 Orden recomendado:
 
@@ -840,7 +996,10 @@ Orden recomendado:
 6. `scripts/characters/fantasma.gd`.
 7. `scripts/characters/habilidad_aura.gd`.
 8. `scripts/core/red_manager.gd`.
-9. `scripts/ui/controles_tactiles.gd`.
-10. `scripts/core/administrador_plataformas.gd`.
+9. `scripts/core/score_manager.gd`.
+10. `scripts/objects/coin.gd`.
+11. `scripts/objects/goal.gd`.
+12. `scripts/ui/controles_tactiles.gd`.
+13. `scripts/core/administrador_plataformas.gd`.
 
 Con ese orden se entiende primero el objetivo, luego la configuracion, despues la escena principal y finalmente los sistemas que se comunican entre si.

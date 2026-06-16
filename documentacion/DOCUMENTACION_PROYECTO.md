@@ -15,10 +15,10 @@ Proyecto Limbo es un juego cooperativo asimétrico desarrollado en **Godot 4**. 
 *   **`red_manager.gd`**: El corazón del multijugador P2P. Gestiona la creación de servidores (Host) y la conexión de clientes (Join), asignando la autoridad de red a cada jugador.
 *   **`jugador.gd`**: Controla el movimiento, salto y rotación de cámara del jugador vivo. Incluye lógica para limpiar la interfaz de efectos visuales del fantasma.
 *   **`fantasma.gd`**: Script avanzado que gestiona:
-    *   Movimiento y doble salto.
-    *   Sistema de **Aura Temporal**: Se activa con energía que se consume (encogimiento) y tiene tiempo de recarga.
-    *   Sincronización RPC de plataformas.
-    *   Visión espiritual (filtro azul) y teñido de interfaz mediante Shaders.
+	*   Movimiento y doble salto.
+	*   Sistema de **Aura Temporal**: Se activa con energía que se consume (encogimiento) y tiene tiempo de recarga.
+	*   Sincronización RPC de plataformas.
+	*   Visión espiritual (filtro azul) y teñido de interfaz mediante Shaders.
 *   **`administrador_plataformas.gd`**: Detecta y registra las plataformas en el mundo para que el fantasma pueda interactuar con ellas.
 
 ## 🌐 Sistema Multijugador (P2P)
@@ -42,8 +42,8 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 ### Implementaciones del día:
 *   **Separación de Autoridad**: Se corrigió el error donde ambos personajes se movían al mismo tiempo. Ahora cada instancia controla solo a su personaje asignado.
 *   **Interfaz Dinámica**: 
-    *   Se implementó un **Shader** en tiempo de ejecución que tiñe la interfaz de azul para el Fantasma, eliminando el color verde no deseado.
-    *   El Jugador Vivo recupera su color original automáticamente al conectar.
+	*   Se implementó un **Shader** en tiempo de ejecución que tiñe la interfaz de azul para el Fantasma, eliminando el color verde no deseado.
+	*   El Jugador Vivo recupera su color original automáticamente al conectar.
 *   **Aura Evolucionada**: La habilidad del Fantasma ya no es pasiva. Ahora se activa con el botón "Interactuar", tiene un radio que se encoge con el tiempo y entra en *cooldown* (recarga) tras agotarse.
 *   **Visión Espiritual**: Se añadió un efecto de ambiente (`Environment`) con corrección de color mediante gradientes para que el Fantasma vea el mundo en tonos azules.
 *   **Física Independiente**: Se configuraron capas de colisión para que el Fantasma pueda caminar sobre plataformas incluso cuando son intangibles para el Jugador Vivo.
@@ -64,14 +64,14 @@ Para asegurar que el proyecto pueda crecer sin volverse inmanejable, se recomien
 Separar los recursos por dominio y tipo para evitar carpetas saturadas:
 *   **`assets/`**: Modelos 3D, Texturas, Sonidos y recursos de Entorno (`.tres`).
 *   **`scenes/`**:
-    *   `characters/`: Escenas de los personajes.
-    *   `ui/`: Interfaces y menús.
-    *   `levels/`: Mapas y mundos.
-    *   `components/`: Nodos reutilizables (Cámaras, Áreas de detección).
+	*   `characters/`: Escenas de los personajes.
+	*   `ui/`: Interfaces y menús.
+	*   `levels/`: Mapas y mundos.
+	*   `components/`: Nodos reutilizables (Cámaras, Áreas de detección).
 *   **`scripts/`**:
-    *   `core/`: Singletons/Autoloads (Red, Configuración Global).
-    *   `base/`: Clases maestras de las que heredan otros scripts.
-    *   `ui/`: Lógica de control de interfaz.
+	*   `core/`: Singletons/Autoloads (Red, Configuración Global).
+	*   `base/`: Clases maestras de las que heredan otros scripts.
+	*   `ui/`: Lógica de control de interfaz.
 
 ### 2. Refactorización de Lógica
 *   **Herencia de Personajes**: Crear un `BaseCharacter.gd` que gestione el movimiento 3D, gravedad y cámara compartido. `jugador.gd` y `fantasma.gd` solo extenderán esta clase para añadir sus habilidades únicas.
