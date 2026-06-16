@@ -84,9 +84,6 @@ size = Vector3(6.4, 1.6, 6.4)
 [sub_resource type="SphereShape3D" id="SphereShape3D_4d6ab"]
 radius = 0.8
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_gyaad"]
-size = Vector3(1, 1, 3)
-
 [node name="Mundo_Pruebas" type="Node3D" unique_id=406520819]
 
 [node name="AdministradorPlataformas" type="Node3D" parent="." unique_id=9999]
@@ -424,14 +421,9 @@ transform = Transform3D(4.2, 0, 0, 0, 3.7200003, 0, 0, 0, 1, -5, 5, -57)
 collision_layer = 8
 collision_mask = 8
 script = ExtResource("33_k0dss")
-next_scene_path = "res://scenes/levels/nivel 2.tscn"
 
 [node name="WallLight2" parent="Area3D2" unique_id=1877292903 instance=ExtResource("34_76twr")]
 transform = Transform3D(1.9106857e-15, 1.04907336e-07, 0.9999997, 1.0000002, -1.04907336e-07, 0, 4.37114e-08, 2.4, -4.3711378e-08, 0, 0, 0)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D2" unique_id=1167886756]
-transform = Transform3D(0.99999964, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0806452, 2)
-shape = SubResource("BoxShape3D_gyaad")
 
 [node name="Area3D4" type="Area3D" parent="." unique_id=1755972465]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 4.1, -32.9)

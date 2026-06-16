@@ -3,6 +3,7 @@ class_name Jugador
 
 func _ready():
 	super()
+	collision_mask |= 1 << 3  # enable layer 4 (Objetivo/Moneda)
 	if is_instance_valid(RedManager):
 		RedManager.registrar_jugador(self)
 

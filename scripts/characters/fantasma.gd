@@ -28,7 +28,13 @@ func _ready():
 	MAX_SALTOS = 1
 	super() # Inicializa cámara y posición desde CharacterBase
 	if pivote_camara and pivote_camara.has_node("Camera3D"):
-		_original_camera_environment = pivote_camara.get_node("Camera3D").environment
+		var camera = pivote_camara.get_node("Camera3D")
+		_original_camera_environment = camera.environment
+		# Ghost only renders layers 2 (Plano_Fisico) and 3 (Plano_Espiritual).
+		# Exclude layer 4 (Objetivo/Moneda) so coins are not visible.
+		camera.cull_mask = (1 << 0) | (1 << 1) | (1 << 2)  # layers 1 (default), 2 and 3
+
+	collision_mask |= 1 << 3  # Añade capa 4 (Objetivo/Moneda) al mask
 
 	_inicializar_plataformas()
 

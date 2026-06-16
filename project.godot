@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 
 RedManager="*uid://b8bvwaut6jq1b"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+ScoreManager="*res://scripts/core/score_manager.gd"
 
 [display]
 
