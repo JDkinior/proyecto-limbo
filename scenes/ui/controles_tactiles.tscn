@@ -1,38 +1,9 @@
 [gd_scene format=3 uid="uid://dxdselwmt1ljo"]
 
+[ext_resource type="Script" path="res://scripts/ui/controles_tactiles.gd" id="1_controles"]
 [ext_resource type="Script" uid="uid://ded4xsfo5pn0v" path="res://scripts/ui/joystick_virtual.gd" id="1_gifgm"]
 [ext_resource type="Script" uid="uid://b11xpstv10exe" path="res://scripts/ui/area_camara.gd" id="2_epxqs"]
 [ext_resource type="Script" uid="uid://b0uxovmqukmqw" path="res://scripts/ui/boton_tactil_visual.gd" id="2_rtx1c"]
-
-[sub_resource type="GDScript" id="GDScript_pgqnk"]
-script/source = "extends Control
-
-@onready var joystick = $Joystick_Virtual
-
-var arrastre_camara : Vector2 = Vector2.ZERO
-
-func _input(event):
-	# Detectar solo el arrastre táctil para la cámara.
-	if event is InputEventScreenDrag:
-		# Si el joystick está activo y es el mismo dedo, lo ignoramos para la cámara.
-		if joystick and joystick.tocando and event.index == joystick.id_dedo:
-			return
-		
-		# Validamos que el arrastre ocurra en la zona derecha de la pantalla.
-		var mitad_pantalla = get_viewport_rect().size.x / 2
-		if event.position.x > mitad_pantalla:
-			arrastre_camara += event.relative
-
-func _process(_delta):
-	# No limpiamos el arrastre aquí inmediatamente para darle tiempo al script del Jugador de leerlo
-	pass
-
-# Añadimos una función para que el jugador limpie el valor una vez que lo consuma
-func consumir_arrastre() -> Vector2:
-	var temp = arrastre_camara
-	arrastre_camara = Vector2.ZERO
-	return temp
-"
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_epxqs"]
 radius = 40.0
@@ -54,7 +25,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
-script = SubResource("GDScript_pgqnk")
+script = ExtResource("1_controles")
 
 [node name="Joystick_Virtual" type="Control" parent="." unique_id=883551629]
 layout_mode = 1

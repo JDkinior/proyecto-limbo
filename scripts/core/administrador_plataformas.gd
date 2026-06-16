@@ -1,6 +1,10 @@
 extends Node3D
 class_name AdministradorPlataformas
 
+const CAPA_FISICA := 1 << 1 # Layer 2: Plano_Fisico
+const CAPA_ESPIRITUAL := 1 << 2 # Layer 3: Plano_Espiritual
+const CAPAS_PLATAFORMA_ACTIVA := CAPA_FISICA | CAPA_ESPIRITUAL
+
 # Variables para sincronizar plataformas entre fantasma y jugador
 var plataformas_activas: Dictionary = {}  # {nodo_path: bool}
 var fantasma_ref: Node3D = null
@@ -58,16 +62,16 @@ func _notificar_cambio_plataforma(ruta_plataforma: String, activa: bool) -> void
 func _aplicar_colisiones_plataforma(plataforma: Node3D, activa: bool) -> void:
 	"""Aplica los cambios de colisión a una plataforma"""
 	if activa:
-		# Activa: sólido para vivo (2) y fantasma (8) -> valor 10 (8+2)
-		plataforma.collision_layer = 10
-		plataforma.collision_mask = 10
+		# Activa: sólido para vivo y fantasma.
+		plataforma.collision_layer = CAPAS_PLATAFORMA_ACTIVA
+		plataforma.collision_mask = CAPAS_PLATAFORMA_ACTIVA
 		_cambiar_opacidad_plataforma(plataforma, 1.0)
 		print("Plataforma %s activada" % plataforma.name)
 	else:
-		# Inactiva: solo sólido para el fantasma (8)
+		# Inactiva: solo sólido para el fantasma.
 		# Esto permite que el fantasma camine sobre ella pero el vivo la atraviese
-		plataforma.collision_layer = 8
-		plataforma.collision_mask = 8
+		plataforma.collision_layer = CAPA_ESPIRITUAL
+		plataforma.collision_mask = CAPA_ESPIRITUAL
 		_cambiar_opacidad_plataforma(plataforma, 0.5)
 		print("Plataforma %s desactivada" % plataforma.name)
 

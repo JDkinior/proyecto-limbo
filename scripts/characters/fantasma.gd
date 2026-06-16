@@ -3,22 +3,13 @@ class_name Fantasma
 
 signal aura_estado_actualizado(activo: bool, progreso: float)
 
-@export_group("Movimiento Espectral")
-@export var FUERZA_SALTO = 6.0
-@export var MULTIPLICADOR_SEGUNDO_SALTO : float = 1.2
-@export var MULTIPLICADOR_CAIDA : float = 1.2
-@export var MULTIPLICADOR_CORTE_SALTO : float = 2.0
-@export var TIEMPO_COYOTE : float = 0.15
-@export var TIEMPO_BUFFER_SALTO : float = 0.12
-@export var MAX_SALTOS : int = 2
+const CAPA_FISICA := 1 << 1 # Layer 2: Plano_Fisico
+const CAPA_ESPIRITUAL := 1 << 2 # Layer 3: Plano_Espiritual
+const CAPAS_PLATAFORMA_ACTIVA := CAPA_FISICA | CAPA_ESPIRITUAL
 
 @export_group("Configuración Visual")
 @export var fantasma_camera_environment: Environment # Entorno para la cámara del fantasma
 @export var RADIO_DETECCION : float = 10.0 # Radio máximo de detección para plataformas
-
-var tiempo_desde_suelo : float = 0.0
-var tiempo_desde_salto : float = 0.0
-var saltos_realizados : int = 0
 
 var plataformas_activas : Dictionary = {}  # {nodo_path: bool}
 var plataformas_registradas : Array = []
@@ -27,6 +18,13 @@ var _original_camera_environment: Environment
 @onready var habilidad_aura = $HabilidadAura
 
 func _ready():
+	FUERZA_SALTO = 8.0
+	MULTIPLICADOR_SEGUNDO_SALTO = 1.0
+	MULTIPLICADOR_CAIDA = 0.45
+	MULTIPLICADOR_CORTE_SALTO = 1.1
+	TIEMPO_COYOTE = 0.15
+	TIEMPO_BUFFER_SALTO = 0.12
+	MAX_SALTOS = 1
 	super() # Inicializa cámara y posición desde CharacterBase
 	if pivote_camara and pivote_camara.has_node("Camera3D"):
 		_original_camera_environment = pivote_camara.get_node("Camera3D").environment
@@ -39,11 +37,11 @@ func _ready():
 	if habilidad_aura:
 		habilidad_aura.radio_maximo = RADIO_DETECCION
 		habilidad_aura.estado_cambiado.connect(_on_aura_estado_cambiado)
+		habilidad_aura.radio_actualizado.connect(_actualizar_proximidad_plataformas)
 
 func _on_aura_estado_cambiado(activo: bool, progreso: float):
 	"""Manejador de señal del componente HabilidadAura"""
 	aura_estado_actualizado.emit(activo, progreso)
-	_actualizar_visual_boton_aura(activo, progreso)
 
 func actualizar_visibilidad_local():
 	super()
@@ -83,43 +81,13 @@ func actualizar_visibilidad_local():
 	elif camera:
 		camera.environment = _original_camera_environment # Restablecer al entorno global
 
-	if es_mio and controles_tactiles:
-		print("[Fantasma] Aplicando interfaz azul...")
-		# Creamos un Shader en tiempo de ejecución para "forzar" el color azul 
-		# ignorando si la textura original es amarilla
-		var shader = Shader.new()
-		shader.code = "shader_type canvas_item; uniform vec4 color_solido : source_color; void fragment() { vec4 tex = texture(TEXTURE, UV); COLOR = vec4(color_solido.rgb, tex.a * color_solido.a); }"
-		var mat = ShaderMaterial.new()
-		mat.shader = shader
-		# Azul Cian brillante (R=0.1, G=0.5, B=1.5 para efecto glow)
-		mat.set_shader_parameter("color_solido", Color(0.101, 0.442, 1.5, 0.306))
-		
-		controles_tactiles.modulate = Color(1, 1, 1) # Reset del modulate global
-		
-		# Aplicamos el shader de forma recursiva a TODO lo que esté en la UI
-		_aplicar_shader_recursivo(controles_tactiles, mat)
-		
-		# Duplicamos el material específicamente para el botón de interactuar
-		# para que sus cambios de color por cooldown no afecten al resto de la UI
-		var btn_interact = controles_tactiles.get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
-		if btn_interact and btn_interact.material:
-			btn_interact.material = btn_interact.material.duplicate()
-
-func _aplicar_shader_recursivo(nodo: Node, material_shader: ShaderMaterial):
-	"""Aplica el material a todos los elementos visuales de la interfaz"""
-	if nodo is CanvasItem:
-		nodo.material = material_shader
-	
-	for hijo in nodo.get_children():
-		_aplicar_shader_recursivo(hijo, material_shader)
-
 func _inicializar_plataformas():
 	"""Encuentra todas las plataformas interactuables en el mundo"""
 	print("[Fantasma] Buscando plataformas en el mundo...")
 	plataformas_registradas.clear()
 	plataformas_activas.clear()
 	
-	# Buscar todos los nodos StaticBody3D que tengan nombre con "Caja_Fisica"
+	# Buscar plataformas marcadas por colisión espiritual, no por nombre.
 	_buscar_plataformas(get_tree().root)
 	
 	print("[Fantasma] Plataformas encontradas: ", plataformas_registradas.size())
@@ -128,7 +96,7 @@ func _inicializar_plataformas():
 
 func _buscar_plataformas(nodo: Node) -> void:
 	"""Búsqueda recursiva de plataformas en el árbol de escenas"""
-	if nodo is StaticBody3D and "Caja_Fisica" in nodo.name:
+	if nodo is StaticBody3D and _es_plataforma_aura(nodo):
 		plataformas_registradas.append(nodo)
 		plataformas_activas[nodo.get_path()] = false  # Inicialmente desactivadas
 		# Forzamos el estado inicial: sólido para fantasma, intangible para vivo
@@ -137,91 +105,21 @@ func _buscar_plataformas(nodo: Node) -> void:
 	for hijo in nodo.get_children():
 		_buscar_plataformas(hijo)
 
+func _es_plataforma_aura(plataforma: StaticBody3D) -> bool:
+	return (plataforma.collision_layer & CAPA_ESPIRITUAL) != 0 or (plataforma.collision_mask & CAPA_ESPIRITUAL) != 0
+
 func _physics_process(delta):
 	# Solo procesar input y movimiento si somos la autoridad local
 	if not is_multiplayer_authority(): return
 
-	# --- 1. CONTROL DE CÁMARA TÁCTIL ---
-	if controles_tactiles and pivote_camara:
-		var giro = controles_tactiles.consumir_arrastre()
-		if giro != Vector2.ZERO:
-			objetivo_rotacion_y -= giro.x * SENSIBILIDAD_CAMARA
-			objetivo_rotacion_x = clamp(objetivo_rotacion_x - giro.y * SENSIBILIDAD_CAMARA, deg_to_rad(-40), deg_to_rad(20))
-
-	var suavizado_camara = 1.0 - exp(-SUAVIDAD_CAMARA * delta)
-	rotation.y = lerp_angle(rotation.y, objetivo_rotacion_y, suavizado_camara)
-	if pivote_camara:
-		pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
-
-	# --- 2. GRAVEDAD ---
-	var salto_mantenido = Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept")
-	if not is_on_floor():
-		var gravedad_actual = gravity
-		if velocity.y < 0.0:
-			gravedad_actual *= MULTIPLICADOR_CAIDA
-		elif velocity.y > 0.0 and not salto_mantenido:
-			gravedad_actual *= MULTIPLICADOR_CORTE_SALTO
-		velocity.y -= gravedad_actual * delta
-		tiempo_desde_suelo += delta
-	else:
-		tiempo_desde_suelo = 0.0
-		saltos_realizados = 0
-
-	# --- 3. CONTROL DE SALTO ---
-	if Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("ui_accept"):
-		tiempo_desde_salto = 0.0
-	else:
-		tiempo_desde_salto += delta
-
-	if tiempo_desde_salto <= TIEMPO_BUFFER_SALTO:
-		if (is_on_floor() or tiempo_desde_suelo <= TIEMPO_COYOTE) and saltos_realizados == 0:
-			velocity.y = FUERZA_SALTO
-			saltos_realizados = 1
-			tiempo_desde_salto = TIEMPO_BUFFER_SALTO
-		elif saltos_realizados < MAX_SALTOS:
-			velocity.y = FUERZA_SALTO * MULTIPLICADOR_SEGUNDO_SALTO
-			saltos_realizados += 1
-			tiempo_desde_salto = TIEMPO_BUFFER_SALTO
-
-	# --- 4. MOVIMIENTO EN BASE A LA DIRECCIÓN DE LA CÁMARA ---
-	var joystick = get_node_or_null("../Controles_Tactiles/Joystick_Virtual")
-	var input_dir = Vector2.ZERO
-	
-	if joystick and joystick.tocando:
-		input_dir = joystick.vector_salida.limit_length(1.0)
-	else:
-		input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-		
-	var direccion = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
-	var velocidad_objetivo = direccion * VELOCIDAD
-	var tasa_aceleracion = ACELERACION_SUELO if is_on_floor() else ACELERACION_AIRE
-	
-	if direccion != Vector3.ZERO:
-		velocity.x = move_toward(velocity.x, velocidad_objetivo.x, tasa_aceleracion * delta)
-		velocity.z = move_toward(velocity.z, velocidad_objetivo.z, tasa_aceleracion * delta)
-	else:
-		velocity.x = move_toward(velocity.x, 0, DESACELERACION_SUELO * delta)
-		velocity.z = move_toward(velocity.z, 0, DESACELERACION_SUELO * delta)
+	procesar_camara_base(delta)
+	procesar_salto_base(delta)
 
 	# --- 5. ACTIVACIÓN DE AURA (Delegada al componente) ---
 	if Input.is_action_just_pressed("interactuar") and habilidad_aura:
 		habilidad_aura.intentar_activar()
 
-	# --- 6. MOVIMIENTO FINAL ---
-	if global_position.y < LIMITE_CAIDA_Y:
-		global_position = posicion_inicial
-
-	move_and_slide()
-
-func _actualizar_visual_boton_aura(activo: bool, progreso: float):
-	"""Actualiza el color del botón en la UI según el estado del aura"""
-	if not controles_tactiles: return
-	var btn = controles_tactiles.get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
-	if btn and btn.material:
-		if not activo and progreso < 1.0 and progreso > 0: # Recargando
-			btn.material.set_shader_parameter("color_solido", Color(0.2, 0.2, 0.2, 0.3))
-		else: # Listo o Activo
-			btn.material.set_shader_parameter("color_solido", Color(0.101, 0.442, 1.5, 0.306))
+	procesar_movimiento_base(delta)
 
 func _actualizar_proximidad_plataformas(radio_aura: float) -> void:
 	"""Activa plataformas si el aura está activa y están dentro de su radio actual"""
@@ -255,14 +153,14 @@ func rpc_sincronizar_estado_plataforma(camino_nodo: NodePath, activo: bool) -> v
 func _aplicar_estado_plataforma(plataforma: Node3D, activa: bool) -> void:
 	"""Aplica el estado de visibilidad y colisión a una plataforma"""
 	if activa:
-		# Activa: sólido para vivo (2) y fantasma (8) -> valor 10
-		plataforma.collision_layer = 10
-		plataforma.collision_mask = 10
+		# Activa: sólido para vivo y fantasma.
+		plataforma.collision_layer = CAPAS_PLATAFORMA_ACTIVA
+		plataforma.collision_mask = CAPAS_PLATAFORMA_ACTIVA
 		_cambiar_opacidad_plataforma(plataforma, 1.0)  # Visible
 	else:
-		# Inactiva: solo sólido para el fantasma (8)
-		plataforma.collision_layer = 8
-		plataforma.collision_mask = 8
+		# Inactiva: solo sólido para el fantasma.
+		plataforma.collision_layer = CAPA_ESPIRITUAL
+		plataforma.collision_mask = CAPA_ESPIRITUAL
 		_cambiar_opacidad_plataforma(plataforma, 0.5)  # Semi-transparente
 
 func _cambiar_opacidad_plataforma(plataforma: Node3D, opacidad: float) -> void:

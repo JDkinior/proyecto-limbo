@@ -90,6 +90,7 @@ func crear_partida():
 	jugador_vivo.set_multiplayer_authority(1)
 	jugador_vivo.actualizar_visibilidad_local()
 	fantasma.actualizar_visibilidad_local()
+	_actualizar_interfaz_local()
 	# El Fantasma quedará a la espera de que el cliente se conecte
 	
 	print("[Red] Servidor iniciado. Eres el JUGADOR VIVO.")
@@ -113,11 +114,11 @@ func _al_conectarse_al_servidor():
 	var id = multiplayer.get_unique_id()
 	# El CLIENTE toma la autoridad del Fantasma
 	fantasma.set_multiplayer_authority(id)
-	jugador_vivo.actualizar_visibilidad_local()
-	fantasma.actualizar_visibilidad_local()
-	
 	# El Jugador Vivo siempre es del Host (ID 1)
 	jugador_vivo.set_multiplayer_authority(1)
+	jugador_vivo.actualizar_visibilidad_local()
+	fantasma.actualizar_visibilidad_local()
+	_actualizar_interfaz_local()
 	
 	print("[Red] Conectado con éxito. Eres el FANTASMA (ID: ", id, ")")
 
@@ -127,3 +128,20 @@ func _on_peer_connected(id):
 		fantasma.set_multiplayer_authority(id)
 		jugador_vivo.actualizar_visibilidad_local()
 		fantasma.actualizar_visibilidad_local()
+		_actualizar_interfaz_local()
+
+func _actualizar_interfaz_local():
+	var escena_actual = get_tree().current_scene
+	if not escena_actual:
+		return
+
+	var controles = escena_actual.get_node_or_null("Controles_Tactiles")
+	if not controles or not controles.has_method("configurar_personaje_local"):
+		return
+
+	if jugador_vivo and jugador_vivo.is_multiplayer_authority() and multiplayer.is_server():
+		controles.configurar_personaje_local(jugador_vivo)
+	elif fantasma and fantasma.is_multiplayer_authority():
+		controles.configurar_personaje_local(fantasma)
+	elif jugador_vivo and jugador_vivo.is_multiplayer_authority():
+		controles.configurar_personaje_local(jugador_vivo)
