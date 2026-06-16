@@ -76,21 +76,49 @@ func _aplicar_colisiones_plataforma(plataforma: Node3D, activa: bool) -> void:
 		print("Plataforma %s desactivada" % plataforma.name)
 
 func _cambiar_opacidad_plataforma(plataforma: Node3D, opacidad: float) -> void:
-	"""Cambia la opacidad del MeshInstance3D de una plataforma"""
-	# Buscar el MeshInstance3D dentro de la plataforma
-	for hijo in plataforma.get_children():
-		if hijo is MeshInstance3D:
-			# Obtener el material del mesh
-			var material = hijo.get_active_material(0)
-			if material:
-				material = material.duplicate()
-				material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				material.alpha_scissor = 0.5
-				var color = material.albedo_color
+	"""Cambia la opacidad de todos los MeshInstance3D de una plataforma de forma recursiva"""
+	_cambiar_opacidad_recursivo(plataforma, opacidad)
+
+func _cambiar_opacidad_recursivo(nodo: Node, opacidad: float) -> void:
+	if nodo is MeshInstance3D:
+		# Modificar material_override si existe
+		if nodo.material_override:
+			var mat = nodo.material_override.duplicate()
+			if mat is BaseMaterial3D:
+				if opacidad >= 1.0:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				else:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+				
+				if "alpha_scissor" in mat:
+					mat.alpha_scissor = 0.5
+				var color = mat.albedo_color
 				color.a = opacidad
-				material.albedo_color = color
-				hijo.set_surface_override_material(0, material)
-			break
+				mat.albedo_color = color
+			nodo.material_override = mat
+		
+		# Modificar materiales de cada superficie
+		if nodo.get_mesh():
+			for i in range(nodo.get_mesh().get_surface_count()):
+				var material = nodo.get_active_material(i)
+				if not material:
+					material = nodo.get_mesh().surface_get_material(i)
+				if material:
+					material = material.duplicate()
+					if material is BaseMaterial3D:
+						if opacidad >= 1.0:
+							material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+						else:
+							material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+						
+						if "alpha_scissor" in material:
+							material.alpha_scissor = 0.5
+						var color = material.albedo_color
+						color.a = opacidad
+						material.albedo_color = color
+					nodo.set_surface_override_material(i, material)
+	for hijo in nodo.get_children():
+		_cambiar_opacidad_recursivo(hijo, opacidad)
 
 func obtener_plataformas_activas() -> Dictionary:
 	"""Retorna el estado actual de las plataformas"""

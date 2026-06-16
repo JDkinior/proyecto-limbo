@@ -13,6 +13,7 @@ const CAPAS_PLATAFORMA_ACTIVA := CAPA_FISICA | CAPA_ESPIRITUAL
 
 var plataformas_activas : Dictionary = {}  # {nodo_path: bool}
 var plataformas_registradas : Array = []
+var aura_activa_actual : bool = false
 
 var _original_camera_environment: Environment
 @onready var habilidad_aura = $HabilidadAura
@@ -37,11 +38,31 @@ func _ready():
 	if habilidad_aura:
 		habilidad_aura.radio_maximo = RADIO_DETECCION
 		habilidad_aura.estado_cambiado.connect(_on_aura_estado_cambiado)
-		habilidad_aura.radio_actualizado.connect(_actualizar_proximidad_plataformas)
 
 func _on_aura_estado_cambiado(activo: bool, progreso: float):
 	"""Manejador de señal del componente HabilidadAura"""
 	aura_estado_actualizado.emit(activo, progreso)
+	
+	if not is_multiplayer_authority(): return
+	
+	if activo != aura_activa_actual:
+		aura_activa_actual = activo
+		if activo:
+			# Al activar el aura, activamos todas las plataformas que estén dentro del radio máximo
+			for plataforma in plataformas_registradas:
+				var path = plataforma.get_path()
+				var distancia = global_position.distance_to(plataforma.global_position)
+				if distancia <= RADIO_DETECCION:
+					rpc_sincronizar_estado_plataforma.rpc(path, true)
+					print("[Fantasma] Aura activada: ", plataforma.name, " -> ACTIVA")
+		else:
+			# Al desactivar el aura (fin de habilidad), desactivamos todas las plataformas activas
+			for path in plataformas_activas.keys():
+				if plataformas_activas[path]:
+					rpc_sincronizar_estado_plataforma.rpc(path, false)
+					var plataforma = get_node_or_null(path)
+					var plat_name = plataforma.name if plataforma else str(path)
+					print("[Fantasma] Aura desactivada: ", plat_name, " -> INACTIVA")
 
 func actualizar_visibilidad_local():
 	super()
@@ -164,21 +185,49 @@ func _aplicar_estado_plataforma(plataforma: Node3D, activa: bool) -> void:
 		_cambiar_opacidad_plataforma(plataforma, 0.5)  # Semi-transparente
 
 func _cambiar_opacidad_plataforma(plataforma: Node3D, opacidad: float) -> void:
-	"""Cambia la opacidad del MeshInstance3D de una plataforma"""
-	# Buscar el MeshInstance3D dentro de la plataforma
-	for hijo in plataforma.get_children():
-		if hijo is MeshInstance3D:
-			# Obtener el material del mesh
-			var material = hijo.get_active_material(0)
-			if material:
-				material = material.duplicate()
-				material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				material.alpha_scissor = 0.5
-				var color = material.albedo_color
+	"""Cambia la opacidad de todos los MeshInstance3D de una plataforma de forma recursiva"""
+	_cambiar_opacidad_recursivo(plataforma, opacidad)
+
+func _cambiar_opacidad_recursivo(nodo: Node, opacidad: float) -> void:
+	if nodo is MeshInstance3D:
+		# Modificar material_override si existe
+		if nodo.material_override:
+			var mat = nodo.material_override.duplicate()
+			if mat is BaseMaterial3D:
+				if opacidad >= 1.0:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				else:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+				
+				if "alpha_scissor" in mat:
+					mat.alpha_scissor = 0.5
+				var color = mat.albedo_color
 				color.a = opacidad
-				material.albedo_color = color
-				hijo.set_surface_override_material(0, material)
-			break
+				mat.albedo_color = color
+			nodo.material_override = mat
+		
+		# Modificar materiales de cada superficie
+		if nodo.get_mesh():
+			for i in range(nodo.get_mesh().get_surface_count()):
+				var material = nodo.get_active_material(i)
+				if not material:
+					material = nodo.get_mesh().surface_get_material(i)
+				if material:
+					material = material.duplicate()
+					if material is BaseMaterial3D:
+						if opacidad >= 1.0:
+							material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+						else:
+							material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+						
+						if "alpha_scissor" in material:
+							material.alpha_scissor = 0.5
+						var color = material.albedo_color
+						color.a = opacidad
+						material.albedo_color = color
+					nodo.set_surface_override_material(i, material)
+	for hijo in nodo.get_children():
+		_cambiar_opacidad_recursivo(hijo, opacidad)
 
 func obtener_plataformas_activas() -> Dictionary:
 	"""Retorna las plataformas activas (para sincronización con el jugador vivo)"""
