@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://byxcpmvweupqa"
 path.s3tc="res://.godot/imported/Corner_Corner_Color.png-1ca3404a75198be6788db9b0a633a4ee.s3tc.ctex"
+path.etc2="res://.godot/imported/Corner_Corner_Color.png-1ca3404a75198be6788db9b0a633a4ee.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Fences/Corner_Corner_Color.png"
-dest_files=["res://.godot/imported/Corner_Corner_Color.png-1ca3404a75198be6788db9b0a633a4ee.s3tc.ctex"]
+dest_files=["res://.godot/imported/Corner_Corner_Color.png-1ca3404a75198be6788db9b0a633a4ee.s3tc.ctex", "res://.godot/imported/Corner_Corner_Color.png-1ca3404a75198be6788db9b0a633a4ee.etc2.ctex"]
 
 [params]
 

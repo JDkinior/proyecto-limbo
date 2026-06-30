@@ -486,47 +486,26 @@ Es Autoload con nombre `RedManager`.
 
 Responsabilidades:
 
-- Crear servidor P2P local con ENet.
-- Conectar cliente a `127.0.0.1`.
+- Administrar la conexión multijugador en modo Local (LAN P2P) y en modo Online (Servidor de Matchmaking Dedicado).
+- Auto-descubrimiento en red local (LAN) usando broadcast/listener UDP en el puerto 7001.
+- Matchmaking online mediante servidor dedicado de salas (puerto 7000, IP 134.65.24.63) usando RPCs de sincronización.
 - Registrar referencias a `Jugador` y `Fantasma`.
-- Asignar autoridad multiplayer.
-- Configurar UI local segun personaje controlado.
-- Crear menu rapido de red por codigo.
+- Asignar autoridad multiplayer y gestionar la carga/sincronización de niveles.
 
-Constantes:
+Constantes de red:
 
 ```gdscript
-const PORT = 7000
-const ADDRESS = "127.0.0.1"
+const PORT = 7000           # Puerto para la partida ENet (P2P y Matchmaking)
+const PORT_UDP_LAN = 7001   # Puerto para la transmisión UDP en red local
 ```
 
-Flujo host:
+Flujo en modo Local (LAN):
+- **Host**: Llama a `crear_partida()`, levanta el servidor ENet, inicia un emisor UDP (`iniciar_lan_broadcaster()`) enviando su IP local periódicamente.
+- **Cliente**: Llama a `iniciar_lan_listener()` para escuchar emisiones UDP, recupera las partidas locales disponibles, permite seleccionar una IP y llama a `unirse_a_partida(ip)`.
 
-1. `crear_partida()`.
-2. Crea `ENetMultiplayerPeer`.
-3. `peer.create_server(PORT, 2)`.
-4. `multiplayer.multiplayer_peer = peer`.
-5. Conecta `peer_connected`.
-6. Asigna autoridad del Jugador Vivo al peer 1.
-7. Actualiza camaras e interfaz.
-8. Espera cliente.
-
-Flujo cliente:
-
-1. `unirse_a_partida()`.
-2. Crea `ENetMultiplayerPeer`.
-3. `peer.create_client(ADDRESS, PORT)`.
-4. Conecta `connected_to_server`.
-5. Al conectar:
-   - toma autoridad del Fantasma con su peer ID;
-   - asegura Jugador Vivo en autoridad 1;
-   - actualiza camaras e interfaz.
-
-Controles rapidos:
-
-- F1: crear partida como Host/Jugador Vivo.
-- F2: unirse como Cliente/Fantasma.
-- Tambien se crea un menu simple con botones al iniciar.
+Flujo en modo Online (Matchmaking):
+- **Clientes**: Conectan al servidor dedicado (`134.65.24.63`). Entran a un panel de salas y pueden crear o unirse a salas existentes (`rpc_crear_sala`, `rpc_unirse_a_sala`).
+- **Transición P2P**: Al iniciar la partida en una sala llena, el servidor dedicado ejecuta `rpc_solicitar_inicio_p2p` indicando a ambos clientes que se desconecten del servidor y que el Host de la sala abra un servidor P2P local. El cliente recibe la IP pública del Host a través del servidor y se conecta a él directamente.
 
 Reglas de autoridad:
 
@@ -537,7 +516,7 @@ Reglas de autoridad:
 Punto delicado:
 
 - La escena contiene ambos personajes en ambos peers.
-- La camara actual se activa/desactiva con autoridad local.
+- La cámara actual se activa/desactiva con autoridad local.
 - Si se agregan mas niveles, `RedManager` deberia persistir y volver a registrar personajes al cargar escena.
 
 ## 9. Sincronizacion De Posicion
@@ -594,41 +573,29 @@ Recomendacion:
 ## 11. Flujo General De Juego
 
 ```text
-Inicio escena mundo_pruebas
-  RedManager crea menu de red
-  Jugador y Fantasma se registran en RedManager
+Inicio en escena menu_inicio.tscn
+  El jugador elige entre "Modo Local (LAN)" y "Modo Online (Internet)"
 
-Host pulsa F1 o boton Host
-  Host crea servidor
-  Host controla Jugador Vivo
-  Camara del Jugador Vivo queda activa
-  UI queda estilo jugador
+Opción A: Modo Local (LAN)
+  1. El Host crea la partida. Se inicia el servidor local y el broadcast UDP.
+  2. El Cliente inicia el listener UDP y escanea la red local.
+  3. Al descubrirse la partida local, el Cliente presiona Conectar o introduce la IP del Host.
+  4. Ambos entran al Lobby. Eligen personaje (Vivo o Fantasma), el Cliente se prepara, y el Host inicia.
 
-Cliente pulsa F2 o boton Cliente
-  Cliente conecta al host
-  Cliente toma autoridad del Fantasma
-  Camara del Fantasma queda activa
-  UI queda azul
+Opción B: Modo Online (Matchmaking)
+  1. Ambos se conectan automáticamente al servidor dedicado en la IP 134.65.24.63.
+  2. Uno de los dos crea una sala con un nombre descriptivo; el otro la ve en la lista de salas y se une.
+  3. En la sala del lobby, eligen personaje, configuran el modo (Historia o Libre) y el Cliente se prepara.
+  4. El Host inicia la partida. El servidor dedicado realiza el redireccionamiento P2P desconectándolos y forzando al Host a abrir el puerto para que el Cliente se conecte directamente usando su IP pública.
 
 Durante juego
-  CharacterBase procesa camara, salto y movimiento del personaje local
-  Jugador Vivo hace plataformeo fisico
-  Fantasma salta alto una vez y cae lento
-  Fantasma pulsa interactuar
-  HabilidadAura activa aura
-  Aura emite radio actualizado
-  Fantasma activa plataformas en rango
-  Plataformas se sincronizan por RPC
-
-  Jugador o Fantasma tocan moneda
-    Moneda llama rpc("_remover_para_todos")
-    ScoreManager incrementa puntuacion
-    Moneda desaparece en todos los peers
-
-  Ambos personajes tocan el Goal simultaneamente
-    Goal verifica que haya Jugador + Fantasma dentro
-    Goal llama rpc("rpc_change_scene", next_scene_path)
-    Todos los peers cambian a la escena siguiente
+  CharacterBase procesa cámara, salto y movimiento del personaje local.
+  Jugador Vivo realiza plataformeo físico (Capa 2).
+  Fantasma se mueve en capa espiritual (Capa 3), salta alto y flota en su caída.
+  Fantasma activa habilidad de Aura, lo cual recalcula en tiempo real el rango.
+  Las plataformas espirituales entran en el rango de Aura y se activan/desactivan mediante RPCs sincronizados en red.
+  Los jugadores recogen monedas (sincronizadas por RPC y ScoreManager).
+  Ambos entran en la zona del Goal a la vez y se cambia de escena de manera sincronizada.
 ```
 
 ## 12. Diferencias Actuales Entre Personajes
@@ -723,17 +690,19 @@ Solucion recomendada:
 
 - Usar grupo `ui_controles_tactiles` o inyeccion desde `RedManager`.
 
-### IP fija local
+### Conexión P2P detrás de NAT / Cortafuegos
 
-`RedManager.ADDRESS = "127.0.0.1"`.
+En el modo online, la conexión definitiva de juego se realiza directamente P2P (entre el cliente y el host).
 
 Riesgo:
 
-- Solo sirve para pruebas locales en la misma maquina.
+- Si el Host tiene cortafuegos estrictos (como el de Windows Defender) o su router bloquea puertos entrantes UDP, la conexión P2P fallará al iniciar la partida.
 
-Solucion recomendada:
+Solución recomendada:
 
-- Menu principal con campo IP.
+- Asegurar que la configuración UPNP (`upnp_setup()`) se ejecute correctamente.
+- Agregar reglas al Firewall de Windows para permitir tráfico UDP/TCP en los puertos 7000 y 7001.
+- Habilitar DMZ o reenvío manual de puertos (port forwarding) en el puerto 7000 UDP en el router del Host.
 
 ### Godot en PATH
 
@@ -869,13 +838,11 @@ Completado:
 Pendiente o mejorable:
 
 - Unificar sistema de plataformas.
-- Evaluar migracion de deteccion por colision a grupos.
+- Evaluar migración de detección por colisión a grupos.
 - Cambiar input base a acciones `mover_*`.
-- Menu principal real con IP configurable.
-- Barra visual de energia/cooldown.
-- Respawn sincronizado por red.
-- Validacion automatica con Godot desde consola.
-- UI de puntuacion (Label que escuche `ScoreManager.score_changed`).
+- Barra visual de energía/cooldown del Fantasma.
+- Respawn sincronizado por red al caer al vacío.
+- Agregar UI de puntuacion (Label que escuche `ScoreManager.score_changed`).
 - Crear escenas `.tscn` para Coin y Goal con nodos preconfigurados.
 - Efectos visuales/sonido para recogida de monedas y completar nivel.
 - Pantalla de victoria/resumen antes de cambiar escena.

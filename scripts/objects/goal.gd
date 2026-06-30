@@ -47,5 +47,9 @@ func _verificar_activacion() -> void:
 		elif c is Fantasma:
 			tiene_fantasma = true
 	if tiene_jugador and tiene_fantasma:
-		print("[Goal] Ambos personajes dentro – Nivel completado, cambiando a: ", next_scene_path)
-		rpc("rpc_change_scene", next_scene_path)
+		print("[Goal] Ambos personajes dentro – Nivel completado.")
+		if is_instance_valid(RedManager) and RedManager.has_method("completar_nivel"):
+			RedManager.completar_nivel()
+		else:
+			print("[Goal] RedManager no disponible, usando comportamiento por defecto.")
+			rpc("rpc_change_scene", next_scene_path)

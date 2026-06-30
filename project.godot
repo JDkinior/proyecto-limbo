@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="Proyecto Limbo"
-run/main_scene="uid://c70wmkhtlmix2"
-config/features=PackedStringArray("4.6", "Mobile")
+run/main_scene="res://scenes/ui/menu_inicio.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -29,7 +29,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg", "res://addons/mesh-origin-editor/plugin.cfg")
 
 [filesystem]
 
@@ -86,3 +86,4 @@ pointing/emulate_touch_from_mouse=true
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true

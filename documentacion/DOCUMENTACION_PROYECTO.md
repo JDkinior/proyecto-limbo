@@ -12,7 +12,7 @@ Proyecto Limbo es un juego cooperativo asimétrico desarrollado en **Godot 4**. 
 *   **`controles_tactiles.tscn`**: Interfaz de usuario (HUD) universal que detecta joysticks virtuales y botones de acción para dispositivos móviles.
 
 ### Scripts de Lógica (`.gd`)
-*   **`red_manager.gd`**: El corazón del multijugador P2P. Gestiona la creación de servidores (Host) y la conexión de clientes (Join), asignando la autoridad de red a cada jugador.
+*   **`red_manager.gd`**: El corazón del multijugador. Gestiona conexiones locales (LAN P2P con descubrimiento UDP) y online (matchmaking en servidor dedicado), asignando la autoridad de red y controlando la sincronización de niveles.
 *   **`jugador.gd`**: Controla el movimiento, salto y rotación de cámara del jugador vivo. Incluye lógica para limpiar la interfaz de efectos visuales del fantasma.
 *   **`fantasma.gd`**: Script avanzado que gestiona:
 	*   Movimiento y doble salto.
@@ -53,8 +53,8 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 1.  **Barra de Energía**: Añadir un componente visual en la UI del Fantasma para mostrar el tiempo de recarga del aura.
 2.  **Efectos de Partículas**: Agregar rastro espectral al Fantasma y partículas de polvo al Jugador Vivo al saltar.
 3.  **Sistema de Muerte y Respawn**: Sincronizar por red cuando un jugador cae al vacío para reiniciar a ambos o al afectado.
-4.  **Menú Principal**: Diseñar una interfaz de inicio que permita elegir la IP del servidor antes de entrar al mundo de pruebas.
-5.  **Puzzles Cooperativos**: Crear la primera sala que requiera que el Fantasma mantenga activa una plataforma mientras el Vivo salta y acciona una palanca.
+4.  **Puzzles Cooperativos**: Crear la primera sala que requiera que el Fantasma mantenga activa una plataforma mientras el Vivo salta y acciona una palanca.
+5.  **Menú Principal [COMPLETADO]**: Se ha implementado una interfaz de inicio con selección de modo local y online, y matchmaking dinámico por salas en servidor dedicado.
 
 ## 🏛️ Propuesta de Arquitectura y Escalabilidad
 

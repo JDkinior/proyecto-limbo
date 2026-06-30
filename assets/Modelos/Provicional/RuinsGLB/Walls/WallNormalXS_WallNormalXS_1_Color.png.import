@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://d15o764qklafl"
 path.s3tc="res://.godot/imported/WallNormalXS_WallNormalXS_1_Color.png-c975a23e9af1f5b9ef1f1c6471c8d42a.s3tc.ctex"
+path.etc2="res://.godot/imported/WallNormalXS_WallNormalXS_1_Color.png-c975a23e9af1f5b9ef1f1c6471c8d42a.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Walls/WallNormalXS_WallNormalXS_1_Color.png"
-dest_files=["res://.godot/imported/WallNormalXS_WallNormalXS_1_Color.png-c975a23e9af1f5b9ef1f1c6471c8d42a.s3tc.ctex"]
+dest_files=["res://.godot/imported/WallNormalXS_WallNormalXS_1_Color.png-c975a23e9af1f5b9ef1f1c6471c8d42a.s3tc.ctex", "res://.godot/imported/WallNormalXS_WallNormalXS_1_Color.png-c975a23e9af1f5b9ef1f1c6471c8d42a.etc2.ctex"]
 
 [params]
 

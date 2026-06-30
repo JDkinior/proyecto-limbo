@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dhv24wo4utylg"
 path.s3tc="res://.godot/imported/WallBrokenXl_WallBrokenXL_1_Color.png-bcde35962dc74ff3aa0edb0314738759.s3tc.ctex"
+path.etc2="res://.godot/imported/WallBrokenXl_WallBrokenXL_1_Color.png-bcde35962dc74ff3aa0edb0314738759.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Walls/WallBrokenXl_WallBrokenXL_1_Color.png"
-dest_files=["res://.godot/imported/WallBrokenXl_WallBrokenXL_1_Color.png-bcde35962dc74ff3aa0edb0314738759.s3tc.ctex"]
+dest_files=["res://.godot/imported/WallBrokenXl_WallBrokenXL_1_Color.png-bcde35962dc74ff3aa0edb0314738759.s3tc.ctex", "res://.godot/imported/WallBrokenXl_WallBrokenXL_1_Color.png-bcde35962dc74ff3aa0edb0314738759.etc2.ctex"]
 
 [params]
 

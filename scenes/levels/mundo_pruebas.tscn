@@ -34,22 +34,17 @@
 [ext_resource type="PackedScene" uid="uid://dnnv67oic3l7y" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinRuby.glb" id="33_76twr"]
 [ext_resource type="Script" uid="uid://bwj867slemkja" path="res://scripts/objects/goal.gd" id="33_k0dss"]
 [ext_resource type="PackedScene" uid="uid://gvut3asb3dtq" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/WallLight.glb" id="34_76twr"]
+[ext_resource type="MeshLibrary" uid="uid://bsjiuuggxqyca" path="res://assets/Modelos/Provicional/mis_tiles.tres" id="36_83wdv"]
 [ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="admin_plat"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_tj580"]
-sky_top_color = Color(0.47897124, 0.71860796, 0.66568565, 1)
-sky_horizon_color = Color(0.80927444, 0.86308527, 0.84299254, 1)
-ground_bottom_color = Color(0.1422041, 0.11781087, 0.09036202, 1)
-ground_horizon_color = Color(0.80927444, 0.86308527, 0.84299254, 1)
-
-[sub_resource type="Sky" id="Sky_l5la3"]
-sky_material = SubResource("ProceduralSkyMaterial_tj580")
-
-[sub_resource type="Environment" id="Environment_qrrgk"]
-background_mode = 2
-sky = SubResource("Sky_l5la3")
-tonemap_mode = 2
-glow_enabled = true
+[sub_resource type="Environment" id="Environment_76twr"]
+ambient_light_source = 2
+ambient_light_color = Color(0.24018338, 0.2680233, 0.55217695, 1)
+ambient_light_energy = 2.92
+fog_enabled = true
+fog_light_energy = 1.07
+fog_sun_scatter = 0.15
+fog_density = 0.0143
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_76twr"]
 size = Vector3(1, 2.5, 4.7000003)
@@ -103,7 +98,7 @@ collision_mask = 13
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2059557, 1.0131311, 1.4865632)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=4431013]
-environment = SubResource("Environment_qrrgk")
+environment = SubResource("Environment_76twr")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=918600972]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
@@ -457,3 +452,13 @@ shape = SubResource("SphereShape3D_4d6ab")
 
 [node name="AncientCoinRuby" parent="Area3D5" unique_id=555690066 instance=ExtResource("33_76twr")]
 transform = Transform3D(1, 0, 0, 0, 0.25881907, -0.9659258, 0, 0.9659258, 0.25881907, 0, 0, 0)
+
+[node name="GridMap" type="GridMap" parent="." unique_id=600289253]
+mesh_library = ExtResource("36_83wdv")
+cell_size = Vector3(2, 0.4, 2)
+collision_layer = 7
+collision_mask = 7
+data = {
+"cells": PackedInt32Array(65256, 65326, 655372, 65256, 65329, 12, 65256, 65332, 655372, 65256, 65335, 12, 65259, 65326, 655372, 65259, 65329, 12, 65259, 65332, 655372, 65259, 65335, 12, 65262, 65326, 655372, 65262, 65329, 12, 65262, 65332, 655372, 65262, 65335, 12, 65265, 65326, 655372, 65265, 65329, 12, 65265, 65332, 655372, 65265, 65335, 12, 65268, 65326, 655372, 65268, 65329, 12, 65268, 65332, 655372, 65268, 65335, 12, 65530, 12, 655372, 65530, 15, 12, 65530, 18, 655372, 65530, 21, 12, 65533, 12, 655372, 65533, 15, 12, 65533, 18, 655372, 65533, 21, 12, 0, 12, 655372, 0, 15, 12, 0, 18, 655372, 0, 21, 12, 3, 12, 655372, 3, 15, 12, 3, 18, 655372, 3, 21, 12, 6, 12, 655372, 6, 15, 12, 6, 18, 655372, 6, 21, 12, 65536, 9, 31, 131071, 9, 31, 65537, 9, 655391, 65543, 21, 655400, 65543, 18, 655400, 65543, 15, 655400, 65543, 12, 655400, 131065, 12, 40, 131065, 15, 40, 131065, 18, 40, 131065, 21, 40, 131066, 22, 1048616, 131069, 22, 1048616, 65536, 22, 1048616, 65539, 22, 1048616, 65542, 22, 1048616, 65542, 11, 1441832, 131066, 11, 1441832)
+}
+metadata/_editor_floor_ = Vector3(0, 0, 0)

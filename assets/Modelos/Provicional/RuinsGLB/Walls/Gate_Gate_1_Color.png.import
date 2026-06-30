@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://ohxrn4kdsu6a"
 path.s3tc="res://.godot/imported/Gate_Gate_1_Color.png-eff26955d51b4c0f264d2b5042fff24e.s3tc.ctex"
+path.etc2="res://.godot/imported/Gate_Gate_1_Color.png-eff26955d51b4c0f264d2b5042fff24e.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Walls/Gate_Gate_1_Color.png"
-dest_files=["res://.godot/imported/Gate_Gate_1_Color.png-eff26955d51b4c0f264d2b5042fff24e.s3tc.ctex"]
+dest_files=["res://.godot/imported/Gate_Gate_1_Color.png-eff26955d51b4c0f264d2b5042fff24e.s3tc.ctex", "res://.godot/imported/Gate_Gate_1_Color.png-eff26955d51b4c0f264d2b5042fff24e.etc2.ctex"]
 
 [params]
 

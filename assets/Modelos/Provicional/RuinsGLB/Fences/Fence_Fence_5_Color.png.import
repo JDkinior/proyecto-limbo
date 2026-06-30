@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://lxfi5cnnspdi"
 path.s3tc="res://.godot/imported/Fence_Fence_5_Color.png-ab8ac02b0b4f73ab100dee8a35ade095.s3tc.ctex"
+path.etc2="res://.godot/imported/Fence_Fence_5_Color.png-ab8ac02b0b4f73ab100dee8a35ade095.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Fences/Fence_Fence_5_Color.png"
-dest_files=["res://.godot/imported/Fence_Fence_5_Color.png-ab8ac02b0b4f73ab100dee8a35ade095.s3tc.ctex"]
+dest_files=["res://.godot/imported/Fence_Fence_5_Color.png-ab8ac02b0b4f73ab100dee8a35ade095.s3tc.ctex", "res://.godot/imported/Fence_Fence_5_Color.png-ab8ac02b0b4f73ab100dee8a35ade095.etc2.ctex"]
 
 [params]
 

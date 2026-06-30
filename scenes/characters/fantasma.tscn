@@ -2,16 +2,9 @@
 
 [ext_resource type="Script" uid="uid://ctluysrmto2cl" path="res://scripts/characters/fantasma.gd" id="1_fantasma"]
 [ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
+[ext_resource type="ArrayMesh" uid="uid://jyq76yt0vfnl" path="res://assets/Modelos/Provicional/misty.obj" id="2_exjl6"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
-height = 1.08
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gdkjs"]
-transparency = 1
-albedo_color = Color(0.36, 0.61599994, 1, 0.81960785)
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_s731d"]
-material = SubResource("StandardMaterial3D_gdkjs")
 height = 1.08
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aura"]
@@ -42,7 +35,8 @@ script = ExtResource("1_fantasma")
 shape = SubResource("CapsuleShape3D_gdkjs")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=407544265]
-mesh = SubResource("CapsuleMesh_s731d")
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -0.55, 0)
+mesh = ExtResource("2_exjl6")
 
 [node name="Aura" type="MeshInstance3D" parent="." unique_id=9998]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.48, 0)

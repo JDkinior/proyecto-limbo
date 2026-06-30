@@ -8,6 +8,7 @@ class_name CharacterBase
 @export var ACELERACION_AIRE : float = 10.0
 @export var SENSIBILIDAD_CAMARA = 0.005
 @export var SUAVIDAD_CAMARA : float = 18.0
+@export var VELOCIDAD_ROTACION_PERSONAJE : float = 12.0
 @export var LIMITE_CAIDA_Y : float = -20.0
 @export_group("Salto Compartido")
 @export var FUERZA_SALTO = 4.5
@@ -39,21 +40,32 @@ func _ready():
 func actualizar_visibilidad_local():
 	# Lógica base de cámara, los hijos extenderán esto
 	var es_mio = is_multiplayer_authority()
-	if pivote_camara and pivote_camara.has_node("Camera3D"):
-		pivote_camara.get_node("Camera3D").current = es_mio
+	if pivote_camara:
+		if es_mio:
+			pivote_camara.top_level = true
+			pivote_camara.global_position = global_position
+			objetivo_rotacion_y = rotation.y
+			pivote_camara.rotation.y = rotation.y
+		else:
+			pivote_camara.top_level = false
+			
+		if pivote_camara.has_node("Camera3D"):
+			pivote_camara.get_node("Camera3D").current = es_mio
 
 func procesar_camara_base(delta: float):
 	if not is_multiplayer_authority(): return
 
-	if controles_tactiles and pivote_camara:
-		var giro = controles_tactiles.consumir_arrastre()
-		if giro != Vector2.ZERO:
-			objetivo_rotacion_y -= giro.x * SENSIBILIDAD_CAMARA
-			objetivo_rotacion_x = clamp(objetivo_rotacion_x - giro.y * SENSIBILIDAD_CAMARA, deg_to_rad(-40), deg_to_rad(20))
-
-	var suavizado_camara = 1.0 - exp(-SUAVIDAD_CAMARA * delta)
-	rotation.y = lerp_angle(rotation.y, objetivo_rotacion_y, suavizado_camara)
 	if pivote_camara:
+		pivote_camara.global_position = global_position
+
+		if controles_tactiles:
+			var giro = controles_tactiles.consumir_arrastre()
+			if giro != Vector2.ZERO:
+				objetivo_rotacion_y -= giro.x * SENSIBILIDAD_CAMARA
+				objetivo_rotacion_x = clamp(objetivo_rotacion_x - giro.y * SENSIBILIDAD_CAMARA, deg_to_rad(-40), deg_to_rad(20))
+
+		var suavizado_camara = 1.0 - exp(-SUAVIDAD_CAMARA * delta)
+		pivote_camara.rotation.y = lerp_angle(pivote_camara.rotation.y, objetivo_rotacion_y, suavizado_camara)
 		pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
 
 func procesar_salto_base(delta: float):
@@ -86,15 +98,30 @@ func procesar_salto_base(delta: float):
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO
 
 func obtener_direccion_movimiento() -> Vector3:
-	var joystick = get_node_or_null("../Controles_Tactiles/Joystick_Virtual")
-	var input_dir = Vector2.ZERO
-	
-	if joystick and joystick.tocando:
-		input_dir = joystick.vector_salida.limit_length(1.0)
-	else:
-		input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down", 0.05)
 		
-	return (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+	if input_dir == Vector2.ZERO:
+		return Vector3.ZERO
+		
+	var cam_basis = Basis()
+	if pivote_camara:
+		cam_basis = pivote_camara.global_transform.basis
+	else:
+		cam_basis = global_transform.basis
+		
+	var forward = cam_basis.z
+	var right = cam_basis.x
+	
+	forward.y = 0.0
+	right.y = 0.0
+	forward = forward.normalized()
+	right = right.normalized()
+	
+	var move_dir = right * input_dir.x + forward * input_dir.y
+	var input_len = input_dir.length()
+	if move_dir.is_zero_approx():
+		return Vector3.ZERO
+	return move_dir.normalized() * clampf(input_len, 0.0, 1.0)
 
 func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 	var velocidad_objetivo = direccion * VELOCIDAD
@@ -110,9 +137,19 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 	
 	move_and_slide()
 	_comprobar_caida_vacio()
+	
+	# Aseguramos que la cámara siga exactamente la posición del jugador después del movimiento físico
+	if is_multiplayer_authority() and pivote_camara and pivote_camara.top_level:
+		pivote_camara.global_position = global_position
 
 func procesar_movimiento_base(delta: float):
 	var direccion = obtener_direccion_movimiento()
+	
+	if direccion != Vector3.ZERO:
+		# Rotar suavemente al personaje hacia la dirección en la que se está moviendo
+		var target_angle = atan2(-direccion.x, -direccion.z)
+		rotation.y = lerp_angle(rotation.y, target_angle, 1.0 - exp(-VELOCIDAD_ROTACION_PERSONAJE * delta))
+		
 	aplicar_friccion_y_movimiento(direccion, delta)
 
 func resetear_estados():

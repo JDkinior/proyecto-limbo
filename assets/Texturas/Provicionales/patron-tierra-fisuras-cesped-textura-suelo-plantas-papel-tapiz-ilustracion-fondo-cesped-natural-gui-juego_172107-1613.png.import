@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c501c7by7hoqd"
 path.s3tc="res://.godot/imported/patron-tierra-fisuras-cesped-textura-suelo-plantas-papel-tapiz-ilustracion-fondo-cesped-natural-gui-juego_172107-1613.png-0c883e2c076752fb32936f14d93bc24d.s3tc.ctex"
+path.etc2="res://.godot/imported/patron-tierra-fisuras-cesped-textura-suelo-plantas-papel-tapiz-ilustracion-fondo-cesped-natural-gui-juego_172107-1613.png-0c883e2c076752fb32936f14d93bc24d.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/Texturas/Provicionales/patron-tierra-fisuras-cesped-textura-suelo-plantas-papel-tapiz-ilustracion-fondo-cesped-natural-gui-juego_172107-1613.png"
-dest_files=["res://.godot/imported/patron-tierra-fisuras-cesped-textura-suelo-plantas-papel-tapiz-ilustracion-fondo-cesped-natural-gui-juego_172107-1613.png-0c883e2c076752fb32936f14d93bc24d.s3tc.ctex"]
+dest_files=["res://.godot/imported/patron-tierra-fisuras-cesped-textura-suelo-plantas-papel-tapiz-ilustracion-fondo-cesped-natural-gui-juego_172107-1613.png-0c883e2c076752fb32936f14d93bc24d.s3tc.ctex", "res://.godot/imported/patron-tierra-fisuras-cesped-textura-suelo-plantas-papel-tapiz-ilustracion-fondo-cesped-natural-gui-juego_172107-1613.png-0c883e2c076752fb32936f14d93bc24d.etc2.ctex"]
 
 [params]
 

@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://b0g8y237fpf37"
 path.s3tc="res://.godot/imported/ChestBase_ChestBase_1_Color.png-04fbd9a56a4ee88eb5af1ddaae125f71.s3tc.ctex"
+path.etc2="res://.godot/imported/ChestBase_ChestBase_1_Color.png-04fbd9a56a4ee88eb5af1ddaae125f71.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Accessories/ChestBase_ChestBase_1_Color.png"
-dest_files=["res://.godot/imported/ChestBase_ChestBase_1_Color.png-04fbd9a56a4ee88eb5af1ddaae125f71.s3tc.ctex"]
+dest_files=["res://.godot/imported/ChestBase_ChestBase_1_Color.png-04fbd9a56a4ee88eb5af1ddaae125f71.s3tc.ctex", "res://.godot/imported/ChestBase_ChestBase_1_Color.png-04fbd9a56a4ee88eb5af1ddaae125f71.etc2.ctex"]
 
 [params]
 

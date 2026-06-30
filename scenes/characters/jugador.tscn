@@ -1,13 +1,7 @@
 [gd_scene format=3 uid="uid://cs78ggghqges5"]
 
-[ext_resource type="Script" path="res://scripts/characters/jugador.gd" id="1_scrip"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_omvyu"]
-albedo_color = Color(1, 0.70980394, 0.003921569, 1)
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_8o684"]
-height = 1.08
-material = SubResource("StandardMaterial3D_omvyu")
+[ext_resource type="Script" uid="uid://cnl73c2m5k0tt" path="res://scripts/characters/jugador.gd" id="1_scrip"]
+[ext_resource type="ArrayMesh" uid="uid://uqlelsmr13la" path="res://assets/Modelos/Provicional/untitled.obj" id="2_w28g1"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_16k11"]
 height = 1.08
@@ -21,16 +15,15 @@ properties/1/spawn = true
 properties/1/replication_mode = 1
 
 [node name="Jugador" type="CharacterBody3D" unique_id=1234024379]
-script = ExtResource("1_scrip")
 collision_layer = 2
 collision_mask = 3
+script = ExtResource("1_scrip")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=407544264]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-mesh = SubResource("CapsuleMesh_8o684")
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -0.65, 0)
+mesh = ExtResource("2_w28g1")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=908155043]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 shape = SubResource("CapsuleShape3D_16k11")
 
 [node name="Node3D" type="Node3D" parent="." unique_id=1618272514]

@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdhbns3sdxyyg"
 path.s3tc="res://.godot/imported/StairBridge_StairBridge_3_Color.png-5e72b2768f141bf280c492d420a70baa.s3tc.ctex"
+path.etc2="res://.godot/imported/StairBridge_StairBridge_3_Color.png-5e72b2768f141bf280c492d420a70baa.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Stairs/StairBridge_StairBridge_3_Color.png"
-dest_files=["res://.godot/imported/StairBridge_StairBridge_3_Color.png-5e72b2768f141bf280c492d420a70baa.s3tc.ctex"]
+dest_files=["res://.godot/imported/StairBridge_StairBridge_3_Color.png-5e72b2768f141bf280c492d420a70baa.s3tc.ctex", "res://.godot/imported/StairBridge_StairBridge_3_Color.png-5e72b2768f141bf280c492d420a70baa.etc2.ctex"]
 
 [params]
 

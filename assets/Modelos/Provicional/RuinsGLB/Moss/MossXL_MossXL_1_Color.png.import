@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://d20mp8ghg0nx5"
 path.s3tc="res://.godot/imported/MossXL_MossXL_1_Color.png-6b2cfc837b0c2923d4d1ef440958bab4.s3tc.ctex"
+path.etc2="res://.godot/imported/MossXL_MossXL_1_Color.png-6b2cfc837b0c2923d4d1ef440958bab4.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Moss/MossXL_MossXL_1_Color.png"
-dest_files=["res://.godot/imported/MossXL_MossXL_1_Color.png-6b2cfc837b0c2923d4d1ef440958bab4.s3tc.ctex"]
+dest_files=["res://.godot/imported/MossXL_MossXL_1_Color.png-6b2cfc837b0c2923d4d1ef440958bab4.s3tc.ctex", "res://.godot/imported/MossXL_MossXL_1_Color.png-6b2cfc837b0c2923d4d1ef440958bab4.etc2.ctex"]
 
 [params]
 

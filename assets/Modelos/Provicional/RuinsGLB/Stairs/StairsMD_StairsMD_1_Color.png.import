@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://d0v5woqf2eoux"
 path.s3tc="res://.godot/imported/StairsMD_StairsMD_1_Color.png-17dd9efa2c5ae17cdd3cfed9956c33d0.s3tc.ctex"
+path.etc2="res://.godot/imported/StairsMD_StairsMD_1_Color.png-17dd9efa2c5ae17cdd3cfed9956c33d0.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Stairs/StairsMD_StairsMD_1_Color.png"
-dest_files=["res://.godot/imported/StairsMD_StairsMD_1_Color.png-17dd9efa2c5ae17cdd3cfed9956c33d0.s3tc.ctex"]
+dest_files=["res://.godot/imported/StairsMD_StairsMD_1_Color.png-17dd9efa2c5ae17cdd3cfed9956c33d0.s3tc.ctex", "res://.godot/imported/StairsMD_StairsMD_1_Color.png-17dd9efa2c5ae17cdd3cfed9956c33d0.etc2.ctex"]
 
 [params]
 

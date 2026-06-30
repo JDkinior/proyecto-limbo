@@ -4,10 +4,59 @@ extends Control
 
 var arrastre_camara : Vector2 = Vector2.ZERO
 var _personaje_conectado: Node
+var joystick_dedo : int = -1
+
+func _ready():
+	_inicializar_joystick()
+
+func _inicializar_joystick():
+	if not joystick: return
+	
+	joystick.joystick_mode = 1 # JOYSTICK_DYNAMIC
+	joystick.joystick_size = 200.0
+	joystick.tip_size = 70.0
+	joystick.deadzone_ratio = 0.0
+	joystick.clampzone_ratio = 1.0
+	joystick.initial_offset_ratio = Vector2(0.3, 0.5)
+	joystick.visibility_mode = 0 # VISIBILITY_ALWAYS
+	
+	joystick.action_left = &"ui_left"
+	joystick.action_right = &"ui_right"
+	joystick.action_up = &"ui_up"
+	joystick.action_down = &"ui_down"
+	
+	var style_base = StyleBoxFlat.new()
+	style_base.bg_color = Color(1.0, 1.0, 0.0, 0.149)
+	style_base.border_color = Color(1.0, 1.0, 0.0, 0.4)
+	style_base.border_width_left = 2
+	style_base.border_width_top = 2
+	style_base.border_width_right = 2
+	style_base.border_width_bottom = 2
+	style_base.set_corner_radius_all(100)
+	
+	var style_tip = StyleBoxFlat.new()
+	style_tip.bg_color = Color(1.0, 1.0, 0.0, 0.259)
+	style_tip.set_corner_radius_all(35)
+	
+	joystick.add_theme_stylebox_override(&"normal_joystick", style_base)
+	joystick.add_theme_stylebox_override(&"pressed_joystick", style_base)
+	joystick.add_theme_stylebox_override(&"normal_tip", style_tip)
+	joystick.add_theme_stylebox_override(&"pressed_tip", style_tip)
+	
+	joystick.gui_input.connect(_on_joystick_gui_input)
+
+func _on_joystick_gui_input(event: InputEvent):
+	if event is InputEventScreenTouch:
+		if event.is_pressed():
+			joystick_dedo = event.index
+		else:
+			joystick_dedo = -1
+	elif event is InputEventScreenDrag:
+		joystick_dedo = event.index
 
 func _input(event):
 	if event is InputEventScreenDrag:
-		if joystick and joystick.tocando and event.index == joystick.id_dedo:
+		if joystick_dedo != -1 and event.index == joystick_dedo:
 			return
 
 		var mitad_pantalla = get_viewport_rect().size.x / 2

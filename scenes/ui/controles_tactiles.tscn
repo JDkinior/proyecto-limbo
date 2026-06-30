@@ -1,15 +1,8 @@
 [gd_scene format=3 uid="uid://dxdselwmt1ljo"]
 
 [ext_resource type="Script" path="res://scripts/ui/controles_tactiles.gd" id="1_controles"]
-[ext_resource type="Script" uid="uid://ded4xsfo5pn0v" path="res://scripts/ui/joystick_virtual.gd" id="1_gifgm"]
 [ext_resource type="Script" uid="uid://b11xpstv10exe" path="res://scripts/ui/area_camara.gd" id="2_epxqs"]
 [ext_resource type="Script" uid="uid://b0uxovmqukmqw" path="res://scripts/ui/boton_tactil_visual.gd" id="2_rtx1c"]
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_epxqs"]
-radius = 40.0
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_pgqnk"]
-radius = 100.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xv6fp"]
 radius = 40.0
@@ -27,23 +20,18 @@ grow_vertical = 2
 mouse_filter = 1
 script = ExtResource("1_controles")
 
-[node name="Joystick_Virtual" type="Control" parent="." unique_id=883551629]
+[node name="Joystick_Virtual" type="VirtualJoystick" parent="." unique_id=883551629]
 layout_mode = 1
 anchors_preset = 2
-anchor_top = 1.0
+anchor_top = 0.5
 anchor_bottom = 1.0
-offset_left = 174.0
-offset_top = -172.0
-offset_right = 214.0
-offset_bottom = -132.0
+anchor_right = 0.5
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 1
 grow_vertical = 0
-script = ExtResource("1_gifgm")
-
-[node name="Palanca" type="TouchScreenButton" parent="Joystick_Virtual" unique_id=580368658]
-shape = SubResource("CircleShape2D_epxqs")
-
-[node name="Base" type="TouchScreenButton" parent="Joystick_Virtual" unique_id=766479657]
-shape = SubResource("CircleShape2D_pgqnk")
 
 [node name="Area_Camara" type="Control" parent="." unique_id=903646064]
 layout_mode = 1

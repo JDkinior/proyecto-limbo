@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bcal0rbfwxkgr"
 path.s3tc="res://.godot/imported/Skull_Skull_Color.png-e0f314c33bb705230115afea6ccb6962.s3tc.ctex"
+path.etc2="res://.godot/imported/Skull_Skull_Color.png-e0f314c33bb705230115afea6ccb6962.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Accessories/Skull_Skull_Color.png"
-dest_files=["res://.godot/imported/Skull_Skull_Color.png-e0f314c33bb705230115afea6ccb6962.s3tc.ctex"]
+dest_files=["res://.godot/imported/Skull_Skull_Color.png-e0f314c33bb705230115afea6ccb6962.s3tc.ctex", "res://.godot/imported/Skull_Skull_Color.png-e0f314c33bb705230115afea6ccb6962.etc2.ctex"]
 
 [params]
 

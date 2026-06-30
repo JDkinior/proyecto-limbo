@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://pkqh67os6qhj"
 path.s3tc="res://.godot/imported/Skely_Skely_1_Color.png-a6125b798ff59b9d80f862f6c3754b7f.s3tc.ctex"
+path.etc2="res://.godot/imported/Skely_Skely_1_Color.png-a6125b798ff59b9d80f862f6c3754b7f.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Skely/Skely_Skely_1_Color.png"
-dest_files=["res://.godot/imported/Skely_Skely_1_Color.png-a6125b798ff59b9d80f862f6c3754b7f.s3tc.ctex"]
+dest_files=["res://.godot/imported/Skely_Skely_1_Color.png-a6125b798ff59b9d80f862f6c3754b7f.s3tc.ctex", "res://.godot/imported/Skely_Skely_1_Color.png-a6125b798ff59b9d80f862f6c3754b7f.etc2.ctex"]
 
 [params]
 

@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bgn4hb7bun4s0"
 path.s3tc="res://.godot/imported/SkullCracked_SkullCracked_Color.png-4db9c79685d2f3c672e28a803fd720cc.s3tc.ctex"
+path.etc2="res://.godot/imported/SkullCracked_SkullCracked_Color.png-4db9c79685d2f3c672e28a803fd720cc.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Accessories/SkullCracked_SkullCracked_Color.png"
-dest_files=["res://.godot/imported/SkullCracked_SkullCracked_Color.png-4db9c79685d2f3c672e28a803fd720cc.s3tc.ctex"]
+dest_files=["res://.godot/imported/SkullCracked_SkullCracked_Color.png-4db9c79685d2f3c672e28a803fd720cc.s3tc.ctex", "res://.godot/imported/SkullCracked_SkullCracked_Color.png-4db9c79685d2f3c672e28a803fd720cc.etc2.ctex"]
 
 [params]
 

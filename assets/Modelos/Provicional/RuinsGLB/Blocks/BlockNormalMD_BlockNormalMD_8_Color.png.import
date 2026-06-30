@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://cgbvb01vhbyvq"
 path.s3tc="res://.godot/imported/BlockNormalMD_BlockNormalMD_8_Color.png-6e6ab37055da6bfb4e46c9971ad53d96.s3tc.ctex"
+path.etc2="res://.godot/imported/BlockNormalMD_BlockNormalMD_8_Color.png-6e6ab37055da6bfb4e46c9971ad53d96.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Modelos/Provicional/RuinsGLB/Blocks/BlockNormalMD_BlockNormalMD_8_Color.png"
-dest_files=["res://.godot/imported/BlockNormalMD_BlockNormalMD_8_Color.png-6e6ab37055da6bfb4e46c9971ad53d96.s3tc.ctex"]
+dest_files=["res://.godot/imported/BlockNormalMD_BlockNormalMD_8_Color.png-6e6ab37055da6bfb4e46c9971ad53d96.s3tc.ctex", "res://.godot/imported/BlockNormalMD_BlockNormalMD_8_Color.png-6e6ab37055da6bfb4e46c9971ad53d96.etc2.ctex"]
 
 [params]
 
