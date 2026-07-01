@@ -3,20 +3,16 @@ class_name Fantasma
 
 signal aura_estado_actualizado(activo: bool, progreso: float)
 
-const CAPA_FISICA := 1 << 1 # Layer 2: Plano_Fisico
-const CAPA_ESPIRITUAL := 1 << 2 # Layer 3: Plano_Espiritual
-const CAPAS_PLATAFORMA_ACTIVA := CAPA_FISICA | CAPA_ESPIRITUAL
-
 @export_group("Configuración Visual")
 @export var fantasma_camera_environment: Environment # Entorno para la cámara del fantasma
 @export var RADIO_DETECCION : float = 10.0 # Radio máximo de detección para plataformas
-
-var plataformas_activas : Dictionary = {}  # {nodo_path: bool}
-var plataformas_registradas : Array = []
-var aura_activa_actual : bool = false
+@export var BUFFER_CONTACTO_PLATAFORMA : float = 0.25 # Tiempo de gracia (amortiguación) en segundos para evitar parpadeos al moverse
 
 var _original_camera_environment: Environment
 @onready var habilidad_aura = $HabilidadAura
+
+# Diccionario para rastrear el tiempo de contacto restante para cada plataforma
+var _contacto_plataformas : Dictionary = {} # {plataforma: float}
 
 func _ready():
 	FUERZA_SALTO = 8.0
@@ -40,8 +36,6 @@ func _ready():
 	# NO incluye capa 2 (Jugador) → no colisiona con el jugador
 	collision_mask = (1 << 0) | (1 << 2) | (1 << 3)
 
-	_inicializar_plataformas()
-
 	if is_instance_valid(RedManager):
 		RedManager.registrar_jugador(self)
 
@@ -52,27 +46,6 @@ func _ready():
 func _on_aura_estado_cambiado(activo: bool, progreso: float):
 	"""Manejador de señal del componente HabilidadAura"""
 	aura_estado_actualizado.emit(activo, progreso)
-	
-	if not is_multiplayer_authority(): return
-	
-	if activo != aura_activa_actual:
-		aura_activa_actual = activo
-		if activo:
-			# Al activar el aura, activamos todas las plataformas que estén dentro del radio máximo
-			for plataforma in plataformas_registradas:
-				var path = plataforma.get_path()
-				var distancia = global_position.distance_to(plataforma.global_position)
-				if distancia <= RADIO_DETECCION:
-					rpc_sincronizar_estado_plataforma.rpc(path, true)
-					print("[Fantasma] Aura activada: ", plataforma.name, " -> ACTIVA")
-		else:
-			# Al desactivar el aura (fin de habilidad), desactivamos todas las plataformas activas
-			for path in plataformas_activas.keys():
-				if plataformas_activas[path]:
-					rpc_sincronizar_estado_plataforma.rpc(path, false)
-					var plataforma = get_node_or_null(path)
-					var plat_name = plataforma.name if plataforma else str(path)
-					print("[Fantasma] Aura desactivada: ", plat_name, " -> INACTIVA")
 
 func actualizar_visibilidad_local():
 	super()
@@ -112,33 +85,6 @@ func actualizar_visibilidad_local():
 	elif camera:
 		camera.environment = _original_camera_environment # Restablecer al entorno global
 
-func _inicializar_plataformas():
-	"""Encuentra todas las plataformas interactuables en el mundo"""
-	print("[Fantasma] Buscando plataformas en el mundo...")
-	plataformas_registradas.clear()
-	plataformas_activas.clear()
-	
-	# Buscar plataformas marcadas por colisión espiritual, no por nombre.
-	_buscar_plataformas(get_tree().root)
-	
-	print("[Fantasma] Plataformas encontradas: ", plataformas_registradas.size())
-	for plat in plataformas_registradas:
-		print("  - ", plat.name, " en posición ", plat.global_position)
-
-func _buscar_plataformas(nodo: Node) -> void:
-	"""Búsqueda recursiva de plataformas en el árbol de escenas"""
-	if nodo is StaticBody3D and _es_plataforma_aura(nodo):
-		plataformas_registradas.append(nodo)
-		plataformas_activas[nodo.get_path()] = false  # Inicialmente desactivadas
-		# Forzamos el estado inicial: sólido para fantasma, intangible para vivo
-		_aplicar_estado_plataforma(nodo, false)
-	
-	for hijo in nodo.get_children():
-		_buscar_plataformas(hijo)
-
-func _es_plataforma_aura(plataforma: StaticBody3D) -> bool:
-	return (plataforma.collision_layer & CAPA_ESPIRITUAL) != 0 or (plataforma.collision_mask & CAPA_ESPIRITUAL) != 0
-
 func _physics_process(delta):
 	# Solo procesar input y movimiento si somos la autoridad local
 	if not is_multiplayer_authority(): return
@@ -151,114 +97,50 @@ func _physics_process(delta):
 		habilidad_aura.intentar_activar()
 
 	procesar_movimiento_base(delta)
+	_actualizar_estado_plataformas(delta)
 
-func _actualizar_proximidad_plataformas(radio_aura: float) -> void:
-	"""Activa plataformas si el aura está activa y están dentro de su radio actual"""
-	for plataforma in plataformas_registradas:
-		var path = plataforma.get_path()
-		var esta_en_rango = false
+func _actualizar_estado_plataformas(delta: float) -> void:
+	"""Activa/desactiva plataformas del grupo 'plataformas_aura' en base a si el fantasma las toca y si el aura está activa y por encima del umbral de fin."""
+	if not is_multiplayer_authority(): return
+
+	# 1. Decrementar los contadores de contacto de todas las plataformas registradas
+	for plat in _contacto_plataformas.keys():
+		if _contacto_plataformas[plat] > 0.0:
+			_contacto_plataformas[plat] = max(_contacto_plataformas[plat] - delta, 0.0)
+
+	# 2. Detectar contacto y refrescar el temporizador para las plataformas del grupo tocadas
+	var plataformas = get_tree().get_nodes_in_group("plataformas_aura")
+	for plataforma in plataformas:
+		if plataforma.has_method("esta_siendo_tocada_por_fantasma") and plataforma.esta_siendo_tocada_por_fantasma():
+			_contacto_plataformas[plataforma] = BUFFER_CONTACTO_PLATAFORMA
+
+	# 3. Verificar si la habilidad está activa
+	var habilidad_valida = habilidad_aura and habilidad_aura.esta_activa()
+
+	# 4. Sincronizar el estado de todas las plataformas del grupo
+	for plataforma in plataformas:
+		if not plataforma.has_method("actualizar_estado"):
+			continue
+			
+		var tiempo_restante = _contacto_plataformas.get(plataforma, 0.0)
+		var debe_ser_activa = habilidad_valida and (tiempo_restante > 0.0)
 		
-		if habilidad_aura and habilidad_aura.esta_activa():
-			var distancia = global_position.distance_to(plataforma.global_position)
-			esta_en_rango = distancia <= radio_aura
-		
-		# Solo enviamos el RPC si el estado cambia para no saturar la red
-		var estado_actual = plataformas_activas.get(path, false)
-		
-		if esta_en_rango != estado_actual:
-			rpc_sincronizar_estado_plataforma.rpc(path, esta_en_rango)
-			print("[Fantasma] Proximidad: ", plataforma.name, " -> ", "ACTIVA" if esta_en_rango else "INACTIVA")
-
-@rpc("any_peer", "call_local", "reliable")
-func rpc_sincronizar_estado_plataforma(camino_nodo: NodePath, activo: bool) -> void:
-	var plataforma = get_node_or_null(camino_nodo)
-	if plataforma:
-		plataformas_activas[camino_nodo] = activo
-		_aplicar_estado_plataforma(plataforma, activo)
-		
-		print("[Red] Plataforma '%s' sincronizada: %s" % [
-			plataforma.name, 
-			"ACTIVA" if activo else "INACTIVA"
-		])
-
-func _aplicar_estado_plataforma(plataforma: Node3D, activa: bool) -> void:
-	"""Aplica el estado de visibilidad y colisión a una plataforma"""
-	if activa:
-		# Activa: sólido para vivo y fantasma.
-		plataforma.collision_layer = CAPAS_PLATAFORMA_ACTIVA
-		plataforma.collision_mask = CAPAS_PLATAFORMA_ACTIVA
-		_cambiar_opacidad_plataforma(plataforma, 1.0)  # Visible
-	else:
-		# Inactiva: solo sólido para el fantasma.
-		plataforma.collision_layer = CAPA_ESPIRITUAL
-		plataforma.collision_mask = CAPA_ESPIRITUAL
-		_cambiar_opacidad_plataforma(plataforma, 0.5)  # Semi-transparente
-
-func _cambiar_opacidad_plataforma(plataforma: Node3D, opacidad: float) -> void:
-	"""Cambia la opacidad de todos los MeshInstance3D de una plataforma de forma recursiva"""
-	_cambiar_opacidad_recursivo(plataforma, opacidad)
-
-func _cambiar_opacidad_recursivo(nodo: Node, opacidad: float) -> void:
-	if nodo is MeshInstance3D:
-		# Modificar material_override si existe
-		if nodo.material_override:
-			var mat = nodo.material_override.duplicate()
-			if mat is BaseMaterial3D:
-				if opacidad >= 1.0:
-					mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-				else:
-					mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-				
-				if "alpha_scissor" in mat:
-					mat.alpha_scissor = 0.5
-				var color = mat.albedo_color
-				color.a = opacidad
-				mat.albedo_color = color
-			nodo.material_override = mat
-		
-		# Modificar materiales de cada superficie
-		if nodo.get_mesh():
-			for i in range(nodo.get_mesh().get_surface_count()):
-				var material = nodo.get_active_material(i)
-				if not material:
-					material = nodo.get_mesh().surface_get_material(i)
-				if material:
-					material = material.duplicate()
-					if material is BaseMaterial3D:
-						if opacidad >= 1.0:
-							material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-						else:
-							material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-						
-						if "alpha_scissor" in material:
-							material.alpha_scissor = 0.5
-						var color = material.albedo_color
-						color.a = opacidad
-						material.albedo_color = color
-					nodo.set_surface_override_material(i, material)
-	for hijo in nodo.get_children():
-		_cambiar_opacidad_recursivo(hijo, opacidad)
-
-func obtener_plataformas_activas() -> Dictionary:
-	"""Retorna las plataformas activas (para sincronización con el jugador vivo)"""
-	return plataformas_activas.duplicate()
-
-func obtener_plataformas_detectadas() -> Array:
-	"""Retorna las plataformas actualmente detectadas"""
-	var detectadas = []
-	for plat in plataformas_registradas:
-		if global_position.distance_to(plat.global_position) <= RADIO_DETECCION:
-			detectadas.append(plat)
-	return detectadas
+		# Sincronizar por RPC solo si el estado cambió
+		if plataforma.esta_activa != debe_ser_activa:
+			plataforma.rpc_sincronizar_estado.rpc(debe_ser_activa)
+			print("[Fantasma] Estado plataforma actualizado: ", plataforma.name, 
+				  " -> ", "ACTIVA (Tangible)" if debe_ser_activa else "INACTIVA (Intangible)",
+				  " (Tiempo contacto restante: %f)" % tiempo_restante)
 
 func reiniciar_posicion() -> void:
 	"""Reinicia el fantasma a su posición inicial"""
 	global_position = posicion_inicial
 	velocity = Vector3.ZERO
+	_contacto_plataformas.clear()
 	
 	# Desactivar todas las plataformas al reiniciar
-	for plat_path in plataformas_activas.keys():
-		plataformas_activas[plat_path] = false
-		var plat = get_tree().root.get_node_or_null(plat_path)
-		if plat:
-			_aplicar_estado_plataforma(plat, false)
+	if is_multiplayer_authority():
+		var plataformas = get_tree().get_nodes_in_group("plataformas_aura")
+		for plataforma in plataformas:
+			if plataforma.has_method("actualizar_estado") and plataforma.esta_activa:
+				plataforma.rpc_sincronizar_estado.rpc(false)

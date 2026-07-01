@@ -28,7 +28,7 @@ var tiempo_desde_salto : float = 0.0
 var saltos_realizados : int = 0
 
 @onready var pivote_camara = $Node3D
-@onready var controles_tactiles = get_node_or_null("../Controles_Tactiles")
+var controles_tactiles: Node = null
 
 func _ready():
 	objetivo_rotacion_y = rotation.y
@@ -36,6 +36,11 @@ func _ready():
 		objetivo_rotacion_x = pivote_camara.rotation.x
 	posicion_inicial = global_position
 	actualizar_visibilidad_local()
+	
+	# Buscar controles táctiles en el grupo global "ui_tactil"
+	var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
+	if nodos_ui.size() > 0:
+		controles_tactiles = nodos_ui[0]
 
 func actualizar_visibilidad_local():
 	# Lógica base de cámara, los hijos extenderán esto
@@ -57,6 +62,12 @@ func procesar_camara_base(delta: float):
 
 	if pivote_camara:
 		pivote_camara.global_position = global_position
+
+		# Buscar controles táctiles si aún no se han referenciado
+		if not controles_tactiles:
+			var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
+			if nodos_ui.size() > 0:
+				controles_tactiles = nodos_ui[0]
 
 		if controles_tactiles:
 			var giro = controles_tactiles.consumir_arrastre()
@@ -98,7 +109,7 @@ func procesar_salto_base(delta: float):
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO
 
 func obtener_direccion_movimiento() -> Vector3:
-	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down", 0.05)
+	var input_dir = Input.get_vector("mover_izquierda", "mover_derecha", "mover_adelante", "mover_atras", 0.05)
 		
 	if input_dir == Vector2.ZERO:
 		return Vector3.ZERO

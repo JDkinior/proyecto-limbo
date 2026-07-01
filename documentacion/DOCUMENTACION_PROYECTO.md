@@ -19,7 +19,8 @@ Proyecto Limbo es un juego cooperativo asimétrico desarrollado en **Godot 4**. 
 	*   Sistema de **Aura Temporal**: Se activa con energía que se consume (encogimiento) y tiene tiempo de recarga.
 	*   Sincronización RPC de plataformas.
 	*   Visión espiritual (filtro azul) y teñido de interfaz mediante Shaders.
-*   **`administrador_plataformas.gd`**: Detecta y registra las plataformas en el mundo para que el fantasma pueda interactuar con ellas.
+*   **`administrador_plataformas.gd`**: Se encarga de inicializar, decorar con el script correspondiente y registrar todas las plataformas del plano espiritual en el grupo `"plataformas_aura"`.
+*   **`plataforma_aura.gd`**: Script individual para cada plataforma que gestiona de manera local y sincronizada sus colisiones físicas, opacidad y áreas de contacto.
 
 ## 🌐 Sistema Multijugador (P2P)
 El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):

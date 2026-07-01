@@ -7,6 +7,7 @@ var _personaje_conectado: Node
 var joystick_dedo : int = -1
 
 func _ready():
+	add_to_group("ui_tactil")
 	_inicializar_joystick()
 
 func _inicializar_joystick():
@@ -20,10 +21,10 @@ func _inicializar_joystick():
 	joystick.initial_offset_ratio = Vector2(0.3, 0.5)
 	joystick.visibility_mode = 0 # VISIBILITY_ALWAYS
 	
-	joystick.action_left = &"ui_left"
-	joystick.action_right = &"ui_right"
-	joystick.action_up = &"ui_up"
-	joystick.action_down = &"ui_down"
+	joystick.action_left = &"mover_izquierda"
+	joystick.action_right = &"mover_derecha"
+	joystick.action_up = &"mover_adelante"
+	joystick.action_down = &"mover_atras"
 	
 	var style_base = StyleBoxFlat.new()
 	style_base.bg_color = Color(1.0, 1.0, 0.0, 0.149)

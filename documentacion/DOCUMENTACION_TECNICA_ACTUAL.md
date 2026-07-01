@@ -41,7 +41,7 @@ Acciones de input registradas:
 - `saltar`: Space.
 - `interactuar`: tecla registrada como keycode `4194325`.
 
-Nota importante: actualmente la logica de movimiento base usa `Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")`, no las acciones `mover_izquierda`, `mover_derecha`, `mover_adelante`, `mover_atras`. Si se quiere usar WASD via acciones personalizadas, hay que actualizar `CharacterBase.obtener_direccion_movimiento()`.
+Nota importante: la lógica de movimiento base se ha migrado para utilizar las acciones `mover_izquierda`, `mover_derecha`, `mover_adelante` y `mover_atras` de forma directa a través de `CharacterBase.obtener_direccion_movimiento()`.
 
 Capas fisicas nombradas:
 
@@ -540,35 +540,30 @@ El estado de plataformas se sincroniza con RPC desde `Fantasma`.
 
 ## 10. Sistema De Plataformas
 
-El sistema actual tiene dos piezas:
+El sistema de plataformas espirituales está completamente refactorizado bajo un esquema desacoplado y orientado a eventos mediante Grupos de Godot 4 y RPCs en un entorno multijugador:
 
-### Fantasma
+### Plataformas (PlataformaAura)
 
-El Fantasma:
+`scripts/objects/plataforma_aura.gd`:
 
-- detecta plataformas;
-- calcula distancia con el aura;
-- emite RPC;
-- aplica collision layer/mask y opacidad.
+- Cada plataforma del plano espiritual hereda de `StaticBody3D` (clase `PlataformaAura`) y pertenece al grupo global `"plataformas_aura"`.
+- Tiene un área de detección dinámica (`Area3D` interna llamada `AreaContacto`) que duplica y expande ligeramente su colisión física. Esta área detecta la presencia del fantasma (capa 3) sin fallas físicas ni parpadeos al moverse.
+- Expone la función `@rpc("any_peer", "call_local", "reliable") func rpc_sincronizar_estado(activo: bool)` para aplicar local e individualmente su estado físico (`collision_layer` y `collision_mask`) y visual (opacidad recursiva de sus materiales).
 
 ### AdministradorPlataformas
 
 `scripts/core/administrador_plataformas.gd`:
 
-- busca referencias a `Fantasma` y `Jugador`;
-- consulta `fantasma_ref.obtener_plataformas_activas()`;
-- si detecta cambios, aplica colisiones y opacidad.
+- Actúa únicamente como inicializador al arrancar el nivel.
+- Escanea de forma recursiva la escena, detecta las plataformas espirituales, les adjunta dinámicamente el script `PlataformaAura` si no lo tienen, las inicializa y las añade al grupo `"plataformas_aura"`. Esto elimina todo acoplamiento directo y redundancia de replicación/polling con los personajes.
 
-Estado actual:
+### Fantasma
 
-- Es funcional como apoyo, pero puede ser redundante con la logica directa del Fantasma.
-- Si aparecen bugs de plataformas aplicandose dos veces, revisar esta duplicidad primero.
+`scripts/characters/fantasma.gd`:
 
-Recomendacion:
-
-- Refactor futuro ideal: convertir plataformas en un componente/script propio, por ejemplo `PlataformaAura.gd`, y usar grupos.
-- El Fantasma solo deberia emitir intencion o evento.
-- Un administrador o cada plataforma deberia aplicar su propio estado.
+- Como autoridad del multijugador, monitoriza en cada tick de física si está en contacto con alguna plataforma del grupo `"plataformas_aura"` consultando su área de detección.
+- Si el fantasma la toca y su habilidad de aura está activa, refresca un temporizador de contacto con amortiguación (`BUFFER_CONTACTO_PLATAFORMA = 0.25` segundos) para evitar pérdidas de colisión transitorias al moverse.
+- Sincroniza el estado llamando a `plataforma.rpc_sincronizar_estado.rpc(true)` si la habilidad está activa y hay contacto, o `false` en caso contrario (desactivándose para el vivo cuando se apaga la habilidad o se pierde el contacto).
 
 ## 11. Flujo General De Juego
 
@@ -638,19 +633,11 @@ Seguir estas reglas antes de modificar:
 
 ### Inputs de movimiento
 
-El proyecto define acciones `mover_adelante`, `mover_atras`, `mover_izquierda`, `mover_derecha`, pero `CharacterBase` usa `ui_left`, `ui_right`, `ui_up`, `ui_down`.
+Se ha migrado el uso de las acciones por defecto (`ui_left`, `ui_right`, `ui_up`, `ui_down`) a las acciones personalizadas del Input Map (`mover_izquierda`, `mover_derecha`, `mover_adelante`, `mover_atras`) en `CharacterBase.obtener_direccion_movimiento()`.
 
-Riesgo:
+Estado:
 
-- WASD podria no responder si las acciones `ui_*` no estan configuradas como se espera.
-
-Solucion recomendada:
-
-```gdscript
-input_dir = Input.get_vector("mover_izquierda", "mover_derecha", "mover_adelante", "mover_atras")
-```
-
-Revisar orientacion del eje Z despues de cambiarlo.
+- **Resuelto**. Las acciones de WASD y del joystick táctil virtual se han mapeado a las acciones personalizadas para mantener una consistencia completa y asegurar que el personaje responde correctamente a la configuración personalizada.
 
 ### Duplicidad de plataformas
 
