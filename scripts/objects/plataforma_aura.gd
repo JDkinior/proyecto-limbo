@@ -39,8 +39,10 @@ func inicializar_plataforma() -> void:
 	actualizar_estado(false)
 
 func esta_siendo_tocada_por_fantasma() -> bool:
-	if area_contacto and area_contacto.has_overlapping_bodies():
-		return true
+	if area_contacto:
+		for body in area_contacto.get_overlapping_bodies():
+			if body is Fantasma:
+				return true
 	return false
 
 @rpc("any_peer", "call_local", "reliable")

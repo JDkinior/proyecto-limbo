@@ -26,6 +26,7 @@ ScoreManager="*res://scripts/core/score_manager.gd"
 window/size/viewport_width=1080
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [editor_plugins]
 
