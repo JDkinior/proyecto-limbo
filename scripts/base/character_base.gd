@@ -147,6 +147,25 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 		velocity.z = move_toward(velocity.z, 0.0, tasa_frenado * delta)
 	
 	move_and_slide()
+	
+	# Empujar objetos RigidBody3D (cajas empujables)
+	for i in get_slide_collision_count():
+		var col = get_slide_collision(i)
+		var collider = col.get_collider()
+		if collider is RigidBody3D:
+			var direccion_empuje = -col.get_normal()
+			direccion_empuje.y = 0.0 # Evitar levantar o hundir la caja
+			direccion_empuje = direccion_empuje.normalized()
+			var fuerza_empuje = 2.5 # Ajusta este valor si es necesario
+			var impulso = direccion_empuje * fuerza_empuje * delta * 60.0
+			
+			if collider.has_method("rpc_aplicar_impulso"):
+				# Llamar vía RPC para que se aplique en el servidor que simula la física de la caja
+				collider.rpc("rpc_aplicar_impulso", impulso)
+			elif not collider.freeze:
+				# Fallback local para RigidBody3D no sincronizados
+				collider.apply_central_impulse(impulso)
+
 	_comprobar_caida_vacio()
 	
 	# Aseguramos que la cámara siga exactamente la posición del jugador después del movimiento físico

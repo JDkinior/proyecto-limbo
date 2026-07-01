@@ -911,32 +911,50 @@ Es Autoload con nombre `ScoreManager`.
 
 Responsabilidades:
 
-- Mantener la variable `score: int`.
-- Emitir la senal `score_changed(new_score)` al incrementar.
-- Funcion `add_score(value)` para sumar puntos.
+- Mantener las variables `score: int`, `score_vivo: int` y `score_fantasma: int`.
+- Emitir las señales `score_changed(new_score)`, `score_vivo_changed(new_score)` y `score_fantasma_changed(new_score)` al incrementar.
+- Métodos `add_score(value)`, `add_score_vivo(value)` y `add_score_fantasma(value)` para sumar puntos, los cuales están sincronizados a través de la red P2P mediante llamadas RPC (`rpc_add_score`, etc.) asegurando que ambos jugadores vean los mismos marcadores.
 
-Pendiente:
+---
 
-- Crear un nodo de UI (Label) que escuche `score_changed` y muestre el puntaje.
-- Evaluar si la puntuacion debe sincronizarse por red o si cada peer lleva su propia cuenta.
+## HUD y Contador de Monedas Asimétrico (`scenes/ui/controles_tactiles.tscn` / `controles_tactiles.gd`)
 
-### Como Agregar Una Nueva Moneda Al Nivel
+- Agregamos un marcador visual asimétrico en la esquina superior izquierda del HUD táctil.
+- **Rol de Vivo**: Se configura automáticamente con la textura de la moneda de rubí (`AncientCoinRuby`), se modula a color **Rojo**, muestra el texto inicial como `"Esencias de Vida: 0"`, y se conecta a la señal `score_vivo_changed` de `ScoreManager`.
+- **Rol de Fantasma**: Se configura automáticamente con la textura de la moneda de esmeralda (`AncientCoinEmerald`), se modula a color **Verde**, muestra el texto inicial como `"Fragmentos Espectrales: 0"`, y se conecta a la señal `score_fantasma_changed` de `ScoreManager`.
+- **Menú de Pausa**: Agrupado bajo un único botón de **Pausa** en la esquina superior derecha que despliega el panel de pausa (`Panel_Pausa`). Desde aquí se puede reanudar el juego (Continuar), abrir el sub-panel de Ajustes (`Panel_Opciones`) o desconectarse de forma limpia y salir al menú principal (llamando a `RedManager.desconectar()`).
 
-1. Crear un `Area3D` en la escena del nivel.
-2. Asignar el script `scripts/objects/coin.gd`.
-3. Agregar un `CollisionShape3D` hijo (esfera o caja pequena).
-4. Agregar un `MeshInstance3D` hijo para la representacion visual.
-5. En el inspector, configurar `value` si se quiere un valor distinto de 1.
-6. Las capas se configuran automaticamente por codigo.
+---
 
-### Como Agregar El Objetivo De Nivel
+## Nuevas Escenas y Scripts de Entorno Reutilizables
 
-1. Crear un `Area3D` en la escena del nivel.
-2. Asignar el script `scripts/objects/goal.gd`.
-3. Agregar un `CollisionShape3D` hijo (zona donde deben pararse ambos personajes).
-4. Agregar representacion visual (mesh, particulas, modelo).
-5. En el inspector, configurar `next_scene_path` con la ruta de la siguiente escena.
-6. Ambos personajes deben estar dentro simultaneamente para activar el cambio.
+### 1. Moneda Vivo (`scenes/components/moneda_vivo.tscn` / `moneda_vivo.gd`)
+- Moneda en Capa 4, detecta solo al Vivo (Capa 2). Suma score en el `ScoreManager` de forma sincronizada y se autodestruye mediante RPC. Gira constantemente en su eje Y.
+
+### 2. Moneda Fantasma (`scenes/components/moneda_fantasma.tscn` / `moneda_fantasma.gd`)
+- Moneda en Capa 4, detecta solo al Fantasma (Capa 3). Es invisible para el Vivo (ya que se modula a la Capa Visual 3 y la cámara del Vivo la excluye). Gira constantemente en su eje Y.
+
+### 3. Caja Empujable (`scenes/components/caja_empujable.tscn` / `caja_empujable.gd`)
+- RigidBody3D en Capa 2. Se congela localmente en el Cliente (`freeze = true`) y el movimiento se simula solo en el Servidor, enviándose a los clientes mediante `MultiplayerSynchronizer`.
+- Los personajes aplican fuerzas mediante el RPC `rpc_aplicar_impulso` en el servidor, garantizando que el Cliente también pueda empujar la caja.
+
+### 4. Meta de Nivel (`scenes/components/goal.tscn` / `goal.gd`)
+- Area3D en Capa 4. Lleva un registro indexado de cuerpos dentro del área. Si el Vivo y el Fantasma están dentro simultáneamente, realiza la transición de escena a través de `RedManager.completar_nivel()` o RPC a todos los peers.
+
+### 5. Clase Base: Elemento Interactivo (`scripts/objects/elemento_interactivo_base.gd`)
+- Clase base para puertas y plataformas espirituales.
+- Expone un array de disparadores `disparadores_objetivo` y una condición lógica de combinación (`condicion_combinacion` tipo AND o OR) en el Inspector.
+- Conecta dinámicamente señales mediante Callables en Godot 4.7 y sincroniza el estado en multijugador P2P usando el RPC `rpc_sincronizar_estado`.
+
+### 6. Puerta Interactiva (`scenes/components/puerta_interactiva.tscn` / `puerta_interactiva.gd`)
+- Hereda de `elemento_interactivo_base.gd`. Al activarse por sus disparadores, se desplaza suavemente vía `Tween` y desactiva su colisión.
+
+### 7. Plataforma Espiritual Base (`scenes/components/plataforma_espiritual_base.tscn` / `plataforma_espiritual_base.gd`)
+- Hereda de `elemento_interactivo_base.gd`. Al activarse, se vuelve visible (opacidad 100%) y activa colisión en Capas 2 y 3. Al desactivarse es invisible e intangible.
+
+### 8. Disparadores de Prueba
+- **Botón de Presión (`boton_presion.tscn` / `boton_presion.gd`)**: Emite señales al ser pisado por el Vivo o la Caja.
+- **Interruptor de Aura (`interruptor_aura.tscn` / `interruptor_aura.gd`)**: Emite señales cuando el Fantasma está cerca y su habilidad de aura está activa (calculado por distancia horizontal).
 
 ## 21. Archivos Que Una IA Deberia Leer Primero
 

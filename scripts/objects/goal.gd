@@ -1,55 +1,66 @@
 extends Area3D
 
-# Goal object: termina el nivel al ser tocado por el Jugador.
-# Puedes colocar una escena de este tipo en el nivel y asignar la ruta del
-# siguiente nivel en la exportación `next_scene_path`.
+# Goal: Meta final de nivel. Transiciona de escena mediante RPC
+# cuando detecta al jugador Vivo y al Fantasma de forma simultánea en su área.
 
-# Goal object: termina el nivel al ser tocado por ambos personajes simultáneamente.
-# Exporta la ruta de la siguiente escena. Cambia este valor en el inspector o en tiempo de ejecución.
 @export var next_scene_path: String = "res://scenes/levels/mundo_pruebas.tscn"
 
-# Conjunto de cuerpos actualmente dentro del área.
-var _cuerpos_dentro: Array = []
+# Registro indexado de cuerpos actualmente en la meta
+var _cuerpos_dentro: Array[CharacterBase] = []
 
 func _ready() -> void:
-	# Goal pertenece a la capa 4 (Objetivo/Moneda) y detecta capas 2 y 3 (Jugadores)
-	collision_layer = 1 << 3
-	collision_mask = (1 << 1) | (1 << 2)  # layers 2 and 3
+	# La meta pertenece a la Capa de Colisión 4 (Coleccionables/Metas)
+	collision_layer = 1 << 3 # Capa 4
+	
+	# Detecta Capa 2 (Jugador Vivo) y Capa 3 (Jugador Fantasma)
+	collision_mask = (1 << 1) | (1 << 2) # Capas 2 y 3
+	
+	# Conexión dinámica a señales de detección
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	
+	print("[Goal] Inicializado en Capa 4. Detectando Capas 2 y 3.")
 
 func _on_body_entered(body: Node) -> void:
 	if not (body is CharacterBase):
 		return
-	if body not in _cuerpos_dentro:
+		
+	if not body in _cuerpos_dentro:
 		_cuerpos_dentro.append(body)
-	_verificar_activacion()
+		print("[Goal] Personaje ingresó a la meta: ", body.name, " (Total: ", _cuerpos_dentro.size(), ")")
+		
+	# Solo el authority del multijugador evalúa la condición de transición
+	if is_multiplayer_authority():
+		_verificar_activacion()
 
 func _on_body_exited(body: Node) -> void:
-	if body in _cuerpos_dentro:
+	if body is CharacterBase and body in _cuerpos_dentro:
 		_cuerpos_dentro.erase(body)
+		print("[Goal] Personaje salió de la meta: ", body.name, " (Total: ", _cuerpos_dentro.size(), ")")
+
+func _verificar_activacion() -> void:
+	var tiene_vivo : bool = false
+	var tiene_fantasma : bool = false
+	
+	for cuerpo in _cuerpos_dentro:
+		if cuerpo is Jugador:
+			tiene_vivo = true
+		elif cuerpo is Fantasma:
+			tiene_fantasma = true
+			
+	if tiene_vivo and tiene_fantasma:
+		print("[Goal] ¡Ambos jugadores están en la meta! Iniciando transición de nivel.")
+		
+		# Si RedManager está disponible y estamos en red, delegamos la carga
+		if is_instance_valid(RedManager) and RedManager.has_method("completar_nivel") and RedManager.multiplayer.multiplayer_peer and not RedManager.multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+			if RedManager.multiplayer.is_server():
+				RedManager.completar_nivel()
+		else:
+			# Fallback offline o P2P directo a todos los peers
+			rpc("rpc_change_scene", next_scene_path)
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_change_scene(path: String) -> void:
-	print("[Goal] Cambiando escena en todos los peers a: ", path)
-	get_tree().change_scene_to_file(path)
-
-
-
-func _verificar_activacion() -> void:
-	if not is_multiplayer_authority():
-		return
-	var tiene_jugador = false
-	var tiene_fantasma = false
-	for c in _cuerpos_dentro:
-		if c is Jugador:
-			tiene_jugador = true
-		elif c is Fantasma:
-			tiene_fantasma = true
-	if tiene_jugador and tiene_fantasma:
-		print("[Goal] Ambos personajes dentro – Nivel completado.")
-		if is_instance_valid(RedManager) and RedManager.has_method("completar_nivel"):
-			RedManager.completar_nivel()
-		else:
-			print("[Goal] RedManager no disponible, usando comportamiento por defecto.")
-			rpc("rpc_change_scene", next_scene_path)
+	print("[Goal] RPC recibido. Cambiando de escena a: ", path)
+	if get_tree():
+		get_tree().change_scene_to_file(path)

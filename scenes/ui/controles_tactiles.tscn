@@ -1,14 +1,26 @@
 [gd_scene format=3 uid="uid://dxdselwmt1ljo"]
 
-[ext_resource type="Script" uid="uid://chw58qop5kooa" path="res://scripts/ui/controles_tactiles.gd" id="1_controles"]
-[ext_resource type="Script" uid="uid://b11xpstv10exe" path="res://scripts/ui/area_camara.gd" id="2_epxqs"]
-[ext_resource type="Script" uid="uid://b0uxovmqukmqw" path="res://scripts/ui/boton_tactil_visual.gd" id="2_rtx1c"]
+[ext_resource type="Script" path="res://scripts/ui/controles_tactiles.gd" id="1_controles"]
+[ext_resource type="Script" path="res://scripts/ui/area_camara.gd" id="2_epxqs"]
+[ext_resource type="Script" path="res://scripts/ui/boton_tactil_visual.gd" id="2_rtx1c"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xv6fp"]
 radius = 40.0
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_rtx1c"]
 radius = 40.0
+
+[sub_resource type="LabelSettings" id="LabelSettings_hud"]
+font_size = 28
+outline_size = 6
+outline_color = Color(0, 0, 0, 1)
+shadow_size = 4
+shadow_color = Color(0, 0, 0, 0.5)
+
+[sub_resource type="LabelSettings" id="LabelSettings_panel"]
+font_size = 24
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
 
 [node name="Controles_Tactiles" type="Control" unique_id=1456756494]
 layout_mode = 3
@@ -65,3 +77,155 @@ position = Vector2(40, -42)
 shape = SubResource("CircleShape2D_rtx1c")
 action = "interactuar"
 script = ExtResource("2_rtx1c")
+
+[node name="HUD_Puntuacion" type="MarginContainer" parent="."]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 450.0
+offset_bottom = 80.0
+
+[node name="Contenedor_Puntuacion" type="HBoxContainer" parent="HUD_Puntuacion"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Icono_Moneda" type="TextureRect" parent="HUD_Puntuacion/Contenedor_Puntuacion"]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Texto_Puntuacion" type="Label" parent="HUD_Puntuacion/Contenedor_Puntuacion"]
+layout_mode = 2
+text = "Puntuación: 0"
+label_settings = SubResource("LabelSettings_hud")
+vertical_alignment = 1
+
+[node name="HUD_Menu" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -140.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 70.0
+grow_horizontal = 0
+
+[node name="Boton_Pausa" type="Button" parent="HUD_Menu"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+text = "Pausa"
+
+[node name="Panel_Pausa" type="Panel" parent="."]
+visible = false
+custom_minimum_size = Vector2(280, 260)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -140.0
+offset_top = -130.0
+offset_right = 140.0
+offset_bottom = 130.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Pausa"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="Label_Titulo" type="Label" parent="Panel_Pausa/VBoxContainer"]
+layout_mode = 2
+text = "Pausa"
+label_settings = SubResource("LabelSettings_panel")
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="Panel_Pausa/VBoxContainer"]
+layout_mode = 2
+
+[node name="Boton_Continuar" type="Button" parent="Panel_Pausa/VBoxContainer"]
+custom_minimum_size = Vector2(180, 35)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Continuar"
+
+[node name="Boton_Opciones" type="Button" parent="Panel_Pausa/VBoxContainer"]
+custom_minimum_size = Vector2(180, 35)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Ajustes"
+
+[node name="Boton_Salir" type="Button" parent="Panel_Pausa/VBoxContainer"]
+custom_minimum_size = Vector2(180, 35)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Salir al Menú"
+
+[node name="Panel_Opciones" type="Panel" parent="."]
+visible = false
+custom_minimum_size = Vector2(360, 240)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -120.0
+offset_right = 180.0
+offset_bottom = 120.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Opciones"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 15
+alignment = 1
+
+[node name="Label_Titulo" type="Label" parent="Panel_Opciones/VBoxContainer"]
+layout_mode = 2
+text = "Ajustes de Juego"
+label_settings = SubResource("LabelSettings_panel")
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="Panel_Opciones/VBoxContainer"]
+layout_mode = 2
+
+[node name="Label_Info" type="Label" parent="Panel_Opciones/VBoxContainer"]
+layout_mode = 2
+text = "Controles Táctiles y Red Activa"
+horizontal_alignment = 1
+
+[node name="Boton_Cerrar_Opciones" type="Button" parent="Panel_Opciones/VBoxContainer"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Atrás"
+
+[connection signal="pressed" from="HUD_Menu/Boton_Pausa" to="." method="_on_boton_pausa_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Continuar" to="." method="_on_boton_continuar_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Opciones" to="." method="_on_boton_opciones_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Salir" to="." method="_on_boton_salir_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]

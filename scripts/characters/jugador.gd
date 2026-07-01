@@ -13,6 +13,11 @@ func _ready():
 
 func actualizar_visibilidad_local():
 	super() # Llama a la cámara base
+	var es_mio = is_multiplayer_authority()
+	if es_mio and pivote_camara and pivote_camara.has_node("Camera3D"):
+		var camera = pivote_camara.get_node("Camera3D")
+		# Excluir capa visual 3 (Plano Espiritual) para ocultar las monedas del fantasma y elementos espirituales
+		camera.cull_mask = 1048575 & ~(1 << 2)
 
 func _physics_process(delta):
 	if not is_multiplayer_authority(): return

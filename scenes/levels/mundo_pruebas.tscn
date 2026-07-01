@@ -29,12 +29,17 @@
 [ext_resource type="PackedScene" uid="uid://bqsuqqwoy1u2p" path="res://assets/Modelos/Provicional/RuinsGLB/Blocks/BlockMossXL.glb" id="28_k0dss"]
 [ext_resource type="PackedScene" uid="uid://codkpthwgwxmp" path="res://assets/Modelos/Provicional/RuinsGLB/Blocks/BlockNormalMD.glb" id="29_76twr"]
 [ext_resource type="PackedScene" uid="uid://bhimucrbo3bbq" path="res://assets/Modelos/Provicional/RuinsGLB/Moss/MossMD.glb" id="30_83wdv"]
-[ext_resource type="Script" uid="uid://d2trbto7b34dg" path="res://scripts/objects/coin.gd" id="31_4d6ab"]
-[ext_resource type="PackedScene" uid="uid://cmxnnwib3ckd7" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinEmerald.glb" id="32_crjee"]
-[ext_resource type="PackedScene" uid="uid://dnnv67oic3l7y" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinRuby.glb" id="33_76twr"]
 [ext_resource type="Script" uid="uid://bwj867slemkja" path="res://scripts/objects/goal.gd" id="33_k0dss"]
 [ext_resource type="PackedScene" uid="uid://gvut3asb3dtq" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/WallLight.glb" id="34_76twr"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges5" path="res://scenes/components/moneda_vivo.tscn" id="34_83wdv"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges6" path="res://scenes/components/moneda_fantasma.tscn" id="35_u8cmm"]
 [ext_resource type="MeshLibrary" uid="uid://bsjiuuggxqyca" path="res://assets/Modelos/Provicional/mis_tiles.tres" id="36_83wdv"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges7" path="res://scenes/components/caja_empujable.tscn" id="36_u8cmm"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges1" path="res://scenes/components/boton_presion.tscn" id="37_u8cmm"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqgeta" path="res://scenes/components/puerta_interactiva.tscn" id="38_g0mv7"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges2" path="res://scenes/components/interruptor_aura.tscn" id="39_eycf6"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/goal.tscn" id="40_hks28"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataforma_espiritual_base.tscn" id="41_jnm56"]
 [ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="admin_plat"]
 
 [sub_resource type="Environment" id="Environment_76twr"]
@@ -76,11 +81,10 @@ size = Vector3(1.7836914, 3.2076416, 1.0473022)
 [sub_resource type="BoxShape3D" id="BoxShape3D_crjee"]
 size = Vector3(6.4, 1.6, 6.4)
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_4d6ab"]
-radius = 0.8
-
 [sub_resource type="BoxShape3D" id="BoxShape3D_gyaad"]
 size = Vector3(1, 1, 3)
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_g0mv7"]
 
 [node name="Mundo_Pruebas" type="Node3D" unique_id=406520819]
 
@@ -389,31 +393,6 @@ transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -0.3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0000005, -0.2000001, 0)
 shape = SubResource("BoxShape3D_crjee")
 
-[node name="Area3D" type="Area3D" parent="." unique_id=1394780419]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 2.4, -4)
-collision_layer = 8
-collision_mask = 32
-script = ExtResource("31_4d6ab")
-
-[node name="AncientCoinEmerald2" parent="Area3D" unique_id=843713868 instance=ExtResource("32_crjee")]
-transform = Transform3D(1, 0, 0, 0, 0.258819, -0.9659258, 0, 0.9659258, 0.258819, 0, 0, -0.3000002)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1392815576]
-transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, 0, 0, 0)
-shape = SubResource("SphereShape3D_4d6ab")
-
-[node name="Area3D3" type="Area3D" parent="." unique_id=1121698556]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 3.4, -17.6)
-collision_layer = 6
-collision_mask = 4
-script = ExtResource("31_4d6ab")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D3" unique_id=1255198108]
-shape = SubResource("SphereShape3D_4d6ab")
-
-[node name="AncientCoinRuby" parent="Area3D3" unique_id=315015117 instance=ExtResource("33_76twr")]
-transform = Transform3D(1, 0, 0, 0, 0.25881907, -0.9659258, 0, 0.9659258, 0.25881907, 0, 0, 0)
-
 [node name="Area3D2" type="Area3D" parent="." unique_id=1581123911]
 transform = Transform3D(4.2, 0, 0, 0, 3.7200003, 0, 0, 0, 1, -5, 5, -57)
 collision_layer = 8
@@ -428,31 +407,6 @@ transform = Transform3D(1.9106857e-15, 1.04907336e-07, 0.9999997, 1.0000002, -1.
 transform = Transform3D(0.99999964, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0806452, 2)
 shape = SubResource("BoxShape3D_gyaad")
 
-[node name="Area3D4" type="Area3D" parent="." unique_id=1755972465]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 4.1, -32.9)
-collision_layer = 8
-collision_mask = 32
-script = ExtResource("31_4d6ab")
-
-[node name="AncientCoinEmerald2" parent="Area3D4" unique_id=1767873736 instance=ExtResource("32_crjee")]
-transform = Transform3D(1, 0, 0, 0, 0.258819, -0.9659258, 0, 0.9659258, 0.258819, 0, 0, -0.3000002)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D4" unique_id=60662854]
-transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, 0, 0, 0)
-shape = SubResource("SphereShape3D_4d6ab")
-
-[node name="Area3D5" type="Area3D" parent="." unique_id=1792775463]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 5.4, -45.6)
-collision_layer = 6
-collision_mask = 4
-script = ExtResource("31_4d6ab")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D5" unique_id=1521778093]
-shape = SubResource("SphereShape3D_4d6ab")
-
-[node name="AncientCoinRuby" parent="Area3D5" unique_id=555690066 instance=ExtResource("33_76twr")]
-transform = Transform3D(1, 0, 0, 0, 0.25881907, -0.9659258, 0, 0.9659258, 0.25881907, 0, 0, 0)
-
 [node name="GridMap" type="GridMap" parent="." unique_id=600289253]
 mesh_library = ExtResource("36_83wdv")
 cell_size = Vector3(2, 0.4, 2)
@@ -462,3 +416,33 @@ data = {
 "cells": PackedInt32Array(65256, 65326, 655372, 65256, 65329, 12, 65256, 65332, 655372, 65256, 65335, 12, 65259, 65326, 655372, 65259, 65329, 12, 65259, 65332, 655372, 65259, 65335, 12, 65262, 65326, 655372, 65262, 65329, 12, 65262, 65332, 655372, 65262, 65335, 12, 65265, 65326, 655372, 65265, 65329, 12, 65265, 65332, 655372, 65265, 65335, 12, 65268, 65326, 655372, 65268, 65329, 12, 65268, 65332, 655372, 65268, 65335, 12, 65530, 12, 655372, 65530, 15, 12, 65530, 18, 655372, 65530, 21, 12, 65533, 12, 655372, 65533, 15, 12, 65533, 18, 655372, 65533, 21, 12, 0, 12, 655372, 0, 15, 12, 0, 18, 655372, 0, 21, 12, 3, 12, 655372, 3, 15, 12, 3, 18, 655372, 3, 21, 12, 6, 12, 655372, 6, 15, 12, 6, 18, 655372, 6, 21, 12, 65536, 9, 31, 131071, 9, 31, 65537, 9, 655391, 65543, 21, 655400, 65543, 18, 655400, 65543, 15, 655400, 65543, 12, 655400, 131065, 12, 40, 131065, 15, 40, 131065, 18, 40, 131065, 21, 40, 131066, 22, 1048616, 131069, 22, 1048616, 65536, 22, 1048616, 65539, 22, 1048616, 65542, 22, 1048616, 65542, 11, 1441832, 131066, 11, 1441832)
 }
 metadata/_editor_floor_ = Vector3(0, 0, 0)
+
+[node name="MonedaVivo" parent="." unique_id=330625156 instance=ExtResource("34_83wdv")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3548527, 1.940898, -6.523006)
+
+[node name="MonedaFantasma" parent="." unique_id=218746678 instance=ExtResource("35_u8cmm")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.398279, 1.8501053, -6.466897)
+
+[node name="BotonPresion" parent="." unique_id=1945522010 instance=ExtResource("37_u8cmm")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8681555, 0.5, -3.9832602)
+
+[node name="PuertaInteractiva" parent="." unique_id=1471198665 node_paths=PackedStringArray("disparadores_objetivo", "disparador_objetivo") instance=ExtResource("38_g0mv7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0979578, 0.49999952, -10.326309)
+distancia_desplazamiento = 5.0
+disparadores_objetivo = [NodePath("../InterruptorAura"), NodePath("../BotonPresion")]
+disparador_objetivo = NodePath("../InterruptorAura")
+
+[node name="CajaEmpujable" parent="." unique_id=1323873050 instance=ExtResource("36_u8cmm")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0993834, 1, -1.6529357)
+physics_material_override = SubResource("PhysicsMaterial_g0mv7")
+
+[node name="InterruptorAura" parent="." unique_id=560824888 instance=ExtResource("39_eycf6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.045219, 0.46782756, -4.3168526)
+
+[node name="Goal" parent="." unique_id=987666563 instance=ExtResource("40_hks28")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.332433, 0.5, -5.5303593)
+
+[node name="PlataformaEspiritualBase" parent="." unique_id=1543441787 node_paths=PackedStringArray("disparadores_objetivo", "disparador_objetivo") instance=ExtResource("41_jnm56")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.688819, 1.1615777, 7.8109508)
+disparadores_objetivo = [NodePath("../BotonPresion"), NodePath("../InterruptorAura")]
+disparador_objetivo = NodePath("../InterruptorAura")

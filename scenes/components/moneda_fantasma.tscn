@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://cs88ggghqges6"]
+
+[ext_resource type="Script" uid="uid://4cu0vank3xh8" path="res://scripts/objects/moneda_fantasma.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cmxnnwib3ckd7" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinEmerald.glb" id="2_mesh"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_0di4k"]
+radius = 0.8519678
+
+[node name="MonedaFantasma" type="Area3D" unique_id=642708094]
+collision_layer = 8
+collision_mask = 4
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1691089396]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
+shape = SubResource("SphereShape3D_0di4k")
+
+[node name="AncientCoinEmerald" parent="." unique_id=871766621 instance=ExtResource("2_mesh")]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.05, 0.05, -0.35)

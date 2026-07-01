@@ -39,6 +39,9 @@ func _ready():
 	if is_instance_valid(RedManager):
 		RedManager.registrar_jugador(self)
 
+	# Agregar al grupo global para localización rápida por otros componentes
+	add_to_group("fantasmas")
+
 	if habilidad_aura:
 		habilidad_aura.radio_maximo = RADIO_DETECCION
 		habilidad_aura.estado_cambiado.connect(_on_aura_estado_cambiado)
