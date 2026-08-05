@@ -42,14 +42,31 @@
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataforma_espiritual_base.tscn" id="41_jnm56"]
 [ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="admin_plat"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_pruebas"]
+sky_top_color = Color(0.14, 0.22, 0.44, 1)
+sky_horizon_color = Color(0.85, 0.58, 0.28, 1)
+ground_bottom_color = Color(0.15, 0.12, 0.1, 1)
+ground_horizon_color = Color(0.4, 0.3, 0.2, 1)
+
+[sub_resource type="Sky" id="Sky_pruebas"]
+sky_material = SubResource("ProceduralSkyMaterial_pruebas")
+
 [sub_resource type="Environment" id="Environment_76twr"]
-ambient_light_source = 2
-ambient_light_color = Color(0.24018338, 0.2680233, 0.55217695, 1)
-ambient_light_energy = 2.92
+background_mode = 2
+sky = SubResource("Sky_pruebas")
+ambient_light_source = 3
+ambient_light_color = Color(0.35, 0.32, 0.48, 1)
+ambient_light_energy = 1.6
+tonemap_mode = 2
+tonemap_exposure = 1.1
+tonemap_white = 1.2
+glow_enabled = true
+glow_intensity = 1.2
+glow_strength = 1.1
+glow_bloom = 0.25
 fog_enabled = true
-fog_light_energy = 1.07
-fog_sun_scatter = 0.15
-fog_density = 0.0143
+fog_light_color = Color(0.35, 0.38, 0.52, 1)
+fog_density = 0.01
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_76twr"]
 size = Vector3(1, 2.5, 4.7000003)
@@ -106,7 +123,12 @@ environment = SubResource("Environment_76twr")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=918600972]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+light_color = Color(1, 0.88, 0.58, 1)
+light_energy = 1.8
 shadow_enabled = true
+
+
+
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=357033613]
 
@@ -413,7 +435,7 @@ cell_size = Vector3(2, 0.4, 2)
 collision_layer = 7
 collision_mask = 7
 data = {
-"cells": PackedInt32Array(65256, 65326, 655372, 65256, 65329, 12, 65256, 65332, 655372, 65256, 65335, 12, 65259, 65326, 655372, 65259, 65329, 12, 65259, 65332, 655372, 65259, 65335, 12, 65262, 65326, 655372, 65262, 65329, 12, 65262, 65332, 655372, 65262, 65335, 12, 65265, 65326, 655372, 65265, 65329, 12, 65265, 65332, 655372, 65265, 65335, 12, 65268, 65326, 655372, 65268, 65329, 12, 65268, 65332, 655372, 65268, 65335, 12, 65530, 12, 655372, 65530, 15, 12, 65530, 18, 655372, 65530, 21, 12, 65533, 12, 655372, 65533, 15, 12, 65533, 18, 655372, 65533, 21, 12, 0, 12, 655372, 0, 15, 12, 0, 18, 655372, 0, 21, 12, 3, 12, 655372, 3, 15, 12, 3, 18, 655372, 3, 21, 12, 6, 12, 655372, 6, 15, 12, 6, 18, 655372, 6, 21, 12, 65536, 9, 31, 131071, 9, 31, 65537, 9, 655391, 65543, 21, 655400, 65543, 18, 655400, 65543, 15, 655400, 65543, 12, 655400, 131065, 12, 40, 131065, 15, 40, 131065, 18, 40, 131065, 21, 40, 131066, 22, 1048616, 131069, 22, 1048616, 65536, 22, 1048616, 65539, 22, 1048616, 65542, 22, 1048616, 65542, 11, 1441832, 131066, 11, 1441832)
+"cells": PackedInt32Array(65256, 65326, 655372, 65256, 65329, 12, 65256, 65332, 655372, 65256, 65335, 12, 65259, 65326, 655372, 65259, 65329, 12, 65259, 65332, 655372, 65259, 65335, 12, 65262, 65326, 655372, 65262, 65329, 12, 65262, 65332, 655372, 65262, 65335, 12, 65265, 65326, 655372, 65265, 65329, 12, 65265, 65332, 655372, 65265, 65335, 12, 65268, 65326, 655372, 65268, 65329, 12, 65268, 65332, 655372, 65268, 65335, 12, 65530, 12, 655372, 65530, 15, 12, 65530, 18, 655372, 65530, 21, 12, 65533, 12, 655372, 65533, 15, 12, 65533, 18, 655372, 65533, 21, 12, 0, 12, 655372, 0, 15, 12, 0, 18, 655372, 0, 21, 12, 3, 12, 655372, 3, 15, 12, 3, 18, 655372, 3, 21, 12, 6, 12, 655372, 6, 15, 12, 6, 18, 655372, 6, 21, 12, 65536, 9, 31, 131071, 9, 31, 65537, 9, 655391, 65543, 21, 655400, 65543, 18, 655400, 65543, 15, 655400, 65543, 12, 655400, 131065, 12, 40, 131065, 15, 40, 131065, 18, 40, 131065, 21, 40, 131066, 22, 1048616, 131069, 22, 1048616, 65536, 22, 1048616, 65539, 22, 1048616, 65542, 22, 1048616, 65542, 11, 1441832, 131066, 11, 1441832, 4, 10, 1441838, 0, 10, 1441839, 65532, 10, 1441838)
 }
 metadata/_editor_floor_ = Vector3(0, 0, 0)
 

@@ -9,12 +9,17 @@ func _ready():
 
 func _configurar_plataformas(nodo: Node) -> void:
 	if nodo is StaticBody3D and _es_plataforma_aura(nodo):
-		# Asignar el script PlataformaAura si no tiene uno
-		if not nodo.get_script():
-			nodo.set_script(load("res://scripts/objects/plataforma_aura.gd"))
-			# Inicializar manualmente ya que _ready() no se vuelve a disparar al cambiar el script en runtime
-			if nodo.has_method("inicializar_plataforma"):
-				nodo.inicializar_plataforma()
+		# Añadir PlataformaAura como componente hijo si no lo tiene
+		var tiene_componente = false
+		for hijo in nodo.get_children():
+			if hijo is PlataformaAura:
+				tiene_componente = true
+				break
+		
+		if not tiene_componente:
+			var componente = load("res://scripts/objects/plataforma_aura.gd").new()
+			componente.name = "PlataformaAuraComponente"
+			nodo.add_child(componente)
 		
 		# Registrar en el grupo plataformas_aura si no pertenece
 		if not nodo.is_in_group("plataformas_aura"):

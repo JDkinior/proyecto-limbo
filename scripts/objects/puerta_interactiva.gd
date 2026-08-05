@@ -6,7 +6,7 @@ class_name PuertaInteractiva
 # y desactiva su colisión. Al desactivarse, regresa y reactiva su colisión.
 
 @export_group("Configuración de Movimiento")
-@export var distancia_desplazamiento: float = 3.0
+@export var distancia_desplazamiento: float = 4.5
 @export var direccion_desplazamiento: Vector3 = Vector3.DOWN
 @export var tiempo_transicion: float = 1.0
 

@@ -1,23 +1,9 @@
 [gd_scene format=3 uid="uid://dmenuinicio"]
 
 [ext_resource type="Script" uid="uid://bj4efyh1c20w" path="res://scripts/ui/menu_inicio.gd" id="1_menu"]
+[ext_resource type="Texture2D" uid="uid://dkgwa1n4hm1c7" path="res://assets/Texturas/fondo2.png" id="2_bg"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
-bg_color = Color(0.0705882, 0.0588235, 0.121569, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.121569, 0.109804, 0.180392, 0.85)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.278431, 0.25098, 0.384314, 0.6)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
-shadow_color = Color(0, 0, 0, 0.3)
-shadow_size = 12
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_trans"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
 bg_color = Color(0.180392, 0.160784, 0.258824, 1)
@@ -66,6 +52,20 @@ corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.121569, 0.109804, 0.180392, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.278431, 0.25098, 0.384314, 0.6)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.3)
+shadow_size = 12
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
 bg_color = Color(0.0823529, 0.0705882, 0.121569, 1)
@@ -162,104 +162,115 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_menu")
 
-[node name="Background" type="Panel" parent="." unique_id=1567931801]
+[node name="Background" type="TextureRect" parent="." unique_id=1567931801]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_bg")
+texture = ExtResource("2_bg")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="HeaderContainer" type="VBoxContainer" parent="." unique_id=883920194]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 75.0
+offset_right = 400.0
+offset_bottom = 175.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="Title" type="Label" parent="HeaderContainer" unique_id=133417467]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.88, 1)
+theme_override_colors/font_shadow_color = Color(0.18, 0.12, 0, 0.85)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 3
+theme_override_font_sizes/font_size = 50
+text = "✦ PROYECTO LIMBO ✦"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="HeaderContainer" unique_id=718982477]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.86, 0.96, 0.9)
+theme_override_font_sizes/font_size = 16
+text = "— Aventura entre Dos Planos —"
+horizontal_alignment = 1
 
 [node name="PanelPrincipal" type="Panel" parent="." unique_id=1164669438]
 layout_mode = 1
-anchors_preset = 8
+anchors_preset = -1
 anchor_left = 0.5
-anchor_top = 0.5
+anchor_top = 0.6
 anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -220.0
-offset_right = 200.0
-offset_bottom = 220.0
+anchor_bottom = 0.6
+offset_left = -210.0
+offset_top = -120.0
+offset_right = 210.0
+offset_bottom = 190.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+theme_override_styles/panel = SubResource("StyleBoxEmpty_trans")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="PanelPrincipal" unique_id=1563770499]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 30.0
-offset_top = 30.0
-offset_right = -30.0
-offset_bottom = -30.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 14
 alignment = 1
 
-[node name="Title" type="Label" parent="PanelPrincipal/VBoxContainer" unique_id=133417467]
-layout_mode = 2
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.5)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_font_sizes/font_size = 36
-text = "PROYECTO LIMBO"
-horizontal_alignment = 1
-
-[node name="Subtitle" type="Label" parent="PanelPrincipal/VBoxContainer" unique_id=718982477]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.55, 0.75, 1)
-theme_override_font_sizes/font_size = 14
-text = "Aventuras entre Dos Planos"
-horizontal_alignment = 1
-
-[node name="HSeparator" type="HSeparator" parent="PanelPrincipal/VBoxContainer" unique_id=448848801]
-layout_mode = 2
-theme_override_constants/separation = 10
-
 [node name="BtnJugar" type="Button" parent="PanelPrincipal/VBoxContainer" unique_id=489398057]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 58)
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
-text = "Jugar Partida"
+text = "⚔️   JUGAR PARTIDA"
 
 [node name="BtnAmigos" type="Button" parent="PanelPrincipal/VBoxContainer" unique_id=366484551]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
-text = "Lista de Amigos"
+text = "👥   LISTA DE AMIGOS"
 
 [node name="BtnOpciones" type="Button" parent="PanelPrincipal/VBoxContainer" unique_id=738007024]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
-text = "Opciones"
+text = "⚙️   OPCIONES"
 
 [node name="BtnSalir" type="Button" parent="PanelPrincipal/VBoxContainer" unique_id=1344318305]
-custom_minimum_size = Vector2(0, 44)
+custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.4, 0.4, 1)
 theme_override_font_sizes/font_size = 16
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
-text = "Salir"
+text = "🚪   SALIR"
 
 [node name="PanelJugar" type="Panel" parent="." unique_id=2040313067]
 visible = false

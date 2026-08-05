@@ -1,22 +1,31 @@
 extends TouchScreenButton
 
-func _process(_delta):
-	# Forzar actualización en cada fotograma
+var color_glow: Color = Color(1.0, 0.8, 0.2, 1.0)
+var _ultimo_color: Color = Color(-1, -1, -1) # Force initial redraw
+
+func _ready():
+	_actualizar_color()
 	queue_redraw()
+
+func _process(_delta):
+	# Solo redibujar si el color cambió
+	_actualizar_color()
+	if color_glow != _ultimo_color:
+		_ultimo_color = color_glow
+		queue_redraw()
+
+func _actualizar_color():
+	var parent_ui = get_tree().get_nodes_in_group("ui_tactil")
+	if parent_ui.size() > 0 and parent_ui[0].has_method("obtener_color_ui"):
+		color_glow = parent_ui[0].obtener_color_ui()
 
 func _draw():
 	if shape is CircleShape2D:
 		var radio = shape.radius
 		
-		# COLOR: Amarillo sutil semitransparente como se ve en tus capturas
-		var color_relleno = Color(1, 1, 0.4, 0.25)
-		var color_borde = Color(1, 1, 0.4, 0.5)
+		var color_relleno = Color(color_glow.r, color_glow.g, color_glow.b, 0.2)
+		var color_borde = Color(color_glow.r, color_glow.g, color_glow.b, 0.65)
 		
-		# CORRECCIÓN DE ORIGEN:
-		# Si la colisión en el inspector está centrada por defecto en el nodo,
-		# el dibujo debe partir de Vector2.ZERO para acoplarse a la colisión celeste.
 		var centro_corregido = Vector2.ZERO
-		
-		# Dibujar el área del botón de forma exacta
 		draw_circle(centro_corregido, radio, color_relleno)
-		draw_circle(centro_corregido, radio, color_borde, false, 2.0)
+		draw_circle(centro_corregido, radio, color_borde, false, 3.0)

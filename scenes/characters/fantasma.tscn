@@ -3,14 +3,28 @@
 [ext_resource type="Script" uid="uid://ctluysrmto2cl" path="res://scripts/characters/fantasma.gd" id="1_fantasma"]
 [ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
 [ext_resource type="ArrayMesh" uid="uid://jyq76yt0vfnl" path="res://assets/Modelos/Provicional/misty.obj" id="2_exjl6"]
+[ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/Modelos/Personajes/fantasma.glb" id="4_bxr04"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fantasma_mesh"]
+transparency = 1
+albedo_color = Color(0.35, 0.78, 1, 0.92)
+metallic = 0.1
+roughness = 0.25
+emission_enabled = true
+emission = Color(0.15, 0.65, 1, 1)
+emission_energy_multiplier = 1.8
+rim_enabled = true
+rim = 0.95
+rim_tint = 0.6
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aura"]
 transparency = 1
+blend_mode = 1
 shading_mode = 0
-albedo_color = Color(0.4, 0.6, 1, 0.117647)
+albedo_color = Color(0.2, 0.75, 1, 0.45)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_aura"]
 material = SubResource("StandardMaterial3D_aura")
@@ -18,11 +32,37 @@ top_radius = 1.0
 bottom_radius = 1.0
 height = 0.05
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particula_espiritual"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.3, 0.85, 1, 0.85)
+
+[sub_resource type="SphereMesh" id="SphereMesh_particula"]
+material = SubResource("StandardMaterial3D_particula_espiritual")
+radius = 0.05
+height = 0.1
+radial_segments = 6
+rings = 4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_estela"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.2, 0.75, 1, 0.65)
+
+[sub_resource type="SphereMesh" id="SphereMesh_estela"]
+material = SubResource("StandardMaterial3D_estela")
+radius = 0.08
+height = 0.16
+radial_segments = 6
+rings = 4
+
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_fantasma"]
-properties/0/path = NodePath(".:position")
+properties/0/path = NodePath(".:sync_position")
 properties/0/spawn = true
 properties/0/replication_mode = 1
-properties/1/path = NodePath(".:rotation")
+properties/1/path = NodePath(".:sync_rotation")
 properties/1/spawn = true
 properties/1/replication_mode = 1
 
@@ -36,11 +76,47 @@ shape = SubResource("CapsuleShape3D_gdkjs")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=407544265]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -0.55, 0)
+visible = false
+material_override = SubResource("StandardMaterial3D_fantasma_mesh")
 mesh = ExtResource("2_exjl6")
 
 [node name="Aura" type="MeshInstance3D" parent="." unique_id=9998]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.48, 0)
+visible = false
+layers = 4
 mesh = SubResource("CylinderMesh_aura")
+
+[node name="ParticulasAuraMistica" type="CPUParticles3D" parent="Aura" unique_id=778899001]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+layers = 4
+amount = 28
+lifetime = 1.8
+mesh = SubResource("SphereMesh_particula")
+emission_shape = 1
+emission_sphere_radius = 0.85
+gravity = Vector3(0, 0.9, 0)
+radial_accel_min = 0.2
+radial_accel_max = 0.6
+scale_amount_min = 0.5
+scale_amount_max = 1.5
+
+[node name="EstelaFantasma" type="CPUParticles3D" parent="." unique_id=778899003]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+emitting = false
+amount = 20
+lifetime = 0.9
+mesh = SubResource("SphereMesh_estela")
+emission_shape = 1
+emission_sphere_radius = 0.3
+gravity = Vector3(0, 0.4, 0)
+scale_amount_min = 0.5
+scale_amount_max = 1.6
+
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=987654321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+light_color = Color(0.3, 0.75, 1, 1)
+light_energy = 1.8
+omni_range = 4.5
 
 [node name="Node3D" type="Node3D" parent="." unique_id=1618272515]
 
@@ -52,3 +128,6 @@ replication_config = SubResource("SceneReplicationConfig_fantasma")
 
 [node name="HabilidadAura" type="Node3D" parent="." unique_id=1968917712]
 script = ExtResource("2_aura_comp")
+
+[node name="fantasma" parent="." unique_id=863164652 instance=ExtResource("4_bxr04")]
+transform = Transform3D(-0.5, 0, 4.371139e-08, 0, 0.5, 0, -4.371139e-08, 0, -0.5, -0.008454323, 0.08923161, 0)

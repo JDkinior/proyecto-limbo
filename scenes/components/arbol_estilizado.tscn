@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://arbol_estilizado_001"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trunk"]
+albedo_color = Color(0.42, 0.28, 0.18, 1)
+roughness = 0.85
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_trunk"]
+material = SubResource("StandardMaterial3D_trunk")
+top_radius = 0.25
+bottom_radius = 0.4
+height = 2.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_leaves"]
+albedo_color = Color(0.32, 0.62, 0.16, 1)
+roughness = 0.6
+rim_enabled = true
+rim = 0.5
+rim_tint = 0.4
+
+[sub_resource type="SphereMesh" id="SphereMesh_canopy1"]
+material = SubResource("StandardMaterial3D_leaves")
+radius = 1.3
+height = 2.2
+radial_segments = 12
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_canopy2"]
+material = SubResource("StandardMaterial3D_leaves")
+radius = 0.9
+height = 1.6
+radial_segments = 12
+rings = 8
+
+[node name="ArbolEstilizado" type="Node3D"]
+
+[node name="Trunk" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.25, 0)
+mesh = SubResource("CylinderMesh_trunk")
+
+[node name="CanopyMain" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 0)
+mesh = SubResource("SphereMesh_canopy1")
+
+[node name="CanopyTop" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.6, 0)
+mesh = SubResource("SphereMesh_canopy2")

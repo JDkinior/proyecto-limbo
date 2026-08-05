@@ -17,3 +17,8 @@ shape = SubResource("SphereShape3D_0di4k")
 
 [node name="AncientCoinEmerald" parent="." unique_id=871766621 instance=ExtResource("2_mesh")]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.05, 0.05, -0.35)
+
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=987654324]
+light_color = Color(0.3, 0.8, 1.0, 1)
+light_energy = 2.0
+omni_range = 3.5

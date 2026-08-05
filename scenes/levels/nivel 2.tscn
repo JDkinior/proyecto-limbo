@@ -65,7 +65,12 @@ environment = SubResource("Environment_wa8a8")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1500224680]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+light_color = Color(1, 0.88, 0.58, 1)
+light_energy = 1.8
 shadow_enabled = true
+
+
+
 
 [node name="Node3D" type="Node3D" parent="." unique_id=999305373]
 script = ExtResource("4_wa8a8")

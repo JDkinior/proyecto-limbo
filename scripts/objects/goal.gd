@@ -1,21 +1,16 @@
 extends Area3D
 
-# Goal: Meta final de nivel. Transiciona de escena mediante RPC
-# cuando detecta al jugador Vivo y al Fantasma de forma simultánea en su área.
+# Goal: Meta final de nivel. Muestra la pantalla de resultados cuando ambos jugadores están presentes.
 
-@export var next_scene_path: String = "res://scenes/levels/mundo_pruebas.tscn"
+@export var next_scene_path: String = "res://scenes/levels/nivel 2.tscn"
 
-# Registro indexado de cuerpos actualmente en la meta
 var _cuerpos_dentro: Array[CharacterBase] = []
+var _meta_activada: bool = false
 
 func _ready() -> void:
-	# La meta pertenece a la Capa de Colisión 4 (Coleccionables/Metas)
 	collision_layer = 1 << 3 # Capa 4
-	
-	# Detecta Capa 2 (Jugador Vivo) y Capa 3 (Jugador Fantasma)
 	collision_mask = (1 << 1) | (1 << 2) # Capas 2 y 3
 	
-	# Conexión dinámica a señales de detección
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 	
@@ -29,8 +24,7 @@ func _on_body_entered(body: Node) -> void:
 		_cuerpos_dentro.append(body)
 		print("[Goal] Personaje ingresó a la meta: ", body.name, " (Total: ", _cuerpos_dentro.size(), ")")
 		
-	# Solo el authority del multijugador evalúa la condición de transición
-	if is_multiplayer_authority():
+	if is_multiplayer_authority() and not _meta_activada:
 		_verificar_activacion()
 
 func _on_body_exited(body: Node) -> void:
@@ -49,18 +43,21 @@ func _verificar_activacion() -> void:
 			tiene_fantasma = true
 			
 	if tiene_vivo and tiene_fantasma:
-		print("[Goal] ¡Ambos jugadores están en la meta! Iniciando transición de nivel.")
+		_meta_activada = true
+		print("[Goal] ¡Ambos jugadores están en la meta! Mostrando pantalla de resultados.")
 		
-		# Si RedManager está disponible y estamos en red, delegamos la carga
-		if is_instance_valid(RedManager) and RedManager.has_method("completar_nivel") and RedManager.multiplayer.multiplayer_peer and not RedManager.multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
-			if RedManager.multiplayer.is_server():
-				RedManager.completar_nivel()
+		if is_instance_valid(ScoreManager):
+			ScoreManager.detener_cronometro()
+			
+		if is_instance_valid(RedManager) and RedManager.has_method("mostrar_pantalla_resultados"):
+			RedManager.mostrar_pantalla_resultados()
 		else:
-			# Fallback offline o P2P directo a todos los peers
-			rpc("rpc_change_scene", next_scene_path)
+			rpc("rpc_mostrar_resultados")
 
 @rpc("any_peer", "call_local", "reliable")
-func rpc_change_scene(path: String) -> void:
-	print("[Goal] RPC recibido. Cambiando de escena a: ", path)
-	if get_tree():
-		get_tree().change_scene_to_file(path)
+func rpc_mostrar_resultados() -> void:
+	print("[Goal] Mostrando pantalla de resultados localmente.")
+	var escena_res = load("res://scenes/ui/pantalla_resultados.tscn")
+	if escena_res:
+		var instancia = escena_res.instantiate()
+		get_tree().current_scene.add_child(instancia)

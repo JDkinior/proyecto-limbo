@@ -1,0 +1,285 @@
+[gd_scene format=3 uid="uid://cnntprn7hrr4c"]
+
+[ext_resource type="Script" uid="uid://b2plbgqfig1ng" path="res://scripts/ui/pantalla_resultados.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fondo_panel"]
+bg_color = Color(0.08, 0.1, 0.14, 0.94)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.9, 0.75, 0.3, 0.8)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_size = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tarjeta_vivo"]
+bg_color = Color(0.25, 0.2, 0.1, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.8, 0.3, 0.8)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tarjeta_fantasma"]
+bg_color = Color(0.1, 0.2, 0.28, 0.6)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3, 0.8, 1, 0.8)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_exit_normal"]
+bg_color = Color(0.3, 0.3, 0.35, 0.8)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_retry_normal"]
+bg_color = Color(0.85, 0.55, 0.15, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_retry_hover"]
+bg_color = Color(1, 0.68, 0.2, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_normal"]
+bg_color = Color(0.2, 0.5, 0.85, 0.9)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_hover"]
+bg_color = Color(0.3, 0.65, 1, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[node name="PantallaResultados" type="Control" unique_id=1734405840]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="FondoOscuro" type="ColorRect" parent="." unique_id=1200831148]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.08, 0.85)
+
+[node name="PanelContenedor" type="Panel" parent="." unique_id=1565401099]
+custom_minimum_size = Vector2(650, 520)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -325.0
+offset_top = -260.0
+offset_right = 325.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_fondo_panel")
+
+[node name="VBox" type="VBoxContainer" parent="PanelContenedor" unique_id=954102434]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 25.0
+offset_top = 20.0
+offset_right = -25.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 15
+
+[node name="LblTitulo" type="Label" parent="PanelContenedor/VBox" unique_id=2145674628]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 32
+text = "¡NIVEL COMPLETADO!"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ContenedorTarjetas" type="HBoxContainer" parent="PanelContenedor/VBox" unique_id=272857032]
+layout_mode = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="TarjetaVivo" type="Panel" parent="PanelContenedor/VBox/ContenedorTarjetas" unique_id=1805584916]
+custom_minimum_size = Vector2(270, 140)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tarjeta_vivo")
+
+[node name="VBox" type="VBoxContainer" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaVivo" unique_id=2138613470]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="LblNombre" type="Label" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaVivo/VBox" unique_id=644404237]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 20
+text = "Jugador Vivo"
+horizontal_alignment = 1
+
+[node name="LblIcono" type="Label" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaVivo/VBox" unique_id=692072112]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+theme_override_font_sizes/font_size = 28
+text = "🟡"
+horizontal_alignment = 1
+
+[node name="LblMonedasVivo" type="Label" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaVivo/VBox" unique_id=1646094433]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.8, 1)
+theme_override_font_sizes/font_size = 18
+text = "4 / 4 Esencias"
+horizontal_alignment = 1
+
+[node name="TarjetaFantasma" type="Panel" parent="PanelContenedor/VBox/ContenedorTarjetas" unique_id=1055665599]
+custom_minimum_size = Vector2(270, 140)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_tarjeta_fantasma")
+
+[node name="VBox" type="VBoxContainer" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaFantasma" unique_id=1972305152]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="LblNombre" type="Label" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaFantasma/VBox" unique_id=232250837]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "Jugador Fantasma"
+horizontal_alignment = 1
+
+[node name="LblIcono" type="Label" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaFantasma/VBox" unique_id=71463330]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.8, 1, 1)
+theme_override_font_sizes/font_size = 28
+text = "👻"
+horizontal_alignment = 1
+
+[node name="LblMonedasFantasma" type="Label" parent="PanelContenedor/VBox/ContenedorTarjetas/TarjetaFantasma/VBox" unique_id=501799422]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+theme_override_font_sizes/font_size = 18
+text = "4 / 4 Fragmentos"
+horizontal_alignment = 1
+
+[node name="ContenedorDetalles" type="VBoxContainer" parent="PanelContenedor/VBox" unique_id=2072627788]
+layout_mode = 2
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="HBoxTiempo" type="HBoxContainer" parent="PanelContenedor/VBox/ContenedorDetalles" unique_id=2086631137]
+layout_mode = 2
+alignment = 1
+
+[node name="LblTiempoTitulo" type="Label" parent="PanelContenedor/VBox/ContenedorDetalles/HBoxTiempo" unique_id=98261602]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 18
+text = "Tiempo: "
+
+[node name="LblTiempoValor" type="Label" parent="PanelContenedor/VBox/ContenedorDetalles/HBoxTiempo" unique_id=1078382511]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 20
+text = "01:24 / Objetivo: 02:00"
+
+[node name="ContenedorRango" type="VBoxContainer" parent="PanelContenedor/VBox" unique_id=821014678]
+layout_mode = 2
+theme_override_constants/separation = 2
+alignment = 1
+
+[node name="LblRangoLetra" type="Label" parent="PanelContenedor/VBox/ContenedorRango" unique_id=212062565]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 64
+text = "S"
+horizontal_alignment = 1
+
+[node name="LblRangoSub" type="Label" parent="PanelContenedor/VBox/ContenedorRango" unique_id=939025216]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.2, 1)
+theme_override_font_sizes/font_size = 18
+text = "¡PERFECTO!"
+horizontal_alignment = 1
+
+[node name="HBoxBotones" type="HBoxContainer" parent="PanelContenedor/VBox" unique_id=1557851621]
+layout_mode = 2
+theme_override_constants/separation = 15
+alignment = 1
+
+[node name="BtnSalir" type="Button" parent="PanelContenedor/VBox/HBoxBotones" unique_id=1616097949]
+custom_minimum_size = Vector2(140, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_exit_normal")
+text = "Menú Principal"
+
+[node name="BtnReintentar" type="Button" parent="PanelContenedor/VBox/HBoxBotones" unique_id=1436226927]
+custom_minimum_size = Vector2(140, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_retry_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_retry_hover")
+text = "Reintentar"
+
+[node name="BtnSiguiente" type="Button" parent="PanelContenedor/VBox/HBoxBotones" unique_id=1328669450]
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 17
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+text = "Siguiente Nivel"

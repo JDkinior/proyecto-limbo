@@ -14,6 +14,17 @@ var cooldown_actual : float = 0.0
 
 @onready var mesh_visual = get_parent().get_node_or_null("Aura")
 
+func _ready():
+	if mesh_visual:
+		mesh_visual.visible = false
+		_configurar_capas_visuales(mesh_visual, 4)
+
+func _configurar_capas_visuales(nodo: Node, mascara_capas: int) -> void:
+	if nodo is VisualInstance3D:
+		nodo.layers = mascara_capas
+	for hijo in nodo.get_children():
+		_configurar_capas_visuales(hijo, mascara_capas)
+
 func _process(delta):
 	if not is_multiplayer_authority(): return
 

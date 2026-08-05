@@ -27,6 +27,16 @@ var tiempo_desde_suelo : float = 0.0
 var tiempo_desde_salto : float = 0.0
 var saltos_realizados : int = 0
 
+# Variables para interpolación de red (anti-stuttering)
+var sync_position: Vector3
+var sync_rotation: Vector3
+
+var particulas_corazon: CPUParticles3D = null
+var tiempo_cerca_otro: float = 0.0
+const DISTANCIA_PROXIMIDAD_CORAZON: float = 1.4 # Deben estar pegados lado a lado
+const TIEMPO_REQUERIDO_PROXIMIDAD: float = 5.0 # 5 segundos continuos de estar cerca
+
+
 @onready var pivote_camara = $Node3D
 var controles_tactiles: Node = null
 
@@ -35,12 +45,26 @@ func _ready():
 	if pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
 	posicion_inicial = global_position
+	sync_position = global_position
+	sync_rotation = rotation
 	actualizar_visibilidad_local()
+	_crear_particulas_corazon_proximidad()
 	
 	# Buscar controles táctiles en el grupo global "ui_tactil"
 	var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
 	if nodos_ui.size() > 0:
 		controles_tactiles = nodos_ui[0]
+
+func _process(delta: float):
+	if is_multiplayer_authority():
+		sync_position = global_position
+		sync_rotation = rotation
+	else:
+		# Suavizado de red (Interpolación)
+		global_position = global_position.lerp(sync_position, 15.0 * delta)
+		rotation.y = lerp_angle(rotation.y, sync_rotation.y, 15.0 * delta)
+		rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
+
 
 func actualizar_visibilidad_local():
 	# Lógica base de cámara, los hijos extenderán esto
@@ -181,6 +205,7 @@ func procesar_movimiento_base(delta: float):
 		rotation.y = lerp_angle(rotation.y, target_angle, 1.0 - exp(-VELOCIDAD_ROTACION_PERSONAJE * delta))
 		
 	aplicar_friccion_y_movimiento(direccion, delta)
+	_procesar_proximidad_corazon(delta)
 
 func resetear_estados():
 	saltos_realizados = 0
@@ -192,3 +217,137 @@ func _comprobar_caida_vacio():
 		global_position = posicion_inicial
 		velocity = Vector3.ZERO
 		resetear_estados()
+
+func _crear_particulas_corazon_proximidad():
+	particulas_corazon = CPUParticles3D.new()
+	particulas_corazon.name = "ParticulasCorazonProximidad"
+	particulas_corazon.amount = 5 # Reducido a 5 corazones para una flotación lenta y romántica
+	particulas_corazon.lifetime = 2.4
+	particulas_corazon.one_shot = false
+	particulas_corazon.emitting = false
+	particulas_corazon.explosiveness = 0.0
+	particulas_corazon.randomness = 0.4
+	particulas_corazon.lifetime_randomness = 0.3
+	particulas_corazon.top_level = true
+	
+	var mesh = QuadMesh.new()
+	mesh.size = Vector2(0.32, 0.32)
+	
+	var mat = StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED # Desactiva depth-buffer write para transparencia limpia sin artefactos
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.vertex_color_use_as_albedo = true
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.billboard_keep_scale = true
+	mat.albedo_texture = _generar_textura_corazon()
+	mesh.material = mat
+	
+	particulas_corazon.mesh = mesh
+	particulas_corazon.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	particulas_corazon.emission_sphere_radius = 0.35
+	particulas_corazon.direction = Vector3(0, 1, 0)
+	particulas_corazon.spread = 15.0
+	particulas_corazon.gravity = Vector3(0, 0.5, 0) # Elevación lenta y suave
+	particulas_corazon.initial_velocity_min = 0.2
+	particulas_corazon.initial_velocity_max = 0.45
+	particulas_corazon.scale_amount_min = 0.6
+	particulas_corazon.scale_amount_max = 1.1
+	particulas_corazon.color = Color(1.0, 0.35, 0.65, 0.9)
+	
+	add_child(particulas_corazon)
+
+func _generar_textura_corazon() -> ImageTexture:
+	var size = 128
+	var img = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var center_x = size / 2.0
+	var center_y = size * 0.36
+	var r = size * 0.22
+	var circle1 = Vector2(center_x - r * 0.90, center_y)
+	var circle2 = Vector2(center_x + r * 0.90, center_y)
+	var tip_bottom = Vector2(center_x, size * 0.88) # Alargado suavemente hacia abajo
+	
+	for y in range(size):
+		for x in range(size):
+			var p = Vector2(float(x), float(y))
+			
+			# Distancia a los lóbulos superiores (círculos)
+			var d1 = p.distance_to(circle1) - r
+			var d2 = p.distance_to(circle2) - r
+			var dist = min(d1, d2)
+			
+			# Cuerpo inferior cónico en V continuo y sin sobresalir lateralmente
+			if p.y >= center_y:
+				var dy = p.y - tip_bottom.y
+				if dy < 0:
+					var slope_left = (circle1.x - r - tip_bottom.x) / (center_y - tip_bottom.y)
+					var slope_right = (circle2.x + r - tip_bottom.x) / (center_y - tip_bottom.y)
+					var bound_left = tip_bottom.x + slope_left * dy
+					var bound_right = tip_bottom.x + slope_right * dy
+					
+					var dist_left = bound_left - p.x
+					var dist_right = p.x - bound_right
+					var dist_v = max(dist_left, dist_right)
+					dist = min(dist, dist_v)
+					
+			if dist <= 0.0:
+				img.set_pixel(x, y, Color(1.0, 0.2, 0.55, 1.0))
+			elif dist < 2.0:
+				var alpha = clamp(1.0 - (dist / 2.0), 0.0, 1.0)
+				img.set_pixel(x, y, Color(1.0, 0.2, 0.55, alpha))
+				
+	return ImageTexture.create_from_image(img)
+
+
+
+
+
+func _procesar_proximidad_corazon(delta: float):
+	if not is_multiplayer_authority(): return
+
+	var otro: Node3D = _buscar_otro_jugador()
+	if is_instance_valid(otro):
+		var dist = global_position.distance_to(otro.global_position)
+		if dist <= DISTANCIA_PROXIMIDAD_CORAZON:
+			tiempo_cerca_otro += delta
+			if tiempo_cerca_otro >= TIEMPO_REQUERIDO_PROXIMIDAD:
+				if is_instance_valid(particulas_corazon):
+					particulas_corazon.emitting = true
+					var pos_mitad = (global_position + otro.global_position) * 0.5
+					pos_mitad.y += 0.8
+					particulas_corazon.global_position = pos_mitad
+			else:
+				# Durante la cuenta regresiva de 5 segundos, mantener las partículas apagadas
+				if is_instance_valid(particulas_corazon):
+					particulas_corazon.emitting = false
+		else:
+			# Si se alejan más de 1.4 metros, reiniciar el contador a 0 y apagar la emisión
+			tiempo_cerca_otro = 0.0
+			if is_instance_valid(particulas_corazon):
+				particulas_corazon.emitting = false
+	else:
+		tiempo_cerca_otro = 0.0
+		if is_instance_valid(particulas_corazon):
+			particulas_corazon.emitting = false
+
+
+func _buscar_otro_jugador() -> Node3D:
+	var todos = get_tree().get_nodes_in_group("jugadores")
+	if todos.size() > 1:
+		for p in todos:
+			if p != self and is_instance_valid(p):
+				return p
+				
+	var es_fantasma = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
+	if es_fantasma:
+		var vivos = get_tree().get_nodes_in_group("vivos")
+		if vivos.size() > 0 and vivos[0] != self:
+			return vivos[0]
+	else:
+		var fantasmas = get_tree().get_nodes_in_group("fantasmas")
+		if fantasmas.size() > 0 and fantasmas[0] != self:
+			return fantasmas[0]
+			
+	return null

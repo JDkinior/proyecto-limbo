@@ -11,12 +11,12 @@ const ADDRESS = "127.0.0.1"
 const AMIGOS_FILE = "user://amigos.json"
 
 const NIVELES = [
-	"res://scenes/levels/mundo_pruebas.tscn",
+	"res://scenes/levels/Nivel 1 _ El Despertar Separado.tscn",
 	"res://scenes/levels/nivel 2.tscn"
 ]
 
-var jugador_vivo: Jugador
-var fantasma: Fantasma
+var jugador_vivo: CharacterBase
+var fantasma: CharacterBase
 
 # Estado del Lobby
 var peer_personajes: Dictionary = {}  # {peer_id: "jugador" | "fantasma" | ""}
@@ -24,94 +24,108 @@ var peer_listos: Dictionary = {}      # {peer_id: listo}
 var modo_juego: String = "historia"    # "historia" | "libre"
 var nivel_actual_index: int = 0
 
+# --- CAMPOS DE RECONEXIÓN DE SESIÓN ---
+var ultima_conexion_ip: String = ""
+var ultimo_personaje: String = ""
+var ultimo_nivel_path: String = ""
+var es_host_previo: bool = false
+var puede_reconectarse: bool = false
+
 # UPnP
 var upnp_active: bool = false
 var ip_publica: String = ""
 
+
 # --- NUEVOS CAMPOS: Salas Online e Integración P2P ---
-var es_servidor_online_dedicado: bool = false
-var salas: Dictionary = {} # { nombre_sala: { "host_id": int, "guest_id": int, "modo": String, "nivel_index": int, "char_host": String, "char_guest": String, "ready_guest": bool } }
 var mi_sala_actual: String = ""
+var mi_peer_id: int = 1
+
+func get_mi_peer_id() -> int:
+	return mi_peer_id
 
 var iniciar_directo_p2p: bool = false
 var p2p_modo_inicial: String = "historia"
 var p2p_nivel_inicial: int = 0
 var p2p_personaje_elegido: String = ""
 
+signal ping_actualizado(ms: int)
+
+# --- Sistema de Ping ---
+var last_ping_time: float = 0.0
+var current_ping_ms: int = -1
+var ping_timer: Timer = null
+
+func _crear_interfaz_ping():
+	# Ya no creamos interfaz visual aquí, solo el temporizador lógico
+	ping_timer = Timer.new()
+	ping_timer.wait_time = 1.0
+	ping_timer.autostart = true
+	ping_timer.timeout.connect(_on_ping_timer)
+	add_child(ping_timer)
+
+func _on_ping_timer():
+	if not multiplayer.has_multiplayer_peer() or multiplayer.get_peers().is_empty():
+		current_ping_ms = -1
+		ping_actualizado.emit(-1)
+		return
+	var target_id = multiplayer.get_peers()[0]
+	last_ping_time = Time.get_ticks_msec()
+	rpc_id(target_id, "_rpc_ping_request")
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _rpc_ping_request():
+	var sender = multiplayer.get_remote_sender_id()
+	rpc_id(sender, "_rpc_ping_response")
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _rpc_ping_response():
+	current_ping_ms = Time.get_ticks_msec() - last_ping_time
+	ping_actualizado.emit(current_ping_ms)
+
 # --- NUEVOS CAMPOS: Autodescubrimiento LAN (UDP) ---
+signal status_webrtc_changed(msg: String)
 signal lan_server_found(ip: String, port: int, name: String)
 const LAN_DISCOVERY_PORT = 7001
-var udp_broadcaster: PacketPeerUDP
-var udp_listener: PacketPeerUDP
-var lan_broadcast_timer: float = 0.0
 var lan_servers_discovered: Dictionary = {} # { ip: { name: String, port: int, time: float } }
 
 func _ready():
+	_crear_interfaz_ping()
+	
+	# Inicializar LAN Discovery como nodo hijo
+	var lan = LanDiscovery.new()
+	lan.name = "LanDiscovery"
+	add_child(lan)
+	lan.servidor_encontrado.connect(func(ip, port, name): lan_server_found.emit(ip, port, name))
+	
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 	
-	# Autoiniciar servidor si se ejecuta en modo headless
-	if DisplayServer.get_name() == "headless" or OS.get_cmdline_args().has("--server"):
-		print("[Servidor Dedicado] Detectado modo headless. Iniciando servidor en puerto ", PORT)
+	# Autoiniciar servidor solo si se ejecuta con el parámetro --server (y no en check-only)
+	var cmd_args = OS.get_cmdline_args()
+	if cmd_args.has("--server") and not cmd_args.has("--check-only"):
+		print("[Servidor Dedicado] Detectado parámetro --server. Iniciando servidor en puerto ", PORT)
 		await get_tree().process_frame
 		crear_partida_online_server()
 
 func _process(delta):
-	# Procesar LAN Broadcaster (Envia paquetes si somos Host local)
-	if udp_broadcaster:
-		lan_broadcast_timer += delta
-		if lan_broadcast_timer >= 1.5:
-			lan_broadcast_timer = 0.0
-			var info = {
-				"ip": get_local_ip(),
-				"port": PORT,
-				"name": "Partida de " + OS.get_environment("USERNAME")
-			}
-			var packet = JSON.stringify(info).to_utf8_buffer()
-			udp_broadcaster.put_packet(packet)
-			
-	# Procesar LAN Listener (Escucha paquetes si buscamos en LAN)
-	if udp_listener:
-		while udp_listener.get_available_packet_count() > 0:
-			var packet = udp_listener.get_packet()
-			var ip = udp_listener.get_packet_ip()
-			var port = udp_listener.get_packet_port()
-			var data_str = packet.get_string_from_utf8()
-			var data = JSON.parse_string(data_str)
-			if data and typeof(data) == TYPE_DICTIONARY:
-				var server_ip = ip
-				var server_name = data.get("name", "Servidor Local")
-				var server_port = port
-				
-				# Evitar agregarse a uno mismo
-				if server_ip != get_local_ip():
-					lan_servers_discovered[server_ip] = {
-						"name": server_name,
-						"port": server_port,
-						"time": Time.get_ticks_msec()
-					}
-					lan_server_found.emit(server_ip, server_port, server_name)
-		
-		# Limpiar servidores locales obsoletos (más de 5 segundos sin recibir paquetes)
-		var ahora = Time.get_ticks_msec()
-		var keys = lan_servers_discovered.keys()
-		for k in keys:
-			if ahora - lan_servers_discovered[k]["time"] > 5000:
-				lan_servers_discovered.erase(k)
+	if is_instance_valid(webrtc_peer):
+		webrtc_peer.poll()
+	
+	# LAN discovery ahora es manejado por el nodo hijo LanDiscovery
+	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
+	if lan_node:
+		lan_servers_discovered = lan_node.servidores_descubiertos
 
 func registrar_jugador(p: CharacterBase):
-	if p is Fantasma: 
+	if p.is_in_group("fantasmas") or p.name.to_lower().contains("fantasma"): 
 		fantasma = p
-	elif p is Jugador:
+	else:
 		jugador_vivo = p
 	
 	_intentar_asignar_autoridades()
-
-func _intentar_assignar_autoridades():
-	_intentar_asignar_autoridades() # Alias por si acaso
 
 func _intentar_asignar_autoridades():
 	if not jugador_vivo or not fantasma: return
@@ -120,6 +134,10 @@ func _intentar_asignar_autoridades():
 		# Modo local de prueba o sin red: el Host controla a ambos o al jugador vivo
 		jugador_vivo.set_multiplayer_authority(1)
 		fantasma.set_multiplayer_authority(1)
+		var sync_v = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
+		if sync_v: sync_v.set_multiplayer_authority(1)
+		var sync_f = fantasma.get_node_or_null("MultiplayerSynchronizer")
+		if sync_f: sync_f.set_multiplayer_authority(1)
 		jugador_vivo.actualizar_visibilidad_local()
 		fantasma.actualizar_visibilidad_local()
 		_actualizar_interfaz_local()
@@ -137,12 +155,21 @@ func _intentar_asignar_autoridades():
 			
 	jugador_vivo.set_multiplayer_authority(id_jugador)
 	fantasma.set_multiplayer_authority(id_fantasma)
+
+	var sync_vivo = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
+	if sync_vivo:
+		sync_vivo.set_multiplayer_authority(id_jugador)
+		
+	var sync_fant = fantasma.get_node_or_null("MultiplayerSynchronizer")
+	if sync_fant:
+		sync_fant.set_multiplayer_authority(id_fantasma)
 	
 	jugador_vivo.actualizar_visibilidad_local()
 	fantasma.actualizar_visibilidad_local()
 	_actualizar_interfaz_local()
 	
 	print("[RedManager] Autoridades asignadas - Jugador: ", id_jugador, " (", peer_personajes.get(id_jugador, ""), "), Fantasma: ", id_fantasma, " (", peer_personajes.get(id_fantasma, ""), ")")
+
 
 func _actualizar_interfaz_local():
 	var escena_actual = get_tree().current_scene
@@ -160,54 +187,152 @@ func _actualizar_interfaz_local():
 
 # --- Métodos de Creación y Conexión Local/P2P ---
 
+
+const ICE_SERVERS = [
+	{ "urls": ["stun:stun.l.google.com:19302"] },
+	{ "urls": ["stun:stun.relay.metered.ca:80"] },
+	{ 
+		"urls": [
+			"turn:global.relay.metered.ca:80",
+			"turn:global.relay.metered.ca:80?transport=tcp",
+			"turn:global.relay.metered.ca:443",
+			"turns:global.relay.metered.ca:443?transport=tcp"
+		],
+		"username": "c1baebff3f04fcaeb912660a",
+		"credential": "dH915CfDvUzOj/FS"
+	}
+]
+
+var webrtc_peer: WebRTCMultiplayerPeer
+var webrtc_connections: Dictionary = {}
+var ice_candidates_queue: Dictionary = {} # { peer_id: Array }
+
 func crear_partida():
 	desconectar()
-	upnp_setup()
-	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(PORT, 2) # Máximo 2 jugadores
+	mi_peer_id = 1
+	webrtc_peer = WebRTCMultiplayerPeer.new()
+	var error = webrtc_peer.create_server()
 	if error != OK:
-		print("Error al crear servidor: ", error)
-		if upnp_active:
-			upnp_cleanup()
+		print("[RedManager ERROR] Error al crear servidor WebRTC: ", error)
 		return
 		
-	multiplayer.multiplayer_peer = peer
+	multiplayer.multiplayer_peer = webrtc_peer
 	
 	peer_personajes.clear()
 	peer_listos.clear()
 	modo_juego = "historia"
 	nivel_actual_index = 0
+	es_host_previo = true
+	ultima_conexion_ip = "127.0.0.1"
 	
-	# El Host se añade a sí mismo al lobby
 	peer_personajes[1] = ""
 	peer_listos[1] = false
 	
-	# Iniciar broadcaster de LAN si no es el servidor online dedicado
-	if not es_servidor_online_dedicado:
-		iniciar_lan_broadcaster()
-	
 	conexion_establecida.emit()
-	if ip_publica != "":
-		print("[RedManager] Servidor local iniciado. IP Local: ", get_local_ip(), " | IP Pública: ", ip_publica)
-	else:
-		print("[RedManager] Servidor local iniciado. IP Local: ", get_local_ip())
+	status_webrtc_changed.emit("Servidor listo. Esperando al jugador...")
+	print("[RedManager WebRTC] Servidor WebRTC listo (ID: 1). Esperando señalización de Firebase...")
 
-	# Si venimos de la transición P2P online, autoseleccionar personaje
 	if iniciar_directo_p2p:
-		print("[RedManager] Transición P2P (Host) - Autoseleccionando personaje: ", p2p_personaje_elegido)
 		await get_tree().process_frame
 		rpc_seleccionar_personaje.rpc(p2p_personaje_elegido)
 
-func unirse_a_partida(ip: String):
+func unirse_a_partida(sala_id: String):
 	desconectar()
-	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_client(ip, PORT)
+	es_host_previo = false
+	ultima_conexion_ip = sala_id
+	webrtc_peer = WebRTCMultiplayerPeer.new()
+	mi_peer_id = randi() % 89999 + 1000
+	var error = webrtc_peer.create_client(mi_peer_id)
 	if error != OK:
-		print("Error al conectar: ", error)
+		print("[RedManager ERROR] Error al crear cliente WebRTC: ", error)
+		status_webrtc_changed.emit("Error de WebRTC. ¿Falta el plugin nativo o bloqueado por Firewall?")
 		return
 		
-	multiplayer.multiplayer_peer = peer
-	print("[RedManager] Intentando conectar a ", ip, "...")
+	multiplayer.multiplayer_peer = webrtc_peer
+	print("[RedManager WebRTC] Iniciando cliente WebRTC (Mi ID: ", mi_peer_id, ") para sala: ", sala_id)
+	
+	var pc = _crear_peer_connection(1)
+	status_webrtc_changed.emit("Iniciando oferta de conexión P2P...")
+	print("[RedManager WebRTC] Creando Oferta SDP para Host (ID: 1)...")
+	pc.create_offer()
+
+func _crear_peer_connection(id: int) -> WebRTCPeerConnection:
+	if webrtc_connections.has(id):
+		return webrtc_connections[id]
+		
+	print("[RedManager WebRTC] Inicializando WebRTCPeerConnection para peer ID: ", id)
+	var pc = WebRTCPeerConnection.new()
+	var err = pc.initialize({ "iceServers": ICE_SERVERS })
+	if err != OK:
+		print("[RedManager ERROR] Falló al inicializar PeerConnection: ", err)
+		status_webrtc_changed.emit("Fallo en WebRTC (Comprueba tu conexión o Firewall)")
+		
+	pc.session_description_created.connect(_on_sdp_created.bind(id))
+	pc.ice_candidate_created.connect(_on_ice_created.bind(id))
+	webrtc_peer.add_peer(pc, id)
+	webrtc_connections[id] = pc
+	return pc
+
+func _on_sdp_created(type: String, sdp: String, id: int):
+	print("[RedManager WebRTC] SDP Generado ('", type, "') para peer ID: ", id)
+	if webrtc_connections.has(id):
+		webrtc_connections[id].set_local_description(type, sdp)
+	FirebaseMatchmaking.enviar_sdp(id, type, sdp)
+
+func _on_ice_created(media: String, index: int, name: String, id: int):
+	print("[RedManager WebRTC] Candidato ICE local generado para peer ID: ", id, " -> ", name)
+	FirebaseMatchmaking.enviar_ice(id, media, index, name)
+
+func recibir_sdp(id: int, type: String, sdp: String):
+	print("[RedManager WebRTC] Recibido SDP '", type, "' remoto proveniente de peer ID: ", id)
+	if type == "offer":
+		var pc = _crear_peer_connection(id)
+		var err = pc.set_remote_description(type, sdp)
+		print("[RedManager WebRTC] Remote description (Offer) establecida. Status: ", err)
+		_peers_con_remote_sdp[id] = true
+		status_webrtc_changed.emit("Generando respuesta al invitado...")
+		print("[RedManager WebRTC] Generando Respuesta SDP automáticamente por Godot...")
+		_flush_ice_queue(id)
+	elif type == "answer":
+		if webrtc_connections.has(id):
+			var pc = webrtc_connections[id]
+			var err = pc.set_remote_description(type, sdp)
+			status_webrtc_changed.emit("Respuesta aceptada. Intercambiando redes...")
+			print("[RedManager WebRTC] Remote description (Answer) establecida. Status: ", err)
+			_peers_con_remote_sdp[id] = true
+			_flush_ice_queue(id)
+
+var _peers_con_remote_sdp: Dictionary = {}
+
+func recibir_ice(id: int, media: String, index: int, name: String):
+	print("[RedManager WebRTC] Recibido ICE remoto de peer ID ", id, ": ", name)
+	if webrtc_connections.has(id) and _peers_con_remote_sdp.get(id, false):
+		var pc = webrtc_connections[id]
+		pc.add_ice_candidate(media, index, name)
+	else:
+		print("[RedManager WebRTC] Encolando ICE remoto (PeerConnection esperando remote SDP para ID: ", id, ")")
+		if not ice_candidates_queue.has(id):
+			ice_candidates_queue[id] = []
+		ice_candidates_queue[id].append({"media": media, "index": index, "name": name})
+
+func _flush_ice_queue(id: int):
+	if ice_candidates_queue.has(id) and webrtc_connections.has(id):
+		var list = ice_candidates_queue[id]
+		print("[RedManager WebRTC] Vaciando cola de ", list.size(), " ICE candidates para peer ID: ", id)
+		for cand in list:
+			webrtc_connections[id].add_ice_candidate(cand["media"], cand["index"], cand["name"])
+		ice_candidates_queue.erase(id)
+
+func reconectar_a_partida():
+	if ultima_conexion_ip.is_empty():
+		print("[RedManager] No hay datos de sesión previa para reconectar.")
+		return
+	print("[RedManager] Reconectando a la sesión previa: ", ultima_conexion_ip, " | Personaje: ", ultimo_personaje)
+	if es_host_previo:
+		crear_partida()
+	else:
+		unirse_a_partida(ultima_conexion_ip)
+
 
 func crear_partida_online_server():
 	desconectar()
@@ -217,22 +342,23 @@ func crear_partida_online_server():
 		print("[Servidor Dedicado] Error al crear el servidor online: ", error)
 		return
 	multiplayer.multiplayer_peer = peer
-	es_servidor_online_dedicado = true
-	salas.clear()
 	print("[Servidor Dedicado] Servidor iniciado en puerto ", PORT, " para albergar salas online.")
 
 func desconectar():
-	detener_lan_broadcaster()
-	detener_lan_listener()
-	if upnp_active:
-		upnp_cleanup()
+	print("[RedManager WebRTC] Desconectando red...")
+	for id in webrtc_connections.keys():
+		var pc = webrtc_connections[id]
+		if is_instance_valid(pc) and pc.has_method("close"):
+			pc.close()
+	webrtc_connections.clear()
+	ice_candidates_queue.clear()
+	_peers_con_remote_sdp.clear()
 	if multiplayer.multiplayer_peer:
+		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
+	webrtc_peer = null
 	peer_personajes.clear()
 	peer_listos.clear()
-	jugador_vivo = null
-	fantasma = null
-	mi_sala_actual = ""
 
 func iniciar_juego():
 	if not multiplayer.is_server(): return
@@ -264,9 +390,32 @@ func completar_nivel():
 		print("[RedManager] Nivel libre completado. Volviendo al menú principal.")
 		_cargar_nivel_todos("res://scenes/ui/menu_inicio.tscn")
 
+func reintentar_nivel_actual():
+	if not multiplayer.is_server(): return
+	if nivel_actual_index >= 0 and nivel_actual_index < NIVELES.size():
+		_cargar_nivel_todos(NIVELES[nivel_actual_index])
+	else:
+		_cargar_nivel_todos(NIVELES[0])
+
+func mostrar_pantalla_resultados():
+	print("[RedManager] Mostrando pantalla de resultados a todos los peers.")
+	rpc_mostrar_pantalla_resultados.rpc()
+	rpc_mostrar_pantalla_resultados()
+
+@rpc("any_peer", "call_local", "reliable")
+func rpc_mostrar_pantalla_resultados():
+	var escena_res = load("res://scenes/ui/pantalla_resultados.tscn")
+	if escena_res and get_tree() and get_tree().current_scene:
+		if not get_tree().current_scene.has_node("PantallaResultados"):
+			var inst = escena_res.instantiate()
+			get_tree().current_scene.add_child(inst)
+
 # Función auxiliar que garantiza la carga del nivel en TODAS las instancias
 # Envía el RPC a los peers remotos y ejecuta localmente de forma explícita
 func _cargar_nivel_todos(path: String):
+	if path.ends_with(".tscn") and not "menu_inicio" in path:
+		ultimo_nivel_path = path
+		puede_reconectarse = true
 	print("[RedManager] Enviando carga de nivel a todos: ", path)
 	rpc_cargar_nivel.rpc(path)  # Enviar a peers remotos
 	rpc_cargar_nivel(path)      # Ejecutar localmente de forma explícita
@@ -275,6 +424,10 @@ func _cargar_nivel_todos(path: String):
 func rpc_cargar_nivel(path: String):
 	print("[RedManager] Cargando nivel: ", path)
 	get_tree().change_scene_to_file(path)
+	# Esperar 2 frames para inicialización limpia de nodos antes de reasignar autoridad
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_intentar_asignar_autoridades()
 
 # --- Métodos de Lobby (RPCs para P2P / Local) ---
 
@@ -284,6 +437,9 @@ func rpc_seleccionar_personaje(personaje: String):
 	if sender_id == 0:
 		sender_id = multiplayer.get_unique_id()
 	
+	if sender_id == multiplayer.get_unique_id():
+		ultimo_personaje = personaje
+		
 	# Verificar si ya está elegido por otro peer
 	for peer in peer_personajes:
 		if peer != sender_id and peer_personajes[peer] == personaje and personaje != "":
@@ -298,7 +454,36 @@ func rpc_seleccionar_personaje(personaje: String):
 		rpc("rpc_sincronizar_personajes", peer_personajes)
 
 @rpc("any_peer", "call_local", "reliable")
+func rpc_solicitar_reconexion(personaje_solicitado: String):
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0:
+		sender_id = multiplayer.get_unique_id()
+		
+	if not multiplayer.is_server():
+		return
+		
+	print("[RedManager] Solicitud de reconexión aceptada para peer ", sender_id, " como: ", personaje_solicitado)
+	
+	# Limpiar asignaciones anteriores de este rol
+	for p in peer_personajes.keys():
+		if peer_personajes[p] == personaje_solicitado:
+			peer_personajes.erase(p)
+			
+	peer_personajes[sender_id] = personaje_solicitado
+	peer_listos[sender_id] = true
+	
+	# Sincronizar roles a todos los clientes (Host y Clientes)
+	rpc("rpc_sincronizar_personajes", peer_personajes)
+	_intentar_asignar_autoridades()
+	
+	var escena_actual = get_tree().current_scene
+	if escena_actual and escena_actual.scene_file_path.ends_with(".tscn") and not "menu_inicio" in escena_actual.scene_file_path:
+		print("[RedManager] Sincronizando nivel activo con reconectado: ", escena_actual.scene_file_path)
+		rpc_cargar_nivel.rpc_id(sender_id, escena_actual.scene_file_path)
+
+@rpc("any_peer", "call_local", "reliable")
 func rpc_establecer_listo(listo: bool):
+
 	var sender_id = multiplayer.get_remote_sender_id()
 	if sender_id == 0:
 		sender_id = multiplayer.get_unique_id()
@@ -354,6 +539,7 @@ func rpc_sincronizar_estado_inicial(sync_personajes: Dictionary, sync_modo: Stri
 func rpc_sincronizar_personajes(sync_personajes: Dictionary):
 	peer_personajes = sync_personajes
 	personajes_actualizados.emit(peer_personajes)
+	_intentar_asignar_autoridades()
 
 @rpc("reliable")
 func rpc_sincronizar_listos(sync_listos: Dictionary):
@@ -365,183 +551,12 @@ func rpc_sincronizar_modo(sync_modo: String):
 	modo_juego = sync_modo
 	modo_juego_actualizado.emit(sync_modo)
 
-# --- SISTEMA DE SALAS ONLINE (Solo usado conectado al servidor dedicado) ---
-
-signal salas_actualizadas(salas: Dictionary)
-signal sala_entrar(nombre_sala: String)
-signal sala_salir()
-
-@rpc("any_peer", "call_local", "reliable")
-func rpc_crear_sala(nombre_sala: String):
-	var sender_id = multiplayer.get_remote_sender_id()
-	if sender_id == 0:
-		sender_id = multiplayer.get_unique_id()
-		
-	if not multiplayer.is_server():
-		return
-		
-	nombre_sala = nombre_sala.strip_edges()
-	if nombre_sala.is_empty() or salas.has(nombre_sala):
-		return
-		
-	salas[nombre_sala] = {
-		"host_id": sender_id,
-		"guest_id": 0,
-		"modo": "historia",
-		"nivel_index": 0,
-		"char_host": "",
-		"char_guest": "",
-		"ready_guest": false
-	}
-	
-	print("[Servidor Dedicado] Sala creada: ", nombre_sala, " por peer ", sender_id)
-	rpc("rpc_sincronizar_salas", salas)
-	rpc_unirse_a_sala.rpc_id(sender_id, nombre_sala)
-
-@rpc("any_peer", "call_local", "reliable")
-func rpc_unirse_a_sala(nombre_sala: String):
-	var sender_id = multiplayer.get_remote_sender_id()
-	if sender_id == 0:
-		sender_id = multiplayer.get_unique_id()
-		
-	if not multiplayer.is_server():
-		mi_sala_actual = nombre_sala
-		sala_entrar.emit(nombre_sala)
-		return
-		
-	if not salas.has(nombre_sala):
-		return
-		
-	var sala = salas[nombre_sala]
-	if sala["host_id"] == sender_id:
-		return
-	if sala["guest_id"] != 0 and sala["guest_id"] != sender_id:
-		return
-		
-	sala["guest_id"] = sender_id
-	print("[Servidor Dedicado] Peer ", sender_id, " se unió a la sala: ", nombre_sala)
-	rpc("rpc_sincronizar_salas", salas)
-	rpc_unirse_a_sala.rpc_id(sender_id, nombre_sala)
-
-@rpc("any_peer", "call_local", "reliable")
-func rpc_salir_de_sala():
-	var sender_id = multiplayer.get_remote_sender_id()
-	if sender_id == 0:
-		sender_id = multiplayer.get_unique_id()
-		
-	if not multiplayer.is_server():
-		mi_sala_actual = ""
-		sala_salir.emit()
-		return
-		
-	for nombre in salas.keys():
-		var sala = salas[nombre]
-		if sala["host_id"] == sender_id:
-			salas.erase(nombre)
-			print("[Servidor Dedicado] Sala eliminada por salida del host: ", nombre)
-			if sala["guest_id"] != 0:
-				rpc_salir_de_sala.rpc_id(sala["guest_id"])
-			break
-		elif sala["guest_id"] == sender_id:
-			sala["guest_id"] = 0
-			sala["char_guest"] = ""
-			sala["ready_guest"] = false
-			print("[Servidor Dedicado] Guest salió de la sala: ", nombre)
-			break
-			
-	rpc("rpc_sincronizar_salas", salas)
-	rpc_salir_de_sala.rpc_id(sender_id)
-
-@rpc("reliable")
-func rpc_sincronizar_salas(salas_sinc: Dictionary):
-	salas = salas_sinc
-	salas_actualizadas.emit(salas)
-
-@rpc("any_peer", "call_local", "reliable")
-func rpc_actualizar_seleccion_sala(personaje: String, listo: bool, modo: String, idx_nivel: int):
-	var sender_id = multiplayer.get_remote_sender_id()
-	if sender_id == 0:
-		sender_id = multiplayer.get_unique_id()
-		
-	if not multiplayer.is_server():
-		return
-		
-	for nombre in salas:
-		var sala = salas[nombre]
-		if sala["host_id"] == sender_id:
-			sala["char_host"] = personaje
-			sala["modo"] = modo
-			sala["nivel_index"] = idx_nivel
-			rpc("rpc_sincronizar_salas", salas)
-			break
-		elif sala["guest_id"] == sender_id:
-			sala["char_guest"] = personaje
-			sala["ready_guest"] = listo
-			rpc("rpc_sincronizar_salas", salas)
-			break
-
-@rpc("any_peer", "call_local", "reliable")
-func rpc_solicitar_inicio_p2p():
-	var sender_id = multiplayer.get_remote_sender_id()
-	if sender_id == 0:
-		sender_id = multiplayer.get_unique_id()
-		
-	if not multiplayer.is_server():
-		return
-		
-	for nombre in salas.keys():
-		var sala = salas[nombre]
-		if sala["host_id"] == sender_id:
-			if sala["guest_id"] != 0 and sala["ready_guest"] and sala["char_host"] != "" and sala["char_guest"] != "":
-				var host_ip = ""
-				var peer_api = multiplayer.multiplayer_peer as ENetMultiplayerPeer
-				if peer_api:
-					var p = peer_api.get_peer(sender_id)
-					if p:
-						host_ip = p.get_remote_address()
-						
-				if host_ip.is_empty() or host_ip == "127.0.0.1":
-					host_ip = "127.0.0.1"
-					
-				print("[Servidor Dedicado] Iniciando transición P2P. Host IP: ", host_ip)
-				
-				# Enviar orden de transición a ambos
-				rpc_iniciar_p2p_cliente.rpc_id(sala["guest_id"], host_ip, sala["char_guest"], sala["modo"], sala["nivel_index"])
-				rpc_iniciar_p2p_cliente.rpc_id(sala["host_id"], "", sala["char_host"], sala["modo"], sala["nivel_index"])
-				
-				# Remover sala
-				salas.erase(nombre)
-				rpc("rpc_sincronizar_salas", salas)
-				break
-
-@rpc("reliable")
-func rpc_iniciar_p2p_cliente(ip_host: String, personaje: String, modo: String, idx_nivel: int):
-	print("[RedManager] Iniciando transición P2P. Host IP: '", ip_host, "', personaje: ", personaje)
-	iniciar_directo_p2p = true
-	p2p_personaje_elegido = personaje
-	p2p_modo_inicial = modo
-	p2p_nivel_inicial = idx_nivel
-	
-	desconectar()
-	
-	await get_tree().create_timer(0.6 if ip_host != "" else 0.1).timeout
-	
-	if ip_host == "":
-		crear_partida()
-	else:
-		var target_ip = ip_host
-		if target_ip == "127.0.0.1" or target_ip.is_empty():
-			target_ip = ADDRESS
-		unirse_a_partida(target_ip)
-
 # --- Manejadores de Red ---
 
 func _on_peer_connected(id):
+	status_webrtc_changed.emit("¡Conexión P2P/WebRTC Establecida!")
 	print("[RedManager] Peer conectado: ", id)
 	if multiplayer.is_server():
-		if es_servidor_online_dedicado:
-			rpc_sincronizar_salas.rpc_id(id, salas)
-			return
 			
 		# Registrar el nuevo peer en las variables de estado (Modo Local/P2P)
 		peer_personajes[id] = ""
@@ -563,26 +578,7 @@ func _on_peer_connected(id):
 
 func _on_peer_disconnected(id):
 	print("[RedManager] Peer desconectado: ", id)
-	if es_servidor_online_dedicado:
-		var changed = false
-		for nombre in salas.keys():
-			var sala = salas[nombre]
-			if sala["host_id"] == id:
-				salas.erase(nombre)
-				changed = true
-				print("[Servidor Dedicado] Sala eliminada por desconexión del host: ", nombre)
-				if sala["guest_id"] != 0:
-					rpc_salir_de_sala.rpc_id(sala["guest_id"])
-			elif sala["guest_id"] == id:
-				sala["guest_id"] = 0
-				sala["char_guest"] = ""
-				sala["ready_guest"] = false
-				changed = true
-				print("[Servidor Dedicado] Slot liberado en sala ", nombre, " por desconexión del guest")
-		if changed:
-			rpc("rpc_sincronizar_salas", salas)
-		return
-		
+	
 	# Lógica local/P2P
 	if peer_personajes.has(id):
 		peer_personajes.erase(id)
@@ -597,13 +593,18 @@ func _on_peer_disconnected(id):
 
 func _on_connected_to_server():
 	var mi_id = multiplayer.get_unique_id()
+	status_webrtc_changed.emit("¡Conectado al Host con éxito!")
 	print("[RedManager] Conectado al servidor con ID: ", mi_id)
 	conexion_establecida.emit()
 	
-	if iniciar_directo_p2p:
+	if puede_reconectarse and not ultimo_personaje.is_empty():
+		print("[RedManager] Enviando solicitud de reconexión con personaje: ", ultimo_personaje)
+		rpc_solicitar_reconexion.rpc(ultimo_personaje)
+	elif iniciar_directo_p2p:
 		print("[RedManager] P2P establecido en Cliente. Enviando selección: ", p2p_personaje_elegido)
 		rpc_seleccionar_personaje.rpc(p2p_personaje_elegido)
 		rpc_establecer_listo.rpc(true)
+
 
 func _on_connection_failed():
 	print("[RedManager] Error de conexión.")
@@ -624,131 +625,42 @@ func get_local_ip() -> String:
 	return "127.0.0.1"
 
 func get_lider_peer_id() -> int:
-	if not multiplayer.multiplayer_peer or multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
-		return 1
-	
-	var servidor_es_dedicado = false
-	if peer_personajes.has(1):
-		if peer_personajes[1] == "":
-			servidor_es_dedicado = true
-	else:
-		servidor_es_dedicado = true
-	
-	if not servidor_es_dedicado:
-		return 1
-	
-	var peers_jugadores: Array = []
-	for peer_id in peer_personajes:
-		if peer_id != 1:
-			peers_jugadores.append(peer_id)
-	
-	if peers_jugadores.is_empty():
-		return 1
-	peers_jugadores.sort()
-	return peers_jugadores[0]
+	# En arquitectura P2P pura (sin servidor dedicado separado), el host (1) siempre es el líder.
+	return 1
 
-# --- Sistema de Amigos Persistente ---
+# --- Sistema de Amigos Persistente (delegado a AmigosManager) ---
 
 func cargar_amigos() -> Dictionary:
-	if not FileAccess.file_exists(AMIGOS_FILE):
-		return {}
-	var file = FileAccess.open(AMIGOS_FILE, FileAccess.READ)
-	if not file:
-		return {}
-	var text = file.get_as_text()
-	file.close()
-	var json = JSON.new()
-	var error = json.parse(text)
-	if error == OK:
-		if typeof(json.data) == TYPE_DICTIONARY:
-			return json.data
-	return {}
+	return AmigosManager.cargar()
 
 func guardar_amigos(amigos: Dictionary):
-	var file = FileAccess.open(AMIGOS_FILE, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(amigos, "\t"))
-		file.close()
+	AmigosManager.guardar(amigos)
 
 func agregar_amigo(nombre: String, ip: String):
-	var amigos = cargar_amigos()
-	amigos[nombre] = ip
-	guardar_amigos(amigos)
+	AmigosManager.agregar(nombre, ip)
 
 func eliminar_amigo(nombre: String):
-	var amigos = cargar_amigos()
-	if amigos.has(nombre):
-		amigos.erase(nombre)
-		guardar_amigos(amigos)
-
-# --- Configuración UPNP ---
-
-func upnp_setup():
-	ip_publica = ""
-	upnp_active = false
-	
-	var upnp = UPNP.new()
-	var discover_result = upnp.discover(2000, 2, "LNDP")
-	
-	if discover_result == UPNP.UPNP_RESULT_SUCCESS:
-		if upnp.get_gateway() and upnp.get_gateway().is_valid_gateway():
-			var map_result = upnp.add_port_mapping(PORT, PORT, "ProyectoLimboUDP", "UDP")
-			if map_result == UPNP.UPNP_RESULT_SUCCESS:
-				ip_publica = upnp.query_external_address()
-				upnp_active = true
-				print("[UPNP] Redirección automática de puerto UDP ", PORT, " establecida con éxito.")
-				return
-			else:
-				print("[UPNP] Error al mapear puerto: ", map_result)
-		else:
-			print("[UPNP] No se encontró una puerta de enlace (Gateway) válida.")
-	else:
-		print("[UPNP] Descubrimiento de dispositivos UPNP falló con código: ", discover_result)
-
-func upnp_cleanup():
-	if not upnp_active: return
-	
-	var upnp = UPNP.new()
-	var discover_result = upnp.discover(1000, 2, "LNDP")
-	if discover_result == UPNP.UPNP_RESULT_SUCCESS:
-		if upnp.get_gateway() and upnp.get_gateway().is_valid_gateway():
-			var result = upnp.delete_port_mapping(PORT, "UDP")
-			if result == UPNP.UPNP_RESULT_SUCCESS:
-				print("[UPNP] Redirección de puerto UDP eliminada del router.")
-			else:
-				print("[UPNP] Error al eliminar redirección de puerto: ", result)
-	upnp_active = false
-	ip_publica = ""
+	AmigosManager.eliminar(nombre)
 
 # --- Métodos de Descubrimiento LAN ---
 
 func iniciar_lan_broadcaster():
-	detener_lan_broadcaster()
-	udp_broadcaster = PacketPeerUDP.new()
-	udp_broadcaster.set_broadcast_enabled(true)
-	udp_broadcaster.set_dest_address("255.255.255.255", LAN_DISCOVERY_PORT)
-	lan_broadcast_timer = 0.0
-	print("[LAN] Emisor de descubrimiento iniciado.")
+	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
+	if lan_node:
+		lan_node.configurar_broadcast(get_local_ip(), PORT, "Partida de " + OS.get_environment("USERNAME"))
+		lan_node.iniciar_broadcaster()
 
 func detener_lan_broadcaster():
-	if udp_broadcaster:
-		udp_broadcaster.close()
-		udp_broadcaster = null
-		print("[LAN] Emisor de descubrimiento detenido.")
+	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
+	if lan_node:
+		lan_node.detener_broadcaster()
 
 func iniciar_lan_listener():
-	detener_lan_listener()
-	lan_servers_discovered.clear()
-	udp_listener = PacketPeerUDP.new()
-	var err = udp_listener.bind(LAN_DISCOVERY_PORT)
-	if err != OK:
-		print("[LAN] Error al iniciar receptor de descubrimiento: ", err)
-		udp_listener = null
-	else:
-		print("[LAN] Receptor de descubrimiento iniciado.")
+	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
+	if lan_node:
+		lan_node.iniciar_listener()
 
 func detener_lan_listener():
-	if udp_listener:
-		udp_listener.close()
-		udp_listener = null
-		print("[LAN] Receptor de descubrimiento iniciado.")
+	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
+	if lan_node:
+		lan_node.detener_listener()

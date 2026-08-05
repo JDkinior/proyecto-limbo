@@ -975,3 +975,9 @@ Orden recomendado:
 13. `scripts/core/administrador_plataformas.gd`.
 
 Con ese orden se entiende primero el objetivo, luego la configuracion, despues la escena principal y finalmente los sistemas que se comunican entre si.
+
+### Red (WebRTC + Firebase Matchmaking)
+- **Señalización**: Se usa Firebase Realtime Database (irebase_matchmaking.gd) para intercambiar SDP Offers/Answers y candidatos ICE. Se incluye un parámetro ?t= (Cache-buster) en las peticiones GET para evitar que las operadoras móviles almacenen en caché respuestas vacías.
+- **WebRTC y NAT Traversal**: Para conectar jugadores a través de redes estrictas (CGNAT de operadoras móviles, VPNs Simétricas como ProtonVPN), se utiliza un servidor TURN (	urn:global.relay.metered.ca) configurado con TCP/UDP en los puertos 80 y 443.
+- El uso de puertos HTTPS (443) y TCP es vital para perforar bloqueos corporativos o de VPN que de otra forma descartarían el tráfico UDP de WebRTC.
+- **Consumo**: El servidor TURN solo consume datos (límite de 500MB en plan gratuito) cuando es estrictamente necesario. Conexiones locales o en redes amigables usarán STUN (P2P directo sin coste).

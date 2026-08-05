@@ -1,0 +1,343 @@
+[gd_scene format=3 uid="uid://dcbksm1k1yba2"]
+
+[ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="1_admin"]
+[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_jugador"]
+[ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="3_fantasma"]
+[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="4_ui"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges1" path="res://scenes/components/boton_presion.tscn" id="5_boton"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges2" path="res://scenes/components/interruptor_aura.tscn" id="6_interruptor"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqgeta" path="res://scenes/components/puerta_interactiva.tscn" id="7_puerta"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges5" path="res://scenes/components/moneda_vivo.tscn" id="8_moneda_vivo"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges6" path="res://scenes/components/moneda_fantasma.tscn" id="9_moneda_fantasma"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataforma_espiritual_base.tscn" id="10_plat_esp"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/goal.tscn" id="11_goal"]
+[ext_resource type="PackedScene" path="res://scenes/components/arbol_estilizado.tscn" id="12_arbol"]
+[ext_resource type="PackedScene" path="res://scenes/components/linterna_farol.tscn" id="13_linterna"]
+[ext_resource type="PackedScene" path="res://scenes/components/linterna_farol_azul.tscn" id="14_linterna_azul"]
+[ext_resource type="PackedScene" path="res://scenes/components/cristal_flotante.tscn" id="15_cristal"]
+[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="16_nivel_base"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_limbo"]
+sky_top_color = Color(0.12, 0.2, 0.42, 1)
+sky_horizon_color = Color(0.85, 0.55, 0.25, 1)
+ground_bottom_color = Color(0.15, 0.12, 0.1, 1)
+ground_horizon_color = Color(0.4, 0.3, 0.2, 1)
+
+[sub_resource type="Sky" id="Sky_limbo"]
+sky_material = SubResource("ProceduralSkyMaterial_limbo")
+
+[sub_resource type="Environment" id="Environment_limbo1"]
+background_mode = 2
+sky = SubResource("Sky_limbo")
+ambient_light_source = 3
+ambient_light_color = Color(0.35, 0.32, 0.48, 1)
+ambient_light_energy = 1.6
+tonemap_mode = 2
+tonemap_exposure = 1.1
+tonemap_white = 1.2
+glow_enabled = true
+glow_intensity = 1.2
+glow_strength = 1.1
+glow_bloom = 0.25
+fog_enabled = true
+fog_light_color = Color(0.35, 0.38, 0.52, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glass"]
+transparency = 1
+albedo_color = Color(0.35, 0.65, 0.95, 0.25)
+metallic = 0.4
+roughness = 0.1
+emission_enabled = true
+emission = Color(0.2, 0.6, 1, 1)
+emission_energy_multiplier = 0.5
+
+[sub_resource type="BoxMesh" id="BoxMesh_glass"]
+material = SubResource("StandardMaterial3D_glass")
+size = Vector3(0.4, 14, 46)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_glass"]
+size = Vector3(0.4, 14, 46)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_vivo"]
+albedo_color = Color(0.48, 0.38, 0.28, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor_vivo_main"]
+material = SubResource("StandardMaterial3D_floor_vivo")
+size = Vector3(10, 1, 12)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor_vivo_main"]
+size = Vector3(10, 1, 12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_step_vivo"]
+material = SubResource("StandardMaterial3D_floor_vivo")
+size = Vector3(6, 1.2, 6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_step_vivo"]
+size = Vector3(6, 1.2, 6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_fantasma"]
+albedo_color = Color(0.22, 0.32, 0.52, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor_fantasma_main"]
+material = SubResource("StandardMaterial3D_floor_fantasma")
+size = Vector3(10, 1, 10)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor_fantasma_main"]
+size = Vector3(10, 1, 10)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall"]
+albedo_color = Color(0.25, 0.28, 0.35, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_outer_wall"]
+material = SubResource("StandardMaterial3D_wall")
+size = Vector3(1, 10, 58)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_outer_wall"]
+size = Vector3(1, 10, 58)
+
+[sub_resource type="BoxMesh" id="BoxMesh_back_wall"]
+material = SubResource("StandardMaterial3D_wall")
+size = Vector3(28, 10, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_back_wall"]
+size = Vector3(28, 10, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shared"]
+albedo_color = Color(0.35, 0.42, 0.48, 1)
+roughness = 0.65
+
+[sub_resource type="BoxMesh" id="BoxMesh_shared"]
+material = SubResource("StandardMaterial3D_shared")
+size = Vector3(26, 1, 14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_shared"]
+size = Vector3(26, 1, 14)
+
+[node name="Nivel1ElDespertarSeparado" type="Node3D" unique_id=2020589322]
+script = ExtResource("16_nivel_base")
+
+[node name="AdministradorPlataformas" type="Node3D" parent="." unique_id=11029384]
+script = ExtResource("1_admin")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=616583212]
+environment = SubResource("Environment_limbo1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=130438159]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 15, 0)
+shadow_enabled = true
+
+[node name="ParedCristalInfranqueable" type="StaticBody3D" parent="." unique_id=594830192]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 1)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedCristalInfranqueable" unique_id=1066842268]
+mesh = SubResource("BoxMesh_glass")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedCristalInfranqueable" unique_id=1939603271]
+shape = SubResource("BoxShape3D_glass")
+
+[node name="PistaFisicaVivo" type="StaticBody3D" parent="." unique_id=1663221025]
+
+[node name="SueloVivoBase" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1469584942]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, -0.5, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/SueloVivoBase" unique_id=1504869772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
+mesh = SubResource("BoxMesh_floor_vivo_main")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/SueloVivoBase" unique_id=1428321066]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
+shape = SubResource("BoxShape3D_floor_vivo_main")
+
+[node name="Arbol1" parent="PistaFisicaVivo" unique_id=69347684 instance=ExtResource("12_arbol")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 10)
+
+[node name="Arbol2" parent="PistaFisicaVivo" unique_id=1131067706 instance=ExtResource("12_arbol")]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -10.5, 0, 20)
+
+[node name="Arbol3" parent="PistaFisicaVivo" unique_id=1886369126 instance=ExtResource("12_arbol")]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, -4, 0, 15)
+
+[node name="LinternaWarm1" parent="PistaFisicaVivo" unique_id=501738468 instance=ExtResource("13_linterna")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0, 14)
+
+[node name="LinternaWarm2" parent="PistaFisicaVivo" unique_id=1130984987 instance=ExtResource("13_linterna")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 10)
+
+[node name="EscalonDobleSalto1" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1919712292]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.1, 6)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/EscalonDobleSalto1" unique_id=1892513955]
+mesh = SubResource("BoxMesh_step_vivo")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/EscalonDobleSalto1" unique_id=1012115861]
+shape = SubResource("BoxShape3D_step_vivo")
+
+[node name="PlataformaBotonVivo" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1129236415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 5.785627, -2)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/PlataformaBotonVivo" unique_id=579618033]
+mesh = SubResource("BoxMesh_step_vivo")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/PlataformaBotonVivo" unique_id=1579110407]
+shape = SubResource("BoxShape3D_step_vivo")
+
+[node name="PlataformaVivoFinal" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=2061316670]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.1, -11)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/PlataformaVivoFinal" unique_id=1606157527]
+mesh = SubResource("BoxMesh_step_vivo")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/PlataformaVivoFinal" unique_id=1806954634]
+shape = SubResource("BoxShape3D_step_vivo")
+
+[node name="PistaEspiritualFantasma" type="Node3D" parent="." unique_id=896449448]
+
+[node name="SueloFantasmaBase" type="StaticBody3D" parent="PistaEspiritualFantasma" unique_id=1779624950]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.5, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaEspiritualFantasma/SueloFantasmaBase" unique_id=655589021]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 17)
+mesh = SubResource("BoxMesh_floor_fantasma_main")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaEspiritualFantasma/SueloFantasmaBase" unique_id=304281781]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 17)
+shape = SubResource("BoxShape3D_floor_fantasma_main")
+
+[node name="LinternaBlue1" parent="PistaEspiritualFantasma" unique_id=1606045418 instance=ExtResource("14_linterna_azul")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 0, 14)
+
+[node name="LinternaBlue2" parent="PistaEspiritualFantasma" unique_id=1073289942 instance=ExtResource("14_linterna_azul")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 14)
+
+[node name="CristalMonolith1" parent="PistaEspiritualFantasma" unique_id=637223720 instance=ExtResource("15_cristal")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, -8)
+
+[node name="CristalMonolith2" parent="PistaEspiritualFantasma" unique_id=352651187 instance=ExtResource("15_cristal")]
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 12, 3, 2)
+
+[node name="PlataformaEspiritual1" parent="PistaEspiritualFantasma" unique_id=1681526785 instance=ExtResource("10_plat_esp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 3.2, 8)
+
+[node name="PlataformaEspiritual2" parent="PistaEspiritualFantasma" unique_id=1120773619 instance=ExtResource("10_plat_esp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6.2, 0)
+
+[node name="PlataformaFantasmaFinal" type="StaticBody3D" parent="PistaEspiritualFantasma" unique_id=1570665521]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.1, -16)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaEspiritualFantasma/PlataformaFantasmaFinal" unique_id=155475729]
+mesh = SubResource("BoxMesh_step_vivo")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaEspiritualFantasma/PlataformaFantasmaFinal" unique_id=1392764166]
+shape = SubResource("BoxShape3D_step_vivo")
+
+[node name="ParedesYLimites" type="Node3D" parent="." unique_id=1378627366]
+
+[node name="ParedIzquierda" type="StaticBody3D" parent="ParedesYLimites" unique_id=137759377]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 4.5, -5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedIzquierda" unique_id=1738791409]
+transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_outer_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedIzquierda" unique_id=614017027]
+shape = SubResource("BoxShape3D_outer_wall")
+
+[node name="ParedDerecha" type="StaticBody3D" parent="ParedesYLimites" unique_id=1088908097]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 4.5, -5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedDerecha" unique_id=289903042]
+transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_outer_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedDerecha" unique_id=511177217]
+shape = SubResource("BoxShape3D_outer_wall")
+
+[node name="ParedTrasera" type="StaticBody3D" parent="ParedesYLimites" unique_id=402997194]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 22.5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedTrasera" unique_id=1957488163]
+transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_back_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedTrasera" unique_id=931043360]
+shape = SubResource("BoxShape3D_back_wall")
+
+[node name="ParedFondoMeta" type="StaticBody3D" parent="ParedesYLimites" unique_id=1373201544]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -34.5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedFondoMeta" unique_id=62389753]
+transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_back_wall")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedFondoMeta" unique_id=1165157373]
+shape = SubResource("BoxShape3D_back_wall")
+
+[node name="Mecanismos" type="Node3D" parent="." unique_id=262988224]
+
+[node name="BotonPresion" parent="Mecanismos" unique_id=2060207190 instance=ExtResource("5_boton")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 6.385627, -2)
+
+[node name="InterruptorAura" parent="Mecanismos" unique_id=491294744 instance=ExtResource("6_interruptor")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.7, -16)
+
+[node name="PuertaFantasma" parent="Mecanismos" unique_id=1237335603 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_puerta")]
+transform = Transform3D(3.4, 0, 0, 0, 3.2200003, 0, 0, 0, 1, 8, 0, -8)
+distancia_desplazamiento = 10.0
+direccion_desplazamiento = Vector3(1, 0, 0)
+disparador_objetivo = NodePath("../BotonPresion")
+
+[node name="PuertaVivo" parent="Mecanismos" unique_id=1849240090 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_puerta")]
+transform = Transform3D(-3.4000006, 0, 8.7422784e-08, 0, 2.2400002, 0, -2.9723745e-07, 0, -1, -8, 0, -16)
+distancia_desplazamiento = 10.0
+disparador_objetivo = NodePath("../InterruptorAura")
+
+[node name="ZonaReunionFinal" type="Node3D" parent="." unique_id=822277863]
+
+[node name="SueloFinal" type="StaticBody3D" parent="ZonaReunionFinal" unique_id=854515418]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -27)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ZonaReunionFinal/SueloFinal" unique_id=1548522746]
+mesh = SubResource("BoxMesh_shared")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ZonaReunionFinal/SueloFinal" unique_id=1886893464]
+shape = SubResource("BoxShape3D_shared")
+
+[node name="Goal" parent="ZonaReunionFinal" unique_id=1234241907 instance=ExtResource("11_goal")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -28)
+
+[node name="Coleccionables" type="Node3D" parent="." unique_id=720165543]
+
+[node name="MonedaVivo1" parent="Coleccionables" unique_id=935568042 instance=ExtResource("8_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.2, 12)
+
+[node name="MonedaVivo2" parent="Coleccionables" unique_id=148956923 instance=ExtResource("8_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3.8, 6)
+
+[node name="MonedaVivo3" parent="Coleccionables" unique_id=1064851329 instance=ExtResource("8_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 7.485627, -2)
+
+[node name="MonedaVivo4" parent="Coleccionables" unique_id=2137979987 instance=ExtResource("8_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.8, -11)
+
+[node name="MonedaFantasma1" parent="Coleccionables" unique_id=418483056 instance=ExtResource("9_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.2, 12)
+
+[node name="MonedaFantasma2" parent="Coleccionables" unique_id=1302292864 instance=ExtResource("9_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4.8, 8)
+
+[node name="MonedaFantasma3" parent="Coleccionables" unique_id=1271059066 instance=ExtResource("9_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 7.8, 0)
+
+[node name="MonedaFantasma4" parent="Coleccionables" unique_id=2090390890 instance=ExtResource("9_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.8, -16)
+
+[node name="Jugador" parent="." unique_id=1660849217 instance=ExtResource("2_jugador")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, 18)
+
+[node name="Fantasma" parent="." unique_id=880578793 instance=ExtResource("3_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 18)
+
+[node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]

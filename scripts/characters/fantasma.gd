@@ -1,20 +1,12 @@
 extends CharacterBase
 class_name Fantasma
 
-signal aura_estado_actualizado(activo: bool, progreso: float)
+signal aura_estado_actualizado(activo: bool, progreso_cooldown: float)
 
-@export_group("Configuración Visual")
-@export var fantasma_camera_environment: Environment # Entorno para la cámara del fantasma
-@export var RADIO_DETECCION : float = 10.0 # Radio máximo de detección para plataformas
-@export var BUFFER_CONTACTO_PLATAFORMA : float = 0.25 # Tiempo de gracia (amortiguación) en segundos para evitar parpadeos al moverse
-
-var _original_camera_environment: Environment
-@onready var habilidad_aura = $HabilidadAura
-
-# Diccionario para rastrear el tiempo de contacto restante para cada plataforma
-var _contacto_plataformas : Dictionary = {} # {plataforma: float}
+@onready var habilidad_aura: HabilidadAura = get_node_or_null("HabilidadAura")
 
 func _ready():
+	# Configurar parámetros propios del Fantasma (salto alto, levitación y 1 solo salto)
 	FUERZA_SALTO = 8.0
 	MULTIPLICADOR_SEGUNDO_SALTO = 1.0
 	MULTIPLICADOR_CAIDA = 0.45
@@ -22,128 +14,107 @@ func _ready():
 	TIEMPO_COYOTE = 0.15
 	TIEMPO_BUFFER_SALTO = 0.12
 	MAX_SALTOS = 1
-	super() # Inicializa cámara y posición desde CharacterBase
-	if pivote_camara and pivote_camara.has_node("Camera3D"):
-		var camera = pivote_camara.get_node("Camera3D")
-		_original_camera_environment = camera.environment
-		# Ghost only renders layers 2 (Plano_Fisico) and 3 (Plano_Espiritual).
-		# Exclude layer 4 (Objetivo/Moneda) so coins are not visible.
-		camera.cull_mask = (1 << 0) | (1 << 1) | (1 << 2)  # layers 1 (default), 2 and 3
 
-	# Fantasma pertenece SOLO a capa 3 (Plano Espiritual)
+	super()
+	add_to_group("fantasmas")
+	add_to_group("jugadores")
+	# Fantasma pertenece solo a la capa 3 (Plano Espiritual)
+
 	collision_layer = 1 << 2   # solo capa 3
-	# Máscara: detecta capa 1 (entorno), capa 3 (plataformas espirituales), capa 4 (monedas/objetivo)
-	# NO incluye capa 2 (Jugador) → no colisiona con el jugador
+	# Máscara: detecta capa 1 (entorno), capa 3 (plataformas espirituales), capa 4 (monedas/triggers)
 	collision_mask = (1 << 0) | (1 << 2) | (1 << 3)
 
 	if is_instance_valid(RedManager):
 		RedManager.registrar_jugador(self)
 
-	# Agregar al grupo global para localización rápida por otros componentes
-	add_to_group("fantasmas")
+	if is_multiplayer_authority() and controles_tactiles and controles_tactiles.has_method("configurar_estilo_personaje"):
+		controles_tactiles.configurar_estilo_personaje(true)
 
-	if habilidad_aura:
-		habilidad_aura.radio_maximo = RADIO_DETECCION
+	if is_instance_valid(habilidad_aura):
 		habilidad_aura.estado_cambiado.connect(_on_aura_estado_cambiado)
 
-func _on_aura_estado_cambiado(activo: bool, progreso: float):
-	"""Manejador de señal del componente HabilidadAura"""
-	aura_estado_actualizado.emit(activo, progreso)
+func _on_aura_estado_cambiado(activo: bool, progreso_cooldown: float):
+	aura_estado_actualizado.emit(activo, progreso_cooldown)
 
 func actualizar_visibilidad_local():
 	super()
-	"""Configura qué elementos son visibles solo para el jugador que controla este personaje"""
 	var es_mio = is_multiplayer_authority()
-	
-	if has_node("Aura"):
-		$Aura.visible = false
-		
-	var camera = null
-	if pivote_camara and pivote_camara.has_node("Camera3D"):
-		camera = pivote_camara.get_node("Camera3D")
-		camera.current = es_mio
+	if es_mio and pivote_camara and pivote_camara.has_node("Camera3D"):
+		var camera = pivote_camara.get_node("Camera3D")
+		# Ver todas las capas (incluyendo plano espiritual)
+		camera.cull_mask = 1048575
+		camera.environment = _crear_entorno_fantasma()
 
-	if es_mio and camera:
-		if fantasma_camera_environment:
-			camera.environment = fantasma_camera_environment
-		else:
-			# Si no hay entorno asignado, creamos un efecto de "visión espiritual" azulada
-			var base_env = _original_camera_environment
-			if not base_env:
-				# Intentamos obtener el del WorldEnvironment de la escena
-				var we = get_tree().root.find_child("WorldEnvironment", true, false)
-				if we: base_env = we.environment
-			
-			var env = base_env.duplicate() if base_env else Environment.new()
-			env.adjustment_enabled = true
-			
-			# Creamos una gradiente para la corrección de color (LUT 1D)
-			var grad = Gradient.new()
-			grad.colors = PackedColorArray([Color(0, 0, 0.1), Color(0.4, 0.6, 1.0)])
-			var tex = GradientTexture1D.new()
-			tex.gradient = grad
-			env.adjustment_color_correction = tex
-			
-			camera.environment = env
-	elif camera:
-		camera.environment = _original_camera_environment # Restablecer al entorno global
+func _crear_entorno_fantasma() -> Environment:
+	var env = Environment.new()
+	env.background_mode = Environment.BG_SKY
+	
+	var sky_mat = ProceduralSkyMaterial.new()
+	# Cielo nocturno místico estilizado: Violeta noche en lo alto, degradado a azul cobalto/índigo en horizonte
+	sky_mat.sky_top_color = Color(0.10, 0.12, 0.38)       # Púrpura azul noche estilizado
+	sky_mat.sky_horizon_color = Color(0.20, 0.25, 0.60)   # Azul cobalto/índigo místico
+	sky_mat.ground_bottom_color = Color(0.06, 0.05, 0.18) # Abismo azul púrpura
+	sky_mat.ground_horizon_color = Color(0.14, 0.12, 0.35)
+	sky_mat.sky_curve = 0.08
+	sky_mat.sun_angle_max = 20.0
+	sky_mat.sun_curve = 0.1
+	
+	var sky = Sky.new()
+	sky.sky_material = sky_mat
+	env.sky = sky
+	
+	# Iluminación ambiental cobalto/azul (ilumina paredes y suelo para evitar áreas en negro absoluto)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.24, 0.30, 0.65) # Azul cobalto vibrante (sin sombras negras)
+	env.ambient_light_energy = 1.35
+	
+	# Mapeo de tonos ACES (2 = ACES)
+	env.tonemap_mode = 2
+	env.tonemap_exposure = 1.05
+	env.tonemap_white = 1.1
+	
+	# Glow espectral brillante para magia/cristales/aura
+	env.glow_enabled = true
+	env.glow_intensity = 0.9
+	env.glow_strength = 1.0
+	env.glow_bloom = 0.14
+	
+	# Niebla mística PÚRPURA de distancia (como en el arte conceptual: entre más lejos, más púrpura se vuelve)
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.28, 0.22, 0.55) # Tono púrpura violeta místico de distancia
+	env.fog_density = 0.015                       # Tinta suavemente la profundidad de púrpura
+	env.fog_sky_affect = 0.3
+	env.fog_height = -4.0
+	env.fog_height_density = 0.06
+	
+	# Ajustes de color estilizados (saturación para azul cobalto y púrpura vivos)
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.25
+	env.adjustment_contrast = 1.05
+	env.adjustment_brightness = 1.05
+	
+	return env
+
+
+
 
 func _physics_process(delta):
-	# Solo procesar input y movimiento si somos la autoridad local
 	if not is_multiplayer_authority(): return
 
 	procesar_camara_base(delta)
 	procesar_salto_base(delta)
+	procesar_movimiento_base(delta)
+	_actualizar_estela()
 
-	# --- 5. ACTIVACIÓN DE AURA (Delegada al componente) ---
-	if Input.is_action_just_pressed("interactuar") and habilidad_aura:
+	if Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial")):
+		activar_habilidad_especial()
+
+
+func activar_habilidad_especial():
+	if is_instance_valid(habilidad_aura):
 		habilidad_aura.intentar_activar()
 
-	procesar_movimiento_base(delta)
-	_actualizar_estado_plataformas(delta)
-
-func _actualizar_estado_plataformas(delta: float) -> void:
-	"""Activa/desactiva plataformas del grupo 'plataformas_aura' en base a si el fantasma las toca y si el aura está activa y por encima del umbral de fin."""
-	if not is_multiplayer_authority(): return
-
-	# 1. Decrementar los contadores de contacto de todas las plataformas registradas
-	for plat in _contacto_plataformas.keys():
-		if _contacto_plataformas[plat] > 0.0:
-			_contacto_plataformas[plat] = max(_contacto_plataformas[plat] - delta, 0.0)
-
-	# 2. Detectar contacto y refrescar el temporizador para las plataformas del grupo tocadas
-	var plataformas = get_tree().get_nodes_in_group("plataformas_aura")
-	for plataforma in plataformas:
-		if plataforma.has_method("esta_siendo_tocada_por_fantasma") and plataforma.esta_siendo_tocada_por_fantasma():
-			_contacto_plataformas[plataforma] = BUFFER_CONTACTO_PLATAFORMA
-
-	# 3. Verificar si la habilidad está activa
-	var habilidad_valida = habilidad_aura and habilidad_aura.esta_activa()
-
-	# 4. Sincronizar el estado de todas las plataformas del grupo
-	for plataforma in plataformas:
-		if not plataforma.has_method("actualizar_estado"):
-			continue
-			
-		var tiempo_restante = _contacto_plataformas.get(plataforma, 0.0)
-		var debe_ser_activa = habilidad_valida and (tiempo_restante > 0.0)
-		
-		# Sincronizar por RPC solo si el estado cambió
-		if plataforma.esta_activa != debe_ser_activa:
-			plataforma.rpc_sincronizar_estado.rpc(debe_ser_activa)
-			print("[Fantasma] Estado plataforma actualizado: ", plataforma.name, 
-				  " -> ", "ACTIVA (Tangible)" if debe_ser_activa else "INACTIVA (Intangible)",
-				  " (Tiempo contacto restante: %f)" % tiempo_restante)
-
-func reiniciar_posicion() -> void:
-	"""Reinicia el fantasma a su posición inicial"""
-	global_position = posicion_inicial
-	velocity = Vector3.ZERO
-	_contacto_plataformas.clear()
-	
-	# Desactivar todas las plataformas al reiniciar
-	if is_multiplayer_authority():
-		var plataformas = get_tree().get_nodes_in_group("plataformas_aura")
-		for plataforma in plataformas:
-			if plataforma.has_method("actualizar_estado") and plataforma.esta_activa:
-				plataforma.rpc_sincronizar_estado.rpc(false)
+func _actualizar_estela():
+	if has_node("EstelaFantasma"):
+		var esta_moviendose = velocity.length() > 0.3
+		$EstelaFantasma.emitting = esta_moviendose

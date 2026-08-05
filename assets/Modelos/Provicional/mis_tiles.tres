@@ -198,6 +198,9 @@ data = {
 [sub_resource type="ImageTexture" id="ImageTexture_jb6rn"]
 image = SubResource("Image_no16k")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_2a4cd"]
+size = Vector3(6.403351, 1.69281, 6.4113464)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ua18t"]
 resource_name = "BlockMossXL_4_Material"
 cull_mode = 2
@@ -248,6 +251,9 @@ data = {
 [sub_resource type="ImageTexture" id="ImageTexture_56kg7"]
 image = SubResource("Image_0l88x")
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_tfvh8"]
+size = Vector3(6.329468, 3.313202, 6.347595)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gmucx"]
 resource_name = "BlockMossXS_Material"
 cull_mode = 2
@@ -297,6 +303,9 @@ data = {
 
 [sub_resource type="ImageTexture" id="ImageTexture_5t0ot"]
 image = SubResource("Image_1mdfe")
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_htshq"]
+size = Vector3(6.385193, 0.50097656, 6.3844604)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_i0ync"]
 resource_name = "BlockNormalMD_8_Material"
@@ -1454,6 +1463,10 @@ data = {
 [sub_resource type="ImageTexture" id="ImageTexture_pbpwi"]
 image = SubResource("Image_5wfuu")
 
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_2a4cd"]
+margin = 0.0
+points = PackedVector3Array(1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ms3ym"]
 resource_name = "Gate_1_Material"
 cull_mode = 2
@@ -2172,7 +2185,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_y36nx"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_n6vsm"]
 resource_name = "Vase_Vase_5_004"
 _surfaces = [{
 "aabb": AABB(-0.70000017, -1.7881393e-07, -0.70000017, 1.3000003, 1.7000005, 1.3000003),
@@ -2199,7 +2212,7 @@ data = {
 "width": 64
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_6khan"]
+[sub_resource type="ImageTexture" id="ImageTexture_3lj1t"]
 image = SubResource("Image_qvu4k")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yqyva"]
@@ -2322,7 +2335,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_dofmm"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_y36nx"]
 resource_name = "WallLight_WallLight_1_003"
 _surfaces = [{
 "aabb": AABB(-0.5000001, -0.10000011, -0.40000013, 1.1000003, 1.0000002, 0.9000002),
@@ -2349,7 +2362,7 @@ data = {
 "width": 64
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_ymcfp"]
+[sub_resource type="ImageTexture" id="ImageTexture_6khan"]
 image = SubResource("Image_f4i6r")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_58hxo"]
@@ -2372,7 +2385,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_nnipc"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_yqyva"]
 resource_name = "BlockCrackMD_BlockCrackMD_2_009"
 _surfaces = [{
 "aabb": AABB(-3.3000007, -1.7881393e-07, -3.3000007, 6.6000013, 1.7000005, 6.6000013),
@@ -2399,7 +2412,7 @@ data = {
 "width": 64
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_1741j"]
+[sub_resource type="ImageTexture" id="ImageTexture_wqh75"]
 image = SubResource("Image_jt5v0")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_skof8"]
@@ -2422,7 +2435,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_rglpk"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_dofmm"]
 resource_name = "BlockCrackXL_BlockCrackXL_1_009"
 _surfaces = [{
 "aabb": AABB(-3.3000007, -3.5762787e-07, -3.3000007, 6.6000013, 3.3000007, 6.6000013),
@@ -2449,7 +2462,7 @@ data = {
 "width": 64
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_shhat"]
+[sub_resource type="ImageTexture" id="ImageTexture_ymcfp"]
 image = SubResource("Image_uuqar")
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hsg60"]
@@ -2472,7 +2485,7 @@ _surfaces = [{
 }]
 blend_shape_mode = 0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_0p1fs"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_nnipc"]
 resource_name = "BlockCrackXS_BlockCrackXS_3_008"
 _surfaces = [{
 "aabb": AABB(-3.3000007, -4.4703484e-08, -3.3000007, 6.6000013, 0.5000001, 6.6000013),
@@ -2499,7 +2512,7 @@ data = {
 "width": 64
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_3x4il"]
+[sub_resource type="ImageTexture" id="ImageTexture_1741j"]
 image = SubResource("Image_4dhf5")
 
 [resource]
@@ -2513,7 +2526,7 @@ item/0/navigation_layers = 1
 item/0/preview = SubResource("ImageTexture_no16k")
 item/1/name = "ChestBaseGold"
 item/1/mesh = SubResource("ArrayMesh_0l88x")
-item/1/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/1/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
 item/1/mesh_cast_shadow = 1
 item/1/shapes = []
 item/1/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2521,7 +2534,7 @@ item/1/navigation_layers = 1
 item/1/preview = SubResource("ImageTexture_bnrqx")
 item/2/name = "ChestCover"
 item/2/mesh = SubResource("ArrayMesh_ty486")
-item/2/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/2/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
 item/2/mesh_cast_shadow = 1
 item/2/shapes = []
 item/2/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2529,7 +2542,7 @@ item/2/navigation_layers = 1
 item/2/preview = SubResource("ImageTexture_ue8ex")
 item/3/name = "Skull"
 item/3/mesh = SubResource("ArrayMesh_hf021")
-item/3/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/3/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -9)
 item/3/mesh_cast_shadow = 1
 item/3/shapes = []
 item/3/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2537,103 +2550,103 @@ item/3/navigation_layers = 1
 item/3/preview = SubResource("ImageTexture_0d23t")
 item/4/name = "SkullCracked"
 item/4/mesh = SubResource("ArrayMesh_g75ad")
-item/4/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/4/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12)
 item/4/mesh_cast_shadow = 1
 item/4/shapes = []
 item/4/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/4/navigation_layers = 1
 item/4/preview = SubResource("ImageTexture_nieix")
 item/5/name = "Vase"
-item/5/mesh = SubResource("ArrayMesh_y36nx")
-item/5/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/5/mesh = SubResource("ArrayMesh_n6vsm")
+item/5/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -14)
 item/5/mesh_cast_shadow = 1
 item/5/shapes = []
 item/5/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/5/navigation_layers = 1
-item/5/preview = SubResource("ImageTexture_6khan")
+item/5/preview = SubResource("ImageTexture_3lj1t")
 item/6/name = "WallLight"
-item/6/mesh = SubResource("ArrayMesh_dofmm")
-item/6/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/6/mesh = SubResource("ArrayMesh_y36nx")
+item/6/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -16)
 item/6/mesh_cast_shadow = 1
 item/6/shapes = []
 item/6/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/6/navigation_layers = 1
-item/6/preview = SubResource("ImageTexture_ymcfp")
+item/6/preview = SubResource("ImageTexture_6khan")
 item/7/name = "BlockCrackMD"
-item/7/mesh = SubResource("ArrayMesh_nnipc")
-item/7/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/7/mesh = SubResource("ArrayMesh_yqyva")
+item/7/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, 0)
 item/7/mesh_cast_shadow = 1
-item/7/shapes = []
+item/7/shapes = [SubResource("BoxShape3D_2a4cd"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.001083, 0.8507385, -0.006790161)]
 item/7/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/7/navigation_layers = 1
-item/7/preview = SubResource("ImageTexture_1741j")
+item/7/preview = SubResource("ImageTexture_wqh75")
 item/8/name = "BlockCrackXL"
-item/8/mesh = SubResource("ArrayMesh_rglpk")
-item/8/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/8/mesh = SubResource("ArrayMesh_dofmm")
+item/8/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -8)
 item/8/mesh_cast_shadow = 1
-item/8/shapes = []
+item/8/shapes = [SubResource("BoxShape3D_tfvh8"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.0095825, 1.6621857, -7.992279)]
 item/8/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/8/navigation_layers = 1
-item/8/preview = SubResource("ImageTexture_shhat")
+item/8/preview = SubResource("ImageTexture_ymcfp")
 item/9/name = "BlockCrackXS"
-item/9/mesh = SubResource("ArrayMesh_0p1fs")
-item/9/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/9/mesh = SubResource("ArrayMesh_nnipc")
+item/9/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -16)
 item/9/mesh_cast_shadow = 1
-item/9/shapes = []
+item/9/shapes = [SubResource("BoxShape3D_htshq"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.9935, 0.24951172, -15.991852)]
 item/9/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/9/navigation_layers = 1
-item/9/preview = SubResource("ImageTexture_3x4il")
+item/9/preview = SubResource("ImageTexture_1741j")
 item/10/name = "BlockMossMD"
 item/10/mesh = SubResource("ArrayMesh_0dj1e")
-item/10/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/10/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -24)
 item/10/mesh_cast_shadow = 1
-item/10/shapes = []
+item/10/shapes = [SubResource("BoxShape3D_2a4cd"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.001083, 0.8507385, -24.00679)]
 item/10/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/10/navigation_layers = 1
 item/10/preview = SubResource("ImageTexture_jb6rn")
 item/11/name = "BlockMossXL"
 item/11/mesh = SubResource("ArrayMesh_i7br0")
-item/11/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/11/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -32)
 item/11/mesh_cast_shadow = 1
-item/11/shapes = []
+item/11/shapes = [SubResource("BoxShape3D_tfvh8"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.0095825, 1.6621857, -31.99228)]
 item/11/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/11/navigation_layers = 1
 item/11/preview = SubResource("ImageTexture_56kg7")
 item/12/name = "BlockMossXS"
 item/12/mesh = SubResource("ArrayMesh_v3m2u")
-item/12/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/12/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -40)
 item/12/mesh_cast_shadow = 1
-item/12/shapes = []
+item/12/shapes = [SubResource("BoxShape3D_htshq"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.9935, 0.24951172, -39.99185)]
 item/12/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/12/navigation_layers = 1
 item/12/preview = SubResource("ImageTexture_5t0ot")
 item/13/name = "BlockNormalMD"
 item/13/mesh = SubResource("ArrayMesh_appep")
-item/13/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/13/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -48)
 item/13/mesh_cast_shadow = 1
-item/13/shapes = []
+item/13/shapes = [SubResource("BoxShape3D_2a4cd"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.001083, 0.8507385, -48.00679)]
 item/13/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/13/navigation_layers = 1
 item/13/preview = SubResource("ImageTexture_lwcxt")
 item/14/name = "BlockNormalXL"
 item/14/mesh = SubResource("ArrayMesh_pm07d")
-item/14/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/14/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -56)
 item/14/mesh_cast_shadow = 1
-item/14/shapes = []
+item/14/shapes = [SubResource("BoxShape3D_tfvh8"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.0095825, 1.6621857, -55.99228)]
 item/14/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/14/navigation_layers = 1
 item/14/preview = SubResource("ImageTexture_nburm")
 item/15/name = "BlockNormalXS"
 item/15/mesh = SubResource("ArrayMesh_nmueg")
-item/15/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/15/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 0, -65)
 item/15/mesh_cast_shadow = 1
-item/15/shapes = []
+item/15/shapes = [SubResource("BoxShape3D_htshq"), Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.9935, 0.24951172, -64.99185)]
 item/15/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/15/navigation_layers = 1
 item/15/preview = SubResource("ImageTexture_mtx3i")
 item/16/name = "Corner"
 item/16/mesh = SubResource("ArrayMesh_pr7xh")
-item/16/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/16/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 0)
 item/16/mesh_cast_shadow = 1
 item/16/shapes = []
 item/16/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2641,7 +2654,7 @@ item/16/navigation_layers = 1
 item/16/preview = SubResource("ImageTexture_53c1w")
 item/17/name = "CornerTight"
 item/17/mesh = SubResource("ArrayMesh_5wfuu")
-item/17/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/17/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -4)
 item/17/mesh_cast_shadow = 1
 item/17/shapes = []
 item/17/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2649,7 +2662,7 @@ item/17/navigation_layers = 1
 item/17/preview = SubResource("ImageTexture_ubm6y")
 item/18/name = "Fence"
 item/18/mesh = SubResource("ArrayMesh_dovka")
-item/18/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/18/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -8)
 item/18/mesh_cast_shadow = 1
 item/18/shapes = []
 item/18/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2657,7 +2670,7 @@ item/18/navigation_layers = 1
 item/18/preview = SubResource("ImageTexture_onfwl")
 item/19/name = "Line"
 item/19/mesh = SubResource("ArrayMesh_x70wq")
-item/19/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/19/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -11)
 item/19/mesh_cast_shadow = 1
 item/19/shapes = []
 item/19/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2665,7 +2678,7 @@ item/19/navigation_layers = 1
 item/19/preview = SubResource("ImageTexture_a0a4n")
 item/20/name = "Slope"
 item/20/mesh = SubResource("ArrayMesh_yamtf")
-item/20/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/20/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.3, 0, -14)
 item/20/mesh_cast_shadow = 1
 item/20/shapes = []
 item/20/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2673,7 +2686,7 @@ item/20/navigation_layers = 1
 item/20/preview = SubResource("ImageTexture_yp41a")
 item/21/name = "GroundMossMD"
 item/21/mesh = SubResource("ArrayMesh_1nuap")
-item/21/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/21/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 0)
 item/21/mesh_cast_shadow = 1
 item/21/shapes = []
 item/21/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2681,7 +2694,7 @@ item/21/navigation_layers = 1
 item/21/preview = SubResource("ImageTexture_jt5v0")
 item/22/name = "GroundMossXL"
 item/22/mesh = SubResource("ArrayMesh_uuqar")
-item/22/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/22/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -3)
 item/22/mesh_cast_shadow = 1
 item/22/shapes = []
 item/22/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2689,7 +2702,7 @@ item/22/navigation_layers = 1
 item/22/preview = SubResource("ImageTexture_ikr7r")
 item/23/name = "GroundMossXS"
 item/23/mesh = SubResource("ArrayMesh_w4uyq")
-item/23/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/23/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -6)
 item/23/mesh_cast_shadow = 1
 item/23/shapes = []
 item/23/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2697,7 +2710,7 @@ item/23/navigation_layers = 1
 item/23/preview = SubResource("ImageTexture_16pxp")
 item/24/name = "MossMD"
 item/24/mesh = SubResource("ArrayMesh_pu8h2")
-item/24/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/24/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -9)
 item/24/mesh_cast_shadow = 1
 item/24/shapes = []
 item/24/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2705,7 +2718,7 @@ item/24/navigation_layers = 1
 item/24/preview = SubResource("ImageTexture_uwut2")
 item/25/name = "MossXL"
 item/25/mesh = SubResource("ArrayMesh_4f2h3")
-item/25/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/25/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -11.9)
 item/25/mesh_cast_shadow = 1
 item/25/shapes = []
 item/25/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2713,7 +2726,7 @@ item/25/navigation_layers = 1
 item/25/preview = SubResource("ImageTexture_tw8fr")
 item/26/name = "MossXS"
 item/26/mesh = SubResource("ArrayMesh_6jj3h")
-item/26/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/26/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, -15)
 item/26/mesh_cast_shadow = 1
 item/26/shapes = []
 item/26/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2721,7 +2734,7 @@ item/26/navigation_layers = 1
 item/26/preview = SubResource("ImageTexture_hb8ue")
 item/27/name = "PillarRound"
 item/27/mesh = SubResource("ArrayMesh_mc02d")
-item/27/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/27/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 0)
 item/27/mesh_cast_shadow = 1
 item/27/shapes = []
 item/27/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2729,7 +2742,7 @@ item/27/navigation_layers = 1
 item/27/preview = SubResource("ImageTexture_5n76d")
 item/28/name = "PillarRoundCut"
 item/28/mesh = SubResource("ArrayMesh_sdu2b")
-item/28/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/28/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -3)
 item/28/mesh_cast_shadow = 1
 item/28/shapes = []
 item/28/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2737,7 +2750,7 @@ item/28/navigation_layers = 1
 item/28/preview = SubResource("ImageTexture_s2msl")
 item/29/name = "PillarSquare"
 item/29/mesh = SubResource("ArrayMesh_cnbhw")
-item/29/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/29/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -6)
 item/29/mesh_cast_shadow = 1
 item/29/shapes = []
 item/29/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2745,7 +2758,7 @@ item/29/navigation_layers = 1
 item/29/preview = SubResource("ImageTexture_1a5b4")
 item/30/name = "PillarSquareCut"
 item/30/mesh = SubResource("ArrayMesh_jyis8")
-item/30/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/30/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -10)
 item/30/mesh_cast_shadow = 1
 item/30/shapes = []
 item/30/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2753,7 +2766,7 @@ item/30/navigation_layers = 1
 item/30/preview = SubResource("ImageTexture_b6ux7")
 item/31/name = "StairBridge"
 item/31/mesh = SubResource("ArrayMesh_ghxx8")
-item/31/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/31/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 0, 0)
 item/31/mesh_cast_shadow = 1
 item/31/shapes = []
 item/31/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2761,7 +2774,7 @@ item/31/navigation_layers = 1
 item/31/preview = SubResource("ImageTexture_cd6yj")
 item/32/name = "StairsMD"
 item/32/mesh = SubResource("ArrayMesh_okgex")
-item/32/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/32/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 0, -9)
 item/32/mesh_cast_shadow = 1
 item/32/shapes = []
 item/32/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2769,15 +2782,15 @@ item/32/navigation_layers = 1
 item/32/preview = SubResource("ImageTexture_r27bs")
 item/33/name = "StairsXL"
 item/33/mesh = SubResource("ArrayMesh_3pg75")
-item/33/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/33/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 0, -14)
 item/33/mesh_cast_shadow = 1
-item/33/shapes = []
+item/33/shapes = [SubResource("ConvexPolygonShape3D_2a4cd"), Transform3D(0, 0, -6.102604, 0, 1.9190886, 0, 2.7161024, 0, 0, -19.003036, 0, -15.217937)]
 item/33/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 item/33/navigation_layers = 1
 item/33/preview = SubResource("ImageTexture_pbpwi")
 item/34/name = "Gate_1"
 item/34/mesh = SubResource("ArrayMesh_krtib")
-item/34/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/34/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -7.1525574e-07, 0)
 item/34/mesh_cast_shadow = 1
 item/34/shapes = []
 item/34/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2785,7 +2798,7 @@ item/34/navigation_layers = 1
 item/34/preview = SubResource("ImageTexture_oecy0")
 item/35/name = "WallBrokenMD_1"
 item/35/mesh = SubResource("ArrayMesh_oan52")
-item/35/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/35/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -7.1525574e-07, -8)
 item/35/mesh_cast_shadow = 1
 item/35/shapes = []
 item/35/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2793,7 +2806,7 @@ item/35/navigation_layers = 1
 item/35/preview = SubResource("ImageTexture_4kflc")
 item/36/name = "WallBrokenXL"
 item/36/mesh = SubResource("ArrayMesh_ny568")
-item/36/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/36/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -7.1525574e-07, -16)
 item/36/mesh_cast_shadow = 1
 item/36/shapes = []
 item/36/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2801,7 +2814,7 @@ item/36/navigation_layers = 1
 item/36/preview = SubResource("ImageTexture_psfao")
 item/37/name = "WallBrokenXS_1"
 item/37/mesh = SubResource("ArrayMesh_aulj2")
-item/37/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/37/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -7.1525574e-07, -24)
 item/37/mesh_cast_shadow = 1
 item/37/shapes = []
 item/37/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2809,7 +2822,7 @@ item/37/navigation_layers = 1
 item/37/preview = SubResource("ImageTexture_gbx31")
 item/38/name = "WallEnd2"
 item/38/mesh = SubResource("ArrayMesh_eab0c")
-item/38/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/38/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -9.536743e-07, -30.85)
 item/38/mesh_cast_shadow = 1
 item/38/shapes = []
 item/38/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2817,7 +2830,7 @@ item/38/navigation_layers = 1
 item/38/preview = SubResource("ImageTexture_a5nxr")
 item/39/name = "WallEnd_1"
 item/39/mesh = SubResource("ArrayMesh_j4jxa")
-item/39/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/39/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -9.536743e-07, -35.7)
 item/39/mesh_cast_shadow = 1
 item/39/shapes = []
 item/39/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2825,7 +2838,7 @@ item/39/navigation_layers = 1
 item/39/preview = SubResource("ImageTexture_eytbu")
 item/40/name = "WallNormalMD_1"
 item/40/mesh = SubResource("ArrayMesh_3ks4a")
-item/40/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/40/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.206936, -7.1525574e-07, -44)
 item/40/mesh_cast_shadow = 1
 item/40/shapes = []
 item/40/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2833,7 +2846,7 @@ item/40/navigation_layers = 1
 item/40/preview = SubResource("ImageTexture_igyn2")
 item/41/name = "WallNormalXL_1"
 item/41/mesh = SubResource("ArrayMesh_cgfq8")
-item/41/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/41/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -9.536743e-07, -53)
 item/41/mesh_cast_shadow = 1
 item/41/shapes = []
 item/41/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -2841,7 +2854,7 @@ item/41/navigation_layers = 1
 item/41/preview = SubResource("ImageTexture_ua18t")
 item/42/name = "WallNormalXS_1"
 item/42/mesh = SubResource("ArrayMesh_4cta4")
-item/42/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+item/42/mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, -7.1525574e-07, -62)
 item/42/mesh_cast_shadow = 1
 item/42/shapes = []
 item/42/navigation_mesh_transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
