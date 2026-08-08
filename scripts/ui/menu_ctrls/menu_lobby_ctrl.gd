@@ -21,6 +21,7 @@ func _conectar_senales():
 	menu.get_node("PanelLobby/VBoxContainer/HostControls/SelectorNivel").item_selected.connect(_on_selector_nivel_item_selected)
 	menu.get_node("PanelLobby/VBoxContainer/HostControls/BtnIniciar").pressed.connect(_on_btn_iniciar_pressed)
 	
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.conexion_establecida.connect(_on_conexion_establecida)
@@ -95,6 +96,7 @@ func _inicializar_lobby_3d():
 
 func _configurar_selector_niveles():
 	menu.selector_nivel.clear()
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		for path in RedManager.NIVELES:
@@ -103,6 +105,7 @@ func _configurar_selector_niveles():
 
 func _on_conexion_establecida():
 	menu.autoconectando = false
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		if RedManager.iniciar_directo_p2p:
@@ -114,65 +117,56 @@ func _on_conexion_establecida():
 
 func _on_conexion_perdida():
 	_resetear_seleccion_lobby()
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
+	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
+	var era_online = is_instance_valid(RedManager) and not RedManager.es_lan_previo
 	
 	if menu.autoconectando:
 		menu.autoconectando = false
 		menu.mostrar_panel(menu.panel_principal)
 	else:
-		var era_online = false
-		if is_instance_valid(FirebaseMatchmaking) and not FirebaseMatchmaking.mi_sala_id.is_empty():
-			era_online = true
-			FirebaseMatchmaking.eliminar_mi_sala()
-			FirebaseMatchmaking.limpiar()
-			
 		if era_online:
 			menu.mostrar_panel(menu.panel_salas)
 			menu.btn_crear_sala.disabled = false
 			menu.btn_crear_sala.text = "Crear"
-			FirebaseMatchmaking.iniciar_busqueda()
 		else:
 			menu.mostrar_panel(menu.panel_jugar)
 		menu.lobby_status_label.text = "Desconectado o error de conexión."
 
 func _on_btn_desconectar_pressed():
-	var era_online = false
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking) and not FirebaseMatchmaking.mi_sala_id.is_empty():
-		era_online = true
-		FirebaseMatchmaking.eliminar_mi_sala()
-		FirebaseMatchmaking.limpiar()
-		
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
+	var era_online = is_instance_valid(RedManager) and not RedManager.es_lan_previo
 	if is_instance_valid(RedManager):
-		RedManager.desconectar()
+		await RedManager.desconectar()
 		
 	if era_online:
 		menu.mostrar_panel(menu.panel_salas)
 		menu.btn_crear_sala.disabled = false
 		menu.btn_crear_sala.text = "Crear"
-		if is_instance_valid(FirebaseMatchmaking):
-			FirebaseMatchmaking.iniciar_busqueda()
 	else:
 		menu.mostrar_panel(menu.panel_jugar)
 
 func _on_btn_jugador_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.rpc_seleccionar_personaje.rpc("jugador")
 
 func _on_btn_fantasma_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.rpc_seleccionar_personaje.rpc("fantasma")
 
 func _on_btn_listo_toggled(button_pressed):
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.rpc_establecer_listo.rpc(button_pressed)
 		menu.btn_listo.text = "¡Listo!" if button_pressed else "Prepararse"
 
 func _on_selector_modo_item_selected(index):
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		var modo = "historia" if index == 0 else "libre"
@@ -181,6 +175,7 @@ func _on_selector_modo_item_selected(index):
 			RedManager.rpc_establecer_modo.rpc(modo)
 
 func _on_selector_nivel_item_selected(index):
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		var mi_id = menu.multiplayer.get_unique_id()
@@ -188,6 +183,7 @@ func _on_selector_nivel_item_selected(index):
 			RedManager.rpc_establecer_nivel.rpc(index)
 
 func _on_btn_iniciar_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		var mi_id = menu.multiplayer.get_unique_id()
@@ -221,6 +217,7 @@ func _resetear_seleccion_lobby():
 	menu.btn_listo.text = "Prepararse"
 
 func _actualizar_ui_lobby():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if not is_instance_valid(RedManager): return
 	
@@ -318,6 +315,7 @@ func _actualizar_ui_lobby():
 			menu.client_status_label.text = "¡Estás listo! Esperando a que el host inicie..."
 
 func _actualizar_lobby_3d():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if not is_instance_valid(RedManager) or not is_instance_valid(menu.model_jugador): return
 	

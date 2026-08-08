@@ -3,9 +3,21 @@ class_name MenuMatchmakingCtrl
 
 var menu: Control
 var _firebase_sala_ids: Array = []
+var _eos_lobbies: Array = []
+var _eos_refresh_timer: Timer
+
+# El bucket se fija en CreateLobbyOptions, antes de cualquier actualización de
+# metadatos. Es la fuente de verdad de compatibilidad entre builds.
+const EOS_LOBBY_BUCKET_ID := "limbop2pv1"
+const LOBBY_OWNER_READY_TIMEOUT_SECONDS := 5.0
 
 func init(p_menu: Control):
 	menu = p_menu
+	_eos_refresh_timer = Timer.new()
+	_eos_refresh_timer.wait_time = 5.0
+	_eos_refresh_timer.timeout.connect(_on_eos_refresh_timeout)
+	menu.add_child(_eos_refresh_timer)
+	
 	_inicializar_nuevos_paneles()
 	_conectar_senales()
 
@@ -248,6 +260,7 @@ func _inicializar_nuevos_paneles():
 	vbox_jugar.move_child(menu.lista_servidores_lan, idx_volver + 1)
 
 func _on_btn_modo_local_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.iniciar_lan_listener()
@@ -261,31 +274,34 @@ func _on_btn_modo_online_pressed():
 	menu.mostrar_panel(menu.panel_salas)
 	menu.btn_crear_sala.disabled = false
 	menu.btn_crear_sala.text = "Crear"
-	_actualizar_lista_salas_firebase()
+	_eos_refresh_timer.start()
+	_actualizar_lista_salas_eos()
 	
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking):
-		FirebaseMatchmaking.iniciar_busqueda()
-		if not FirebaseMatchmaking.salas_actualizadas.is_connected(_on_firebase_salas_actualizadas):
-			FirebaseMatchmaking.salas_actualizadas.connect(_on_firebase_salas_actualizadas)
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
+	var EosManager = menu.get_tree().root.get_node_or_null("EosManager")
+	if is_instance_valid(EosManager):
+		# EosManager.buscar_lobbies()
+		pass
 
 func _on_btn_volver_modos_pressed():
 	menu.mostrar_panel(menu.panel_principal)
 
 func _on_btn_host_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
-		RedManager.crear_partida()
+		await RedManager.crear_partida(true)
 
 func _on_btn_conectar_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		var target_ip = menu.ip_input.text.strip_edges()
 		if target_ip.is_empty():
 			target_ip = "127.0.0.1"
-		RedManager.unirse_a_partida(target_ip)
-		menu.lobby_status_label.text = "Conectando a " + target_ip + "..."
-		menu.mostrar_panel(menu.panel_lobby)
+		if await RedManager.unirse_a_partida(target_ip, true):
+			menu.lobby_status_label.text = "Conectando a " + target_ip + "..."
+			menu.mostrar_panel(menu.panel_lobby)
 
 func _on_quick_join_option_item_selected(index):
 	if index > 0:
@@ -294,6 +310,7 @@ func _on_quick_join_option_item_selected(index):
 		menu.ip_input.text = ip_amigo
 
 func _on_btn_volver_jugar_pressed():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.detener_lan_listener()
@@ -303,6 +320,7 @@ func _on_lan_server_found(_ip, _port, _name):
 	_actualizar_servidores_lan()
 
 func _actualizar_servidores_lan():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if not is_instance_valid(menu.lista_servidores_lan) or not is_instance_valid(RedManager):
 		return
@@ -321,76 +339,211 @@ func _on_lan_server_selected(index):
 			var ip = text.split(" (")[1].replace(")", "").strip_edges()
 			menu.ip_input.text = ip
 
-func _on_firebase_salas_actualizadas(salas: Dictionary):
+func _on_eos_salas_actualizadas(salas: Array):
 	if menu.panel_salas.visible:
-		_actualizar_lista_salas_firebase()
+		_actualizar_lista_salas_eos()
 
-func _actualizar_lista_salas_firebase():
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if not is_instance_valid(FirebaseMatchmaking) or not menu.panel_salas.visible: return
-	menu.lista_salas.clear()
-	_firebase_sala_ids.clear()
+func _on_eos_refresh_timeout():
+	if menu.panel_salas.visible:
+		_actualizar_lista_salas_eos(true)
+
+func _actualizar_lista_salas_eos(es_auto_refresh = false):
+	if not menu.panel_salas.visible: return
 	
-	for sala_id in FirebaseMatchmaking.salas_disponibles:
-		var sala = FirebaseMatchmaking.salas_disponibles[sala_id]
-		var nombre = sala.get("nombre", sala_id)
-		var jugadores = sala.get("jugadores", 1)
-		var max_j = sala.get("max_jugadores", 2)
-		var status = "Abierta" if jugadores < max_j else "Llena"
-		menu.lista_salas.add_item(nombre + " (" + str(jugadores) + "/" + str(max_j) + ") [" + status + "]")
-		_firebase_sala_ids.append(sala_id)
+	if not es_auto_refresh:
+		menu.lista_salas.clear()
+		menu.lista_salas.add_item("Buscando salas...")
+	
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
+	var EosManager = menu.get_tree().root.get_node_or_null("EosManager")
+	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
+	if not is_instance_valid(EosManager) or not EosManager.has_method("esperar_login_async"):
+		menu.lista_salas.clear()
+		menu.lista_salas.add_item("EOS no está disponible en esta compilación.")
+		return
+	if not EosManager.is_logged_in:
+		if not es_auto_refresh:
+			menu.lista_salas.clear()
+			menu.lista_salas.add_item("Iniciando sesión en EOS...")
+		if not (await EosManager.esperar_login_async()):
+			if not es_auto_refresh:
+				menu.lista_salas.clear()
+				menu.lista_salas.add_item("Error de inicio de sesión.")
+			return
+	
+	var HLobbies_node = menu.get_tree().root.get_node_or_null("HLobbies")
+	if is_instance_valid(HLobbies_node) and HLobbies_node.has_method("search_by_bucket_id_async") and is_instance_valid(RedManager):
+		# join_async usa esta opción global; no requerimos el permiso de Presence para
+		# lobbies públicos consultados por atributos.
+		HLobbies_node.presence_enabled = false
+		# El bucket identifica protocolo/build y está disponible desde la creación;
+		# no dependemos de atributos que EOS recibe en una actualización posterior.
+		var lobbies = await HLobbies_node.search_by_bucket_id_async(EOS_LOBBY_BUCKET_ID)
+		if not menu.panel_salas.visible: return
+		
+		menu.lista_salas.clear()
+		_firebase_sala_ids.clear()
+		_eos_lobbies.clear()
+		
+		if lobbies != null and typeof(lobbies) == TYPE_ARRAY:
+			print("[Matchmaking] EOS devolvió ", lobbies.size(), " lobby(s) del bucket ", EOS_LOBBY_BUCKET_ID, ".")
+			for lobby in lobbies:
+				if lobby.available_slots <= 0:
+					continue
+				# El bucket ya validó la versión. Los atributos son metadatos de UI y pueden
+				# llegar unos instantes después de crear el lobby.
+				var protocol = _valor_atributo_lobby(lobby, "protocol")
+				if not protocol.is_empty() and protocol != RedManager.EOS_P2P_SOCKET_ID:
+					print("[Matchmaking] Advertencia: protocolo de metadata inesperado: ", protocol)
+				var room_name = _valor_atributo_lobby(lobby, "room_name")
+				if room_name.is_empty():
+					room_name = "Sala de Juego"
+				menu.lista_salas.add_item("%s  ·  %d/2" % [room_name, lobby.max_members - lobby.available_slots])
+				_firebase_sala_ids.append(str(lobby.owner_product_user_id))
+				_eos_lobbies.append(lobby)
 	
 	if menu.lista_salas.item_count == 0:
 		menu.lista_salas.add_item("No hay salas activas. ¡Crea una!")
+
+
+func _valor_atributo_lobby(lobby, key: String) -> String:
+	if lobby == null or not is_instance_valid(lobby):
+		return ""
+	var attribute = lobby.get_attribute(key)
+	if typeof(attribute) == TYPE_DICTIONARY:
+		return str(attribute.get("value", ""))
+	return str(attribute)
+
+
+func _esperar_lobby_con_propietario_async(lobby, local_product_user_id: String) -> bool:
+	var deadline := Time.get_ticks_msec() + int(LOBBY_OWNER_READY_TIMEOUT_SECONDS * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		if str(lobby.owner_product_user_id) == local_product_user_id:
+			return true
+		await menu.get_tree().create_timer(0.1).timeout
+	print("[Matchmaking ERROR] Lobby creado sin propietario disponible. Local: ", local_product_user_id.left(8), "… | owner: ", str(lobby.owner_product_user_id).left(8), "…")
+	return false
 
 func _on_btn_crear_sala_pressed():
 	var nombre = menu.sala_nombre_input.text.strip_edges()
 	if nombre.is_empty():
 		return
 	
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
-	if not is_instance_valid(FirebaseMatchmaking) or not is_instance_valid(RedManager):
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
+	var EosManager = menu.get_tree().root.get_node_or_null("EosManager")
+	if not is_instance_valid(RedManager):
 		return
 	
 	menu.btn_crear_sala.disabled = true
 	menu.btn_crear_sala.text = "Creando..."
+
+	if not is_instance_valid(EosManager) or not (await EosManager.esperar_login_async()):
+		menu.btn_crear_sala.disabled = false
+		menu.btn_crear_sala.text = "Crear"
+		menu.lista_salas.clear()
+		menu.lista_salas.add_item("No se pudo iniciar sesión en EOS.")
+		return
+
+	if not (await RedManager.crear_partida(false)):
+		menu.btn_crear_sala.disabled = false
+		menu.btn_crear_sala.text = "Crear"
+		return
 	
-	FirebaseMatchmaking.obtener_ip_publica()
-	await FirebaseMatchmaking.ip_publica_obtenida
-	
-	RedManager.crear_partida()
-	
-	FirebaseMatchmaking.crear_sala(nombre)
-	
-	var signals = [FirebaseMatchmaking.sala_creada_ok, FirebaseMatchmaking.sala_error]
-	var result = await menu._esperar_cualquier_signal(signals)
+	var HLobbies_node = menu.get_tree().root.get_node_or_null("HLobbies")
+	var lobby = null
+	if is_instance_valid(HLobbies_node) and HLobbies_node.has_method("create_lobby_async"):
+		# Presence no es necesaria para buscar salas públicas y esta Client Policy no
+		# la tiene habilitada; al desactivarla evitamos crear un lobby parcialmente anunciado.
+		HLobbies_node.presence_enabled = false
+		var create_opts = EOS.Lobby.CreateLobbyOptions.new()
+		create_opts.max_lobby_members = 2
+		create_opts.permission_level = EOS.Lobby.LobbyPermissionLevel.PublicAdvertised
+		create_opts.presence_enabled = false
+		create_opts.bucket_id = EOS_LOBBY_BUCKET_ID
+		lobby = await HLobbies_node.create_lobby_async(create_opts)
+
+	if lobby == null or not is_instance_valid(lobby):
+		await RedManager.desconectar(false)
+		menu.btn_crear_sala.disabled = false
+		menu.btn_crear_sala.text = "Crear"
+		menu.lista_salas.clear()
+		menu.lista_salas.add_item("No se pudo crear la sala de EOS.")
+		return
+
+	EosManager.current_lobby = lobby
+	# EOS puede entregar el callback de creación antes de que el owner esté copiado
+	# en HLobby. Si se llama update_async() en ese instante, EOSG lo trata como
+	# actualización de miembro y descarta los atributos de la sala.
+	if not (await _esperar_lobby_con_propietario_async(lobby, EosManager.local_product_user_id)):
+		await RedManager.desconectar(true)
+		menu.btn_crear_sala.disabled = false
+		menu.btn_crear_sala.text = "Crear"
+		menu.lista_salas.clear()
+		menu.lista_salas.add_item("EOS no confirmó el propietario de la sala. Intenta de nuevo.")
+		return
+	# El atributo de protocolo evita unir clientes con una versión incompatible. El
+	# socket no se usa como secreto: la validación P2P real se hace por membresía.
+	var protocol_added: bool = lobby.add_attribute("protocol", RedManager.get_eos_p2p_socket_id(), EOS.Lobby.LobbyAttributeVisibility.Public)
+	var name_added: bool = lobby.add_attribute("room_name", nombre.left(40), EOS.Lobby.LobbyAttributeVisibility.Public)
+	var build_added: bool = lobby.add_attribute("build", "1", EOS.Lobby.LobbyAttributeVisibility.Public)
+	if not protocol_added or not name_added or not build_added:
+		print("[Matchmaking ERROR] No se pudieron preparar los atributos del lobby.")
+		await RedManager.desconectar(true)
+		menu.btn_crear_sala.disabled = false
+		menu.btn_crear_sala.text = "Crear"
+		return
+	if not (await lobby.update_async()):
+		await RedManager.desconectar(true)
+		menu.btn_crear_sala.disabled = false
+		menu.btn_crear_sala.text = "Crear"
+		menu.lista_salas.clear()
+		menu.lista_salas.add_item("No se pudo publicar la sala de EOS.")
+		return
+	print("[Matchmaking] Sala publicada. owner=", EosManager.local_product_user_id.left(8), "… | protocol=", _valor_atributo_lobby(lobby, "protocol"))
 	
 	menu.btn_crear_sala.disabled = false
 	menu.btn_crear_sala.text = "Crear"
 	
-	if result == 0:
-		menu.sala_nombre_input.clear()
-		menu.mostrar_panel(menu.panel_lobby)
-		if menu.lobby_ctrl != null:
-			menu.lobby_ctrl._actualizar_ui_lobby()
-			menu.lobby_ctrl._actualizar_lobby_3d()
-		menu.lobby_status_label.text = "Sala creada. Esperando al otro jugador...\nIP: " + FirebaseMatchmaking.mi_ip_publica
-	else:
-		menu.lobby_status_label.text = "Error al crear sala. Inténtalo de nuevo."
+	menu.sala_nombre_input.clear()
+	menu.mostrar_panel(menu.panel_lobby)
+	if menu.lobby_ctrl != null:
+		menu.lobby_ctrl._actualizar_ui_lobby()
+		menu.lobby_ctrl._actualizar_lobby_3d()
+	menu.lobby_status_label.text = "Sala creada. Esperando al otro jugador..."
 
 func _on_btn_unirse_sala_pressed():
 	var items = menu.lista_salas.get_selected_items()
 	if items.size() > 0:
 		var index = items[0]
 		if index >= 0 and index < _firebase_sala_ids.size():
-			var sala_id = _firebase_sala_ids[index]
-			var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
-			if is_instance_valid(FirebaseMatchmaking):
-				FirebaseMatchmaking.detener_busqueda()
-				FirebaseMatchmaking.unirse_a_sala(sala_id)
+			var host_puid = _firebase_sala_ids[index]
+			if not is_instance_valid(menu) or not menu.is_inside_tree(): return
+			var EosManager = menu.get_tree().root.get_node_or_null("EosManager")
+			var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
+			if is_instance_valid(RedManager):
+				var HLobbies_node = menu.get_tree().root.get_node_or_null("HLobbies")
+				if is_instance_valid(HLobbies_node) and _eos_lobbies.size() > index:
+					menu.lobby_status_label.text = "Uniéndose al lobby de EOS..."
+					var lobby = await HLobbies_node.join_async(_eos_lobbies[index])
+					if lobby == null or not is_instance_valid(lobby):
+						menu.lista_salas.clear()
+						menu.lista_salas.add_item("No se pudo entrar a la sala; actualiza la lista.")
+						return
+					if is_instance_valid(EosManager):
+						EosManager.current_lobby = lobby
+				else:
+					return
+
+				# Da tiempo al host para recibir la actualización de miembros antes de
+				# enviar la solicitud P2P, que el host valida contra el lobby.
+				await menu.get_tree().create_timer(0.35).timeout
+				if not (await RedManager.unirse_a_partida(host_puid, false)):
+					await RedManager.desconectar(true)
+					return
 				menu.mostrar_panel(menu.panel_lobby)
-				menu.lobby_status_label.text = "Conectando al host..."
+				menu.lobby_status_label.text = "Conectando al host P2P..."
 				menu.btn_jugador.disabled = true
 				menu.btn_fantasma.disabled = true
 				menu.btn_listo.disabled = true
@@ -399,15 +552,15 @@ func _on_btn_unirse_sala_pressed():
 				menu.autoconectando = true
 
 func _on_btn_refrescar_salas_pressed():
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking):
-		FirebaseMatchmaking.listar_salas()
+	menu.lista_salas.clear()
+	menu.lista_salas.add_item("Buscando salas...")
+	await _actualizar_lista_salas_eos()
 
 func _on_btn_volver_salas_pressed():
-	var FirebaseMatchmaking = menu.get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking):
-		FirebaseMatchmaking.detener_busqueda()
-		FirebaseMatchmaking.limpiar()
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
+	var EosManager = menu.get_tree().root.get_node_or_null("EosManager")
+	_eos_refresh_timer.stop()
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.desconectar()

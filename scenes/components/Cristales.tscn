@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://dlr4n5fwa5co0"]
+
+[ext_resource type="PackedScene" uid="uid://bst3syn5w14jm" path="res://assets/Modelos/Entorno/Cristales.glb" id="1_qswo4"]
+
+[node name="Cristales" type="Node3D" unique_id=1793408612]
+
+[node name="Cristales" parent="." unique_id=456126745 instance=ExtResource("1_qswo4")]
+
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=1582124473]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.100000024, 0)
+light_color = Color(0.3, 0.75, 1, 1)
+light_energy = 2.5
+omni_range = 6.0
+omni_attenuation = 1.2
+
+[editable path="Cristales"]

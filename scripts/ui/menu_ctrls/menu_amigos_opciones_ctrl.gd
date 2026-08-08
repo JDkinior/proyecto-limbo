@@ -24,6 +24,7 @@ func _on_btn_agregar_amigo_pressed():
 	if nombre.is_empty() or ip.is_empty():
 		return
 		
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if is_instance_valid(RedManager):
 		RedManager.agregar_amigo(nombre, ip)
@@ -32,6 +33,7 @@ func _on_btn_agregar_amigo_pressed():
 		_actualizar_lista_amigos()
 
 func _actualizar_lista_amigos():
+	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 	var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 	if not is_instance_valid(RedManager): return
 	
@@ -51,6 +53,7 @@ func _on_btn_eliminar_amigo_pressed():
 	if selected_idx.size() > 0:
 		var texto = menu.lista_amigos.get_item_text(selected_idx[0])
 		var nombre = texto.split(" (")[0]
+		if not is_instance_valid(menu) or not menu.is_inside_tree(): return
 		var RedManager = menu.get_tree().root.get_node_or_null("RedManager")
 		if is_instance_valid(RedManager):
 			RedManager.eliminar_amigo(nombre)

@@ -121,7 +121,7 @@ omni_range = 4.5
 [node name="Node3D" type="Node3D" parent="." unique_id=1618272515]
 
 [node name="Camera3D" type="Camera3D" parent="Node3D" unique_id=1460626181]
-transform = Transform3D(1, 0, 0, 0, 0.93401134, 0.35724342, 0, -0.35724342, 0.93401134, 0, 2.5327091, 3.4745927)
+transform = Transform3D(1, 0, 0, 0, 0.9947028, 0.10279253, 0, -0.10279253, 0.9947028, 0, 1.5327091, 3.4745927)
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=726978411]
 replication_config = SubResource("SceneReplicationConfig_fantasma")

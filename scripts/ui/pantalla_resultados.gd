@@ -209,10 +209,7 @@ func _on_btn_volver_pressed() -> void:
 		rpc("rpc_notificar_salida", multiplayer.get_unique_id())
 	
 	print("[PantallaResultados] Volviendo al menú principal.")
-	var FirebaseMatchmaking = get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking) and not FirebaseMatchmaking.mi_sala_id.is_empty():
-		FirebaseMatchmaking.eliminar_mi_sala()
-		FirebaseMatchmaking.limpiar()
+
 		
 	if is_instance_valid(RedManager) and RedManager.has_method("desconectar"):
 		RedManager.desconectar()
@@ -223,10 +220,7 @@ func _on_btn_salir_pressed() -> void:
 		rpc("rpc_notificar_salida", multiplayer.get_unique_id())
 	
 	print("[PantallaResultados] Volviendo al menú principal.")
-	var FirebaseMatchmaking = get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking) and not FirebaseMatchmaking.mi_sala_id.is_empty():
-		FirebaseMatchmaking.eliminar_mi_sala()
-		FirebaseMatchmaking.limpiar()
+
 		
 	if is_instance_valid(RedManager) and RedManager.has_method("desconectar"):
 		RedManager.desconectar()

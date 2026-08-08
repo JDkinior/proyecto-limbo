@@ -5,14 +5,25 @@ signal ready_estados_actualizados(peer_listos: Dictionary)
 signal modo_juego_actualizado(modo: String)
 signal conexion_establecida()
 signal conexion_perdida()
+signal ping_actualizado(ms: int)
+signal status_webrtc_changed(msg: String)
+signal lan_server_found(ip: String, port: int, name: String)
 
 const PORT = 7000
-const ADDRESS = "127.0.0.1"
-const AMIGOS_FILE = "user://amigos.json"
-
+const EOS_P2P_SOCKET_ID = "limbop2pv1"
+const ONLINE_CONNECTION_TIMEOUT_SECONDS := 60.0
+const P2P_REQUEST_AUTHORIZATION_TIMEOUT_SECONDS := 12.0
+# Este atributo es de miembro (no de la sala): permite que el cliente avise al
+# host que el siguiente intento debe usar TURN/Relay. No se usa al iniciar una
+# partida, por lo que la ruta directa LAN conserva su comportamiento actual.
+const P2P_RELAY_REQUEST_MEMBER_ATTRIBUTE := "p2p_relay_request"
+const P2P_RELAY_REQUEST_VALUE := "force"
+const P2P_RELAY_COORDINATION_WAIT_SECONDS := 3.5
+const NIVELES_HISTORIA_COUNT = 2
 const NIVELES = [
 	"res://scenes/levels/Nivel 1 _ El Despertar Separado.tscn",
-	"res://scenes/levels/nivel 2.tscn"
+	"res://scenes/levels/nivel 2.tscn",
+	"res://scenes/levels/mundo_pruebas.tscn"
 ]
 
 var jugador_vivo: CharacterBase
@@ -24,21 +35,25 @@ var peer_listos: Dictionary = {}      # {peer_id: listo}
 var modo_juego: String = "historia"    # "historia" | "libre"
 var nivel_actual_index: int = 0
 
-# --- CAMPOS DE RECONEXIÓN DE SESIÓN ---
 var ultima_conexion_ip: String = ""
 var ultimo_personaje: String = ""
 var ultimo_nivel_path: String = ""
 var es_host_previo: bool = false
 var puede_reconectarse: bool = false
+var es_lan_previo: bool = false
+var intento_relay_forzado: bool = false
+var _manejando_fallo_conexion := false
+var _solicitudes_p2p_pendientes: Dictionary = {}
 
-# UPnP
-var upnp_active: bool = false
-var ip_publica: String = ""
+var _timer_conexion: Timer
 
+var _conectando: bool = false
+var _tiempo_conexion: int = 0
 
-# --- NUEVOS CAMPOS: Salas Online e Integración P2P ---
 var mi_sala_actual: String = ""
 var mi_peer_id: int = 1
+var ip_publica: String = ""
+var upnp_active: bool = false
 
 func get_mi_peer_id() -> int:
 	return mi_peer_id
@@ -48,15 +63,14 @@ var p2p_modo_inicial: String = "historia"
 var p2p_nivel_inicial: int = 0
 var p2p_personaje_elegido: String = ""
 
-signal ping_actualizado(ms: int)
-
-# --- Sistema de Ping ---
 var last_ping_time: float = 0.0
 var current_ping_ms: int = -1
 var ping_timer: Timer = null
+var lan_servers_discovered: Dictionary = {} 
+
+var eos_peer # EOSGMultiplayerPeer o ENetMultiplayerPeer en fallback
 
 func _crear_interfaz_ping():
-	# Ya no creamos interfaz visual aquí, solo el temporizador lógico
 	ping_timer = Timer.new()
 	ping_timer.wait_time = 1.0
 	ping_timer.autostart = true
@@ -82,39 +96,31 @@ func _rpc_ping_response():
 	current_ping_ms = Time.get_ticks_msec() - last_ping_time
 	ping_actualizado.emit(current_ping_ms)
 
-# --- NUEVOS CAMPOS: Autodescubrimiento LAN (UDP) ---
-signal status_webrtc_changed(msg: String)
-signal lan_server_found(ip: String, port: int, name: String)
-const LAN_DISCOVERY_PORT = 7001
-var lan_servers_discovered: Dictionary = {} # { ip: { name: String, port: int, time: float } }
 
 func _ready():
 	_crear_interfaz_ping()
 	
-	# Inicializar LAN Discovery como nodo hijo
 	var lan = LanDiscovery.new()
 	lan.name = "LanDiscovery"
 	add_child(lan)
 	lan.servidor_encontrado.connect(func(ip, port, name): lan_server_found.emit(ip, port, name))
 	
+	if not multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
+		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+		
+	_timer_conexion = Timer.new()
+	_timer_conexion.one_shot = true
+	_timer_conexion.wait_time = ONLINE_CONNECTION_TIMEOUT_SECONDS
+	_timer_conexion.timeout.connect(_on_timeout_conexion)
+	add_child(_timer_conexion)
+	
 	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
-	
-	# Autoiniciar servidor solo si se ejecuta con el parámetro --server (y no en check-only)
-	var cmd_args = OS.get_cmdline_args()
-	if cmd_args.has("--server") and not cmd_args.has("--check-only"):
-		print("[Servidor Dedicado] Detectado parámetro --server. Iniciando servidor en puerto ", PORT)
-		await get_tree().process_frame
-		crear_partida_online_server()
 
 func _process(delta):
-	if is_instance_valid(webrtc_peer):
-		webrtc_peer.poll()
-	
-	# LAN discovery ahora es manejado por el nodo hijo LanDiscovery
+	# Ya no necesitamos poll de webrtc_peer manualmente con EOS
 	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
 	if lan_node:
 		lan_servers_discovered = lan_node.servidores_descubiertos
@@ -131,7 +137,6 @@ func _intentar_asignar_autoridades():
 	if not jugador_vivo or not fantasma: return
 	
 	if not multiplayer.multiplayer_peer or multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
-		# Modo local de prueba o sin red: el Host controla a ambos o al jugador vivo
 		jugador_vivo.set_multiplayer_authority(1)
 		fantasma.set_multiplayer_authority(1)
 		var sync_v = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
@@ -143,7 +148,6 @@ func _intentar_asignar_autoridades():
 		_actualizar_interfaz_local()
 		return
 		
-	# Buscar quién tiene cada personaje
 	var id_jugador = 1
 	var id_fantasma = 1
 	
@@ -168,7 +172,7 @@ func _intentar_asignar_autoridades():
 	fantasma.actualizar_visibilidad_local()
 	_actualizar_interfaz_local()
 	
-	print("[RedManager] Autoridades asignadas - Jugador: ", id_jugador, " (", peer_personajes.get(id_jugador, ""), "), Fantasma: ", id_fantasma, " (", peer_personajes.get(id_fantasma, ""), ")")
+	print("[RedManager] Autoridades asignadas - Jugador: ", id_jugador, ", Fantasma: ", id_fantasma)
 
 
 func _actualizar_interfaz_local():
@@ -185,184 +189,198 @@ func _actualizar_interfaz_local():
 	elif fantasma and fantasma.is_multiplayer_authority():
 		controles.configurar_personaje_local(fantasma)
 
-# --- Métodos de Creación y Conexión Local/P2P ---
+# --- CREAR Y UNIRSE P2P (EOS) ---
+
+func get_eos_p2p_socket_id() -> String:
+	return EOS_P2P_SOCKET_ID
 
 
-const ICE_SERVERS = [
-	{ "urls": ["stun:stun.l.google.com:19302"] },
-	{ "urls": ["stun:stun.relay.metered.ca:80"] },
-	{ 
-		"urls": [
-			"turn:global.relay.metered.ca:80",
-			"turn:global.relay.metered.ca:80?transport=tcp",
-			"turn:global.relay.metered.ca:443",
-			"turns:global.relay.metered.ca:443?transport=tcp"
-		],
-		"username": "c1baebff3f04fcaeb912660a",
-		"credential": "dH915CfDvUzOj/FS"
-	}
-]
+func _esperar_eos_para_online() -> bool:
+	var eos_manager = get_tree().root.get_node_or_null("EosManager")
+	if not eos_manager or not eos_manager.has_method("esperar_login_async"):
+		status_webrtc_changed.emit("EOS no está disponible en esta compilación.")
+		return false
 
-var webrtc_peer: WebRTCMultiplayerPeer
-var webrtc_connections: Dictionary = {}
-var ice_candidates_queue: Dictionary = {} # { peer_id: Array }
+	status_webrtc_changed.emit("Iniciando sesión en EOS...")
+	if not (await eos_manager.esperar_login_async()):
+		status_webrtc_changed.emit("EOS no pudo iniciar sesión. Revisa el log de conexión.")
+		return false
+	return true
 
-func crear_partida():
-	desconectar()
-	mi_peer_id = 1
-	webrtc_peer = WebRTCMultiplayerPeer.new()
-	var error = webrtc_peer.create_server()
-	if error != OK:
-		print("[RedManager ERROR] Error al crear servidor WebRTC: ", error)
+
+func _aplicar_control_relay_inteligente(force_relay := false) -> void:
+	var eos_manager = get_tree().root.get_node_or_null("EosManager")
+	if not eos_manager or not eos_manager.has_method("configurar_relay_p2p"):
 		return
-		
-	multiplayer.multiplayer_peer = webrtc_peer
-	
+
+	var nat_type: int = eos_manager.cached_nat_type
+	# AllowRelays reúne candidatos directos Y de relay (TURN). ICE elige la
+	# mejor ruta. ForceRelays se reserva para el reintento cuando ICE falla,
+	# forzando que solo se usen servidores TURN de Epic.
+	var must_force_relay := force_relay
+	eos_manager.configurar_relay_p2p(must_force_relay)
+	if must_force_relay:
+		print("[RedManager] Usando Epic Relay (NAT: ", nat_type, ").")
+	else:
+		print("[RedManager] Intentando ruta directa con fallback de Epic Relay (NAT: ", nat_type, ").")
+
+
+func _conectar_eventos_peer_eos(peer) -> void:
+	# El plugin EOSG ignora set_auto_accept_connection_requests,
+	# por lo que debemos aceptar las conexiones manualmente de forma inmediata.
+	peer.set_auto_accept_connection_requests(false)
+	peer.incoming_connection_request.connect(_on_eos_incoming_connection_request)
+	peer.peer_connection_established.connect(_on_eos_peer_connection_established)
+	peer.peer_connection_interrupted.connect(_on_eos_peer_connection_interrupted)
+	peer.peer_connection_closed.connect(_on_eos_peer_connection_closed)
+
+
+func crear_partida(es_lan: bool = false) -> bool:
+	await desconectar(true)
+	mi_peer_id = 1
+	es_lan_previo = es_lan
+	_manejando_fallo_conexion = false
+
+	if not es_lan:
+		if not await _esperar_eos_para_online():
+			return false
+		if not ClassDB.class_exists("EOSGMultiplayerPeer"):
+			status_webrtc_changed.emit("El transporte EOS P2P no está incluido en esta compilación.")
+			return false
+
+		# Usamos AllowRelays por defecto para que las conexiones locales puedan
+		# resolverse vía STUN sin depender de los servidores TURN de Epic.
+		# ForceRelays se reserva exclusivamente para los reintentos.
+		_aplicar_control_relay_inteligente(false)
+		eos_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
+		var eos_error = eos_peer.create_server(EOS_P2P_SOCKET_ID)
+		if eos_error != OK:
+			print("[RedManager ERROR] Error al crear servidor EOS P2P: ", eos_error)
+			status_webrtc_changed.emit("No se pudo abrir el servidor EOS P2P.")
+			eos_peer = null
+			return false
+		_conectar_eventos_peer_eos(eos_peer)
+		print("[RedManager] Servidor EOS P2P creado. Socket: ", EOS_P2P_SOCKET_ID)
+	else:
+		print("[RedManager] Creando servidor ENet para LAN.")
+		eos_peer = ENetMultiplayerPeer.new()
+		var lan_error = eos_peer.create_server(PORT, 2)
+		if lan_error != OK:
+			print("[RedManager ERROR] Error al crear servidor LAN: ", lan_error)
+			status_webrtc_changed.emit("No se pudo abrir el servidor LAN.")
+			eos_peer = null
+			return false
+		iniciar_lan_broadcaster()
+
+	multiplayer.multiplayer_peer = eos_peer
 	peer_personajes.clear()
 	peer_listos.clear()
 	modo_juego = "historia"
 	nivel_actual_index = 0
 	es_host_previo = true
-	ultima_conexion_ip = "127.0.0.1"
-	
+	ultima_conexion_ip = "eos_host" if not es_lan else get_local_ip()
 	peer_personajes[1] = ""
 	peer_listos[1] = false
-	
 	conexion_establecida.emit()
 	status_webrtc_changed.emit("Servidor listo. Esperando al jugador...")
-	print("[RedManager WebRTC] Servidor WebRTC listo (ID: 1). Esperando señalización de Firebase...")
 
 	if iniciar_directo_p2p:
 		await get_tree().process_frame
 		rpc_seleccionar_personaje.rpc(p2p_personaje_elegido)
+	return true
 
-func unirse_a_partida(sala_id: String):
-	desconectar()
+
+func unirse_a_partida(host_puid_or_ip: String, es_lan: bool = false, es_reintento: bool = false) -> bool:
+	if host_puid_or_ip.strip_edges().is_empty():
+		status_webrtc_changed.emit("No se recibió la dirección del host.")
+		return false
+	if not es_lan and not await _esperar_eos_para_online():
+		return false
+	if not es_lan and not ClassDB.class_exists("EOSGMultiplayerPeer"):
+		status_webrtc_changed.emit("El transporte EOS P2P no está incluido en esta compilación.")
+		return false
+
+	# Conservamos el lobby durante un reintento: el host nos autoriza porque ya somos miembros.
+	await desconectar(false)
 	es_host_previo = false
-	ultima_conexion_ip = sala_id
-	webrtc_peer = WebRTCMultiplayerPeer.new()
-	mi_peer_id = randi() % 89999 + 1000
-	var error = webrtc_peer.create_client(mi_peer_id)
-	if error != OK:
-		print("[RedManager ERROR] Error al crear cliente WebRTC: ", error)
-		status_webrtc_changed.emit("Error de WebRTC. ¿Falta el plugin nativo o bloqueado por Firewall?")
-		return
-		
-	multiplayer.multiplayer_peer = webrtc_peer
-	print("[RedManager WebRTC] Iniciando cliente WebRTC (Mi ID: ", mi_peer_id, ") para sala: ", sala_id)
-	
-	var pc = _crear_peer_connection(1)
-	status_webrtc_changed.emit("Iniciando oferta de conexión P2P...")
-	print("[RedManager WebRTC] Creando Oferta SDP para Host (ID: 1)...")
-	pc.create_offer()
+	ultima_conexion_ip = host_puid_or_ip.strip_edges()
+	mi_peer_id = randi_range(1000, 90999)
+	es_lan_previo = es_lan
+	intento_relay_forzado = es_reintento
+	_manejando_fallo_conexion = false
 
-func _crear_peer_connection(id: int) -> WebRTCPeerConnection:
-	if webrtc_connections.has(id):
-		return webrtc_connections[id]
-		
-	print("[RedManager WebRTC] Inicializando WebRTCPeerConnection para peer ID: ", id)
-	var pc = WebRTCPeerConnection.new()
-	var err = pc.initialize({ "iceServers": ICE_SERVERS })
-	if err != OK:
-		print("[RedManager ERROR] Falló al inicializar PeerConnection: ", err)
-		status_webrtc_changed.emit("Fallo en WebRTC (Comprueba tu conexión o Firewall)")
-		
-	pc.session_description_created.connect(_on_sdp_created.bind(id))
-	pc.ice_candidate_created.connect(_on_ice_created.bind(id))
-	webrtc_peer.add_peer(pc, id)
-	webrtc_connections[id] = pc
-	return pc
-
-func _on_sdp_created(type: String, sdp: String, id: int):
-	print("[RedManager WebRTC] SDP Generado ('", type, "') para peer ID: ", id)
-	if webrtc_connections.has(id):
-		webrtc_connections[id].set_local_description(type, sdp)
-	FirebaseMatchmaking.enviar_sdp(id, type, sdp)
-
-func _on_ice_created(media: String, index: int, name: String, id: int):
-	print("[RedManager WebRTC] Candidato ICE local generado para peer ID: ", id, " -> ", name)
-	FirebaseMatchmaking.enviar_ice(id, media, index, name)
-
-func recibir_sdp(id: int, type: String, sdp: String):
-	print("[RedManager WebRTC] Recibido SDP '", type, "' remoto proveniente de peer ID: ", id)
-	if type == "offer":
-		var pc = _crear_peer_connection(id)
-		var err = pc.set_remote_description(type, sdp)
-		print("[RedManager WebRTC] Remote description (Offer) establecida. Status: ", err)
-		_peers_con_remote_sdp[id] = true
-		status_webrtc_changed.emit("Generando respuesta al invitado...")
-		print("[RedManager WebRTC] Generando Respuesta SDP automáticamente por Godot...")
-		_flush_ice_queue(id)
-	elif type == "answer":
-		if webrtc_connections.has(id):
-			var pc = webrtc_connections[id]
-			var err = pc.set_remote_description(type, sdp)
-			status_webrtc_changed.emit("Respuesta aceptada. Intercambiando redes...")
-			print("[RedManager WebRTC] Remote description (Answer) establecida. Status: ", err)
-			_peers_con_remote_sdp[id] = true
-			_flush_ice_queue(id)
-
-var _peers_con_remote_sdp: Dictionary = {}
-
-func recibir_ice(id: int, media: String, index: int, name: String):
-	print("[RedManager WebRTC] Recibido ICE remoto de peer ID ", id, ": ", name)
-	if webrtc_connections.has(id) and _peers_con_remote_sdp.get(id, false):
-		var pc = webrtc_connections[id]
-		pc.add_ice_candidate(media, index, name)
+	if not es_lan:
+		# Primer intento: AllowRelays (directa + relay). Reintento: ForceRelays.
+		_aplicar_control_relay_inteligente(es_reintento)
+		eos_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
+		var eos_error = eos_peer.create_client(EOS_P2P_SOCKET_ID, ultima_conexion_ip)
+		if eos_error != OK:
+			print("[RedManager ERROR] Error al iniciar cliente EOS P2P: ", eos_error)
+			status_webrtc_changed.emit("No se pudo iniciar el cliente EOS P2P.")
+			eos_peer = null
+			return false
+		_conectar_eventos_peer_eos(eos_peer)
+		print("[RedManager] Cliente EOS P2P iniciado. Host PUID: ", _id_puid_corto(ultima_conexion_ip))
 	else:
-		print("[RedManager WebRTC] Encolando ICE remoto (PeerConnection esperando remote SDP para ID: ", id, ")")
-		if not ice_candidates_queue.has(id):
-			ice_candidates_queue[id] = []
-		ice_candidates_queue[id].append({"media": media, "index": index, "name": name})
+		eos_peer = ENetMultiplayerPeer.new()
+		var lan_error = eos_peer.create_client(ultima_conexion_ip, PORT)
+		if lan_error != OK:
+			print("[RedManager ERROR] Error al iniciar cliente LAN: ", lan_error)
+			status_webrtc_changed.emit("No se pudo iniciar el cliente LAN.")
+			eos_peer = null
+			return false
 
-func _flush_ice_queue(id: int):
-	if ice_candidates_queue.has(id) and webrtc_connections.has(id):
-		var list = ice_candidates_queue[id]
-		print("[RedManager WebRTC] Vaciando cola de ", list.size(), " ICE candidates para peer ID: ", id)
-		for cand in list:
-			webrtc_connections[id].add_ice_candidate(cand["media"], cand["index"], cand["name"])
-		ice_candidates_queue.erase(id)
+	multiplayer.multiplayer_peer = eos_peer
+	_conectando = true
+	_tiempo_conexion = 0
+	_timer_conexion.start()
+	_actualizar_ui_conexion_loop()
+	return true
+
+func _actualizar_ui_conexion_loop():
+	while _conectando and is_inside_tree():
+		if es_lan_previo:
+			status_webrtc_changed.emit("Estableciendo conexión (LAN)... " + str(_tiempo_conexion) + "s")
+		else:
+			var eos_manager = get_tree().root.get_node_or_null("EosManager")
+			var nat_type: int = eos_manager.cached_nat_type if eos_manager else 0
+			var info_tipo = "Epic Relay" if intento_relay_forzado or nat_type == 3 or nat_type == 0 else "P2P directo"
+			status_webrtc_changed.emit("Estableciendo conexión (" + info_tipo + ")... " + str(_tiempo_conexion) + "s")
+		
+		await get_tree().create_timer(1.0).timeout
+		_tiempo_conexion += 1
 
 func reconectar_a_partida():
 	if ultima_conexion_ip.is_empty():
-		print("[RedManager] No hay datos de sesión previa para reconectar.")
 		return
-	print("[RedManager] Reconectando a la sesión previa: ", ultima_conexion_ip, " | Personaje: ", ultimo_personaje)
 	if es_host_previo:
-		crear_partida()
+		crear_partida(es_lan_previo)
 	else:
-		unirse_a_partida(ultima_conexion_ip)
+		unirse_a_partida(ultima_conexion_ip, es_lan_previo)
 
-
-func crear_partida_online_server():
-	desconectar()
-	var peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(PORT, 100) # Máximo 100 jugadores para salas
-	if error != OK:
-		print("[Servidor Dedicado] Error al crear el servidor online: ", error)
-		return
-	multiplayer.multiplayer_peer = peer
-	print("[Servidor Dedicado] Servidor iniciado en puerto ", PORT, " para albergar salas online.")
-
-func desconectar():
-	print("[RedManager WebRTC] Desconectando red...")
-	for id in webrtc_connections.keys():
-		var pc = webrtc_connections[id]
-		if is_instance_valid(pc) and pc.has_method("close"):
-			pc.close()
-	webrtc_connections.clear()
-	ice_candidates_queue.clear()
-	_peers_con_remote_sdp.clear()
-	if multiplayer.multiplayer_peer:
+func desconectar(leave_lobby = true):
+	print("[RedManager] Desconectando red...")
+	_conectando = false
+	_timer_conexion.stop()
+	_solicitudes_p2p_pendientes.clear()
+	detener_lan_broadcaster()
+	detener_lan_listener()
+	if multiplayer.multiplayer_peer != null:
 		multiplayer.multiplayer_peer.close()
 		multiplayer.multiplayer_peer = null
-	webrtc_peer = null
+	
+	if leave_lobby:
+		var EosManager = get_tree().root.get_node_or_null("EosManager")
+		if is_instance_valid(EosManager) and EosManager.has_method("leave_current_lobby"):
+			await EosManager.leave_current_lobby()
+	
+	eos_peer = null
 	peer_personajes.clear()
 	peer_listos.clear()
 
+
 func iniciar_juego():
 	if not multiplayer.is_server(): return
-	
 	if modo_juego == "historia":
 		nivel_actual_index = 0
 		_cargar_nivel_todos(NIVELES[0])
@@ -378,16 +396,13 @@ func cargar_nivel_libre(path: String):
 
 func completar_nivel():
 	if not multiplayer.is_server(): return
-	
 	if modo_juego == "historia":
 		nivel_actual_index += 1
-		if nivel_actual_index < NIVELES.size():
+		if nivel_actual_index < NIVELES_HISTORIA_COUNT:
 			_cargar_nivel_todos(NIVELES[nivel_actual_index])
 		else:
-			print("[RedManager] Fin de la historia. Volviendo al menú principal.")
 			_cargar_nivel_todos("res://scenes/ui/menu_inicio.tscn")
 	else:
-		print("[RedManager] Nivel libre completado. Volviendo al menú principal.")
 		_cargar_nivel_todos("res://scenes/ui/menu_inicio.tscn")
 
 func reintentar_nivel_actual():
@@ -398,7 +413,6 @@ func reintentar_nivel_actual():
 		_cargar_nivel_todos(NIVELES[0])
 
 func mostrar_pantalla_resultados():
-	print("[RedManager] Mostrando pantalla de resultados a todos los peers.")
 	rpc_mostrar_pantalla_resultados.rpc()
 	rpc_mostrar_pantalla_resultados()
 
@@ -410,26 +424,19 @@ func rpc_mostrar_pantalla_resultados():
 			var inst = escena_res.instantiate()
 			get_tree().current_scene.add_child(inst)
 
-# Función auxiliar que garantiza la carga del nivel en TODAS las instancias
-# Envía el RPC a los peers remotos y ejecuta localmente de forma explícita
 func _cargar_nivel_todos(path: String):
 	if path.ends_with(".tscn") and not "menu_inicio" in path:
 		ultimo_nivel_path = path
 		puede_reconectarse = true
-	print("[RedManager] Enviando carga de nivel a todos: ", path)
-	rpc_cargar_nivel.rpc(path)  # Enviar a peers remotos
-	rpc_cargar_nivel(path)      # Ejecutar localmente de forma explícita
+	rpc_cargar_nivel.rpc(path)
+	rpc_cargar_nivel(path)
 
 @rpc("reliable")
 func rpc_cargar_nivel(path: String):
-	print("[RedManager] Cargando nivel: ", path)
 	get_tree().change_scene_to_file(path)
-	# Esperar 2 frames para inicialización limpia de nodos antes de reasignar autoridad
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_intentar_asignar_autoridades()
-
-# --- Métodos de Lobby (RPCs para P2P / Local) ---
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_seleccionar_personaje(personaje: String):
@@ -440,16 +447,13 @@ func rpc_seleccionar_personaje(personaje: String):
 	if sender_id == multiplayer.get_unique_id():
 		ultimo_personaje = personaje
 		
-	# Verificar si ya está elegido por otro peer
 	for peer in peer_personajes:
 		if peer != sender_id and peer_personajes[peer] == personaje and personaje != "":
-			# Ocupado, ignorar
 			return
 			
 	peer_personajes[sender_id] = personaje
 	personajes_actualizados.emit(peer_personajes)
 	
-	# Si somos el servidor, sincronizar con todos
 	if multiplayer.is_server():
 		rpc("rpc_sincronizar_personajes", peer_personajes)
 
@@ -462,9 +466,6 @@ func rpc_solicitar_reconexion(personaje_solicitado: String):
 	if not multiplayer.is_server():
 		return
 		
-	print("[RedManager] Solicitud de reconexión aceptada para peer ", sender_id, " como: ", personaje_solicitado)
-	
-	# Limpiar asignaciones anteriores de este rol
 	for p in peer_personajes.keys():
 		if peer_personajes[p] == personaje_solicitado:
 			peer_personajes.erase(p)
@@ -472,18 +473,15 @@ func rpc_solicitar_reconexion(personaje_solicitado: String):
 	peer_personajes[sender_id] = personaje_solicitado
 	peer_listos[sender_id] = true
 	
-	# Sincronizar roles a todos los clientes (Host y Clientes)
 	rpc("rpc_sincronizar_personajes", peer_personajes)
 	_intentar_asignar_autoridades()
 	
 	var escena_actual = get_tree().current_scene
 	if escena_actual and escena_actual.scene_file_path.ends_with(".tscn") and not "menu_inicio" in escena_actual.scene_file_path:
-		print("[RedManager] Sincronizando nivel activo con reconectado: ", escena_actual.scene_file_path)
 		rpc_cargar_nivel.rpc_id(sender_id, escena_actual.scene_file_path)
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_establecer_listo(listo: bool):
-
 	var sender_id = multiplayer.get_remote_sender_id()
 	if sender_id == 0:
 		sender_id = multiplayer.get_unique_id()
@@ -507,13 +505,23 @@ func rpc_establecer_modo(modo: String):
 			rpc("rpc_sincronizar_modo", modo)
 
 @rpc("any_peer", "call_local", "reliable")
+func rpc_establecer_nivel(index: int):
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0:
+		sender_id = multiplayer.get_unique_id()
+		
+	if sender_id == get_lider_peer_id():
+		nivel_actual_index = index
+		if multiplayer.is_server():
+			rpc("rpc_sincronizar_nivel", index)
+
+@rpc("any_peer", "call_local", "reliable")
 func rpc_solicitar_inicio(sync_modo: String, idx_nivel: int):
 	var sender_id = multiplayer.get_remote_sender_id()
 	if sender_id == 0:
 		sender_id = multiplayer.get_unique_id()
 		
 	if sender_id == get_lider_peer_id() and multiplayer.is_server():
-		print("[RedManager] Solicitud de inicio aceptada. Modo: ", sync_modo, " Nivel: ", idx_nivel)
 		modo_juego = sync_modo
 		nivel_actual_index = idx_nivel
 		if modo_juego == "libre":
@@ -523,8 +531,6 @@ func rpc_solicitar_inicio(sync_modo: String, idx_nivel: int):
 				_cargar_nivel_todos(NIVELES[0])
 		else:
 			_cargar_nivel_todos(NIVELES[0])
-
-# --- Sincronizaciones desde el Servidor ---
 
 @rpc("reliable")
 func rpc_sincronizar_estado_inicial(sync_personajes: Dictionary, sync_modo: String, sync_listos: Dictionary):
@@ -551,35 +557,28 @@ func rpc_sincronizar_modo(sync_modo: String):
 	modo_juego = sync_modo
 	modo_juego_actualizado.emit(sync_modo)
 
-# --- Manejadores de Red ---
+@rpc("reliable")
+func rpc_sincronizar_nivel(index: int):
+	nivel_actual_index = index
 
 func _on_peer_connected(id):
-	status_webrtc_changed.emit("¡Conexión P2P/WebRTC Establecida!")
-	print("[RedManager] Peer conectado: ", id)
+	status_webrtc_changed.emit("¡Conexión establecida!")
 	if multiplayer.is_server():
-			
-		# Registrar el nuevo peer en las variables de estado (Modo Local/P2P)
 		peer_personajes[id] = ""
 		peer_listos[id] = false
 		rpc_sincronizar_estado_inicial.rpc_id(id, peer_personajes, modo_juego, peer_listos)
 		rpc("rpc_sincronizar_personajes", peer_personajes)
 		rpc("rpc_sincronizar_listos", peer_listos)
 		
-		# Si venimos de P2P automático y se conecta el otro jugador
 		if iniciar_directo_p2p:
-			print("[RedManager] P2P - Jugador conectado. Esperando sincronización...")
 			await get_tree().create_timer(1.0).timeout
 			if peer_personajes.size() >= 2:
-				print("[RedManager] P2P - Ambos listos. Cargando nivel automáticamente: ", p2p_modo_inicial)
 				modo_juego = p2p_modo_inicial
 				nivel_actual_index = p2p_nivel_inicial
 				iniciar_directo_p2p = false
 				rpc_solicitar_inicio(modo_juego, nivel_actual_index)
 
 func _on_peer_disconnected(id):
-	print("[RedManager] Peer desconectado: ", id)
-	
-	# Lógica local/P2P
 	if peer_personajes.has(id):
 		peer_personajes.erase(id)
 	if peer_listos.has(id):
@@ -592,41 +591,205 @@ func _on_peer_disconnected(id):
 		rpc("rpc_sincronizar_listos", peer_listos)
 
 func _on_connected_to_server():
-	var mi_id = multiplayer.get_unique_id()
-	status_webrtc_changed.emit("¡Conectado al Host con éxito!")
-	print("[RedManager] Conectado al servidor con ID: ", mi_id)
+	print("[RedManager] Conectado al servidor con éxito.")
+	_conectando = false
+	_timer_conexion.stop()
+	intento_relay_forzado = false
+	mi_peer_id = multiplayer.get_unique_id()
 	conexion_establecida.emit()
+	status_webrtc_changed.emit("¡Conectado!")
 	
 	if puede_reconectarse and not ultimo_personaje.is_empty():
-		print("[RedManager] Enviando solicitud de reconexión con personaje: ", ultimo_personaje)
 		rpc_solicitar_reconexion.rpc(ultimo_personaje)
 	elif iniciar_directo_p2p:
-		print("[RedManager] P2P establecido en Cliente. Enviando selección: ", p2p_personaje_elegido)
 		rpc_seleccionar_personaje.rpc(p2p_personaje_elegido)
 		rpc_establecer_listo.rpc(true)
 
-
 func _on_connection_failed():
-	print("[RedManager] Error de conexión.")
-	desconectar()
+	if _manejando_fallo_conexion:
+		return
+	_manejando_fallo_conexion = true
+	print("[RedManager] Falló la conexión. Host PUID: ", _id_puid_corto(ultima_conexion_ip), " | es_host: ", es_host_previo, " | es_lan: ", es_lan_previo)
+	_conectando = false
+	_timer_conexion.stop()
+	
+	# Si el primer intento (AllowRelays) falla, reintentamos con ForceRelays.
+	# El host recrea su servidor para que el peer EOS no quede en estado sucio.
+	if not es_lan_previo and not es_host_previo and not intento_relay_forzado:
+		status_webrtc_changed.emit("Conexión directa falló. Reintentando con Epic Relay...")
+		print("[RedManager] AllowRelays falló. Reintentando con ForceRelays...")
+		var host_puid = ultima_conexion_ip
+		await _solicitar_relay_al_host_async()
+		await desconectar(false)
+		await get_tree().create_timer(P2P_RELAY_COORDINATION_WAIT_SECONDS).timeout
+		_manejando_fallo_conexion = false
+		await unirse_a_partida(host_puid, false, true)
+		return
+	
+	await desconectar(true)
+	intento_relay_forzado = false
+	_manejando_fallo_conexion = false
 	conexion_perdida.emit()
+	status_webrtc_changed.emit("No se pudo establecer la conexión. Revisa el log de EOS.")
+
+func _on_timeout_conexion():
+	if not _conectando:
+		return
+	print("[RedManager] Timeout de conexión. LAN: ", es_lan_previo)
+	_on_connection_failed()
 
 func _on_server_disconnected():
-	print("[RedManager] El servidor se cerró.")
-	desconectar()
+	if _manejando_fallo_conexion:
+		return
+	desconectar(true)
 	conexion_perdida.emit()
 
-# --- Funciones de Utilidad ---
+
+func _on_eos_incoming_connection_request(data: Dictionary) -> void:
+	var remote_puid := str(data.get("remote_user_id", ""))
+	print("[RedManager] Solicitud P2P entrante: ", _id_puid_corto(remote_puid))
+	if remote_puid.is_empty():
+		return
+	
+	if eos_peer != null and is_instance_valid(eos_peer):
+		# Aceptar la conexión de inmediato. Validar si están en el lobby causaba
+		# cuellos de botella y timeouts (ClosedRemotely). La seguridad ya está dada
+		# porque el remote_puid debe conocer nuestro PUID (obtenido del lobby).
+		eos_peer.accept_connection_request(remote_puid)
+		print("[RedManager] Solicitud P2P aceptada automáticamente para: ", _id_puid_corto(remote_puid))
+		_solicitudes_p2p_pendientes.erase(remote_puid)
+
+
+func _es_miembro_del_lobby_eos(product_user_id: String) -> bool:
+	var eos_manager = get_tree().root.get_node_or_null("EosManager")
+	if not eos_manager or eos_manager.current_lobby == null or not is_instance_valid(eos_manager.current_lobby):
+		return false
+	return eos_manager.current_lobby.get_member_by_product_user_id(product_user_id) != null
+
+
+func _miembro_solicita_relay_forzado(product_user_id: String) -> bool:
+	var eos_manager = get_tree().root.get_node_or_null("EosManager")
+	if not eos_manager or eos_manager.current_lobby == null or not is_instance_valid(eos_manager.current_lobby):
+		return false
+	var member = eos_manager.current_lobby.get_member_by_product_user_id(product_user_id)
+	if member == null:
+		return false
+	var relay_attribute: Dictionary = member.get_attribute(P2P_RELAY_REQUEST_MEMBER_ATTRIBUTE)
+	return str(relay_attribute.get("value", "")) == P2P_RELAY_REQUEST_VALUE
+
+
+func _solicitar_relay_al_host_async() -> void:
+	var eos_manager = get_tree().root.get_node_or_null("EosManager")
+	if not eos_manager or eos_manager.current_lobby == null or not is_instance_valid(eos_manager.current_lobby):
+		print("[RedManager] No se pudo coordinar relay: no hay lobby EOS activo.")
+		return
+
+	var lobby = eos_manager.current_lobby
+	var added: bool = lobby.add_current_member_attribute(P2P_RELAY_REQUEST_MEMBER_ATTRIBUTE, P2P_RELAY_REQUEST_VALUE)
+	if not added:
+		print("[RedManager] No se pudo publicar la solicitud de Epic Relay en el lobby.")
+		return
+
+	var updated: bool = await lobby.update_async()
+	if updated:
+		print("[RedManager] Solicitud de Epic Relay publicada para el host.")
+	else:
+		print("[RedManager] Falló al publicar la solicitud de Epic Relay; se reintentará de todos modos.")
+
+
+func _on_eos_peer_connection_established(data: Dictionary) -> void:
+	var network_type: int = int(data.get("network_type", 0))
+	var route_name := "Epic Relay" if network_type == 2 else "ruta directa"
+	print("[RedManager] Transporte EOS establecido por ", route_name, ". Datos: ", data)
+	status_webrtc_changed.emit("Transporte EOS listo (" + route_name + ").")
+
+
+func _on_eos_peer_connection_interrupted(data: Dictionary) -> void:
+	print("[RedManager] Conexión EOS interrumpida: ", data)
+	status_webrtc_changed.emit("La conexión EOS se interrumpió; esperando recuperación...")
+
+
+func _on_eos_peer_connection_closed(data: Dictionary) -> void:
+	print("[RedManager] Conexión EOS cerrada: ", data)
+	var remote_puid := str(data.get("remote_user_id", ""))
+	_solicitudes_p2p_pendientes.erase(remote_puid)
+	
+	var close_reason := int(data.get("reason", 0))
+	# Si cualquier fallo P2P ocurre en el host (excepto cierre voluntario reason 1),
+	# recreamos completamente el servidor P2P para que el cliente pueda
+	# reconectarse a un peer limpio. El peer EOS mantiene estado interno de
+	# conexiones previas que impide aceptar reconexiones del mismo PUID.
+	if not es_lan_previo and es_host_previo and close_reason != 1:
+		print("[RedManager] Conexión P2P cerrada en host (reason ", close_reason, "); recreando servidor...")
+		_recrear_servidor_eos_para_reintento.call_deferred()
+
+
+func _recrear_servidor_eos_para_reintento() -> void:
+	if not es_host_previo or es_lan_previo:
+		return
+	if not ClassDB.class_exists("EOSGMultiplayerPeer"):
+		return
+	
+	# Cerrar el peer actual del host sin salir del lobby
+	_solicitudes_p2p_pendientes.clear()
+	if multiplayer.multiplayer_peer != null:
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	eos_peer = null
+	
+	# Aplicar ForceRelays y recrear el servidor
+	_aplicar_control_relay_inteligente(true)
+	eos_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
+	var eos_error = eos_peer.create_server(EOS_P2P_SOCKET_ID)
+	if eos_error != OK:
+		print("[RedManager ERROR] No se pudo recrear el servidor EOS P2P: ", eos_error)
+		eos_peer = null
+		return
+	_conectar_eventos_peer_eos(eos_peer)
+	multiplayer.multiplayer_peer = eos_peer
+	intento_relay_forzado = true
+	print("[RedManager] Servidor EOS P2P recreado con ForceRelays. Listo para reintento del cliente.")
+
+
+func _id_puid_corto(product_user_id: String) -> String:
+	return product_user_id.left(8) + "…" if product_user_id.length() > 8 else product_user_id
 
 func get_local_ip() -> String:
-	for ip in IP.get_local_addresses():
-		if ip.count(".") == 3 and not ip.begins_with("127.") and not ip.begins_with("169.254."):
-			return ip
-	return "127.0.0.1"
+	var ips = IP.get_local_addresses()
+	var valid_ip = ""
+	for ip in ips:
+		# Ignorar IPv6, localhost y APIPA
+		if not ":" in ip and ip != "127.0.0.1" and not ip.begins_with("169.254."):
+			valid_ip = ip
+			# Preferir fuertemente IPs privadas estándar (LAN)
+			if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
+				return ip
+	return valid_ip if valid_ip != "" else "127.0.0.1"
 
 func get_lider_peer_id() -> int:
-	# En arquitectura P2P pura (sin servidor dedicado separado), el host (1) siempre es el líder.
 	return 1
+
+func iniciar_lan_broadcaster():
+	var lan = get_node_or_null("LanDiscovery")
+	if lan:
+		var nombre_sala = "Sala de " + (ultimo_personaje if ultimo_personaje != "" else "Host")
+		lan.configurar_broadcast(get_local_ip(), PORT, nombre_sala)
+		lan.iniciar_broadcaster()
+
+func detener_lan_broadcaster():
+	var lan = get_node_or_null("LanDiscovery")
+	if lan:
+		lan.detener_broadcaster()
+
+func iniciar_lan_listener():
+	var lan = get_node_or_null("LanDiscovery")
+	if lan:
+		lan.iniciar_listener()
+
+func detener_lan_listener():
+	var lan = get_node_or_null("LanDiscovery")
+	if lan:
+		lan.detener_listener()
 
 # --- Sistema de Amigos Persistente (delegado a AmigosManager) ---
 
@@ -641,26 +804,3 @@ func agregar_amigo(nombre: String, ip: String):
 
 func eliminar_amigo(nombre: String):
 	AmigosManager.eliminar(nombre)
-
-# --- Métodos de Descubrimiento LAN ---
-
-func iniciar_lan_broadcaster():
-	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
-	if lan_node:
-		lan_node.configurar_broadcast(get_local_ip(), PORT, "Partida de " + OS.get_environment("USERNAME"))
-		lan_node.iniciar_broadcaster()
-
-func detener_lan_broadcaster():
-	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
-	if lan_node:
-		lan_node.detener_broadcaster()
-
-func iniciar_lan_listener():
-	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
-	if lan_node:
-		lan_node.iniciar_listener()
-
-func detener_lan_listener():
-	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
-	if lan_node:
-		lan_node.detener_listener()

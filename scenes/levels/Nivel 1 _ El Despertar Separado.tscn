@@ -12,10 +12,10 @@
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataforma_espiritual_base.tscn" id="10_plat_esp"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/goal.tscn" id="11_goal"]
 [ext_resource type="PackedScene" path="res://scenes/components/arbol_estilizado.tscn" id="12_arbol"]
-[ext_resource type="PackedScene" path="res://scenes/components/linterna_farol.tscn" id="13_linterna"]
-[ext_resource type="PackedScene" path="res://scenes/components/linterna_farol_azul.tscn" id="14_linterna_azul"]
 [ext_resource type="PackedScene" path="res://scenes/components/cristal_flotante.tscn" id="15_cristal"]
+[ext_resource type="PackedScene" uid="uid://b2w7sve5fbqiy" path="res://scenes/components/farol.tscn" id="16_0m24d"]
 [ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="16_nivel_base"]
+[ext_resource type="PackedScene" uid="uid://dlr4n5fwa5co0" path="res://scenes/components/Cristales.tscn" id="16_r2ia1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_limbo"]
 sky_top_color = Color(0.12, 0.2, 0.42, 1)
@@ -41,6 +41,7 @@ glow_strength = 1.1
 glow_bloom = 0.25
 fog_enabled = true
 fog_light_color = Color(0.35, 0.38, 0.52, 1)
+fog_height_density = 1.0987
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glass"]
 transparency = 1
@@ -160,12 +161,6 @@ transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, -10.5, 0, 20)
 [node name="Arbol3" parent="PistaFisicaVivo" unique_id=1886369126 instance=ExtResource("12_arbol")]
 transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, -4, 0, 15)
 
-[node name="LinternaWarm1" parent="PistaFisicaVivo" unique_id=501738468 instance=ExtResource("13_linterna")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0, 14)
-
-[node name="LinternaWarm2" parent="PistaFisicaVivo" unique_id=1130984987 instance=ExtResource("13_linterna")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 10)
-
 [node name="EscalonDobleSalto1" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1919712292]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.1, 6)
 
@@ -205,12 +200,6 @@ mesh = SubResource("BoxMesh_floor_fantasma_main")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PistaEspiritualFantasma/SueloFantasmaBase" unique_id=304281781]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 17)
 shape = SubResource("BoxShape3D_floor_fantasma_main")
-
-[node name="LinternaBlue1" parent="PistaEspiritualFantasma" unique_id=1606045418 instance=ExtResource("14_linterna_azul")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 0, 14)
-
-[node name="LinternaBlue2" parent="PistaEspiritualFantasma" unique_id=1073289942 instance=ExtResource("14_linterna_azul")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 14)
 
 [node name="CristalMonolith1" parent="PistaEspiritualFantasma" unique_id=637223720 instance=ExtResource("15_cristal")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, -8)
@@ -278,7 +267,7 @@ shape = SubResource("BoxShape3D_back_wall")
 [node name="Mecanismos" type="Node3D" parent="." unique_id=262988224]
 
 [node name="BotonPresion" parent="Mecanismos" unique_id=2060207190 instance=ExtResource("5_boton")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 6.385627, -2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 6.9629736, -2)
 
 [node name="InterruptorAura" parent="Mecanismos" unique_id=491294744 instance=ExtResource("6_interruptor")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.7, -16)
@@ -317,7 +306,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.2, 12)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3.8, 6)
 
 [node name="MonedaVivo3" parent="Coleccionables" unique_id=1064851329 instance=ExtResource("8_moneda_vivo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 7.485627, -2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 8.485627, -2)
 
 [node name="MonedaVivo4" parent="Coleccionables" unique_id=2137979987 instance=ExtResource("8_moneda_vivo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.8, -11)
@@ -341,3 +330,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, 18)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 18)
 
 [node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]
+
+[node name="Farol" parent="." unique_id=1573612018 instance=ExtResource("16_0m24d")]
+transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -11.200001, 0.5, 13.900001)
+
+[node name="Farol2" parent="." unique_id=467421392 instance=ExtResource("16_0m24d")]
+transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, -4.200001, 0.5, 10.900001)
+
+[node name="Farol3" parent="." unique_id=967621521 instance=ExtResource("16_0m24d")]
+transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -5.6000004, 3.1999998, 3.9000006)
+
+[node name="Cristales" parent="." unique_id=1793408612 instance=ExtResource("16_r2ia1")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 4, 1, 14)
+
+[node name="Cristales2" parent="." unique_id=2084611063 instance=ExtResource("16_r2ia1")]
+transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 13, 1, 15)

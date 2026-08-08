@@ -1,3 +1,9 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+.env
+
+*.TMP
+scratch_dump_eos.gd*
+eos.zip
+debug.log

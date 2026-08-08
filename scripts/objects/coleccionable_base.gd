@@ -27,13 +27,19 @@ func _configurar_visual() -> void:
 	pass
 
 func _on_body_entered(body: Node) -> void:
-	# Solo la autoridad del multiplayer procesa la recolección
-	if not is_multiplayer_authority():
+	if not _puede_ser_recogido_por(body):
 		return
-	
-	if _puede_ser_recogido_por(body):
+		
+	# Predicción del lado del cliente (Client-Side Prediction / Optimistic UI):
+	# Si el personaje que tocó la moneda es el que yo controlo (mi autoridad local),
+	# ocultamos la moneda inmediatamente para que se sienta instantáneo (0 ping visual).
+	if body.has_method("is_multiplayer_authority") and body.is_multiplayer_authority():
+		hide()
+		set_deferred("monitoring", false)
+		
+	# Solo el Host (Autoridad de la red) valida oficialmente que se recogió
+	if is_multiplayer_authority():
 		_aplicar_puntuacion()
-		# Sincronizar la eliminación en todos los peers
 		rpc("_remover_para_todos")
 
 func _puede_ser_recogido_por(_body: Node) -> bool:

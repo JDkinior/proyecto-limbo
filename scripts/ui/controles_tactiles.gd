@@ -390,10 +390,7 @@ func _on_boton_cerrar_opciones_pressed() -> void:
 func _on_boton_salir_pressed() -> void:
 	print("[ControlesTactiles] Iniciando desconexión segura del entorno P2P...")
 	
-	var FirebaseMatchmaking = get_tree().root.get_node_or_null("FirebaseMatchmaking")
-	if is_instance_valid(FirebaseMatchmaking) and not FirebaseMatchmaking.mi_sala_id.is_empty():
-		FirebaseMatchmaking.eliminar_mi_sala()
-		FirebaseMatchmaking.limpiar()
+
 	
 	# 1. Liberar datos, detener broadcasters de LAN, cerrar puertos UPNP y limpiar referencias
 	if is_instance_valid(RedManager):
