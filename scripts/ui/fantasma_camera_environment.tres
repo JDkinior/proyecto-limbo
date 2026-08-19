@@ -2,9 +2,9 @@
 
 [resource]
 background_mode = 1
-background_color = Color(0.0980392, 0.294118, 0.490196, 1)
+background_color = Color(0.18, 0.48, 0.68, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.0980392, 0.294118, 0.490196, 1)
-ambient_light_energy = 0.5
+ambient_light_color = Color(0.24, 0.42, 0.58, 1)
+ambient_light_energy = 1.18
 adjustment_enabled = true
-adjustment_saturation = 1.2
+adjustment_saturation = 1.06

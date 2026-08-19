@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://admin_nubes_3d_001"]
+
+[ext_resource type="Script" path="res://scripts/objects/administrador_nubes.gd" id="1_admin_script"]
+
+[node name="AdministradorNubes3D" type="Node3D"]
+script = ExtResource("1_admin_script")
+cantidad_nubes_fisicas = 8
+cantidad_nubes_espirituales = 5
+area_min = Vector3(-65, 10, -45)
+area_max = Vector3(65, 30, 55)
+escala_min = 1.0
+escala_max = 2.5
+velocidad_min = 1.2
+velocidad_max = 2.2
+direccion_viento = Vector3(1, 0, 0.25)

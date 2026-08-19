@@ -1,0 +1,21 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://nube_3d_espiritual_mat_001"]
+
+[ext_resource type="Shader" path="res://shaders/nube_3d_estilizada.gdshader" id="1_nube_shader"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_nube_shader")
+shader_parameter/color_principal = Color(0.65, 0.85, 1, 1)
+shader_parameter/color_sombra = Color(0.2, 0.25, 0.45, 1)
+shader_parameter/color_borde_luz = Color(0.4, 0.9, 1, 1)
+shader_parameter/gradiente_altura_min = -1.5
+shader_parameter/gradiente_altura_max = 1.5
+shader_parameter/potencia_rim = 2.0
+shader_parameter/fuerza_rim = 1.6
+shader_parameter/velocidad_respiracion = 1.0
+shader_parameter/amplitud_respiracion = 0.04
+shader_parameter/frecuencia_onda = 1.2
+shader_parameter/es_espiritual = true
+shader_parameter/color_espiritual = Color(0.25, 0.8, 1, 1)
+shader_parameter/energia_emision_espiritual = 1.6
+shader_parameter/velocidad_pulso_espiritual = 1.8

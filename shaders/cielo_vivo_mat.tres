@@ -1,0 +1,38 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://32klxjrla3kl"]
+
+[ext_resource type="Shader" uid="uid://dvl2bgle6lvlh" path="res://shaders/cielo_estilizado_nubes.gdshader" id="1_cielo_shader"]
+
+[resource]
+shader = ExtResource("1_cielo_shader")
+shader_parameter/color_cielo_cenit = Color(0.95, 0.74, 0.35, 1)
+shader_parameter/color_cielo_horizonte = Color(1, 0.88, 0.6, 1)
+shader_parameter/color_suelo_horizonte = Color(0.92, 0.7, 0.35, 1)
+shader_parameter/color_suelo_nadir = Color(0.85, 0.62, 0.28, 1)
+shader_parameter/exponente_gradiente_cielo = 1.8
+shader_parameter/color_nube_luz = Color(1, 0.98, 0.92, 1)
+shader_parameter/color_nube_medio = Color(0.98, 0.86, 0.64, 1)
+shader_parameter/color_nube_sombra = Color(0.86, 0.68, 0.42, 1)
+shader_parameter/color_borde_solar = Color(1, 0.95, 0.78, 1)
+shader_parameter/escala_nubes = 1.05
+shader_parameter/cobertura_nubes = 0.38
+shader_parameter/nitidez_borde = 0.03
+shader_parameter/corte_sombra = 0.3
+shader_parameter/corte_luz = 0.62
+shader_parameter/corte_cresta = 0.85
+shader_parameter/nitidez_cel = 0.035
+shader_parameter/fuerza_rim_solar = 1.1
+shader_parameter/grosor_rim = 0.04
+shader_parameter/curvatura_domo = 0.38
+shader_parameter/atenuacion_horizonte = 0.05
+shader_parameter/direccion_viento = Vector2(1, 0.25)
+shader_parameter/velocidad_viento = 0.32
+shader_parameter/velocidad_evolucion = 0.05
+shader_parameter/modo_luna = false
+shader_parameter/color_disco_solar = Color(1, 0.98, 0.88, 1)
+shader_parameter/color_halo_solar = Color(1, 0.92, 0.68, 1)
+shader_parameter/tamano_sol = 0.045
+shader_parameter/halo_sol = 0.25
+shader_parameter/mostrar_estrellas = false
+shader_parameter/densidad_estrellas = 24.0
+shader_parameter/brillo_estrellas = 1.2
+shader_parameter/color_estrellas = Color(0.75, 0.92, 1, 1)

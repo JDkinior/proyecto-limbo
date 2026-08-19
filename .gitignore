@@ -4,6 +4,7 @@
 .env
 
 *.TMP
+~*.dll
 scratch_dump_eos.gd*
 eos.zip
 debug.log

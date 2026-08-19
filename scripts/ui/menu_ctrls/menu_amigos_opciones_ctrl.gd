@@ -10,13 +10,34 @@ func init(p_menu: Control):
 	_actualizar_lista_amigos()
 
 func _conectar_senales():
-	menu.get_node("PanelAmigos/VBoxContainer/HBoxAdd/BtnAgregar").pressed.connect(_on_btn_agregar_amigo_pressed)
-	menu.get_node("PanelAmigos/VBoxContainer/BtnEliminar").pressed.connect(_on_btn_eliminar_amigo_pressed)
-	menu.get_node("PanelAmigos/VBoxContainer/BtnVolver").pressed.connect(_on_btn_volver_amigos_pressed)
+	var btn_add = menu.get_node_or_null("PanelAmigos/VBoxContainer/HBoxAdd/BtnAgregar")
+	if is_instance_valid(btn_add):
+		btn_add.pressed.connect(_on_btn_agregar_amigo_pressed)
+		
+	var btn_del = menu.get_node_or_null("PanelAmigos/VBoxContainer/BtnEliminar")
+	if is_instance_valid(btn_del):
+		btn_del.pressed.connect(_on_btn_eliminar_amigo_pressed)
+		
+	var btn_vol_amigos = menu.get_node_or_null("PanelAmigos/VBoxContainer/BtnVolver")
+	if is_instance_valid(btn_vol_amigos):
+		btn_vol_amigos.pressed.connect(_on_btn_volver_amigos_pressed)
 	
-	menu.get_node("PanelOpciones/VBoxContainer/VolumeSlider").value_changed.connect(_on_volume_slider_value_changed)
-	menu.get_node("PanelOpciones/VBoxContainer/BtnFullscreen").toggled.connect(_on_btn_fullscreen_toggled)
-	menu.get_node("PanelOpciones/VBoxContainer/BtnVolver").pressed.connect(_on_btn_volver_opciones_pressed)
+	if is_instance_valid(menu.volume_slider):
+		menu.volume_slider.value_changed.connect(_on_volume_slider_value_changed)
+	if is_instance_valid(menu.btn_fullscreen):
+		menu.btn_fullscreen.toggled.connect(_on_btn_fullscreen_toggled)
+		
+	var btn_volver_opc = menu.get_node_or_null("PanelOpciones/VBoxContainer/BtnVolver")
+	if is_instance_valid(btn_volver_opc):
+		btn_volver_opc.pressed.connect(_on_btn_volver_opciones_pressed)
+		
+	# Controles de Personalización del HUD
+	if is_instance_valid(menu.btn_ajustar_hud):
+		menu.btn_ajustar_hud.pressed.connect(_on_btn_ajustar_hud_pressed)
+	if is_instance_valid(menu.slider_tamano_hud):
+		menu.slider_tamano_hud.value_changed.connect(_on_slider_tamano_hud_changed)
+	if is_instance_valid(menu.slider_tamano_joy):
+		menu.slider_tamano_joy.value_changed.connect(_on_slider_tamano_joy_changed)
 
 func _on_btn_agregar_amigo_pressed():
 	var nombre = menu.amigo_nombre_input.text.strip_edges()
@@ -79,8 +100,28 @@ func _on_btn_fullscreen_toggled(button_pressed):
 func _on_btn_volver_opciones_pressed():
 	menu.mostrar_panel(menu.panel_principal)
 
+func _on_btn_ajustar_hud_pressed():
+	var escena_editor = load("res://scenes/ui/ajuste_hud.tscn")
+	if escena_editor:
+		var editor = escena_editor.instantiate()
+		menu.add_child(editor)
+		editor.cerrado.connect(func():
+			_cargar_opciones()
+		)
+
+func _on_slider_tamano_hud_changed(val: float):
+	var cfg = HudConfigManager.cargar_config()
+	cfg["botones_accion_scale"] = val
+	HudConfigManager.guardar_config(cfg)
+
+func _on_slider_tamano_joy_changed(val: float):
+	var cfg = HudConfigManager.cargar_config()
+	cfg["joystick_scale"] = val
+	HudConfigManager.guardar_config(cfg)
+
 func _guardar_opciones():
 	var config = ConfigFile.new()
+	var _err = config.load("user://opciones.cfg")
 	var bus_index = AudioServer.get_bus_index("Master")
 	if bus_index != -1:
 		config.set_value("audio", "master_volume", db_to_linear(AudioServer.get_bus_volume_db(bus_index)))
@@ -92,17 +133,28 @@ func _cargar_opciones():
 	var err = config.load("user://opciones.cfg")
 	if err == OK:
 		var vol = config.get_value("audio", "master_volume", 0.8)
-		menu.volume_slider.value = vol
+		if is_instance_valid(menu.volume_slider):
+			menu.volume_slider.value = vol
 		var bus_index = AudioServer.get_bus_index("Master")
 		if bus_index != -1:
 			AudioServer.set_bus_volume_db(bus_index, linear_to_db(vol))
 			
 		var fs = config.get_value("video", "fullscreen", false)
-		menu.btn_fullscreen.button_pressed = fs
+		if is_instance_valid(menu.btn_fullscreen):
+			menu.btn_fullscreen.button_pressed = fs
 		if fs:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 		else:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	else:
-		menu.volume_slider.value = 0.8
-		menu.btn_fullscreen.button_pressed = false
+		if is_instance_valid(menu.volume_slider):
+			menu.volume_slider.value = 0.8
+		if is_instance_valid(menu.btn_fullscreen):
+			menu.btn_fullscreen.button_pressed = false
+			
+	# Cargar valores del HUD a los sliders de opciones
+	var hud_cfg = HudConfigManager.cargar_config()
+	if is_instance_valid(menu.slider_tamano_hud):
+		menu.slider_tamano_hud.set_value_no_signal(hud_cfg.get("botones_accion_scale", 1.39))
+	if is_instance_valid(menu.slider_tamano_joy):
+		menu.slider_tamano_joy.set_value_no_signal(hud_cfg.get("joystick_scale", 1.0))

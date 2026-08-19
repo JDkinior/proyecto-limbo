@@ -40,7 +40,7 @@ func _inicializar_nuevos_paneles():
 	var style_btn_disabled = sample_btn.get_theme_stylebox("disabled")
 	var style_input = menu.get_node("PanelAmigos/VBoxContainer/HBoxAdd/AmigoNombreInput").get_theme_stylebox("normal")
 	
-	# 1. PANEL SELECCIÓN DE MODOS (LOCAL VS ONLINE)
+	# 1. PANEL SELECCIÓN DE MODOS (UN JUGADOR VS MULTIJUGADOR)
 	menu.panel_modos = Panel.new()
 	menu.panel_modos.name = "PanelModos"
 	menu.panel_modos.visible = false
@@ -51,71 +51,271 @@ func _inicializar_nuevos_paneles():
 	menu.panel_modos.anchor_right = 0.5
 	menu.panel_modos.anchor_top = 0.5
 	menu.panel_modos.anchor_bottom = 0.5
-	menu.panel_modos.offset_left = -300
-	menu.panel_modos.offset_top = -220
-	menu.panel_modos.offset_right = 300
-	menu.panel_modos.offset_bottom = 220
-	menu.panel_modos.custom_minimum_size = Vector2(600, 440)
-	menu.panel_modos.size = Vector2(600, 440)
+	menu.panel_modos.offset_left = -380
+	menu.panel_modos.offset_top = -260
+	menu.panel_modos.offset_right = 380
+	menu.panel_modos.offset_bottom = 260
+	menu.panel_modos.custom_minimum_size = Vector2(760, 520)
+	menu.panel_modos.size = Vector2(760, 520)
 	
 	var vbox_modos = VBoxContainer.new()
 	vbox_modos.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox_modos.offset_left = 30
-	vbox_modos.offset_top = 24
-	vbox_modos.offset_right = -30
-	vbox_modos.offset_bottom = -24
-	vbox_modos.add_theme_constant_override("separation", 18)
+	vbox_modos.offset_left = 26
+	vbox_modos.offset_top = 20
+	vbox_modos.offset_right = -26
+	vbox_modos.offset_bottom = -20
+	vbox_modos.add_theme_constant_override("separation", 12)
 	vbox_modos.alignment = BoxContainer.ALIGNMENT_CENTER
 	menu.panel_modos.add_child(vbox_modos)
 	
 	var title_modos = Label.new()
-	title_modos.text = "Seleccionar Conexión"
+	title_modos.text = "✦ SELECCIONAR MODO DE JUEGO ✦"
 	title_modos.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_modos.add_theme_font_size_override("font_size", 30)
+	title_modos.add_theme_font_size_override("font_size", 26)
 	vbox_modos.add_child(title_modos)
 	
 	var subt_modos = Label.new()
-	subt_modos.text = "¿Cómo quieres conectarte hoy?"
+	subt_modos.text = "Elige la modalidad para adentrarte en el mundo de Limbo"
 	subt_modos.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subt_modos.add_theme_color_override("font_color", Color(0.7, 0.7, 0.9))
-	subt_modos.add_theme_font_size_override("font_size", 16)
+	subt_modos.add_theme_color_override("font_color", Color(0.75, 0.8, 0.95))
+	subt_modos.add_theme_font_size_override("font_size", 14)
 	vbox_modos.add_child(subt_modos)
 	
 	var sep_modos = HSeparator.new()
 	vbox_modos.add_child(sep_modos)
 	
+	# Contenedor Horizontal con dos tarjetas (Un Jugador & Multijugador)
+	var hbox_cards = HBoxContainer.new()
+	hbox_cards.add_theme_constant_override("separation", 16)
+	hbox_cards.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox_modos.add_child(hbox_cards)
+	
+	# --- TARJETA 1: UN JUGADOR ---
+	var card_solo = PanelContainer.new()
+	card_solo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_solo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style_card_solo = StyleBoxFlat.new()
+	style_card_solo.bg_color = Color(0.06, 0.09, 0.16, 0.92)
+	style_card_solo.border_color = Color(0.25, 0.65, 0.85, 0.8)
+	style_card_solo.border_width_left = 2
+	style_card_solo.border_width_top = 2
+	style_card_solo.border_width_right = 2
+	style_card_solo.border_width_bottom = 2
+	style_card_solo.set_corner_radius_all(16)
+	style_card_solo.content_margin_left = 18
+	style_card_solo.content_margin_right = 18
+	style_card_solo.content_margin_top = 16
+	style_card_solo.content_margin_bottom = 16
+	card_solo.add_theme_stylebox_override("panel", style_card_solo)
+	hbox_cards.add_child(card_solo)
+	
+	var vbox_card_solo = VBoxContainer.new()
+	vbox_card_solo.add_theme_constant_override("separation", 10)
+	vbox_card_solo.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_solo.add_child(vbox_card_solo)
+	
+	var lbl_solo_title = Label.new()
+	lbl_solo_title.text = "🎮 UN JUGADOR"
+	lbl_solo_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_solo_title.add_theme_font_size_override("font_size", 20)
+	lbl_solo_title.add_theme_color_override("font_color", Color(0.35, 0.85, 1.0))
+	vbox_card_solo.add_child(lbl_solo_title)
+	
+	var lbl_solo_tag = Label.new()
+	lbl_solo_tag.text = "(Modo Solitario / Pruebas)"
+	lbl_solo_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_solo_tag.add_theme_font_size_override("font_size", 12)
+	lbl_solo_tag.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0, 0.85))
+	vbox_card_solo.add_child(lbl_solo_tag)
+	
+	var lbl_solo_desc = Label.new()
+	lbl_solo_desc.text = "Limbo está concebido como una experiencia cooperativa para dos personas. Este modo te permite explorar y superar los niveles controlando ambos planos en solitario, aunque la aventura alcanza su mayor esplendor jugando en pareja."
+	lbl_solo_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl_solo_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_solo_desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	lbl_solo_desc.add_theme_font_size_override("font_size", 13)
+	lbl_solo_desc.add_theme_color_override("font_color", Color(0.88, 0.92, 0.98))
+	vbox_card_solo.add_child(lbl_solo_desc)
+	
+	menu.btn_modo_solo = Button.new()
+	menu.btn_modo_solo.text = "Jugar en Solitario →"
+	menu.btn_modo_solo.custom_minimum_size = Vector2(0, 48)
+	menu.btn_modo_solo.add_theme_stylebox_override("normal", style_btn_normal)
+	menu.btn_modo_solo.add_theme_stylebox_override("hover", style_btn_hover)
+	menu.btn_modo_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
+	menu.btn_modo_solo.add_theme_font_size_override("font_size", 16)
+	menu.btn_modo_solo.pressed.connect(_on_btn_modo_solo_pressed)
+	vbox_card_solo.add_child(menu.btn_modo_solo)
+	
+	# --- TARJETA 2: MULTIJUGADOR ---
+	var card_multi = PanelContainer.new()
+	card_multi.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_multi.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style_card_multi = StyleBoxFlat.new()
+	style_card_multi.bg_color = Color(0.08, 0.08, 0.16, 0.92)
+	style_card_multi.border_color = Color(0.95, 0.75, 0.25, 0.8)
+	style_card_multi.border_width_left = 2
+	style_card_multi.border_width_top = 2
+	style_card_multi.border_width_right = 2
+	style_card_multi.border_width_bottom = 2
+	style_card_multi.set_corner_radius_all(16)
+	style_card_multi.content_margin_left = 18
+	style_card_multi.content_margin_right = 18
+	style_card_multi.content_margin_top = 16
+	style_card_multi.content_margin_bottom = 16
+	card_multi.add_theme_stylebox_override("panel", style_card_multi)
+	hbox_cards.add_child(card_multi)
+	
+	var vbox_card_multi = VBoxContainer.new()
+	vbox_card_multi.add_theme_constant_override("separation", 10)
+	vbox_card_multi.alignment = BoxContainer.ALIGNMENT_CENTER
+	card_multi.add_child(vbox_card_multi)
+	
+	var lbl_multi_title = Label.new()
+	lbl_multi_title.text = "👥 MULTIJUGADOR"
+	lbl_multi_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_multi_title.add_theme_font_size_override("font_size", 20)
+	lbl_multi_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	vbox_card_multi.add_child(lbl_multi_title)
+	
+	var lbl_multi_tag = Label.new()
+	lbl_multi_tag.text = "(Cooperativo 2 Jugadores)"
+	lbl_multi_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_multi_tag.add_theme_font_size_override("font_size", 12)
+	lbl_multi_tag.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6, 0.85))
+	vbox_card_multi.add_child(lbl_multi_tag)
+	
+	var lbl_multi_desc = Label.new()
+	lbl_multi_desc.text = "Disfruta la experiencia cooperativa definitiva sincronizando tus habilidades con otro jugador en tiempo real. Conéctate con tu compañero mediante Red Local (LAN) o a través de Internet (Online P2P con salas personalizadas)."
+	lbl_multi_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl_multi_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_multi_desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	lbl_multi_desc.add_theme_font_size_override("font_size", 13)
+	lbl_multi_desc.add_theme_color_override("font_color", Color(0.88, 0.92, 0.98))
+	vbox_card_multi.add_child(lbl_multi_desc)
+	
 	menu.btn_modo_online = Button.new()
-	menu.btn_modo_online.text = "🌐 Modo Online (Internet)"
-	menu.btn_modo_online.custom_minimum_size = Vector2(0, 58)
+	menu.btn_modo_online.name = "BtnModoOnline"
+	menu.btn_modo_online.text = "Conectar Multijugador →"
+	menu.btn_modo_online.custom_minimum_size = Vector2(0, 48)
 	menu.btn_modo_online.add_theme_stylebox_override("normal", style_btn_normal)
 	menu.btn_modo_online.add_theme_stylebox_override("hover", style_btn_hover)
 	menu.btn_modo_online.add_theme_stylebox_override("pressed", style_btn_pressed)
-	menu.btn_modo_online.add_theme_stylebox_override("disabled", style_btn_disabled)
-	menu.btn_modo_online.add_theme_font_size_override("font_size", 18)
+	menu.btn_modo_online.add_theme_font_size_override("font_size", 16)
 	menu.btn_modo_online.pressed.connect(_on_btn_modo_online_pressed)
-	vbox_modos.add_child(menu.btn_modo_online)
+	vbox_card_multi.add_child(menu.btn_modo_online)
 	
-	menu.btn_modo_local = Button.new()
-	menu.btn_modo_local.text = "📡 Modo Local (Red LAN)"
-	menu.btn_modo_local.custom_minimum_size = Vector2(0, 58)
-	menu.btn_modo_local.add_theme_stylebox_override("normal", style_btn_normal)
-	menu.btn_modo_local.add_theme_stylebox_override("hover", style_btn_hover)
-	menu.btn_modo_local.add_theme_stylebox_override("pressed", style_btn_pressed)
-	menu.btn_modo_local.add_theme_stylebox_override("disabled", style_btn_disabled)
-	menu.btn_modo_local.add_theme_font_size_override("font_size", 18)
-	menu.btn_modo_local.pressed.connect(_on_btn_modo_local_pressed)
-	vbox_modos.add_child(menu.btn_modo_local)
-	
+	# Botón Volver al Menú Principal
 	menu.btn_volver_modos = Button.new()
-	menu.btn_volver_modos.text = "← Volver al Menú"
-	menu.btn_volver_modos.custom_minimum_size = Vector2(0, 50)
+	menu.btn_volver_modos.text = "← Volver al Menú Principal"
+	menu.btn_volver_modos.custom_minimum_size = Vector2(0, 44)
 	menu.btn_volver_modos.add_theme_stylebox_override("normal", style_btn_normal)
 	menu.btn_volver_modos.add_theme_stylebox_override("hover", style_btn_hover)
 	menu.btn_volver_modos.add_theme_stylebox_override("pressed", style_btn_pressed)
-	menu.btn_volver_modos.add_theme_stylebox_override("disabled", style_btn_disabled)
-	menu.btn_volver_modos.add_theme_font_size_override("font_size", 16)
+	menu.btn_volver_modos.add_theme_font_size_override("font_size", 15)
 	menu.btn_volver_modos.pressed.connect(_on_btn_volver_modos_pressed)
 	vbox_modos.add_child(menu.btn_volver_modos)
+	
+	# 1.5 PANEL UN JUGADOR (TEST / PRUEBAS)
+	menu.panel_un_jugador = Panel.new()
+	menu.panel_un_jugador.name = "PanelUnJugador"
+	menu.panel_un_jugador.visible = false
+	menu.panel_un_jugador.add_theme_stylebox_override("panel", style_panel)
+	menu.add_child(menu.panel_un_jugador)
+	
+	menu.panel_un_jugador.anchor_left = 0.5
+	menu.panel_un_jugador.anchor_right = 0.5
+	menu.panel_un_jugador.anchor_top = 0.5
+	menu.panel_un_jugador.anchor_bottom = 0.5
+	menu.panel_un_jugador.offset_left = -320
+	menu.panel_un_jugador.offset_top = -240
+	menu.panel_un_jugador.offset_right = 320
+	menu.panel_un_jugador.offset_bottom = 240
+	menu.panel_un_jugador.custom_minimum_size = Vector2(640, 480)
+	menu.panel_un_jugador.size = Vector2(640, 480)
+	
+	var vbox_solo = VBoxContainer.new()
+	vbox_solo.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox_solo.offset_left = 28
+	vbox_solo.offset_top = 20
+	vbox_solo.offset_right = -28
+	vbox_solo.offset_bottom = -20
+	vbox_solo.add_theme_constant_override("separation", 14)
+	vbox_solo.alignment = BoxContainer.ALIGNMENT_CENTER
+	menu.panel_un_jugador.add_child(vbox_solo)
+	
+	var title_solo = Label.new()
+	title_solo.text = "🎮 Modo Un Jugador (Solitario)"
+	title_solo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title_solo.add_theme_font_size_override("font_size", 26)
+	vbox_solo.add_child(title_solo)
+	
+	var subt_solo = Label.new()
+	subt_solo.text = "Controla ambos personajes alternando con [Tab], [C] o el botón táctil."
+	subt_solo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subt_solo.add_theme_color_override("font_color", Color(0.75, 0.85, 0.95))
+	subt_solo.add_theme_font_size_override("font_size", 14)
+	vbox_solo.add_child(subt_solo)
+	
+	var sep_solo = HSeparator.new()
+	vbox_solo.add_child(sep_solo)
+	
+	var lbl_sel_nivel = Label.new()
+	lbl_sel_nivel.text = "Seleccionar Nivel:"
+	lbl_sel_nivel.add_theme_font_size_override("font_size", 16)
+	vbox_solo.add_child(lbl_sel_nivel)
+	
+	var opt_nivel = OptionButton.new()
+	opt_nivel.name = "SelectorNivelSolo"
+	opt_nivel.add_item("🌟 Nivel 1: El Despertar Separado", 0)
+	opt_nivel.add_item("🌟 Nivel 2", 1)
+	opt_nivel.add_item("🧪 Mundo de Pruebas (Sandbox)", 2)
+	opt_nivel.custom_minimum_size = Vector2(0, 50)
+	opt_nivel.add_theme_stylebox_override("normal", style_input)
+	opt_nivel.add_theme_font_size_override("font_size", 15)
+	vbox_solo.add_child(opt_nivel)
+	
+	var lbl_sel_personaje = Label.new()
+	lbl_sel_personaje.text = "Personaje Inicial:"
+	lbl_sel_personaje.add_theme_font_size_override("font_size", 16)
+	vbox_solo.add_child(lbl_sel_personaje)
+	
+	var opt_personaje = OptionButton.new()
+	opt_personaje.name = "SelectorPersonajeSolo"
+	opt_personaje.add_item("👤 Jugador Vivo (Plano Físico)", 0)
+	opt_personaje.add_item("👻 Fantasma (Plano Espiritual)", 1)
+	opt_personaje.custom_minimum_size = Vector2(0, 50)
+	opt_personaje.add_theme_stylebox_override("normal", style_input)
+	opt_personaje.add_theme_font_size_override("font_size", 15)
+	vbox_solo.add_child(opt_personaje)
+	
+	var btn_jugar_solo = Button.new()
+	btn_jugar_solo.text = "▶ Iniciar Nivel Seleccionado"
+	btn_jugar_solo.custom_minimum_size = Vector2(0, 52)
+	btn_jugar_solo.add_theme_stylebox_override("normal", style_btn_normal)
+	btn_jugar_solo.add_theme_stylebox_override("hover", style_btn_hover)
+	btn_jugar_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
+	btn_jugar_solo.add_theme_font_size_override("font_size", 18)
+	btn_jugar_solo.pressed.connect(func():
+		var red_mgr = menu.get_tree().root.get_node_or_null("RedManager")
+		if is_instance_valid(red_mgr):
+			var selected_idx = opt_nivel.get_selected_id()
+			var p_inicial = "fantasma" if opt_personaje.get_selected_id() == 1 else "jugador"
+			red_mgr.iniciar_un_jugador(selected_idx, p_inicial)
+	)
+	vbox_solo.add_child(btn_jugar_solo)
+	
+	var btn_volver_solo = Button.new()
+	btn_volver_solo.text = "← Volver a Selección de Modos"
+	btn_volver_solo.custom_minimum_size = Vector2(0, 48)
+	btn_volver_solo.add_theme_stylebox_override("normal", style_btn_normal)
+	btn_volver_solo.add_theme_stylebox_override("hover", style_btn_hover)
+	btn_volver_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
+	btn_volver_solo.add_theme_font_size_override("font_size", 16)
+	btn_volver_solo.pressed.connect(func():
+		menu.mostrar_panel(menu.panel_modos)
+	)
+	vbox_solo.add_child(btn_volver_solo)
 	
 	# 2. PANEL SALAS (ROOM MATCHMAKING DEDICADO - MÓVIL)
 	menu.panel_salas = Panel.new()
@@ -240,6 +440,17 @@ func _inicializar_nuevos_paneles():
 	menu.btn_volver_salas.pressed.connect(_on_btn_volver_salas_pressed)
 	hbox_extra.add_child(menu.btn_volver_salas)
 	
+	var chk_relay = CheckButton.new()
+	chk_relay.text = "Forzar Epic Relay"
+	chk_relay.add_theme_font_size_override("font_size", 15)
+	chk_relay.button_pressed = false
+	chk_relay.toggled.connect(func(toggled_on):
+		var EosManager = menu.get_tree().root.get_node_or_null("EosManager")
+		if EosManager and EosManager.has_method("set_relay_mode"):
+			EosManager.set_relay_mode(2 if toggled_on else 1)
+	)
+	hbox_extra.add_child(chk_relay)
+	
 	# 3. LAN DISCOVERY EN PANEL JUGAR (LOCAL)
 	var vbox_jugar = menu.get_node("PanelJugar/VBoxContainer")
 	
@@ -285,6 +496,10 @@ func _on_btn_modo_online_pressed():
 
 func _on_btn_volver_modos_pressed():
 	menu.mostrar_panel(menu.panel_principal)
+
+func _on_btn_modo_solo_pressed():
+	if is_instance_valid(menu.panel_un_jugador):
+		menu.mostrar_panel(menu.panel_un_jugador)
 
 func _on_btn_host_pressed():
 	if not is_instance_valid(menu) or not menu.is_inside_tree(): return

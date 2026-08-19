@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_1q87n"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="3_1q87n"]
 [ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="4_wa8a8"]
+[ext_resource type="Material" uid="uid://cielo_limbo_mat_001" path="res://shaders/cielo_limbo_mat.tres" id="5_cielo_mat"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1q87n"]
 transparency = 1
@@ -13,15 +14,10 @@ material = SubResource("StandardMaterial3D_1q87n")
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_fthir"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1q87n"]
-sky_top_color = Color(0.79856586, 0.9264763, 1, 1)
-sky_horizon_color = Color(1, 1, 1, 1)
-sky_curve = 0.049481746
-ground_bottom_color = Color(0.74, 0.74, 0.74, 1)
-ground_horizon_color = Color(1, 1, 1, 1)
+[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_box"]
 
 [sub_resource type="Sky" id="Sky_l5la3"]
-sky_material = SubResource("ProceduralSkyMaterial_1q87n")
+sky_material = ExtResource("5_cielo_mat")
 
 [sub_resource type="Environment" id="Environment_wa8a8"]
 background_mode = 2
@@ -40,6 +36,9 @@ mesh = SubResource("BoxMesh_wa8a8")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=766424479]
 shape = SubResource("BoxShape3D_fthir")
+
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="StaticBody3D"]
+occluder = SubResource("BoxOccluder3D_box")
 
 [node name="Fantasma" parent="." unique_id=1234024380 instance=ExtResource("1_qokjt")]
 transform = Transform3D(1, 0, 0, 0, 3.3333333, 0, 0, 0, 1, 1, 3.6666667, 6)
@@ -60,6 +59,9 @@ mesh = SubResource("BoxMesh_wa8a8")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D2" unique_id=78397128]
 shape = SubResource("BoxShape3D_fthir")
 
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="StaticBody3D2"]
+occluder = SubResource("BoxOccluder3D_box")
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1630039909]
 environment = SubResource("Environment_wa8a8")
 
@@ -68,6 +70,7 @@ transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545
 light_color = Color(1, 0.88, 0.58, 1)
 light_energy = 1.8
 shadow_enabled = true
+directional_shadow_max_distance = 60.0
 
 
 

@@ -4,6 +4,9 @@ class_name NivelBase
 @export var tiempo_objetivo: float = 120.0 # Tiempo objetivo del nivel en segundos (modificable en inspector)
 
 func _ready() -> void:
+	# Aplicar optimizaciones automáticas de culling, frustum y sombras
+	OptimizadorCulling.optimizar_nivel(self)
+	
 	# Contar monedas disponibles en el nivel al iniciar
 	var resultado = {"vivo": 0, "fantasma": 0}
 	

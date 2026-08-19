@@ -1,0 +1,22 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bmiwvf52prc8x"]
+
+[ext_resource type="Shader" uid="uid://b5jkqbkbg2hr5" path="res://shaders/pasto_estilizado.gdshader" id="1_pasto_shader"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_pasto_shader")
+shader_parameter/color_base = Color(0.24, 0.40, 0.70, 1)
+shader_parameter/color_punta = Color(0.28, 0.44, 0.75, 1)
+shader_parameter/suavizado_gradiente = 0.75
+shader_parameter/curva_gradiente = 1.0
+shader_parameter/brillo_puntas = 0.0
+shader_parameter/direccion_viento = Vector2(0.8, 0.6)
+shader_parameter/velocidad_viento = 2.0
+shader_parameter/fuerza_viento = 0.18
+shader_parameter/escala_onda = 2.5
+shader_parameter/turbulencia = 0.35
+shader_parameter/posicion_jugador = Vector3(0, 9999, 0)
+shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
+shader_parameter/radio_interaccion = 0.75
+shader_parameter/fuerza_interaccion = 0.45
+shader_parameter/usar_textura_ruido = false

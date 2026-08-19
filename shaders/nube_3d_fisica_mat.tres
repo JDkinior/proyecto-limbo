@@ -1,0 +1,21 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://nube_3d_fisica_mat_001"]
+
+[ext_resource type="Shader" path="res://shaders/nube_3d_estilizada.gdshader" id="1_nube_shader"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_nube_shader")
+shader_parameter/color_principal = Color(0.98, 0.95, 0.92, 1)
+shader_parameter/color_sombra = Color(0.48, 0.42, 0.58, 1)
+shader_parameter/color_borde_luz = Color(1, 0.88, 0.65, 1)
+shader_parameter/gradiente_altura_min = -1.5
+shader_parameter/gradiente_altura_max = 1.5
+shader_parameter/potencia_rim = 2.5
+shader_parameter/fuerza_rim = 1.2
+shader_parameter/velocidad_respiracion = 1.2
+shader_parameter/amplitud_respiracion = 0.035
+shader_parameter/frecuencia_onda = 1.5
+shader_parameter/es_espiritual = false
+shader_parameter/color_espiritual = Color(0.3, 0.85, 1, 1)
+shader_parameter/energia_emision_espiritual = 1.8
+shader_parameter/velocidad_pulso_espiritual = 2.0

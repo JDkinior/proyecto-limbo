@@ -10,6 +10,9 @@ radius = 40.0
 [sub_resource type="CircleShape2D" id="CircleShape2D_rtx1c"]
 radius = 40.0
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_cambiar"]
+radius = 40.0
+
 [sub_resource type="LabelSettings" id="LabelSettings_hud"]
 font_size = 28
 outline_size = 6
@@ -48,7 +51,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 0
 grow_vertical = 2
-scale = Vector2(0.88000244, 0.9988926)
 script = ExtResource("2_epxqs")
 
 [node name="Zona_Botones_Accion" type="Control" parent="Area_Camara" unique_id=721025503]
@@ -67,15 +69,21 @@ grow_vertical = 0
 scale = Vector2(1.3908367, 1.3908367)
 
 [node name="Boton_Saltar" type="TouchScreenButton" parent="Area_Camara/Zona_Botones_Accion" unique_id=4954353]
-position = Vector2(-53, 40)
+position = Vector2(40, 51)
 shape = SubResource("CircleShape2D_xv6fp")
 action = "saltar"
 script = ExtResource("2_rtx1c")
 
 [node name="Boton_Interactuar" type="TouchScreenButton" parent="Area_Camara/Zona_Botones_Accion" unique_id=646810795]
-position = Vector2(40, -42)
+position = Vector2(40, -51)
 shape = SubResource("CircleShape2D_rtx1c")
 action = "interactuar"
+script = ExtResource("2_rtx1c")
+
+[node name="Boton_Cambiar_Personaje" type="TouchScreenButton" parent="Area_Camara/Zona_Botones_Accion" unique_id=981273645]
+position = Vector2(-45, 0)
+shape = SubResource("CircleShape2D_cambiar")
+action = "cambiar_personaje"
 script = ExtResource("2_rtx1c")
 
 [node name="HUD_Puntuacion" type="MarginContainer" parent="."]
@@ -176,17 +184,17 @@ text = "Salir al Menú"
 
 [node name="Panel_Opciones" type="Panel" parent="."]
 visible = false
-custom_minimum_size = Vector2(360, 240)
+custom_minimum_size = Vector2(400, 360)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -120.0
-offset_right = 180.0
-offset_bottom = 120.0
+offset_left = -200.0
+offset_top = -180.0
+offset_right = 200.0
+offset_bottom = 180.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -201,7 +209,7 @@ offset_right = -20.0
 offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 15
+theme_override_constants/separation = 10
 alignment = 1
 
 [node name="Label_Titulo" type="Label" parent="Panel_Opciones/VBoxContainer"]
@@ -213,13 +221,45 @@ horizontal_alignment = 1
 [node name="HSeparator" type="HSeparator" parent="Panel_Opciones/VBoxContainer"]
 layout_mode = 2
 
-[node name="Label_Info" type="Label" parent="Panel_Opciones/VBoxContainer"]
+[node name="Boton_Personalizar_HUD" type="Button" parent="Panel_Opciones/VBoxContainer"]
+custom_minimum_size = Vector2(280, 40)
 layout_mode = 2
-text = "Controles Táctiles y Red Activa"
+size_flags_horizontal = 4
+text = "🎮 Personalizar HUD (Mover y Escalar)"
+
+[node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer"]
+layout_mode = 2
+text = "Tamaño Botones de Acción:"
 horizontal_alignment = 1
 
+[node name="Slider_Escala_Botones" type="HSlider" parent="Panel_Opciones/VBoxContainer"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+min_value = 0.6
+max_value = 2.0
+step = 0.05
+value = 1.39
+
+[node name="Label_Escala_Joy" type="Label" parent="Panel_Opciones/VBoxContainer"]
+layout_mode = 2
+text = "Tamaño Joystick Virtual:"
+horizontal_alignment = 1
+
+[node name="Slider_Escala_Joy" type="HSlider" parent="Panel_Opciones/VBoxContainer"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+min_value = 0.6
+max_value = 2.0
+step = 0.05
+value = 1.0
+
+[node name="HSeparator2" type="HSeparator" parent="Panel_Opciones/VBoxContainer"]
+layout_mode = 2
+
 [node name="Boton_Cerrar_Opciones" type="Button" parent="Panel_Opciones/VBoxContainer"]
-custom_minimum_size = Vector2(120, 35)
+custom_minimum_size = Vector2(140, 36)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Atrás"
@@ -228,4 +268,5 @@ text = "Atrás"
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Continuar" to="." method="_on_boton_continuar_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Opciones" to="." method="_on_boton_opciones_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Salir" to="." method="_on_boton_salir_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Personalizar_HUD" to="." method="_on_boton_personalizar_hud_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]

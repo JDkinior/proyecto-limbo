@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
 [ext_resource type="ArrayMesh" uid="uid://jyq76yt0vfnl" path="res://assets/Modelos/Provicional/misty.obj" id="2_exjl6"]
 [ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/Modelos/Personajes/fantasma.glb" id="4_bxr04"]
+[ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/Texturas/estela_espiritual.png" id="5_estela_tex"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08
@@ -45,18 +46,34 @@ height = 0.1
 radial_segments = 6
 rings = 4
 
+[sub_resource type="Curve" id="Curve_estela_scale"]
+_data = [Vector2(0, 0.45), 0.0, 1.5, 0, 0, Vector2(0.35, 1.0), 0.4, 0.4, 0, 0, Vector2(1, 0.6), -0.5, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_estela_color"]
+offsets = PackedFloat32Array(0, 0.2, 0.65, 1)
+colors = PackedColorArray(0.3, 0.85, 1, 0, 0.35, 0.88, 1, 0.55, 0.25, 0.75, 1, 0.25, 0.15, 0.5, 0.95, 0)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_estela"]
 transparency = 1
 blend_mode = 1
+depth_draw_mode = 2
 shading_mode = 0
-albedo_color = Color(0.2, 0.75, 1, 0.65)
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.3, 0.85, 1, 0.55)
+albedo_texture = ExtResource("5_estela_tex")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
 
-[sub_resource type="SphereMesh" id="SphereMesh_estela"]
+[sub_resource type="QuadMesh" id="QuadMesh_estela"]
 material = SubResource("StandardMaterial3D_estela")
-radius = 0.08
-height = 0.16
-radial_segments = 6
-rings = 4
+size = Vector2(0.22, 0.22)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_camara"]
+radius = 0.18
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_fantasma"]
 properties/0/path = NodePath(".:sync_position")
@@ -103,25 +120,38 @@ scale_amount_max = 1.5
 [node name="EstelaFantasma" type="CPUParticles3D" parent="." unique_id=778899003]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 emitting = false
-amount = 20
-lifetime = 0.9
-mesh = SubResource("SphereMesh_estela")
+amount = 10
+lifetime = 0.45
+mesh = SubResource("QuadMesh_estela")
 emission_shape = 1
-emission_sphere_radius = 0.3
-gravity = Vector3(0, 0.4, 0)
-scale_amount_min = 0.5
-scale_amount_max = 1.6
+emission_sphere_radius = 0.15
+gravity = Vector3(0, 0.3, 0)
+initial_velocity_min = 0.3
+initial_velocity_max = 0.8
+scale_amount_min = 0.6
+scale_amount_max = 1.1
+scale_amount_curve = SubResource("Curve_estela_scale")
+color_ramp = SubResource("Gradient_estela_color")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=987654321]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
-light_color = Color(0.3, 0.75, 1, 1)
-light_energy = 1.8
-omni_range = 4.5
+light_color = Color(0.35, 0.75, 1, 1)
+light_energy = 0.8
+omni_range = 3.2
+omni_attenuation = 1.5
 
 [node name="Node3D" type="Node3D" parent="." unique_id=1618272515]
 
-[node name="Camera3D" type="Camera3D" parent="Node3D" unique_id=1460626181]
-transform = Transform3D(1, 0, 0, 0, 0.9947028, 0.10279253, 0, -0.10279253, 0.9947028, 0, 1.5327091, 3.4745927)
+[node name="SpringArm3D" type="SpringArm3D" parent="Node3D" unique_id=1618272517]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+collision_mask = 7
+shape = SubResource("SphereShape3D_camara")
+spring_length = 3.5
+margin = 0.15
+
+[node name="Camera3D" type="Camera3D" parent="Node3D/SpringArm3D" unique_id=1460626181]
+near = 0.1
+far = 130.0
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=726978411]
 replication_config = SubResource("SceneReplicationConfig_fantasma")

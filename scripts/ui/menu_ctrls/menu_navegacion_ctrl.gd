@@ -17,7 +17,8 @@ func _conectar_senales():
 
 func estilar_interfaz_general(nodo: Node):
 	if nodo is Label:
-		nodo.add_theme_color_override(&"font_color", Color(0.96, 0.97, 1.0, 1.0))
+		if not nodo.has_theme_color_override(&"font_color"):
+			nodo.add_theme_color_override(&"font_color", Color(0.96, 0.97, 1.0, 1.0))
 		nodo.add_theme_color_override(&"font_outline_color", Color(0.02, 0.02, 0.08, 0.9))
 		nodo.add_theme_constant_override(&"outline_size", 6)
 		nodo.add_theme_color_override(&"font_shadow_color", Color(0.0, 0.0, 0.0, 0.4))
@@ -25,7 +26,7 @@ func estilar_interfaz_general(nodo: Node):
 		nodo.add_theme_constant_override(&"shadow_offset_y", 2)
 		
 	elif nodo is Button:
-		var es_boton_principal = (nodo.name == "BtnJugar" or nodo.name == "BtnJugador")
+		var es_boton_principal = (nodo.name == "BtnJugar" or nodo.name == "BtnJugador" or nodo.name == "BtnModoOnline")
 		
 		nodo.add_theme_color_override(&"font_color", Color(1.0, 0.98, 0.9, 1.0) if es_boton_principal else Color(0.9, 0.95, 1.0, 1.0))
 		nodo.add_theme_color_override(&"font_pressed_color", Color(0.8, 0.95, 1.0, 1.0))
@@ -139,6 +140,8 @@ func mostrar_panel(panel_activo: Panel):
 		menu.panel_modos.visible = (panel_activo == menu.panel_modos)
 	if is_instance_valid(menu.panel_salas):
 		menu.panel_salas.visible = (panel_activo == menu.panel_salas)
+	if is_instance_valid(menu.panel_un_jugador):
+		menu.panel_un_jugador.visible = (panel_activo == menu.panel_un_jugador)
 
 func _inicializar_boton_reconectar():
 	var red_mgr = menu.get_node_or_null("/root/RedManager")
@@ -165,7 +168,9 @@ func _on_btn_reconectar_pressed():
 		red_mgr.reconectar_a_partida()
 
 func _on_btn_jugar_pressed():
-	if menu.matchmaking_ctrl != null:
+	if is_instance_valid(menu.panel_modos):
+		mostrar_panel(menu.panel_modos)
+	elif menu.matchmaking_ctrl != null:
 		menu.matchmaking_ctrl._on_btn_modo_online_pressed()
 
 func _on_btn_amigos_menu_pressed():

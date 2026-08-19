@@ -33,14 +33,17 @@ func _on_body_entered(body: Node) -> void:
 	# Predicción del lado del cliente (Client-Side Prediction / Optimistic UI):
 	# Si el personaje que tocó la moneda es el que yo controlo (mi autoridad local),
 	# ocultamos la moneda inmediatamente para que se sienta instantáneo (0 ping visual).
-	if body.has_method("is_multiplayer_authority") and body.is_multiplayer_authority():
+	if (body.has_method("es_activo") and body.es_activo()) or (body.has_method("is_multiplayer_authority") and body.is_multiplayer_authority()):
 		hide()
 		set_deferred("monitoring", false)
 		
-	# Solo el Host (Autoridad de la red) valida oficialmente que se recogió
-	if is_multiplayer_authority():
+	# Solo el Host (o en offline / un jugador) valida oficialmente que se recogió
+	if is_multiplayer_authority() or not multiplayer.has_multiplayer_peer() or (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
 		_aplicar_puntuacion()
-		rpc("_remover_para_todos")
+		if multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+			rpc("_remover_para_todos")
+		else:
+			queue_free()
 
 func _puede_ser_recogido_por(_body: Node) -> bool:
 	# Sobrescribir en subclases para validar quién puede recoger

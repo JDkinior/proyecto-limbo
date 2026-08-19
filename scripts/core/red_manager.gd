@@ -8,17 +8,17 @@ signal conexion_perdida()
 signal ping_actualizado(ms: int)
 signal status_webrtc_changed(msg: String)
 signal lan_server_found(ip: String, port: int, name: String)
+signal personaje_solo_cambiado(nuevo_personaje: String)
+signal transicion_camara_iniciada(origen: String, destino: String, duracion: float)
+signal transicion_camara_completada(nuevo_personaje: String)
+signal reino_cambiado(es_fantasma: bool)
 
 const PORT = 7000
 const EOS_P2P_SOCKET_ID = "limbop2pv1"
 const ONLINE_CONNECTION_TIMEOUT_SECONDS := 60.0
 const P2P_REQUEST_AUTHORIZATION_TIMEOUT_SECONDS := 12.0
-# Este atributo es de miembro (no de la sala): permite que el cliente avise al
-# host que el siguiente intento debe usar TURN/Relay. No se usa al iniciar una
-# partida, por lo que la ruta directa LAN conserva su comportamiento actual.
-const P2P_RELAY_REQUEST_MEMBER_ATTRIBUTE := "p2p_relay_request"
-const P2P_RELAY_REQUEST_VALUE := "force"
-const P2P_RELAY_COORDINATION_WAIT_SECONDS := 3.5
+const P2P_RELAY_COORDINATION_WAIT_SECONDS := 3.0
+const DURACION_TRANSICION_CAMARA := 0.65
 const NIVELES_HISTORIA_COUNT = 2
 const NIVELES = [
 	"res://scenes/levels/Nivel 1 _ El Despertar Separado.tscn",
@@ -29,11 +29,27 @@ const NIVELES = [
 var jugador_vivo: CharacterBase
 var fantasma: CharacterBase
 
-# Estado del Lobby
+# Estado del Lobby y Modo Un Jugador
 var peer_personajes: Dictionary = {}  # {peer_id: "jugador" | "fantasma" | ""}
 var peer_listos: Dictionary = {}      # {peer_id: listo}
 var modo_juego: String = "historia"    # "historia" | "libre"
 var nivel_actual_index: int = 0
+
+var es_un_jugador: bool = false
+var personaje_activo_solo: String = "jugador" # "jugador" | "fantasma"
+var reino_espiritual_activo: bool = false
+var transicion_en_progreso: bool = false
+var _paso_mitad_transicion: bool = false
+var _camara_transicion: Camera3D = null
+var _tween_transicion: Tween = null
+
+func es_reino_espiritual_activo() -> bool:
+	if es_un_jugador:
+		return reino_espiritual_activo
+	var mi_id = get_mi_peer_id()
+	if peer_personajes.has(mi_id):
+		return peer_personajes[mi_id] == "fantasma"
+	return false
 
 var ultima_conexion_ip: String = ""
 var ultimo_personaje: String = ""
@@ -41,9 +57,7 @@ var ultimo_nivel_path: String = ""
 var es_host_previo: bool = false
 var puede_reconectarse: bool = false
 var es_lan_previo: bool = false
-var intento_relay_forzado: bool = false
 var _manejando_fallo_conexion := false
-var _solicitudes_p2p_pendientes: Dictionary = {}
 
 var _timer_conexion: Timer
 
@@ -119,11 +133,35 @@ func _ready():
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 
+func _input(event: InputEvent) -> void:
+	var es_offline = (multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	if es_un_jugador or es_offline:
+		if event.is_action_pressed("cambiar_personaje") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_TAB or event.keycode == KEY_C or event.keycode == KEY_T)):
+			if not transicion_en_progreso:
+				alternar_personaje_un_jugador()
+			get_viewport().set_input_as_handled()
+
 func _process(delta):
 	# Ya no necesitamos poll de webrtc_peer manualmente con EOS
 	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
 	if lan_node:
 		lan_servers_discovered = lan_node.servidores_descubiertos
+
+func buscar_personajes_en_escena() -> void:
+	var tree = get_tree()
+	if not tree: return
+	for node in tree.get_nodes_in_group("jugadores"):
+		if node is CharacterBase:
+			if node.is_in_group("fantasmas") or node.name.to_lower().contains("fantasma"):
+				fantasma = node
+			else:
+				jugador_vivo = node
+	for node in tree.get_nodes_in_group("vivos"):
+		if node is CharacterBase:
+			jugador_vivo = node
+	for node in tree.get_nodes_in_group("fantasmas"):
+		if node is CharacterBase:
+			fantasma = node
 
 func registrar_jugador(p: CharacterBase):
 	if p.is_in_group("fantasmas") or p.name.to_lower().contains("fantasma"): 
@@ -133,19 +171,41 @@ func registrar_jugador(p: CharacterBase):
 	
 	_intentar_asignar_autoridades()
 
-func _intentar_asignar_autoridades():
-	if not jugador_vivo or not fantasma: return
+func _intentar_asignar_autoridades(preservar_rotacion: bool = false):
+	if not is_instance_valid(jugador_vivo) or not is_instance_valid(fantasma):
+		buscar_personajes_en_escena()
+	if not is_instance_valid(jugador_vivo) or not is_instance_valid(fantasma):
+		return
 	
-	if not multiplayer.multiplayer_peer or multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
-		jugador_vivo.set_multiplayer_authority(1)
-		fantasma.set_multiplayer_authority(1)
-		var sync_v = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
-		if sync_v: sync_v.set_multiplayer_authority(1)
-		var sync_f = fantasma.get_node_or_null("MultiplayerSynchronizer")
-		if sync_f: sync_f.set_multiplayer_authority(1)
-		jugador_vivo.actualizar_visibilidad_local()
-		fantasma.actualizar_visibilidad_local()
+	var es_offline = (multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	if es_un_jugador or es_offline:
+		es_un_jugador = true
+		var es_jugador_activo = (personaje_activo_solo == "jugador")
+		var auth_vivo = 1 if es_jugador_activo else 9999
+		var auth_fant = 1 if not es_jugador_activo else 9999
+		
+		jugador_vivo.set_multiplayer_authority(auth_vivo)
+		fantasma.set_multiplayer_authority(auth_fant)
+		
+		if not es_jugador_activo:
+			jugador_vivo.sync_position = jugador_vivo.global_position
+			jugador_vivo.sync_rotation = jugador_vivo.rotation
+		else:
+			fantasma.sync_position = fantasma.global_position
+			fantasma.sync_rotation = fantasma.rotation
+			
+		var sync_vivo = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
+		if sync_vivo: sync_vivo.set_multiplayer_authority(auth_vivo)
+		var sync_fant = fantasma.get_node_or_null("MultiplayerSynchronizer")
+		if sync_fant: sync_fant.set_multiplayer_authority(auth_fant)
+		
+		jugador_vivo.actualizar_visibilidad_local(preservar_rotacion)
+		fantasma.actualizar_visibilidad_local(preservar_rotacion)
 		_actualizar_interfaz_local()
+		reino_espiritual_activo = not es_jugador_activo
+		reino_cambiado.emit(reino_espiritual_activo)
+		personaje_solo_cambiado.emit(personaje_activo_solo)
+		print("[RedManager] Modo Un Jugador - Controlando: ", personaje_activo_solo)
 		return
 		
 	var id_jugador = 1
@@ -181,7 +241,19 @@ func _actualizar_interfaz_local():
 		return
 
 	var controles = escena_actual.get_node_or_null("Controles_Tactiles")
+	if not controles:
+		var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
+		if nodos_ui.size() > 0:
+			controles = nodos_ui[0]
+
 	if not controles or not controles.has_method("configurar_personaje_local"):
+		return
+
+	if es_un_jugador:
+		if personaje_activo_solo == "fantasma" and is_instance_valid(fantasma):
+			controles.configurar_personaje_local(fantasma)
+		elif is_instance_valid(jugador_vivo):
+			controles.configurar_personaje_local(jugador_vivo)
 		return
 
 	if jugador_vivo and jugador_vivo.is_multiplayer_authority():
@@ -208,28 +280,10 @@ func _esperar_eos_para_online() -> bool:
 	return true
 
 
-func _aplicar_control_relay_inteligente(force_relay := false) -> void:
-	var eos_manager = get_tree().root.get_node_or_null("EosManager")
-	if not eos_manager or not eos_manager.has_method("configurar_relay_p2p"):
-		return
-
-	var nat_type: int = eos_manager.cached_nat_type
-	# AllowRelays reúne candidatos directos Y de relay (TURN). ICE elige la
-	# mejor ruta. ForceRelays se reserva para el reintento cuando ICE falla,
-	# forzando que solo se usen servidores TURN de Epic.
-	var must_force_relay := force_relay
-	eos_manager.configurar_relay_p2p(must_force_relay)
-	if must_force_relay:
-		print("[RedManager] Usando Epic Relay (NAT: ", nat_type, ").")
-	else:
-		print("[RedManager] Intentando ruta directa con fallback de Epic Relay (NAT: ", nat_type, ").")
-
-
 func _conectar_eventos_peer_eos(peer) -> void:
-	# El plugin EOSG ignora set_auto_accept_connection_requests,
-	# por lo que debemos aceptar las conexiones manualmente de forma inmediata.
-	peer.set_auto_accept_connection_requests(false)
-	peer.incoming_connection_request.connect(_on_eos_incoming_connection_request)
+	# El plugin EOSG auto-acepta conexiones por defecto. Dejamos este
+	# comportamiento activo para evitar condiciones de carrera con callbacks
+	# manuales que producían ClosedRemotely en pruebas anteriores.
 	peer.peer_connection_established.connect(_on_eos_peer_connection_established)
 	peer.peer_connection_interrupted.connect(_on_eos_peer_connection_interrupted)
 	peer.peer_connection_closed.connect(_on_eos_peer_connection_closed)
@@ -248,19 +302,28 @@ func crear_partida(es_lan: bool = false) -> bool:
 			status_webrtc_changed.emit("El transporte EOS P2P no está incluido en esta compilación.")
 			return false
 
-		# Usamos AllowRelays por defecto para que las conexiones locales puedan
-		# resolverse vía STUN sin depender de los servidores TURN de Epic.
-		# ForceRelays se reserva exclusivamente para los reintentos.
-		_aplicar_control_relay_inteligente(false)
+	var relay_str = "AllowRelays"
+	var hp2p = get_tree().root.get_node_or_null("HP2P")
+	if hp2p and hp2p.has_method("get_relay_control"):
+		var rc = hp2p.get_relay_control()
+		if typeof(rc) == TYPE_DICTIONARY and rc.get("relay_control") == 2:
+			relay_str = "ForceRelays"
+	
+	if not es_lan:
+		# El relay está en AllowRelays (por defecto) o ForceRelays si se alternó en la UI.
 		eos_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
 		var eos_error = eos_peer.create_server(EOS_P2P_SOCKET_ID)
 		if eos_error != OK:
-			print("[RedManager ERROR] Error al crear servidor EOS P2P: ", eos_error)
+			print("[RedManager ERROR] Error al crear servidor EOS P2P. Código de error de Godot: ", eos_error)
 			status_webrtc_changed.emit("No se pudo abrir el servidor EOS P2P.")
 			eos_peer = null
 			return false
 		_conectar_eventos_peer_eos(eos_peer)
-		print("[RedManager] Servidor EOS P2P creado. Socket: ", EOS_P2P_SOCKET_ID)
+		var eos_m = get_tree().root.get_node_or_null("EosManager")
+		if eos_m and eos_m.has_method("log_diagnostic"):
+			eos_m.log_diagnostic("[RedManager] Servidor EOS P2P creado (" + relay_str + "). Socket: " + EOS_P2P_SOCKET_ID)
+		else:
+			print("[RedManager] Servidor EOS P2P creado (" + relay_str + "). Socket: ", EOS_P2P_SOCKET_ID)
 	else:
 		print("[RedManager] Creando servidor ENet para LAN.")
 		eos_peer = ENetMultiplayerPeer.new()
@@ -306,21 +369,30 @@ func unirse_a_partida(host_puid_or_ip: String, es_lan: bool = false, es_reintent
 	ultima_conexion_ip = host_puid_or_ip.strip_edges()
 	mi_peer_id = randi_range(1000, 90999)
 	es_lan_previo = es_lan
-	intento_relay_forzado = es_reintento
 	_manejando_fallo_conexion = false
 
+	var relay_str = "AllowRelays"
+	var hp2p = get_tree().root.get_node_or_null("HP2P")
+	if hp2p and hp2p.has_method("get_relay_control"):
+		var rc = hp2p.get_relay_control()
+		if typeof(rc) == TYPE_DICTIONARY and rc.get("relay_control") == 2:
+			relay_str = "ForceRelays"
+	
 	if not es_lan:
-		# Primer intento: AllowRelays (directa + relay). Reintento: ForceRelays.
-		_aplicar_control_relay_inteligente(es_reintento)
+		# El relay está en AllowRelays (por defecto) o ForceRelays si se alternó en la UI.
 		eos_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
 		var eos_error = eos_peer.create_client(EOS_P2P_SOCKET_ID, ultima_conexion_ip)
 		if eos_error != OK:
-			print("[RedManager ERROR] Error al iniciar cliente EOS P2P: ", eos_error)
+			print("[RedManager ERROR] Error al iniciar cliente EOS P2P. Código de error de Godot: ", eos_error)
 			status_webrtc_changed.emit("No se pudo iniciar el cliente EOS P2P.")
 			eos_peer = null
 			return false
 		_conectar_eventos_peer_eos(eos_peer)
-		print("[RedManager] Cliente EOS P2P iniciado. Host PUID: ", _id_puid_corto(ultima_conexion_ip))
+		var eos_m = get_tree().root.get_node_or_null("EosManager")
+		if eos_m and eos_m.has_method("log_diagnostic"):
+			eos_m.log_diagnostic("[RedManager] Cliente EOS P2P iniciado (" + relay_str + "). Host PUID: " + _id_puid_corto(ultima_conexion_ip))
+		else:
+			print("[RedManager] Cliente EOS P2P iniciado (" + relay_str + "). Host PUID: ", _id_puid_corto(ultima_conexion_ip))
 	else:
 		eos_peer = ENetMultiplayerPeer.new()
 		var lan_error = eos_peer.create_client(ultima_conexion_ip, PORT)
@@ -342,10 +414,7 @@ func _actualizar_ui_conexion_loop():
 		if es_lan_previo:
 			status_webrtc_changed.emit("Estableciendo conexión (LAN)... " + str(_tiempo_conexion) + "s")
 		else:
-			var eos_manager = get_tree().root.get_node_or_null("EosManager")
-			var nat_type: int = eos_manager.cached_nat_type if eos_manager else 0
-			var info_tipo = "Epic Relay" if intento_relay_forzado or nat_type == 3 or nat_type == 0 else "P2P directo"
-			status_webrtc_changed.emit("Estableciendo conexión (" + info_tipo + ")... " + str(_tiempo_conexion) + "s")
+			status_webrtc_changed.emit("Estableciendo conexión P2P (EOS)... " + str(_tiempo_conexion) + "s")
 		
 		await get_tree().create_timer(1.0).timeout
 		_tiempo_conexion += 1
@@ -360,9 +429,18 @@ func reconectar_a_partida():
 
 func desconectar(leave_lobby = true):
 	print("[RedManager] Desconectando red...")
+	if _tween_transicion and _tween_transicion.is_running():
+		_tween_transicion.kill()
+		_tween_transicion = null
+	if is_instance_valid(_camara_transicion):
+		_camara_transicion.queue_free()
+		_camara_transicion = null
+	transicion_en_progreso = false
+
+	es_un_jugador = false
+	personaje_activo_solo = "jugador"
 	_conectando = false
 	_timer_conexion.stop()
-	_solicitudes_p2p_pendientes.clear()
 	detener_lan_broadcaster()
 	detener_lan_listener()
 	if multiplayer.multiplayer_peer != null:
@@ -378,6 +456,186 @@ func desconectar(leave_lobby = true):
 	peer_personajes.clear()
 	peer_listos.clear()
 
+func iniciar_un_jugador(nivel_idx: int = 0, personaje_inicial: String = "jugador") -> void:
+	await desconectar(true)
+	es_un_jugador = true
+	personaje_activo_solo = personaje_inicial
+	peer_personajes = {1: personaje_inicial}
+	peer_listos = {1: true}
+	mi_peer_id = 1
+	modo_juego = "historia" if nivel_idx < NIVELES_HISTORIA_COUNT else "libre"
+	nivel_actual_index = nivel_idx
+	
+	print("[RedManager] Iniciando Modo Un Jugador en nivel index: ", nivel_idx, " con personaje: ", personaje_inicial)
+	if nivel_idx >= 0 and nivel_idx < NIVELES.size():
+		_cargar_nivel_todos(NIVELES[nivel_idx])
+	else:
+		_cargar_nivel_todos(NIVELES[0])
+
+func alternar_personaje_un_jugador() -> void:
+	if not es_un_jugador or transicion_en_progreso:
+		return
+
+	if not is_instance_valid(jugador_vivo) or not is_instance_valid(fantasma):
+		buscar_personajes_en_escena()
+
+	if not is_instance_valid(jugador_vivo) or not is_instance_valid(fantasma):
+		# Fallback si falta algún personaje
+		if personaje_activo_solo == "jugador":
+			personaje_activo_solo = "fantasma"
+		else:
+			personaje_activo_solo = "jugador"
+		_intentar_asignar_autoridades()
+		return
+
+	_ejecutar_transicion_camara_un_jugador()
+
+func _ejecutar_transicion_camara_un_jugador() -> void:
+	var es_vivo_activo = (personaje_activo_solo == "jugador")
+	var origen_char: CharacterBase = jugador_vivo if es_vivo_activo else fantasma
+	var destino_char: CharacterBase = fantasma if es_vivo_activo else jugador_vivo
+	var nuevo_personaje_str: String = "fantasma" if es_vivo_activo else "jugador"
+
+	var cam_origen: Camera3D = origen_char.obtener_camara()
+	var cam_destino: Camera3D = destino_char.obtener_camara()
+
+	if not is_instance_valid(cam_origen) or not is_instance_valid(cam_destino):
+		personaje_activo_solo = nuevo_personaje_str
+		_intentar_asignar_autoridades()
+		return
+
+	# Alinear pivote del personaje destino detrás del personaje para mirar en la dirección hacia donde mira
+	if is_instance_valid(destino_char.pivote_camara):
+		destino_char.pivote_camara.top_level = true
+		destino_char.pivote_camara.global_position = destino_char.global_position
+		destino_char.objetivo_rotacion_y = destino_char.rotation.y
+		destino_char.objetivo_rotacion_x = destino_char.PITCH_DEFECTO_CAMARA
+		destino_char.pivote_camara.rotation.y = destino_char.objetivo_rotacion_y
+		var arm_dest = destino_char.obtener_spring_arm()
+		if is_instance_valid(arm_dest):
+			arm_dest.rotation.x = destino_char.objetivo_rotacion_x
+			arm_dest.add_excluded_object(destino_char.get_rid())
+
+	var transform_inicio: Transform3D = cam_origen.global_transform
+	var fov_inicio: float = cam_origen.fov
+
+	# Crear cámara de vuelo de transición limpia
+	if is_instance_valid(_camara_transicion):
+		_camara_transicion.queue_free()
+
+	_camara_transicion = Camera3D.new()
+	_camara_transicion.name = "CamaraTransicionSuave"
+	var escena = get_tree().current_scene
+	if is_instance_valid(escena):
+		escena.add_child(_camara_transicion)
+	else:
+		add_child(_camara_transicion)
+
+	_camara_transicion.global_transform = transform_inicio
+	_camara_transicion.fov = fov_inicio
+	_camara_transicion.near = cam_origen.near
+	_camara_transicion.far = cam_origen.far
+	_camara_transicion.cull_mask = cam_origen.cull_mask
+	_camara_transicion.environment = cam_origen.environment
+
+	_camara_transicion.current = true
+	cam_origen.current = false
+	cam_destino.current = false
+
+	transicion_en_progreso = true
+	_paso_mitad_transicion = false
+	reino_espiritual_activo = (personaje_activo_solo == "fantasma")
+	transicion_camara_iniciada.emit(personaje_activo_solo, nuevo_personaje_str, DURACION_TRANSICION_CAMARA)
+
+	if _tween_transicion and _tween_transicion.is_running():
+		_tween_transicion.kill()
+
+	_tween_transicion = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	_tween_transicion.tween_method(
+		func(progreso: float):
+			_interpolar_transicion_camara(progreso, transform_inicio, fov_inicio, origen_char, destino_char),
+		0.0,
+		1.0,
+		DURACION_TRANSICION_CAMARA
+	)
+	_tween_transicion.finished.connect(
+		func():
+			_completar_transicion_camara(nuevo_personaje_str, destino_char)
+	)
+
+func _interpolar_transicion_camara(progreso: float, trans_inicio: Transform3D, fov_inicio: float, _origen: CharacterBase, destino: CharacterBase) -> void:
+	if not is_instance_valid(_camara_transicion) or not is_instance_valid(destino):
+		return
+
+	if is_instance_valid(destino.pivote_camara) and destino.pivote_camara.top_level:
+		destino.pivote_camara.global_position = destino.global_position
+		destino.pivote_camara.rotation.y = destino.objetivo_rotacion_y
+		var arm = destino.obtener_spring_arm()
+		if is_instance_valid(arm):
+			arm.rotation.x = destino.objetivo_rotacion_x
+
+	var cam_dest: Camera3D = destino.obtener_camara()
+	if not is_instance_valid(cam_dest):
+		return
+
+	var trans_fin: Transform3D = cam_dest.global_transform
+	var fov_fin: float = cam_dest.fov
+
+	# Vuelo en arco suave tridimensional
+	var p_start: Vector3 = trans_inicio.origin
+	var p_end: Vector3 = trans_fin.origin
+	var distancia: float = p_start.distance_to(p_end)
+	var altura_arco: float = clampf(distancia * 0.12, 0.4, 3.2)
+	var elevacion_arco: float = sin(progreso * PI) * altura_arco
+
+	var pos_interpolada: Vector3 = p_start.lerp(p_end, progreso) + Vector3.UP * elevacion_arco
+
+	# Interpolación de rotación mediante cuaterniones (Slerp) asegurando el camino más corto
+	var q_start: Quaternion = trans_inicio.basis.get_rotation_quaternion().normalized()
+	var q_end: Quaternion = trans_fin.basis.get_rotation_quaternion().normalized()
+	if q_start.dot(q_end) < 0.0:
+		q_end = -q_end
+	var q_interpolada: Quaternion = q_start.slerp(q_end, progreso).normalized()
+
+	_camara_transicion.global_transform = Transform3D(Basis(q_interpolada), pos_interpolada)
+
+	# Pulso dinámico de FOV (+5.5° en el ápice)
+	var fov_base: float = lerpf(fov_inicio, fov_fin, progreso)
+	_camara_transicion.fov = fov_base + sin(progreso * PI) * 5.5
+
+	# Cambio de dimensiones / plano a mitad de trayecto exacto
+	if progreso >= 0.5 and not _paso_mitad_transicion:
+		_paso_mitad_transicion = true
+		var es_fant = destino.is_in_group("fantasmas") or destino.name.to_lower().contains("fantasma")
+		reino_espiritual_activo = es_fant
+		var mask_dest = destino.obtener_cull_mask_personaje() if destino.has_method("obtener_cull_mask_personaje") else 1048575
+		var env_dest = destino.obtener_entorno_personaje() if destino.has_method("obtener_entorno_personaje") else null
+		_camara_transicion.cull_mask = mask_dest
+		if env_dest:
+			_camara_transicion.environment = env_dest
+		reino_cambiado.emit(es_fant)
+
+func _completar_transicion_camara(nuevo_personaje: String, destino: CharacterBase) -> void:
+	personaje_activo_solo = nuevo_personaje
+	reino_espiritual_activo = (nuevo_personaje == "fantasma")
+	transicion_en_progreso = false
+
+	# Asignar autoridades de red / locales y actualizar HUD PRESERVANDO la rotación de cámara calculada
+	_intentar_asignar_autoridades(true)
+
+	if is_instance_valid(destino):
+		var cam_dest: Camera3D = destino.obtener_camara()
+		if is_instance_valid(cam_dest):
+			cam_dest.current = true
+
+	if is_instance_valid(_camara_transicion):
+		_camara_transicion.current = false
+		_camara_transicion.queue_free()
+		_camara_transicion = null
+
+	reino_cambiado.emit(reino_espiritual_activo)
+	transicion_camara_completada.emit(nuevo_personaje)
+	print("[RedManager] Transición de cámara completada sin saltos angulares. Controlando: ", nuevo_personaje)
 
 func iniciar_juego():
 	if not multiplayer.is_server(): return
@@ -395,7 +653,7 @@ func cargar_nivel_libre(path: String):
 	_cargar_nivel_todos(path)
 
 func completar_nivel():
-	if not multiplayer.is_server(): return
+	if not es_un_jugador and not multiplayer.is_server(): return
 	if modo_juego == "historia":
 		nivel_actual_index += 1
 		if nivel_actual_index < NIVELES_HISTORIA_COUNT:
@@ -406,29 +664,44 @@ func completar_nivel():
 		_cargar_nivel_todos("res://scenes/ui/menu_inicio.tscn")
 
 func reintentar_nivel_actual():
-	if not multiplayer.is_server(): return
+	if not es_un_jugador and not multiplayer.is_server(): return
 	if nivel_actual_index >= 0 and nivel_actual_index < NIVELES.size():
 		_cargar_nivel_todos(NIVELES[nivel_actual_index])
 	else:
 		_cargar_nivel_todos(NIVELES[0])
 
 func mostrar_pantalla_resultados():
-	rpc_mostrar_pantalla_resultados.rpc()
-	rpc_mostrar_pantalla_resultados()
+	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		rpc_mostrar_pantalla_resultados.rpc()
+	else:
+		rpc_mostrar_pantalla_resultados()
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_mostrar_pantalla_resultados():
 	var escena_res = load("res://scenes/ui/pantalla_resultados.tscn")
-	if escena_res and get_tree() and get_tree().current_scene:
-		if not get_tree().current_scene.has_node("PantallaResultados"):
-			var inst = escena_res.instantiate()
-			get_tree().current_scene.add_child(inst)
+	if not escena_res:
+		return
+	var tree = get_tree()
+	if not tree or not tree.current_scene:
+		return
+	var root_escena = tree.current_scene
+	if root_escena.has_node("CanvasResultados") or root_escena.has_node("PantallaResultados"):
+		return
+
+	var canvas = CanvasLayer.new()
+	canvas.name = "CanvasResultados"
+	canvas.layer = 100
+	var inst = escena_res.instantiate()
+	canvas.add_child(inst)
+	root_escena.add_child(canvas)
+	print("[RedManager] Pantalla de resultados añadida en CanvasLayer (Capa 100).")
 
 func _cargar_nivel_todos(path: String):
 	if path.ends_with(".tscn") and not "menu_inicio" in path:
 		ultimo_nivel_path = path
-		puede_reconectarse = true
-	rpc_cargar_nivel.rpc(path)
+		puede_reconectarse = not es_un_jugador
+	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		rpc_cargar_nivel.rpc(path)
 	rpc_cargar_nivel(path)
 
 @rpc("reliable")
@@ -594,7 +867,6 @@ func _on_connected_to_server():
 	print("[RedManager] Conectado al servidor con éxito.")
 	_conectando = false
 	_timer_conexion.stop()
-	intento_relay_forzado = false
 	mi_peer_id = multiplayer.get_unique_id()
 	conexion_establecida.emit()
 	status_webrtc_changed.emit("¡Conectado!")
@@ -612,22 +884,8 @@ func _on_connection_failed():
 	print("[RedManager] Falló la conexión. Host PUID: ", _id_puid_corto(ultima_conexion_ip), " | es_host: ", es_host_previo, " | es_lan: ", es_lan_previo)
 	_conectando = false
 	_timer_conexion.stop()
-	
-	# Si el primer intento (AllowRelays) falla, reintentamos con ForceRelays.
-	# El host recrea su servidor para que el peer EOS no quede en estado sucio.
-	if not es_lan_previo and not es_host_previo and not intento_relay_forzado:
-		status_webrtc_changed.emit("Conexión directa falló. Reintentando con Epic Relay...")
-		print("[RedManager] AllowRelays falló. Reintentando con ForceRelays...")
-		var host_puid = ultima_conexion_ip
-		await _solicitar_relay_al_host_async()
-		await desconectar(false)
-		await get_tree().create_timer(P2P_RELAY_COORDINATION_WAIT_SECONDS).timeout
-		_manejando_fallo_conexion = false
-		await unirse_a_partida(host_puid, false, true)
-		return
-	
+
 	await desconectar(true)
-	intento_relay_forzado = false
 	_manejando_fallo_conexion = false
 	conexion_perdida.emit()
 	status_webrtc_changed.emit("No se pudo establecer la conexión. Revisa el log de EOS.")
@@ -644,63 +902,17 @@ func _on_server_disconnected():
 	desconectar(true)
 	conexion_perdida.emit()
 
-
-func _on_eos_incoming_connection_request(data: Dictionary) -> void:
-	var remote_puid := str(data.get("remote_user_id", ""))
-	print("[RedManager] Solicitud P2P entrante: ", _id_puid_corto(remote_puid))
-	if remote_puid.is_empty():
-		return
-	
-	if eos_peer != null and is_instance_valid(eos_peer):
-		# Aceptar la conexión de inmediato. Validar si están en el lobby causaba
-		# cuellos de botella y timeouts (ClosedRemotely). La seguridad ya está dada
-		# porque el remote_puid debe conocer nuestro PUID (obtenido del lobby).
-		eos_peer.accept_connection_request(remote_puid)
-		print("[RedManager] Solicitud P2P aceptada automáticamente para: ", _id_puid_corto(remote_puid))
-		_solicitudes_p2p_pendientes.erase(remote_puid)
-
-
-func _es_miembro_del_lobby_eos(product_user_id: String) -> bool:
-	var eos_manager = get_tree().root.get_node_or_null("EosManager")
-	if not eos_manager or eos_manager.current_lobby == null or not is_instance_valid(eos_manager.current_lobby):
-		return false
-	return eos_manager.current_lobby.get_member_by_product_user_id(product_user_id) != null
-
-
-func _miembro_solicita_relay_forzado(product_user_id: String) -> bool:
-	var eos_manager = get_tree().root.get_node_or_null("EosManager")
-	if not eos_manager or eos_manager.current_lobby == null or not is_instance_valid(eos_manager.current_lobby):
-		return false
-	var member = eos_manager.current_lobby.get_member_by_product_user_id(product_user_id)
-	if member == null:
-		return false
-	var relay_attribute: Dictionary = member.get_attribute(P2P_RELAY_REQUEST_MEMBER_ATTRIBUTE)
-	return str(relay_attribute.get("value", "")) == P2P_RELAY_REQUEST_VALUE
-
-
-func _solicitar_relay_al_host_async() -> void:
-	var eos_manager = get_tree().root.get_node_or_null("EosManager")
-	if not eos_manager or eos_manager.current_lobby == null or not is_instance_valid(eos_manager.current_lobby):
-		print("[RedManager] No se pudo coordinar relay: no hay lobby EOS activo.")
-		return
-
-	var lobby = eos_manager.current_lobby
-	var added: bool = lobby.add_current_member_attribute(P2P_RELAY_REQUEST_MEMBER_ATTRIBUTE, P2P_RELAY_REQUEST_VALUE)
-	if not added:
-		print("[RedManager] No se pudo publicar la solicitud de Epic Relay en el lobby.")
-		return
-
-	var updated: bool = await lobby.update_async()
-	if updated:
-		print("[RedManager] Solicitud de Epic Relay publicada para el host.")
-	else:
-		print("[RedManager] Falló al publicar la solicitud de Epic Relay; se reintentará de todos modos.")
-
-
 func _on_eos_peer_connection_established(data: Dictionary) -> void:
 	var network_type: int = int(data.get("network_type", 0))
 	var route_name := "Epic Relay" if network_type == 2 else "ruta directa"
-	print("[RedManager] Transporte EOS establecido por ", route_name, ". Datos: ", data)
+	
+	var msg = "[RedManager] Transporte EOS establecido por " + route_name + ". Datos: " + str(data)
+	var eos_m = get_tree().root.get_node_or_null("EosManager")
+	if eos_m and eos_m.has_method("log_diagnostic"):
+		eos_m.log_diagnostic(msg)
+	else:
+		print(msg)
+		
 	status_webrtc_changed.emit("Transporte EOS listo (" + route_name + ").")
 
 
@@ -711,44 +923,6 @@ func _on_eos_peer_connection_interrupted(data: Dictionary) -> void:
 
 func _on_eos_peer_connection_closed(data: Dictionary) -> void:
 	print("[RedManager] Conexión EOS cerrada: ", data)
-	var remote_puid := str(data.get("remote_user_id", ""))
-	_solicitudes_p2p_pendientes.erase(remote_puid)
-	
-	var close_reason := int(data.get("reason", 0))
-	# Si cualquier fallo P2P ocurre en el host (excepto cierre voluntario reason 1),
-	# recreamos completamente el servidor P2P para que el cliente pueda
-	# reconectarse a un peer limpio. El peer EOS mantiene estado interno de
-	# conexiones previas que impide aceptar reconexiones del mismo PUID.
-	if not es_lan_previo and es_host_previo and close_reason != 1:
-		print("[RedManager] Conexión P2P cerrada en host (reason ", close_reason, "); recreando servidor...")
-		_recrear_servidor_eos_para_reintento.call_deferred()
-
-
-func _recrear_servidor_eos_para_reintento() -> void:
-	if not es_host_previo or es_lan_previo:
-		return
-	if not ClassDB.class_exists("EOSGMultiplayerPeer"):
-		return
-	
-	# Cerrar el peer actual del host sin salir del lobby
-	_solicitudes_p2p_pendientes.clear()
-	if multiplayer.multiplayer_peer != null:
-		multiplayer.multiplayer_peer.close()
-		multiplayer.multiplayer_peer = null
-	eos_peer = null
-	
-	# Aplicar ForceRelays y recrear el servidor
-	_aplicar_control_relay_inteligente(true)
-	eos_peer = ClassDB.instantiate("EOSGMultiplayerPeer")
-	var eos_error = eos_peer.create_server(EOS_P2P_SOCKET_ID)
-	if eos_error != OK:
-		print("[RedManager ERROR] No se pudo recrear el servidor EOS P2P: ", eos_error)
-		eos_peer = null
-		return
-	_conectar_eventos_peer_eos(eos_peer)
-	multiplayer.multiplayer_peer = eos_peer
-	intento_relay_forzado = true
-	print("[RedManager] Servidor EOS P2P recreado con ForceRelays. Listo para reintento del cliente.")
 
 
 func _id_puid_corto(product_user_id: String) -> String:

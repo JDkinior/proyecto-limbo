@@ -20,6 +20,16 @@ var contando_autocontinuar: bool = false
 var companero_desconectado: bool = false
 
 func _ready() -> void:
+	# Asegurar que el menú procese entrada y el cursor sea visible
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	# Ocultar HUD de controles táctiles para despejar la pantalla de botones
+	var uis = get_tree().get_nodes_in_group("ui_tactil")
+	for ui in uis:
+		if is_instance_valid(ui) and ui is CanvasItem:
+			ui.visible = false
+
 	# Crear etiqueta de estado para avisos de votación y desconexión
 	var vbox = get_node_or_null("PanelContenedor/VBox")
 	if vbox:
@@ -34,6 +44,7 @@ func _ready() -> void:
 	# Conectar botones
 	if btn_siguiente:
 		btn_siguiente.pressed.connect(_on_btn_siguiente_pressed)
+		btn_siguiente.grab_focus()
 	if btn_reintentar:
 		btn_reintentar.pressed.connect(_on_btn_reintentar_pressed)
 	if btn_salir:

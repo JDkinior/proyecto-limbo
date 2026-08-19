@@ -7,6 +7,9 @@ signal eos_inicializado
 signal login_completado(success: bool)
 signal estado_eos_actualizado(message: String)
 
+var log_buffer: Array[String] = []
+signal log_agregado(msg: String)
+
 @export_group("Epic Online Services Credentials")
 @export var product_name: String = "Proyecto Limbo"
 @export var product_version: String = "1.0.0"
@@ -77,9 +80,12 @@ func _iniciar_eos() -> void:
 		hlog.log_level = hlog.LogLevel.INFO
 	if not hplatform.log_msg.is_connected(_on_eos_log_msg):
 		hplatform.log_msg.connect(_on_eos_log_msg)
-	hplatform.set_eos_log_level(EOS.Logging.LogCategory.AllCategories, EOS.Logging.LogLevel.Info)
-	# Log adicional para P2P: Warning captura errores de conexión sin ser excesivo
-	hplatform.set_eos_log_level(EOS.Logging.LogCategory.P2P, EOS.Logging.LogLevel.Warning)
+	hplatform.set_eos_log_level(EOS.Logging.LogCategory.AllCategories, EOS.Logging.LogLevel.VeryVerbose)
+
+	# Deshabilitar RTC Room en Lobbies para evitar conflictos de WebRTC con P2P
+	var hlobbies = get_tree().root.get_node_or_null("HLobbies")
+	if hlobbies:
+		hlobbies.local_rtc_options = null
 
 	_login_device_id()
 
@@ -99,7 +105,29 @@ func _finalizar_inicializacion(success: bool, message: String) -> void:
 
 
 func _on_eos_log_msg(msg: EOS.Logging.LogMessage) -> void:
-	print("EOS SDK [%s] | %s" % [msg.category, msg.message])
+	var text = msg.message
+	var highlight = false
+	if "GetTurnCredentials" in text or "Applying updated RTC Configuration" in text or "STUN" in text or "TURN" in text or "ICE" in text or "NAT" in text or "Relay" in text or "Port" in text:
+		highlight = true
+
+	var final_msg = ""
+	if highlight:
+		final_msg = "[⭐ DIAGNOSTIC] " + text
+	elif msg.level >= EOS.Logging.LogLevel.Warning:
+		final_msg = "[EOS WARN/ERR] " + text
+	elif "P2P" in text or "Relay" in text or "Socket" in text or "LogEpic" in text or "LibRTC" in text or "Stomp" in text:
+		final_msg = "[EOS NATIVE] " + text
+	else:
+		final_msg = "[EOS NATIVE] " + text
+	
+	print(final_msg)
+	log_buffer.append(final_msg)
+	log_agregado.emit(final_msg)
+
+func log_diagnostic(msg: String) -> void:
+	print(msg)
+	log_buffer.append(msg)
+	log_agregado.emit(msg)
 
 
 func _login_device_id() -> void:
@@ -122,7 +150,8 @@ func _login_device_id() -> void:
 
 	local_product_user_id = str(hauth.product_user_id)
 	_finalizar_login(true, "Sesión EOS lista.")
-	print("[EOS Manager] Login completado. Product User ID: ", _id_corto(local_product_user_id))
+	var log_str = "[EOS Manager] Login completado. Product User ID: " + _id_corto(local_product_user_id)
+	log_diagnostic(log_str)
 	precalentar_red_p2p()
 	_limpiar_lobbies_huerfanos_async()
 
@@ -165,11 +194,25 @@ func precalentar_red_p2p() -> void:
 	if hp2p.has_method("set_packet_queue_size"):
 		var queue_result = hp2p.set_packet_queue_size(P2P_PACKET_QUEUE_BYTES, P2P_PACKET_QUEUE_BYTES)
 		if not EOS.is_success(queue_result):
-			print("[EOS Manager] No se pudo configurar la cola P2P: ", EOS.result_str(queue_result))
+			log_diagnostic("[EOS Manager] No se pudo configurar la cola P2P: " + EOS.result_str(queue_result))
 
-	# No se fija un puerto manualmente: el rango por defecto de EOS ya es 7777-7876.
-	# EOS relays no requiere abrir ni redirigir puertos del router; fijarlos no resuelve CGNAT.
+	# Por defecto, usamos ForceRelays para garantizar conexión a través de CGNAT (Datos Móviles) y VPNs.
+	set_relay_mode(2) # 1 = AllowRelays, 2 = ForceRelays
 	actualizar_nat_async()
+
+func set_relay_mode(mode: int) -> void:
+	var hp2p = get_tree().root.get_node_or_null("HP2P")
+	if hp2p and hp2p.has_method("set_relay_control"):
+		var ctrl = EOS.P2P.RelayControl.AllowRelays
+		if mode == 2:
+			ctrl = EOS.P2P.RelayControl.ForceRelays
+		
+		var res = hp2p.set_relay_control(ctrl)
+		var mode_str = "ForceRelays" if mode == 2 else "AllowRelays"
+		if EOS.is_success(res):
+			log_diagnostic("[EOS Manager] Relay P2P configurado a " + mode_str)
+		else:
+			log_diagnostic("[EOS Manager ERROR] Fallo al configurar Relay P2P a " + mode_str + ": " + EOS.result_str(res))
 
 
 func actualizar_nat_async() -> void:
@@ -182,21 +225,7 @@ func actualizar_nat_async() -> void:
 	_nat_query_in_progress = true
 	cached_nat_type = await hp2p.get_nat_type_async()
 	_nat_query_in_progress = false
-	print("[EOS Manager] NAT detectado: ", _nombre_nat(cached_nat_type))
-
-
-func configurar_relay_p2p(force_relay: bool) -> bool:
-	var hp2p = get_tree().root.get_node_or_null("HP2P")
-	if not hp2p or not hp2p.has_method("set_relay_control"):
-		return false
-
-	var relay_mode = EOS.P2P.RelayControl.ForceRelays if force_relay else EOS.P2P.RelayControl.AllowRelays
-	var result = hp2p.set_relay_control(relay_mode)
-	if not EOS.is_success(result):
-		print("[EOS Manager] No se pudo configurar el relay P2P: ", EOS.result_str(result))
-		return false
-	print("[EOS Manager] Relay P2P: ", "forzado" if force_relay else "permitido con ruta directa preferida")
-	return true
+	log_diagnostic("[EOS Manager] NAT detectado: " + _nombre_nat(cached_nat_type))
 
 
 func _nombre_nat(nat_type: int) -> String:

@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3 uid="uid://pasto_area_001"]
+
+[ext_resource type="Material" uid="uid://pasto_fisico_mat_001" path="res://shaders/pasto_fisico_mat.tres" id="1_mat_pasto"]
+[ext_resource type="Script" path="res://scripts/objects/generador_pasto.gd" id="2_script_pasto"]
+
+[node name="PastoArea" type="MultiMeshInstance3D"]
+material_override = ExtResource("1_mat_pasto")
+cast_shadow = 0
+visibility_range_end = 65.0
+visibility_range_end_margin = 10.0
+visibility_range_fade_mode = 1
+script = ExtResource("2_script_pasto")
+area_tamano = Vector2(25, 25)
+cantidad_instancias = 2500
+alto_pasto = 0.45
+ancho_pasto = 0.14
+briznas_por_manojo = 4
+curvatura_puntas = 0.1
+variacion_escala = Vector2(0.65, 1.25)
+interactuar_con_personajes = true

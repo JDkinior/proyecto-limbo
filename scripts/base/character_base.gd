@@ -5,18 +5,30 @@ class_name CharacterBase
 @export var VELOCIDAD : float = 5.0
 @export var ACELERACION_SUELO : float = 24.0
 @export var DESACELERACION_SUELO : float = 30.0
-@export var ACELERACION_AIRE : float = 10.0
-@export var SENSIBILIDAD_CAMARA = 0.005
-@export var SUAVIDAD_CAMARA : float = 18.0
+@export var ACELERACION_AIRE : float = 12.0
+@export var DESACELERACION_AIRE : float = 12.0
 @export var VELOCIDAD_ROTACION_PERSONAJE : float = 12.0
 @export var LIMITE_CAIDA_Y : float = -20.0
+
+@export_group("Camara Inteligente")
+@export var SENSIBILIDAD_CAMARA : float = 0.005
+@export var SUAVIDAD_CAMARA : float = 18.0
+@export var DISTANCIA_CAMARA : float = 3.5
+@export var MARGEN_COLISION_CAMARA : float = 0.15
+@export var PITCH_DEFECTO_CAMARA : float = -0.14            # ~-8.0 grados (mirando ligeramente hacia abajo)
+@export var LIMITE_PITCH_MIN : float = -0.70               # ~-40 grados
+@export var LIMITE_PITCH_MAX : float = 0.35                # ~+20 grados
+
 @export_group("Salto Compartido")
-@export var FUERZA_SALTO = 4.5
+@export var FUERZA_SALTO : float = 7.5
 @export var MULTIPLICADOR_SEGUNDO_SALTO : float = 0.9
-@export var MULTIPLICADOR_CAIDA : float = 1.9
+@export var MULTIPLICADOR_CAIDA : float = 2.0
 @export var MULTIPLICADOR_CORTE_SALTO : float = 2.2
-@export var TIEMPO_COYOTE : float = 0.12
-@export var TIEMPO_BUFFER_SALTO : float = 0.12
+@export var MULTIPLICADOR_GRAVEDAD_APICE : float = 1.0
+@export var UMBRAL_VELOCIDAD_APICE : float = 1.6
+@export var VELOCIDAD_MAX_CAIDA : float = 26.0
+@export var TIEMPO_COYOTE : float = 0.15
+@export var TIEMPO_BUFFER_SALTO : float = 0.14
 @export var MAX_SALTOS : int = 2
 
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
@@ -40,10 +52,46 @@ const TIEMPO_REQUERIDO_PROXIMIDAD: float = 5.0 # 5 segundos continuos de estar c
 @onready var pivote_camara = $Node3D
 var controles_tactiles: Node = null
 
+func obtener_camara() -> Camera3D:
+	if not pivote_camara:
+		return null
+	if pivote_camara is Camera3D:
+		return pivote_camara as Camera3D
+	var cam = pivote_camara.get_node_or_null("SpringArm3D/Camera3D")
+	if cam is Camera3D:
+		return cam
+	cam = pivote_camara.get_node_or_null("Camera3D")
+	if cam is Camera3D:
+		return cam
+	return pivote_camara.find_child("Camera3D", true, false) as Camera3D
+
+func obtener_spring_arm() -> SpringArm3D:
+	if not pivote_camara:
+		return null
+	if pivote_camara is SpringArm3D:
+		return pivote_camara as SpringArm3D
+	var arm = pivote_camara.get_node_or_null("SpringArm3D")
+	if arm is SpringArm3D:
+		return arm
+	return pivote_camara.find_child("SpringArm3D", true, false) as SpringArm3D
+
+func centrar_camara_inmediatamente():
+	objetivo_rotacion_y = rotation.y
+	objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
+
 func _ready():
 	objetivo_rotacion_y = rotation.y
-	if pivote_camara:
+	var spring_arm = obtener_spring_arm()
+	if spring_arm:
+		spring_arm.add_excluded_object(get_rid())
+		spring_arm.spring_length = DISTANCIA_CAMARA
+		spring_arm.margin = MARGEN_COLISION_CAMARA
+		objetivo_rotacion_x = spring_arm.rotation.x
+	elif pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
+	else:
+		objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
+
 	posicion_inicial = global_position
 	sync_position = global_position
 	sync_rotation = rotation
@@ -55,34 +103,74 @@ func _ready():
 	if nodos_ui.size() > 0:
 		controles_tactiles = nodos_ui[0]
 
+func es_activo() -> bool:
+	if is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+		var es_fantasma = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
+		if RedManager.personaje_activo_solo == "fantasma":
+			return es_fantasma
+		else:
+			return not es_fantasma
+	return is_multiplayer_authority()
+
 func _process(delta: float):
-	if is_multiplayer_authority():
+	if es_activo():
 		sync_position = global_position
 		sync_rotation = rotation
-	else:
-		# Suavizado de red (Interpolación)
+	elif multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		# Suavizado de red (Interpolación) solo en multijugador online
 		global_position = global_position.lerp(sync_position, 15.0 * delta)
 		rotation.y = lerp_angle(rotation.y, sync_rotation.y, 15.0 * delta)
 		rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
 
 
-func actualizar_visibilidad_local():
+func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	# Lógica base de cámara, los hijos extenderán esto
-	var es_mio = is_multiplayer_authority()
+	var es_mio = es_activo()
 	if pivote_camara:
 		if es_mio:
 			pivote_camara.top_level = true
 			pivote_camara.global_position = global_position
-			objetivo_rotacion_y = rotation.y
-			pivote_camara.rotation.y = rotation.y
+			if not preservar_rotacion_camara:
+				objetivo_rotacion_y = rotation.y
+				pivote_camara.rotation.y = rotation.y
+			else:
+				pivote_camara.rotation.y = objetivo_rotacion_y
+			var arm = obtener_spring_arm()
+			if arm:
+				arm.add_excluded_object(get_rid())
+				arm.rotation.x = objetivo_rotacion_x
+			else:
+				pivote_camara.rotation.x = objetivo_rotacion_x
 		else:
 			pivote_camara.top_level = false
 			
-		if pivote_camara.has_node("Camera3D"):
-			pivote_camara.get_node("Camera3D").current = es_mio
+		var cam = obtener_camara()
+		if cam:
+			cam.current = es_mio
+
+func obtener_entorno_personaje() -> Environment:
+	return null
+
+func obtener_cull_mask_personaje() -> int:
+	return 1048575
+
+func entrada_bloqueada() -> bool:
+	if not is_inside_tree():
+		return true
+	if is_instance_valid(ScoreManager) and not ScoreManager.cronometro_activo and ScoreManager.tiempo_transcurrido > 0.0:
+		return true
+	var tree = get_tree()
+	if tree and tree.current_scene:
+		if tree.current_scene.has_node("CanvasResultados") or tree.current_scene.has_node("PantallaResultados"):
+			return true
+	if is_instance_valid(controles_tactiles) and controles_tactiles.has_method("esta_bloqueado_para_juego"):
+		if controles_tactiles.esta_bloqueado_para_juego():
+			return true
+	return false
 
 func procesar_camara_base(delta: float):
-	if not is_multiplayer_authority(): return
+	if not es_activo() or entrada_bloqueada(): return
+	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso: return
 
 	if pivote_camara:
 		pivote_camara.global_position = global_position
@@ -93,29 +181,59 @@ func procesar_camara_base(delta: float):
 			if nodos_ui.size() > 0:
 				controles_tactiles = nodos_ui[0]
 
+		# Comprobar gesto de doble toque táctil o tecla R en PC para centrado instantáneo
+		var solicito_centrado = false
+		if controles_tactiles and controles_tactiles.has_method("consumir_centrado_camara"):
+			solicito_centrado = controles_tactiles.consumir_centrado_camara()
+		
+		if not solicito_centrado:
+			if InputMap.has_action("centrar_camara") and Input.is_action_just_pressed("centrar_camara"):
+				solicito_centrado = true
+			elif Input.is_physical_key_pressed(KEY_R):
+				solicito_centrado = true
+
+		if solicito_centrado:
+			centrar_camara_inmediatamente()
+
 		if controles_tactiles:
 			var giro = controles_tactiles.consumir_arrastre()
 			if giro != Vector2.ZERO:
 				objetivo_rotacion_y -= giro.x * SENSIBILIDAD_CAMARA
-				objetivo_rotacion_x = clamp(objetivo_rotacion_x - giro.y * SENSIBILIDAD_CAMARA, deg_to_rad(-40), deg_to_rad(20))
+				objetivo_rotacion_x = clamp(objetivo_rotacion_x - giro.y * SENSIBILIDAD_CAMARA, LIMITE_PITCH_MIN, LIMITE_PITCH_MAX)
 
 		var suavizado_camara = 1.0 - exp(-SUAVIDAD_CAMARA * delta)
 		pivote_camara.rotation.y = lerp_angle(pivote_camara.rotation.y, objetivo_rotacion_y, suavizado_camara)
-		pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
+		
+		var arm = obtener_spring_arm()
+		if arm:
+			pivote_camara.rotation.x = 0.0
+			arm.rotation.x = lerp_angle(arm.rotation.x, objetivo_rotacion_x, suavizado_camara)
+		else:
+			pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
 
 func procesar_salto_base(delta: float):
-	var salto_mantenido = Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept")
+	var salto_mantenido = es_activo() and not entrada_bloqueada() and (Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept"))
 	if not is_on_floor():
 		var gravedad_actual = gravity
-		if velocity.y < 0.0:
+		# Suspensión en el ápice (Apex Hang / Float) al alcanzar la cima del salto
+		if absf(velocity.y) < UMBRAL_VELOCIDAD_APICE and salto_mantenido and MULTIPLICADOR_GRAVEDAD_APICE < 1.0:
+			gravedad_actual *= MULTIPLICADOR_GRAVEDAD_APICE
+		elif velocity.y < 0.0:
 			gravedad_actual *= MULTIPLICADOR_CAIDA
 		elif velocity.y > 0.0 and not salto_mantenido:
 			gravedad_actual *= MULTIPLICADOR_CORTE_SALTO
+
 		velocity.y -= gravedad_actual * delta
+		if VELOCIDAD_MAX_CAIDA > 0.0:
+			velocity.y = maxf(velocity.y, -VELOCIDAD_MAX_CAIDA)
+			
 		tiempo_desde_suelo += delta
 	else:
 		tiempo_desde_suelo = 0.0
 		saltos_realizados = 0
+
+	if not es_activo() or entrada_bloqueada() or (is_instance_valid(RedManager) and RedManager.transicion_en_progreso):
+		return
 
 	if Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("ui_accept"):
 		tiempo_desde_salto = 0.0
@@ -126,18 +244,27 @@ func procesar_salto_base(delta: float):
 		if (is_on_floor() or tiempo_desde_suelo <= TIEMPO_COYOTE) and saltos_realizados == 0:
 			velocity.y = FUERZA_SALTO
 			saltos_realizados = 1
-			tiempo_desde_salto = TIEMPO_BUFFER_SALTO
+			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1 # Consumir buffer
+			_al_realizar_salto(1)
 		elif saltos_realizados < MAX_SALTOS:
 			velocity.y = FUERZA_SALTO * MULTIPLICADOR_SEGUNDO_SALTO
 			saltos_realizados += 1
-			tiempo_desde_salto = TIEMPO_BUFFER_SALTO
+			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1 # Consumir buffer
+			_al_realizar_salto(saltos_realizados)
+
+func _al_realizar_salto(_numero_salto: int):
+	# Hook virtual para subclases (efectos visuales, partículas, squash/stretch)
+	pass
 
 func obtener_direccion_movimiento() -> Vector3:
+	if entrada_bloqueada():
+		return Vector3.ZERO
+		
 	var input_dir = Input.get_vector("mover_izquierda", "mover_derecha", "mover_adelante", "mover_atras", 0.05)
 		
 	if input_dir == Vector2.ZERO:
 		return Vector3.ZERO
-		
+
 	var cam_basis = Basis()
 	if pivote_camara:
 		cam_basis = pivote_camara.global_transform.basis
@@ -156,6 +283,7 @@ func obtener_direccion_movimiento() -> Vector3:
 	var input_len = input_dir.length()
 	if move_dir.is_zero_approx():
 		return Vector3.ZERO
+
 	return move_dir.normalized() * clampf(input_len, 0.0, 1.0)
 
 func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
@@ -166,7 +294,7 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 		velocity.x = move_toward(velocity.x, velocidad_objetivo.x, tasa_aceleracion * delta)
 		velocity.z = move_toward(velocity.z, velocidad_objetivo.z, tasa_aceleracion * delta)
 	else:
-		var tasa_frenado = DESACELERACION_SUELO if is_on_floor() else ACELERACION_AIRE
+		var tasa_frenado = DESACELERACION_SUELO if is_on_floor() else DESACELERACION_AIRE
 		velocity.x = move_toward(velocity.x, 0.0, tasa_frenado * delta)
 		velocity.z = move_toward(velocity.z, 0.0, tasa_frenado * delta)
 	
@@ -193,10 +321,14 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 	_comprobar_caida_vacio()
 	
 	# Aseguramos que la cámara siga exactamente la posición del jugador después del movimiento físico
-	if is_multiplayer_authority() and pivote_camara and pivote_camara.top_level:
+	if es_activo() and pivote_camara and pivote_camara.top_level:
 		pivote_camara.global_position = global_position
 
 func procesar_movimiento_base(delta: float):
+	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso:
+		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
+		return
+
 	var direccion = obtener_direccion_movimiento()
 	
 	if direccion != Vector3.ZERO:
@@ -217,6 +349,8 @@ func _comprobar_caida_vacio():
 		global_position = posicion_inicial
 		velocity = Vector3.ZERO
 		resetear_estados()
+		if pivote_camara and pivote_camara.top_level:
+			pivote_camara.global_position = posicion_inicial
 
 func _crear_particulas_corazon_proximidad():
 	particulas_corazon = CPUParticles3D.new()
@@ -305,7 +439,7 @@ func _generar_textura_corazon() -> ImageTexture:
 
 
 func _procesar_proximidad_corazon(delta: float):
-	if not is_multiplayer_authority(): return
+	if not es_activo(): return
 
 	var otro: Node3D = _buscar_otro_jugador()
 	if is_instance_valid(otro):

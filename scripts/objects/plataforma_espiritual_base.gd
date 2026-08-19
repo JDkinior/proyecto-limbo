@@ -59,40 +59,25 @@ func _cachear_materiales(nodo: Node) -> void:
 
 func _cambiar_opacidad_recursivo(nodo: Node, opacidad: float) -> void:
 	if nodo is MeshInstance3D:
-		# Use cached override material if available
+		nodo.visible = (opacidad > 0.001)
 		if _materiales_cacheados.has(nodo):
 			var cache = _materiales_cacheados[nodo]
-			if cache["override"] and cache["override"] is BaseMaterial3D:
-				var mat = cache["override"]
-				if opacidad >= 1.0:
-					mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-				else:
-					mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-				if "alpha_scissor" in mat:
-					mat.alpha_scissor = 0.5
-				var color = mat.albedo_color
-				color.a = opacidad
-				mat.albedo_color = color
+			if cache["override"]:
+				_aplicar_opacidad_a_material(cache["override"], opacidad)
 			for mat in cache["surfaces"]:
-				if mat and mat is BaseMaterial3D:
-					if opacidad >= 1.0:
-						mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-					else:
-						mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-					if "alpha_scissor" in mat:
-						mat.alpha_scissor = 0.5
-					var color = mat.albedo_color
-					color.a = opacidad
-					mat.albedo_color = color
+				if mat:
+					_aplicar_opacidad_a_material(mat, opacidad)
 		else:
-			# Fallback for non-cached meshes (e.g. dynamically added)
-			if nodo.material_override and nodo.material_override is BaseMaterial3D:
-				if opacidad >= 1.0:
-					nodo.material_override.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-				else:
-					nodo.material_override.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-				var color = nodo.material_override.albedo_color
-				color.a = opacidad
-				nodo.material_override.albedo_color = color
+			if nodo.material_override:
+				_aplicar_opacidad_a_material(nodo.material_override, opacidad)
 	for hijo in nodo.get_children():
 		_cambiar_opacidad_recursivo(hijo, opacidad)
+
+func _aplicar_opacidad_a_material(mat: Material, opacidad: float) -> void:
+	if mat is ShaderMaterial:
+		mat.set_shader_parameter("opacidad_global", opacidad)
+	elif mat is BaseMaterial3D:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var color = mat.albedo_color
+		color.a = opacidad
+		mat.albedo_color = color

@@ -621,10 +621,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -200.0
-offset_right = 200.0
-offset_bottom = 200.0
+offset_left = -230.0
+offset_top = -270.0
+offset_right = 230.0
+offset_bottom = 270.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
@@ -634,24 +634,24 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 30.0
-offset_top = 25.0
-offset_right = -30.0
-offset_bottom = -25.0
+offset_left = 25.0
+offset_top = 20.0
+offset_right = -25.0
+offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 10
 alignment = 1
 
 [node name="Title" type="Label" parent="PanelOpciones/VBoxContainer" unique_id=2129498317]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 24
 text = "Opciones"
 horizontal_alignment = 1
 
 [node name="LabelVolumen" type="Label" parent="PanelOpciones/VBoxContainer" unique_id=1527488964]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "Volumen Principal:"
 
 [node name="VolumeSlider" type="HSlider" parent="PanelOpciones/VBoxContainer" unique_id=1418926769]
@@ -661,13 +661,58 @@ step = 0.05
 value = 0.8
 
 [node name="BtnFullscreen" type="CheckButton" parent="PanelOpciones/VBoxContainer" unique_id=94701108]
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 13
 text = "Pantalla Completa"
 
+[node name="HSeparatorHUD" type="HSeparator" parent="PanelOpciones/VBoxContainer"]
+layout_mode = 2
+
+[node name="LabelHUD" type="Label" parent="PanelOpciones/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "Controles Táctiles (HUD):"
+horizontal_alignment = 1
+
+[node name="BtnAjustarHUD" type="Button" parent="PanelOpciones/VBoxContainer"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
+text = "🎮 Personalizar HUD (Posición y Tamaño)"
+
+[node name="LabelTamanoHUD" type="Label" parent="PanelOpciones/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Tamaño de Botones de Acción:"
+
+[node name="SliderTamanoHUD" type="HSlider" parent="PanelOpciones/VBoxContainer"]
+layout_mode = 2
+min_value = 0.6
+max_value = 2.0
+step = 0.05
+value = 1.39
+
+[node name="LabelTamanoJoy" type="Label" parent="PanelOpciones/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Tamaño de Joystick:"
+
+[node name="SliderTamanoJoy" type="HSlider" parent="PanelOpciones/VBoxContainer"]
+layout_mode = 2
+min_value = 0.6
+max_value = 2.0
+step = 0.05
+value = 1.0
+
 [node name="BtnVolver" type="Button" parent="PanelOpciones/VBoxContainer" unique_id=675600045]
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(0, 38)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")

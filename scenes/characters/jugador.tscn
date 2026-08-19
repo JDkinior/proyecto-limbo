@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://cnl73c2m5k0tt" path="res://scripts/characters/jugador.gd" id="1_scrip"]
 [ext_resource type="Texture2D" uid="uid://b4mmytdxm3ljl" path="res://assets/Modelos/Provicional/untitled.png" id="2_w28g1"]
 [ext_resource type="PackedScene" uid="uid://bomagwdy8wkmh" path="res://assets/Modelos/Personajes/vivo.glb" id="3_65j3h"]
+[ext_resource type="Texture2D" uid="uid://drnfc7pw14xcw" path="res://assets/Texturas/polvo_puff.png" id="4_polvo_tex"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jugador_gold"]
 resource_name = "palette_gold"
@@ -37,18 +38,34 @@ blend_shape_mode = 0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_polvo"]
 transparency = 1
+depth_draw_mode = 2
 shading_mode = 0
-albedo_color = Color(0.88, 0.75, 0.48, 0.5)
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.96, 0.9, 0.76, 0.5)
+albedo_texture = ExtResource("4_polvo_tex")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
 
-[sub_resource type="SphereMesh" id="SphereMesh_polvo"]
+[sub_resource type="QuadMesh" id="QuadMesh_polvo"]
 material = SubResource("StandardMaterial3D_polvo")
-radius = 0.06
-height = 0.12
-radial_segments = 6
-rings = 4
+size = Vector2(0.4, 0.4)
+
+[sub_resource type="Curve" id="Curve_polvo_scale"]
+_data = [Vector2(0, 0.35), 0.0, 2.2, 0, 0, Vector2(0.25, 1.05), 0.5, 0.5, 0, 0, Vector2(0.7, 1.25), 0.2, 0.2, 0, 0, Vector2(1, 1.35), 0.0, 0.0, 0, 0]
+point_count = 4
+
+[sub_resource type="Gradient" id="Gradient_polvo_color"]
+offsets = PackedFloat32Array(0, 0.15, 0.65, 1)
+colors = PackedColorArray(0.96, 0.9, 0.78, 0, 0.96, 0.9, 0.76, 0.42, 0.92, 0.84, 0.68, 0.22, 0.86, 0.76, 0.6, 0)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_16k11"]
 height = 1.08
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_camara"]
+radius = 0.18
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_jugador"]
 properties/0/path = NodePath(".:sync_position")
@@ -76,24 +93,68 @@ light_energy = 1.6
 omni_range = 4.5
 
 [node name="ParticulasPolvoCaminar" type="CPUParticles3D" parent="." unique_id=778899002]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.48, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 emitting = false
-amount = 16
-lifetime = 0.5
-mesh = SubResource("SphereMesh_polvo")
+amount = 5
+lifetime = 0.4
+mesh = SubResource("QuadMesh_polvo")
 emission_shape = 1
-emission_sphere_radius = 0.35
-gravity = Vector3(0, 0.3, 0)
-scale_amount_min = 0.4
-scale_amount_max = 1.2
+emission_sphere_radius = 0.12
+direction = Vector3(0, 0.5, 0.5)
+spread = 30.0
+gravity = Vector3(0, 0.25, 0)
+initial_velocity_min = 0.3
+initial_velocity_max = 0.8
+angular_velocity_min = -25.0
+angular_velocity_max = 25.0
+damping_min = 1.0
+damping_max = 2.2
+angle_max = 360.0
+scale_amount_min = 0.8
+scale_amount_max = 1.3
+scale_amount_curve = SubResource("Curve_polvo_scale")
+color_ramp = SubResource("Gradient_polvo_color")
+
+[node name="ParticulasPolvoAterrizaje" type="CPUParticles3D" parent="." unique_id=778899004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+emitting = false
+amount = 6
+lifetime = 0.35
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("QuadMesh_polvo")
+emission_shape = 1
+emission_sphere_radius = 0.18
+direction = Vector3(0, 0.3, 0)
+spread = 180.0
+gravity = Vector3(0, 0.25, 0)
+initial_velocity_min = 0.8
+initial_velocity_max = 1.5
+angular_velocity_min = -35.0
+angular_velocity_max = 35.0
+damping_min = 1.5
+damping_max = 2.5
+angle_max = 360.0
+scale_amount_min = 0.9
+scale_amount_max = 1.4
+scale_amount_curve = SubResource("Curve_polvo_scale")
+color_ramp = SubResource("Gradient_polvo_color")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=908155043]
 shape = SubResource("CapsuleShape3D_16k11")
 
 [node name="Node3D" type="Node3D" parent="." unique_id=1618272514]
 
-[node name="Camera3D" type="Camera3D" parent="Node3D" unique_id=1460626180]
-transform = Transform3D(1, 0, 0, 0, 0.994647, 0.1033307, 0, -0.1033307, 0.994647, 0, 1.5327091, 3.4745927)
+[node name="SpringArm3D" type="SpringArm3D" parent="Node3D" unique_id=1618272516]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+collision_mask = 7
+shape = SubResource("SphereShape3D_camara")
+spring_length = 3.5
+margin = 0.15
+
+[node name="Camera3D" type="Camera3D" parent="Node3D/SpringArm3D" unique_id=1460626180]
+near = 0.1
+far = 130.0
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=545211276]
 replication_config = SubResource("SceneReplicationConfig_jugador")

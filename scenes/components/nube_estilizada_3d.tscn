@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://nube_estilizada_3d_001"]
+
+[ext_resource type="Script" path="res://scripts/objects/nube_flotante.gd" id="1_nube_script"]
+[ext_resource type="Material" uid="uid://nube_3d_fisica_mat_001" path="res://shaders/nube_3d_fisica_mat.tres" id="2_nube_mat"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_cuerpo_principal"]
+material = ExtResource("2_nube_mat")
+radius = 1.6
+height = 2.4
+radial_segments = 14
+rings = 8
+
+[sub_resource type="SphereMesh" id="SphereMesh_puff_izq"]
+material = ExtResource("2_nube_mat")
+radius = 1.15
+height = 1.75
+radial_segments = 12
+rings = 7
+
+[sub_resource type="SphereMesh" id="SphereMesh_puff_der"]
+material = ExtResource("2_nube_mat")
+radius = 1.3
+height = 1.95
+radial_segments = 12
+rings = 7
+
+[sub_resource type="SphereMesh" id="SphereMesh_puff_frontal"]
+material = ExtResource("2_nube_mat")
+radius = 1.0
+height = 1.5
+radial_segments = 12
+rings = 7
+
+[sub_resource type="SphereMesh" id="SphereMesh_puff_trasero"]
+material = ExtResource("2_nube_mat")
+radius = 1.1
+height = 1.6
+radial_segments = 12
+rings = 7
+
+[sub_resource type="SphereMesh" id="SphereMesh_puff_arriba"]
+material = ExtResource("2_nube_mat")
+radius = 1.05
+height = 1.55
+radial_segments = 12
+rings = 7
+
+[node name="NubeEstilizada3D" type="Node3D"]
+script = ExtResource("1_nube_script")
+velocidad = 1.8
+direccion = Vector3(1, 0, 0.2)
+amplitud_flotacion = 0.4
+frecuencia_flotacion = 0.7
+
+[node name="PuffCentro" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("SphereMesh_cuerpo_principal")
+
+[node name="PuffIzquierda" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.98, 0, 0, 0, 0.9, 0, 0, 0, 0.98, -1.5, -0.2, 0.1)
+mesh = SubResource("SphereMesh_puff_izq")
+
+[node name="PuffDerecha" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.95, 0, 0, 0, 1, 1.45, -0.15, -0.1)
+mesh = SubResource("SphereMesh_puff_der")
+
+[node name="PuffFrente" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.95, 0, 0, 0, 0.9, 0, 0, 0, 0.95, 0.35, -0.25, 0.95)
+mesh = SubResource("SphereMesh_puff_frontal")
+
+[node name="PuffAtras" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.95, 0, 0, 0, 0.9, 0, 0, 0, 0.95, -0.4, -0.2, -0.9)
+mesh = SubResource("SphereMesh_puff_trasero")
+
+[node name="PuffArriba" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.9, 0, 0, 0, 0.85, 0, 0, 0, 0.9, 0.2, 0.75, 0.05)
+mesh = SubResource("SphereMesh_puff_arriba")
