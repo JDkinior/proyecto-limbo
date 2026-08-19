@@ -14,14 +14,17 @@ var cooldown_actual : float = 0.0
 
 @onready var mesh_visual: MeshInstance3D = get_parent().get_node_or_null("Aura")
 @onready var particulas_aura: CPUParticles3D = get_parent().get_node_or_null("Aura/ParticulasAuraMistica")
+@onready var luz_aura: OmniLight3D = get_parent().get_node_or_null("Aura/LuzAura")
 
 func _ready():
 	if mesh_visual:
 		mesh_visual.visible = false
 		mesh_visual.scale = Vector3.ZERO
-		_configurar_capas_visuales(mesh_visual, 4)
+		_configurar_capas_visuales(mesh_visual, 1)
 	if is_instance_valid(particulas_aura):
 		particulas_aura.emitting = false
+	if is_instance_valid(luz_aura):
+		luz_aura.visible = false
 
 func _configurar_capas_visuales(nodo: Node, mascara_capas: int) -> void:
 	if nodo is VisualInstance3D:
@@ -71,6 +74,8 @@ func rpc_activar_aura():
 	if is_instance_valid(particulas_aura):
 		particulas_aura.emitting = true
 		particulas_aura.restart()
+	if is_instance_valid(luz_aura):
+		luz_aura.visible = true
 	estado_cambiado.emit(true, 0.0)
 	radio_actualizado.emit(radio_actual)
 
@@ -90,6 +95,8 @@ func rpc_desactivar_aura():
 		mesh_visual.scale = Vector3.ZERO
 	if is_instance_valid(particulas_aura):
 		particulas_aura.emitting = false
+	if is_instance_valid(luz_aura):
+		luz_aura.visible = false
 	estado_cambiado.emit(false, 0.0)
 	radio_actualizado.emit(0.0)
 

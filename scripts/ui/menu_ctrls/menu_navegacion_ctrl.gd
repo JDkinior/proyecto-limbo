@@ -142,6 +142,13 @@ func mostrar_panel(panel_activo: Panel):
 		menu.panel_salas.visible = (panel_activo == menu.panel_salas)
 	if is_instance_valid(menu.panel_un_jugador):
 		menu.panel_un_jugador.visible = (panel_activo == menu.panel_un_jugador)
+		
+	if panel_activo == menu.panel_un_jugador:
+		if is_instance_valid(menu.matchmaking_ctrl) and menu.matchmaking_ctrl.has_method("_actualizar_seleccion_visual_un_jugador"):
+			menu.matchmaking_ctrl._actualizar_seleccion_visual_un_jugador()
+	else:
+		if menu.has_method("cambiar_color_ambiente"):
+			menu.cambiar_color_ambiente(Color(0, 0, 0, 0), 0.35)
 
 func _inicializar_boton_reconectar():
 	var red_mgr = menu.get_node_or_null("/root/RedManager")

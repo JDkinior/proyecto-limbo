@@ -6,6 +6,24 @@ var _firebase_sala_ids: Array = []
 var _eos_lobbies: Array = []
 var _eos_refresh_timer: Timer
 
+# Variables para Modo Un Jugador (Selección 3D y Color Ambiental)
+var personaje_seleccionado_solo: String = "jugador"
+var subviewport_vivo_solo: SubViewport
+var subviewport_fantasma_solo: SubViewport
+var vivo_model_solo: Node3D
+var fantasma_model_solo: Node3D
+var anim_player_vivo_solo: AnimationPlayer
+var _tiempo_flotacion_fantasma_solo: float = 0.0
+
+var card_vivo_solo: PanelContainer
+var card_fantasma_solo: PanelContainer
+var badge_vivo_solo: Label
+var badge_fantasma_solo: Label
+var btn_card_vivo_solo: Button
+var btn_card_fantasma_solo: Button
+var btn_iniciar_solo: Button
+var opt_nivel_solo: OptionButton
+
 # El bucket se fija en CreateLobbyOptions, antes de cualquier actualización de
 # metadatos. Es la fuente de verdad de compatibilidad entre builds.
 const EOS_LOBBY_BUCKET_ID := "limbop2pv1"
@@ -216,106 +234,360 @@ func _inicializar_nuevos_paneles():
 	menu.btn_volver_modos.pressed.connect(_on_btn_volver_modos_pressed)
 	vbox_modos.add_child(menu.btn_volver_modos)
 	
-	# 1.5 PANEL UN JUGADOR (TEST / PRUEBAS)
+	# 1.5 PANEL UN JUGADOR (SELECCIÓN 3D INTERACTIVA Y MODO SOLITARIO)
 	menu.panel_un_jugador = Panel.new()
 	menu.panel_un_jugador.name = "PanelUnJugador"
 	menu.panel_un_jugador.visible = false
-	menu.panel_un_jugador.add_theme_stylebox_override("panel", style_panel)
+	var style_panel_solo = StyleBoxFlat.new()
+	style_panel_solo.bg_color = Color(0.07, 0.09, 0.16, 0.98)
+	style_panel_solo.border_width_left = 2
+	style_panel_solo.border_width_top = 2
+	style_panel_solo.border_width_right = 2
+	style_panel_solo.border_width_bottom = 2
+	style_panel_solo.border_color = Color(0.25, 0.45, 0.75, 0.8)
+	style_panel_solo.set_corner_radius_all(20)
+	style_panel_solo.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+	style_panel_solo.shadow_size = 16
+	menu.panel_un_jugador.add_theme_stylebox_override("panel", style_panel_solo)
 	menu.add_child(menu.panel_un_jugador)
 	
 	menu.panel_un_jugador.anchor_left = 0.5
 	menu.panel_un_jugador.anchor_right = 0.5
 	menu.panel_un_jugador.anchor_top = 0.5
 	menu.panel_un_jugador.anchor_bottom = 0.5
-	menu.panel_un_jugador.offset_left = -320
-	menu.panel_un_jugador.offset_top = -240
-	menu.panel_un_jugador.offset_right = 320
-	menu.panel_un_jugador.offset_bottom = 240
-	menu.panel_un_jugador.custom_minimum_size = Vector2(640, 480)
-	menu.panel_un_jugador.size = Vector2(640, 480)
+	menu.panel_un_jugador.offset_left = -380
+	menu.panel_un_jugador.offset_top = -285
+	menu.panel_un_jugador.offset_right = 380
+	menu.panel_un_jugador.offset_bottom = 285
+	menu.panel_un_jugador.custom_minimum_size = Vector2(760, 570)
+	menu.panel_un_jugador.size = Vector2(760, 570)
 	
 	var vbox_solo = VBoxContainer.new()
 	vbox_solo.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox_solo.offset_left = 28
-	vbox_solo.offset_top = 20
-	vbox_solo.offset_right = -28
-	vbox_solo.offset_bottom = -20
-	vbox_solo.add_theme_constant_override("separation", 14)
+	vbox_solo.offset_left = 24
+	vbox_solo.offset_top = 16
+	vbox_solo.offset_right = -24
+	vbox_solo.offset_bottom = -16
+	vbox_solo.add_theme_constant_override("separation", 10)
 	vbox_solo.alignment = BoxContainer.ALIGNMENT_CENTER
 	menu.panel_un_jugador.add_child(vbox_solo)
 	
 	var title_solo = Label.new()
 	title_solo.text = "🎮 Modo Un Jugador (Solitario)"
 	title_solo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_solo.add_theme_font_size_override("font_size", 26)
+	title_solo.add_theme_font_size_override("font_size", 24)
 	vbox_solo.add_child(title_solo)
 	
 	var subt_solo = Label.new()
 	subt_solo.text = "Controla ambos personajes alternando con [Tab], [C] o el botón táctil."
 	subt_solo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subt_solo.add_theme_color_override("font_color", Color(0.75, 0.85, 0.95))
-	subt_solo.add_theme_font_size_override("font_size", 14)
+	subt_solo.add_theme_font_size_override("font_size", 13)
 	vbox_solo.add_child(subt_solo)
 	
 	var sep_solo = HSeparator.new()
 	vbox_solo.add_child(sep_solo)
 	
+	# Fila de Selección de Nivel
+	var hbox_nivel = HBoxContainer.new()
+	hbox_nivel.add_theme_constant_override("separation", 10)
+	hbox_nivel.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox_solo.add_child(hbox_nivel)
+	
 	var lbl_sel_nivel = Label.new()
-	lbl_sel_nivel.text = "Seleccionar Nivel:"
-	lbl_sel_nivel.add_theme_font_size_override("font_size", 16)
-	vbox_solo.add_child(lbl_sel_nivel)
+	lbl_sel_nivel.text = "🌟 Nivel:"
+	lbl_sel_nivel.add_theme_font_size_override("font_size", 15)
+	hbox_nivel.add_child(lbl_sel_nivel)
 	
-	var opt_nivel = OptionButton.new()
-	opt_nivel.name = "SelectorNivelSolo"
-	opt_nivel.add_item("🌟 Nivel 1: El Despertar Separado", 0)
-	opt_nivel.add_item("🌟 Nivel 2", 1)
-	opt_nivel.add_item("🧪 Mundo de Pruebas (Sandbox)", 2)
-	opt_nivel.custom_minimum_size = Vector2(0, 50)
-	opt_nivel.add_theme_stylebox_override("normal", style_input)
-	opt_nivel.add_theme_font_size_override("font_size", 15)
-	vbox_solo.add_child(opt_nivel)
+	opt_nivel_solo = OptionButton.new()
+	opt_nivel_solo.name = "SelectorNivelSolo"
+	opt_nivel_solo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt_nivel_solo.custom_minimum_size = Vector2(0, 42)
+	opt_nivel_solo.add_theme_stylebox_override("normal", style_input)
+	opt_nivel_solo.add_theme_font_size_override("font_size", 14)
+	opt_nivel_solo.add_item("🌟 Nivel 1: El Despertar Separado", 0)
+	opt_nivel_solo.add_item("🌟 Nivel 2", 1)
+	opt_nivel_solo.add_item("🧪 Mundo de Pruebas (Sandbox)", 2)
+	hbox_nivel.add_child(opt_nivel_solo)
 	
+	# Encabezado Selección de Personaje
 	var lbl_sel_personaje = Label.new()
-	lbl_sel_personaje.text = "Personaje Inicial:"
-	lbl_sel_personaje.add_theme_font_size_override("font_size", 16)
+	lbl_sel_personaje.text = "✦ Toca un personaje para elegir con quién iniciar ✦"
+	lbl_sel_personaje.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_sel_personaje.add_theme_font_size_override("font_size", 14)
+	lbl_sel_personaje.add_theme_color_override("font_color", Color(0.9, 0.94, 1.0))
 	vbox_solo.add_child(lbl_sel_personaje)
 	
-	var opt_personaje = OptionButton.new()
-	opt_personaje.name = "SelectorPersonajeSolo"
-	opt_personaje.add_item("👤 Jugador Vivo (Plano Físico)", 0)
-	opt_personaje.add_item("👻 Fantasma (Plano Espiritual)", 1)
-	opt_personaje.custom_minimum_size = Vector2(0, 50)
-	opt_personaje.add_theme_stylebox_override("normal", style_input)
-	opt_personaje.add_theme_font_size_override("font_size", 15)
-	vbox_solo.add_child(opt_personaje)
+	# Contenedor de Tarjetas 3D
+	var hbox_cards_solo = HBoxContainer.new()
+	hbox_cards_solo.add_theme_constant_override("separation", 16)
+	hbox_cards_solo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox_solo.add_child(hbox_cards_solo)
 	
-	var btn_jugar_solo = Button.new()
-	btn_jugar_solo.text = "▶ Iniciar Nivel Seleccionado"
-	btn_jugar_solo.custom_minimum_size = Vector2(0, 52)
-	btn_jugar_solo.add_theme_stylebox_override("normal", style_btn_normal)
-	btn_jugar_solo.add_theme_stylebox_override("hover", style_btn_hover)
-	btn_jugar_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
-	btn_jugar_solo.add_theme_font_size_override("font_size", 18)
-	btn_jugar_solo.pressed.connect(func():
+	# --- TARJETA 1: JUGADOR VIVO ---
+	card_vivo_solo = PanelContainer.new()
+	card_vivo_solo.name = "CardVivoSolo"
+	card_vivo_solo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_vivo_solo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hbox_cards_solo.add_child(card_vivo_solo)
+	
+	var vbox_card_vivo = VBoxContainer.new()
+	vbox_card_vivo.add_theme_constant_override("separation", 6)
+	vbox_card_vivo.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox_card_vivo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card_vivo_solo.add_child(vbox_card_vivo)
+	
+	# Marco visual oscuro para aislar el 3D del fondo de pantalla
+	var panel_vp_vivo = PanelContainer.new()
+	panel_vp_vivo.custom_minimum_size = Vector2(0, 160)
+	panel_vp_vivo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style_vp_vivo = StyleBoxFlat.new()
+	style_vp_vivo.bg_color = Color(0.04, 0.05, 0.09, 1.0)
+	style_vp_vivo.set_corner_radius_all(12)
+	style_vp_vivo.border_width_left = 1
+	style_vp_vivo.border_width_top = 1
+	style_vp_vivo.border_width_right = 1
+	style_vp_vivo.border_width_bottom = 1
+	style_vp_vivo.border_color = Color(0.3, 0.35, 0.45, 0.4)
+	panel_vp_vivo.add_theme_stylebox_override("panel", style_vp_vivo)
+	vbox_card_vivo.add_child(panel_vp_vivo)
+	
+	# Viewport 3D Jugador Vivo
+	var vp_cont_vivo = SubViewportContainer.new()
+	vp_cont_vivo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vp_cont_vivo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vp_cont_vivo.stretch = true
+	vp_cont_vivo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_vp_vivo.add_child(vp_cont_vivo)
+	
+	subviewport_vivo_solo = SubViewport.new()
+	subviewport_vivo_solo.own_world_3d = true
+	subviewport_vivo_solo.transparent_bg = true
+	subviewport_vivo_solo.msaa_3d = Viewport.MSAA_4X
+	vp_cont_vivo.add_child(subviewport_vivo_solo)
+	
+	var root_3d_vivo = Node3D.new()
+	subviewport_vivo_solo.add_child(root_3d_vivo)
+	
+	var cam_vivo = Camera3D.new()
+	cam_vivo.transform = Transform3D(Basis(), Vector3(0, 0.1, 2.7))
+	cam_vivo.fov = 36.0
+	cam_vivo.current = true
+	root_3d_vivo.add_child(cam_vivo)
+	
+	var light_dir_vivo = DirectionalLight3D.new()
+	light_dir_vivo.transform = Transform3D(Basis().rotated(Vector3.UP, deg_to_rad(30)).rotated(Vector3.RIGHT, deg_to_rad(-20)), Vector3.ZERO)
+	light_dir_vivo.light_color = Color(1.0, 0.98, 0.92)
+	light_dir_vivo.light_energy = 1.3
+	root_3d_vivo.add_child(light_dir_vivo)
+	
+	var light_omni_vivo = OmniLight3D.new()
+	light_omni_vivo.position = Vector3(0, 0.2, 0.9)
+	light_omni_vivo.light_color = Color(1.0, 0.85, 0.4)
+	light_omni_vivo.light_energy = 1.0
+	light_omni_vivo.omni_range = 4.0
+	root_3d_vivo.add_child(light_omni_vivo)
+	
+	var escena_vivo = load("res://assets/Modelos/Personajes/vivo.glb")
+	if escena_vivo:
+		vivo_model_solo = escena_vivo.instantiate()
+		vivo_model_solo.transform = Transform3D(Basis().scaled(Vector3(0.45, 0.45, 0.45)), Vector3(0, -0.08, 0))
+		root_3d_vivo.add_child(vivo_model_solo)
+		
+		anim_player_vivo_solo = vivo_model_solo.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if anim_player_vivo_solo:
+			var duracion_ciclo = 38.0 / 30.0
+			for anim_n in ["Idle", "Idle_002"]:
+				if anim_player_vivo_solo.has_animation(anim_n):
+					var a = anim_player_vivo_solo.get_animation(anim_n)
+					if a:
+						a.loop_mode = Animation.LOOP_LINEAR
+						a.length = duracion_ciclo
+			if anim_player_vivo_solo.has_animation("Idle"):
+				anim_player_vivo_solo.play("Idle")
+			elif anim_player_vivo_solo.has_animation("Idle_002"):
+				anim_player_vivo_solo.play("Idle_002")
+	
+	var lbl_name_vivo = Label.new()
+	lbl_name_vivo.text = "☀️ Jugador Vivo"
+	lbl_name_vivo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_name_vivo.add_theme_font_size_override("font_size", 17)
+	lbl_name_vivo.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4))
+	vbox_card_vivo.add_child(lbl_name_vivo)
+	
+	var lbl_plane_vivo = Label.new()
+	lbl_plane_vivo.text = "Plano Físico (Terrenal)"
+	lbl_plane_vivo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_plane_vivo.add_theme_font_size_override("font_size", 12)
+	lbl_plane_vivo.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95, 0.85))
+	vbox_card_vivo.add_child(lbl_plane_vivo)
+	
+	badge_vivo_solo = Label.new()
+	badge_vivo_solo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge_vivo_solo.add_theme_font_size_override("font_size", 13)
+	badge_vivo_solo.custom_minimum_size = Vector2(0, 28)
+	vbox_card_vivo.add_child(badge_vivo_solo)
+	
+	# Botón invisible sobre la tarjeta del vivo para capturar clics/toques
+	btn_card_vivo_solo = Button.new()
+	btn_card_vivo_solo.flat = true
+	btn_card_vivo_solo.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn_card_vivo_solo.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var style_empty_btn = StyleBoxEmpty.new()
+	btn_card_vivo_solo.add_theme_stylebox_override("normal", style_empty_btn)
+	btn_card_vivo_solo.add_theme_stylebox_override("hover", style_empty_btn)
+	btn_card_vivo_solo.add_theme_stylebox_override("pressed", style_empty_btn)
+	btn_card_vivo_solo.add_theme_stylebox_override("focus", style_empty_btn)
+	btn_card_vivo_solo.pressed.connect(func(): _seleccionar_personaje_solo("jugador"))
+	card_vivo_solo.add_child(btn_card_vivo_solo)
+	
+	# --- TARJETA 2: FANTASMA ---
+	card_fantasma_solo = PanelContainer.new()
+	card_fantasma_solo.name = "CardFantasmaSolo"
+	card_fantasma_solo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_fantasma_solo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hbox_cards_solo.add_child(card_fantasma_solo)
+	
+	var vbox_card_fantasma = VBoxContainer.new()
+	vbox_card_fantasma.add_theme_constant_override("separation", 6)
+	vbox_card_fantasma.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox_card_fantasma.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card_fantasma_solo.add_child(vbox_card_fantasma)
+	
+	# Marco visual oscuro para aislar el 3D del fondo de pantalla
+	var panel_vp_fantasma = PanelContainer.new()
+	panel_vp_fantasma.custom_minimum_size = Vector2(0, 160)
+	panel_vp_fantasma.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var style_vp_fantasma = StyleBoxFlat.new()
+	style_vp_fantasma.bg_color = Color(0.04, 0.05, 0.09, 1.0)
+	style_vp_fantasma.set_corner_radius_all(12)
+	style_vp_fantasma.border_width_left = 1
+	style_vp_fantasma.border_width_top = 1
+	style_vp_fantasma.border_width_right = 1
+	style_vp_fantasma.border_width_bottom = 1
+	style_vp_fantasma.border_color = Color(0.3, 0.35, 0.45, 0.4)
+	panel_vp_fantasma.add_theme_stylebox_override("panel", style_vp_fantasma)
+	vbox_card_fantasma.add_child(panel_vp_fantasma)
+	
+	# Viewport 3D Fantasma
+	var vp_cont_fantasma = SubViewportContainer.new()
+	vp_cont_fantasma.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vp_cont_fantasma.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vp_cont_fantasma.stretch = true
+	vp_cont_fantasma.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel_vp_fantasma.add_child(vp_cont_fantasma)
+	
+	subviewport_fantasma_solo = SubViewport.new()
+	subviewport_fantasma_solo.own_world_3d = true
+	subviewport_fantasma_solo.transparent_bg = true
+	subviewport_fantasma_solo.msaa_3d = Viewport.MSAA_4X
+	vp_cont_fantasma.add_child(subviewport_fantasma_solo)
+	
+	var root_3d_fantasma = Node3D.new()
+	subviewport_fantasma_solo.add_child(root_3d_fantasma)
+	
+	var cam_fantasma = Camera3D.new()
+	cam_fantasma.transform = Transform3D(Basis(), Vector3(0, 0.1, 2.7))
+	cam_fantasma.fov = 36.0
+	cam_fantasma.current = true
+	root_3d_fantasma.add_child(cam_fantasma)
+	
+	var light_dir_fantasma = DirectionalLight3D.new()
+	light_dir_fantasma.transform = Transform3D(Basis().rotated(Vector3.UP, deg_to_rad(-30)).rotated(Vector3.RIGHT, deg_to_rad(-20)), Vector3.ZERO)
+	light_dir_fantasma.light_color = Color(0.85, 0.95, 1.0)
+	light_dir_fantasma.light_energy = 1.3
+	root_3d_fantasma.add_child(light_dir_fantasma)
+	
+	var light_omni_fantasma = OmniLight3D.new()
+	light_omni_fantasma.position = Vector3(0, 0.2, 0.9)
+	light_omni_fantasma.light_color = Color(0.25, 0.75, 1.0)
+	light_omni_fantasma.light_energy = 1.2
+	light_omni_fantasma.omni_range = 4.0
+	root_3d_fantasma.add_child(light_omni_fantasma)
+	
+	var escena_fantasma = load("res://assets/Modelos/Personajes/fantasma.glb")
+	if escena_fantasma:
+		fantasma_model_solo = escena_fantasma.instantiate()
+		fantasma_model_solo.transform = Transform3D(Basis().scaled(Vector3(0.45, 0.45, 0.45)), Vector3(0, -0.06, 0))
+		root_3d_fantasma.add_child(fantasma_model_solo)
+		
+		var anim_p_f = fantasma_model_solo.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if anim_p_f and anim_p_f.has_animation("Idle"):
+			anim_p_f.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
+			anim_p_f.play("Idle")
+	
+	var lbl_name_fantasma = Label.new()
+	lbl_name_fantasma.text = "🌙 Fantasma"
+	lbl_name_fantasma.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_name_fantasma.add_theme_font_size_override("font_size", 17)
+	lbl_name_fantasma.add_theme_color_override("font_color", Color(0.35, 0.85, 1.0))
+	vbox_card_fantasma.add_child(lbl_name_fantasma)
+	
+	var lbl_plane_fantasma = Label.new()
+	lbl_plane_fantasma.text = "Plano Espiritual (Etéreo)"
+	lbl_plane_fantasma.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl_plane_fantasma.add_theme_font_size_override("font_size", 12)
+	lbl_plane_fantasma.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95, 0.85))
+	vbox_card_fantasma.add_child(lbl_plane_fantasma)
+	
+	badge_fantasma_solo = Label.new()
+	badge_fantasma_solo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge_fantasma_solo.add_theme_font_size_override("font_size", 13)
+	badge_fantasma_solo.custom_minimum_size = Vector2(0, 28)
+	vbox_card_fantasma.add_child(badge_fantasma_solo)
+	
+	# Botón invisible sobre la tarjeta del fantasma para capturar clics/toques
+	btn_card_fantasma_solo = Button.new()
+	btn_card_fantasma_solo.flat = true
+	btn_card_fantasma_solo.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn_card_fantasma_solo.set_anchors_preset(Control.PRESET_FULL_RECT)
+	btn_card_fantasma_solo.add_theme_stylebox_override("normal", style_empty_btn)
+	btn_card_fantasma_solo.add_theme_stylebox_override("hover", style_empty_btn)
+	btn_card_fantasma_solo.add_theme_stylebox_override("pressed", style_empty_btn)
+	btn_card_fantasma_solo.add_theme_stylebox_override("focus", style_empty_btn)
+	btn_card_fantasma_solo.pressed.connect(func(): _seleccionar_personaje_solo("fantasma"))
+	card_fantasma_solo.add_child(btn_card_fantasma_solo)
+	
+	# Botón Iniciar Partida
+	btn_iniciar_solo = Button.new()
+	btn_iniciar_solo.text = "▶ Iniciar como Jugador Vivo"
+	btn_iniciar_solo.custom_minimum_size = Vector2(0, 50)
+	btn_iniciar_solo.add_theme_stylebox_override("normal", style_btn_normal)
+	btn_iniciar_solo.add_theme_stylebox_override("hover", style_btn_hover)
+	btn_iniciar_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
+	btn_iniciar_solo.add_theme_font_size_override("font_size", 17)
+	btn_iniciar_solo.pressed.connect(func():
 		var red_mgr = menu.get_tree().root.get_node_or_null("RedManager")
+		var tm = menu.get_tree().root.get_node_or_null("TransitionManager")
 		if is_instance_valid(red_mgr):
-			var selected_idx = opt_nivel.get_selected_id()
-			var p_inicial = "fantasma" if opt_personaje.get_selected_id() == 1 else "jugador"
-			red_mgr.iniciar_un_jugador(selected_idx, p_inicial)
+			var selected_idx = opt_nivel_solo.get_selected_id()
+			var p_inicial = personaje_seleccionado_solo
+			btn_iniciar_solo.disabled = true
+			if is_instance_valid(tm):
+				tm.iniciar_con_transicion(p_inicial, func():
+					red_mgr.iniciar_un_jugador(selected_idx, p_inicial)
+				)
+			else:
+				red_mgr.iniciar_un_jugador(selected_idx, p_inicial)
 	)
-	vbox_solo.add_child(btn_jugar_solo)
+	vbox_solo.add_child(btn_iniciar_solo)
 	
+	# Botón Volver a Selección de Modos
 	var btn_volver_solo = Button.new()
 	btn_volver_solo.text = "← Volver a Selección de Modos"
-	btn_volver_solo.custom_minimum_size = Vector2(0, 48)
+	btn_volver_solo.custom_minimum_size = Vector2(0, 44)
 	btn_volver_solo.add_theme_stylebox_override("normal", style_btn_normal)
 	btn_volver_solo.add_theme_stylebox_override("hover", style_btn_hover)
 	btn_volver_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
-	btn_volver_solo.add_theme_font_size_override("font_size", 16)
+	btn_volver_solo.add_theme_font_size_override("font_size", 15)
 	btn_volver_solo.pressed.connect(func():
+		if menu.has_method("cambiar_color_ambiente"):
+			menu.cambiar_color_ambiente(Color(0, 0, 0, 0), 0.35)
 		menu.mostrar_panel(menu.panel_modos)
 	)
 	vbox_solo.add_child(btn_volver_solo)
+	
+	_actualizar_seleccion_visual_un_jugador()
 	
 	# 2. PANEL SALAS (ROOM MATCHMAKING DEDICADO - MÓVIL)
 	menu.panel_salas = Panel.new()
@@ -500,6 +772,7 @@ func _on_btn_volver_modos_pressed():
 func _on_btn_modo_solo_pressed():
 	if is_instance_valid(menu.panel_un_jugador):
 		menu.mostrar_panel(menu.panel_un_jugador)
+		_actualizar_seleccion_visual_un_jugador()
 
 func _on_btn_host_pressed():
 	if not is_instance_valid(menu) or not menu.is_inside_tree(): return
@@ -784,3 +1057,156 @@ func _on_btn_volver_salas_pressed():
 	menu.btn_crear_sala.text = "Crear"
 		
 	menu.mostrar_panel(menu.panel_modos)
+
+func process(delta: float):
+	_tiempo_flotacion_fantasma_solo += delta
+	if is_instance_valid(fantasma_model_solo):
+		fantasma_model_solo.position.y = -0.06 + sin(_tiempo_flotacion_fantasma_solo * 2.6) * 0.035
+		fantasma_model_solo.rotation.y = sin(_tiempo_flotacion_fantasma_solo * 1.2) * 0.22
+		
+	if is_instance_valid(vivo_model_solo):
+		vivo_model_solo.rotation.y = sin(_tiempo_flotacion_fantasma_solo * 1.2) * 0.18
+
+func _seleccionar_personaje_solo(nuevo_personaje: String):
+	personaje_seleccionado_solo = nuevo_personaje
+	_actualizar_seleccion_visual_un_jugador()
+
+func _actualizar_seleccion_visual_un_jugador():
+	if not is_instance_valid(card_vivo_solo) or not is_instance_valid(card_fantasma_solo):
+		return
+		
+	var es_vivo = (personaje_seleccionado_solo == "jugador")
+	
+	# Estilo para Tarjeta Vivo
+	var style_vivo = StyleBoxFlat.new()
+	style_vivo.set_corner_radius_all(16)
+	style_vivo.content_margin_left = 12
+	style_vivo.content_margin_right = 12
+	style_vivo.content_margin_top = 10
+	style_vivo.content_margin_bottom = 10
+	
+	# Estilo para Tarjeta Fantasma
+	var style_fantasma = StyleBoxFlat.new()
+	style_fantasma.set_corner_radius_all(16)
+	style_fantasma.content_margin_left = 12
+	style_fantasma.content_margin_right = 12
+	style_fantasma.content_margin_top = 10
+	style_fantasma.content_margin_bottom = 10
+	
+	if es_vivo:
+		# Vivo Activo (Dorado Cálido / Solar)
+		style_vivo.bg_color = Color(0.13, 0.11, 0.06, 1.0)
+		style_vivo.border_width_left = 3
+		style_vivo.border_width_top = 3
+		style_vivo.border_width_right = 3
+		style_vivo.border_width_bottom = 3
+		style_vivo.border_color = Color(1.0, 0.84, 0.28, 1.0)
+		style_vivo.shadow_color = Color(0.98, 0.72, 0.2, 0.35)
+		style_vivo.shadow_size = 12
+		
+		if is_instance_valid(badge_vivo_solo):
+			badge_vivo_solo.text = "✓ ELEGIDO"
+			badge_vivo_solo.add_theme_color_override("font_color", Color(1.0, 0.95, 0.6, 1.0))
+			var badge_style_vivo = StyleBoxFlat.new()
+			badge_style_vivo.bg_color = Color(0.8, 0.55, 0.1, 0.6)
+			badge_style_vivo.border_color = Color(1.0, 0.85, 0.3, 0.9)
+			badge_style_vivo.border_width_left = 1
+			badge_style_vivo.border_width_top = 1
+			badge_style_vivo.border_width_right = 1
+			badge_style_vivo.border_width_bottom = 1
+			badge_style_vivo.set_corner_radius_all(10)
+			badge_style_vivo.content_margin_top = 4
+			badge_style_vivo.content_margin_bottom = 4
+			badge_vivo_solo.add_theme_stylebox_override("normal", badge_style_vivo)
+		
+		# Fantasma Inactivo
+		style_fantasma.bg_color = Color(0.06, 0.08, 0.14, 1.0)
+		style_fantasma.border_width_left = 2
+		style_fantasma.border_width_top = 2
+		style_fantasma.border_width_right = 2
+		style_fantasma.border_width_bottom = 2
+		style_fantasma.border_color = Color(0.2, 0.35, 0.55, 0.5)
+		style_fantasma.shadow_size = 0
+		
+		if is_instance_valid(badge_fantasma_solo):
+			badge_fantasma_solo.text = "Tocar para Elegir"
+			badge_fantasma_solo.add_theme_color_override("font_color", Color(0.65, 0.75, 0.9, 0.7))
+			var badge_style_fantasma = StyleBoxFlat.new()
+			badge_style_fantasma.bg_color = Color(0.08, 0.12, 0.22, 0.4)
+			badge_style_fantasma.border_color = Color(0.2, 0.3, 0.5, 0.4)
+			badge_style_fantasma.border_width_left = 1
+			badge_style_fantasma.border_width_top = 1
+			badge_style_fantasma.border_width_right = 1
+			badge_style_fantasma.border_width_bottom = 1
+			badge_style_fantasma.set_corner_radius_all(10)
+			badge_style_fantasma.content_margin_top = 4
+			badge_style_fantasma.content_margin_bottom = 4
+			badge_fantasma_solo.add_theme_stylebox_override("normal", badge_style_fantasma)
+		
+		# Cambiar tinte de la pantalla completa a ámbar dorado
+		if is_instance_valid(menu) and menu.has_method("cambiar_color_ambiente"):
+			menu.cambiar_color_ambiente(Color(1.0, 0.72, 0.18, 0.28), 0.45)
+		
+		if is_instance_valid(btn_iniciar_solo):
+			btn_iniciar_solo.text = "▶ Iniciar como Jugador Vivo"
+			btn_iniciar_solo.add_theme_color_override("font_color", Color(1.0, 0.95, 0.6))
+	else:
+		# Fantasma Activo (Cian / Espectral)
+		style_fantasma.bg_color = Color(0.05, 0.11, 0.20, 1.0)
+		style_fantasma.border_width_left = 3
+		style_fantasma.border_width_top = 3
+		style_fantasma.border_width_right = 3
+		style_fantasma.border_width_bottom = 3
+		style_fantasma.border_color = Color(0.3, 0.85, 1.0, 1.0)
+		style_fantasma.shadow_color = Color(0.2, 0.65, 1.0, 0.35)
+		style_fantasma.shadow_size = 12
+		
+		if is_instance_valid(badge_fantasma_solo):
+			badge_fantasma_solo.text = "✓ ELEGIDO"
+			badge_fantasma_solo.add_theme_color_override("font_color", Color(0.7, 0.95, 1.0, 1.0))
+			var badge_style_fantasma = StyleBoxFlat.new()
+			badge_style_fantasma.bg_color = Color(0.12, 0.45, 0.75, 0.6)
+			badge_style_fantasma.border_color = Color(0.35, 0.85, 1.0, 0.9)
+			badge_style_fantasma.border_width_left = 1
+			badge_style_fantasma.border_width_top = 1
+			badge_style_fantasma.border_width_right = 1
+			badge_style_fantasma.border_width_bottom = 1
+			badge_style_fantasma.set_corner_radius_all(10)
+			badge_style_fantasma.content_margin_top = 4
+			badge_style_fantasma.content_margin_bottom = 4
+			badge_fantasma_solo.add_theme_stylebox_override("normal", badge_style_fantasma)
+		
+		# Vivo Inactivo
+		style_vivo.bg_color = Color(0.06, 0.08, 0.14, 1.0)
+		style_vivo.border_width_left = 2
+		style_vivo.border_width_top = 2
+		style_vivo.border_width_right = 2
+		style_vivo.border_width_bottom = 2
+		style_vivo.border_color = Color(0.35, 0.3, 0.2, 0.5)
+		style_vivo.shadow_size = 0
+		
+		if is_instance_valid(badge_vivo_solo):
+			badge_vivo_solo.text = "Tocar para Elegir"
+			badge_vivo_solo.add_theme_color_override("font_color", Color(0.75, 0.7, 0.6, 0.7))
+			var badge_style_vivo = StyleBoxFlat.new()
+			badge_style_vivo.bg_color = Color(0.15, 0.12, 0.1, 0.4)
+			badge_style_vivo.border_color = Color(0.4, 0.3, 0.2, 0.4)
+			badge_style_vivo.border_width_left = 1
+			badge_style_vivo.border_width_top = 1
+			badge_style_vivo.border_width_right = 1
+			badge_style_vivo.border_width_bottom = 1
+			badge_style_vivo.set_corner_radius_all(10)
+			badge_style_vivo.content_margin_top = 4
+			badge_style_vivo.content_margin_bottom = 4
+			badge_vivo_solo.add_theme_stylebox_override("normal", badge_style_vivo)
+		
+		# Cambiar tinte de la pantalla completa a azul cian místico
+		if is_instance_valid(menu) and menu.has_method("cambiar_color_ambiente"):
+			menu.cambiar_color_ambiente(Color(0.12, 0.55, 1.0, 0.32), 0.45)
+		
+		if is_instance_valid(btn_iniciar_solo):
+			btn_iniciar_solo.text = "▶ Iniciar como Fantasma"
+			btn_iniciar_solo.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+			
+	card_vivo_solo.add_theme_stylebox_override("panel", style_vivo)
+	card_fantasma_solo.add_theme_stylebox_override("panel", style_fantasma)

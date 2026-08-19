@@ -539,7 +539,7 @@ func _actualizar_visibilidad_elementos_juego() -> void:
 		joystick.visible = !bloq
 	var zona = get_node_or_null("Area_Camara/Zona_Botones_Accion")
 	if is_instance_valid(zona):
-		zona.visible = !en_editor
+		zona.visible = not bloq and not en_editor
 	var hud_puntuacion = get_node_or_null("HUD_Puntuacion")
 	if is_instance_valid(hud_puntuacion):
 		hud_puntuacion.visible = !en_editor

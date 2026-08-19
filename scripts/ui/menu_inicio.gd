@@ -74,6 +74,10 @@ var amigos_dict: Dictionary = {}
 var autoconectando: bool = false
 var btn_reconectar: Button = null
 
+# Overlay de Color Ambiental de Pantalla
+var ambient_overlay: ColorRect = null
+var _ambient_tween: Tween = null
+
 # Controllers
 var navegacion_ctrl: MenuNavegacionCtrl
 var matchmaking_ctrl: MenuMatchmakingCtrl
@@ -81,6 +85,8 @@ var lobby_ctrl: MenuLobbyCtrl
 var amigos_opciones_ctrl: MenuAmigosOpcionesCtrl
 
 func _ready():
+	_inicializar_overlay_ambiente()
+	
 	matchmaking_ctrl = MenuMatchmakingCtrl.new()
 	add_child(matchmaking_ctrl)
 	matchmaking_ctrl.init(self)
@@ -103,6 +109,32 @@ func _ready():
 func _process(delta):
 	if is_instance_valid(lobby_ctrl):
 		lobby_ctrl.process(delta)
+	if is_instance_valid(matchmaking_ctrl):
+		matchmaking_ctrl.process(delta)
+
+func _inicializar_overlay_ambiente():
+	ambient_overlay = ColorRect.new()
+	ambient_overlay.name = "AmbientColorOverlay"
+	ambient_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ambient_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ambient_overlay.color = Color(0, 0, 0, 0)
+	
+	var bg_node = get_node_or_null("Background")
+	if bg_node:
+		var idx = bg_node.get_index()
+		add_child(ambient_overlay)
+		move_child(ambient_overlay, idx + 1)
+	else:
+		add_child(ambient_overlay)
+		move_child(ambient_overlay, 0)
+
+func cambiar_color_ambiente(color_destino: Color, duracion: float = 0.45):
+	if not is_instance_valid(ambient_overlay):
+		return
+	if is_instance_valid(_ambient_tween) and _ambient_tween.is_running():
+		_ambient_tween.kill()
+	_ambient_tween = create_tween()
+	_ambient_tween.tween_property(ambient_overlay, "color", color_destino, duracion).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func mostrar_panel(panel_activo: Panel):
 	if is_instance_valid(navegacion_ctrl):

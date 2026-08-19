@@ -159,6 +159,11 @@ func _ready() -> void:
 		material_fisico = material_fisico.duplicate()
 	if material_espiritual != null:
 		material_espiritual = material_espiritual.duplicate()
+		# Aplicar el tono espiritual después de duplicar el material.
+		if material_espiritual is ShaderMaterial:
+			var mat_espiritual := material_espiritual as ShaderMaterial
+			mat_espiritual.set_shader_parameter("color_base", Color(0.10, 0.24, 0.46, 1.0))
+			mat_espiritual.set_shader_parameter("color_punta", Color(0.18, 0.36, 0.60, 1.0))
 	# Optimización de renderizado (culling y sombras)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if visibility_range_end == 0.0:

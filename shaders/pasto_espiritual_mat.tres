@@ -5,8 +5,8 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_pasto_shader")
-shader_parameter/color_base = Color(0.24, 0.40, 0.70, 1)
-shader_parameter/color_punta = Color(0.28, 0.44, 0.75, 1)
+shader_parameter/color_base = Color(0.12, 0.28, 0.52, 1)
+shader_parameter/color_punta = Color(0.18, 0.36, 0.60, 1)
 shader_parameter/suavizado_gradiente = 0.75
 shader_parameter/curva_gradiente = 1.0
 shader_parameter/brillo_puntas = 0.0

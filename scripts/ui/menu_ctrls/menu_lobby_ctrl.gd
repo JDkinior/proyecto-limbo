@@ -52,6 +52,7 @@ func _inicializar_lobby_3d():
 	vbox_lobby.move_child(menu.subviewport_container, idx_elige + 1)
 	
 	menu.subviewport = SubViewport.new()
+	menu.subviewport.own_world_3d = true
 	menu.subviewport.transparent_bg = true
 	menu.subviewport.msaa_3d = Viewport.MSAA_4X
 	menu.subviewport_container.add_child(menu.subviewport)
