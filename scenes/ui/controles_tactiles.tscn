@@ -1,8 +1,7 @@
 [gd_scene format=3 uid="uid://dxdselwmt1ljo"]
 
-[ext_resource type="Script" path="res://scripts/ui/controles_tactiles.gd" id="1_controles"]
-[ext_resource type="Script" path="res://scripts/ui/area_camara.gd" id="2_epxqs"]
-[ext_resource type="Script" path="res://scripts/ui/boton_tactil_visual.gd" id="2_rtx1c"]
+[ext_resource type="Script" uid="uid://chw58qop5kooa" path="res://scripts/ui/controles_tactiles.gd" id="1_controles"]
+[ext_resource type="Script" uid="uid://b0uxovmqukmqw" path="res://scripts/ui/boton_tactil_visual.gd" id="2_rtx1c"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xv6fp"]
 radius = 40.0
@@ -51,7 +50,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 0
 grow_vertical = 2
-script = ExtResource("2_epxqs")
 
 [node name="Zona_Botones_Accion" type="Control" parent="Area_Camara" unique_id=721025503]
 layout_mode = 1
@@ -86,46 +84,46 @@ shape = SubResource("CircleShape2D_cambiar")
 action = "cambiar_personaje"
 script = ExtResource("2_rtx1c")
 
-[node name="HUD_Puntuacion" type="MarginContainer" parent="."]
+[node name="HUD_Puntuacion" type="MarginContainer" parent="." unique_id=796787099]
 layout_mode = 1
 offset_left = 20.0
 offset_top = 20.0
 offset_right = 450.0
 offset_bottom = 80.0
 
-[node name="Contenedor_Puntuacion" type="HBoxContainer" parent="HUD_Puntuacion"]
+[node name="Contenedor_Puntuacion" type="HBoxContainer" parent="HUD_Puntuacion" unique_id=965274678]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Icono_Moneda" type="TextureRect" parent="HUD_Puntuacion/Contenedor_Puntuacion"]
+[node name="Icono_Moneda" type="TextureRect" parent="HUD_Puntuacion/Contenedor_Puntuacion" unique_id=1592512855]
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="Texto_Puntuacion" type="Label" parent="HUD_Puntuacion/Contenedor_Puntuacion"]
+[node name="Texto_Puntuacion" type="Label" parent="HUD_Puntuacion/Contenedor_Puntuacion" unique_id=1331143740]
 layout_mode = 2
 text = "Puntuación: 0"
 label_settings = SubResource("LabelSettings_hud")
 vertical_alignment = 1
 
-[node name="HUD_Menu" type="MarginContainer" parent="."]
+[node name="HUD_Menu" type="MarginContainer" parent="." unique_id=440735533]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -140.0
+offset_left = -130.0
 offset_top = 20.0
 offset_right = -20.0
-offset_bottom = 70.0
+offset_bottom = 130.0
 grow_horizontal = 0
 
-[node name="Boton_Pausa" type="Button" parent="HUD_Menu"]
-custom_minimum_size = Vector2(120, 40)
+[node name="Boton_Pausa" type="Button" parent="HUD_Menu" unique_id=1449439795]
+custom_minimum_size = Vector2(110, 110)
 layout_mode = 2
-text = "Pausa"
+flat = true
 
-[node name="Panel_Pausa" type="Panel" parent="."]
+[node name="Panel_Pausa" type="Panel" parent="." unique_id=322189228]
 visible = false
 custom_minimum_size = Vector2(280, 260)
 layout_mode = 1
@@ -141,7 +139,7 @@ offset_bottom = 130.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Pausa"]
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Pausa" unique_id=133020740]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -155,34 +153,34 @@ grow_vertical = 2
 theme_override_constants/separation = 12
 alignment = 1
 
-[node name="Label_Titulo" type="Label" parent="Panel_Pausa/VBoxContainer"]
+[node name="Label_Titulo" type="Label" parent="Panel_Pausa/VBoxContainer" unique_id=1914673860]
 layout_mode = 2
 text = "Pausa"
 label_settings = SubResource("LabelSettings_panel")
 horizontal_alignment = 1
 
-[node name="HSeparator" type="HSeparator" parent="Panel_Pausa/VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="Panel_Pausa/VBoxContainer" unique_id=881121032]
 layout_mode = 2
 
-[node name="Boton_Continuar" type="Button" parent="Panel_Pausa/VBoxContainer"]
+[node name="Boton_Continuar" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=357201905]
 custom_minimum_size = Vector2(180, 35)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Continuar"
 
-[node name="Boton_Opciones" type="Button" parent="Panel_Pausa/VBoxContainer"]
+[node name="Boton_Opciones" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=245179629]
 custom_minimum_size = Vector2(180, 35)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Ajustes"
 
-[node name="Boton_Salir" type="Button" parent="Panel_Pausa/VBoxContainer"]
+[node name="Boton_Salir" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=285213554]
 custom_minimum_size = Vector2(180, 35)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Salir al Menú"
 
-[node name="Panel_Opciones" type="Panel" parent="."]
+[node name="Panel_Opciones" type="Panel" parent="." unique_id=253214794]
 visible = false
 custom_minimum_size = Vector2(400, 360)
 layout_mode = 1
@@ -198,7 +196,7 @@ offset_bottom = 180.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Opciones"]
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Opciones" unique_id=500451298]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -212,41 +210,41 @@ grow_vertical = 2
 theme_override_constants/separation = 10
 alignment = 1
 
-[node name="Label_Titulo" type="Label" parent="Panel_Opciones/VBoxContainer"]
+[node name="Label_Titulo" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=731413464]
 layout_mode = 2
 text = "Ajustes de Juego"
 label_settings = SubResource("LabelSettings_panel")
 horizontal_alignment = 1
 
-[node name="HSeparator" type="HSeparator" parent="Panel_Opciones/VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="Panel_Opciones/VBoxContainer" unique_id=588381110]
 layout_mode = 2
 
-[node name="Boton_Personalizar_HUD" type="Button" parent="Panel_Opciones/VBoxContainer"]
+[node name="Boton_Personalizar_HUD" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390906]
 custom_minimum_size = Vector2(280, 40)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "🎮 Personalizar HUD (Mover y Escalar)"
 
-[node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer"]
+[node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=774955636]
 layout_mode = 2
 text = "Tamaño Botones de Acción:"
 horizontal_alignment = 1
 
-[node name="Slider_Escala_Botones" type="HSlider" parent="Panel_Opciones/VBoxContainer"]
+[node name="Slider_Escala_Botones" type="HSlider" parent="Panel_Opciones/VBoxContainer" unique_id=1556023312]
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 min_value = 0.6
 max_value = 2.0
 step = 0.05
-value = 1.39
+value = 1.4
 
-[node name="Label_Escala_Joy" type="Label" parent="Panel_Opciones/VBoxContainer"]
+[node name="Label_Escala_Joy" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=1849519380]
 layout_mode = 2
 text = "Tamaño Joystick Virtual:"
 horizontal_alignment = 1
 
-[node name="Slider_Escala_Joy" type="HSlider" parent="Panel_Opciones/VBoxContainer"]
+[node name="Slider_Escala_Joy" type="HSlider" parent="Panel_Opciones/VBoxContainer" unique_id=1620610421]
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 size_flags_horizontal = 4
@@ -255,10 +253,10 @@ max_value = 2.0
 step = 0.05
 value = 1.0
 
-[node name="HSeparator2" type="HSeparator" parent="Panel_Opciones/VBoxContainer"]
+[node name="HSeparator2" type="HSeparator" parent="Panel_Opciones/VBoxContainer" unique_id=2036685272]
 layout_mode = 2
 
-[node name="Boton_Cerrar_Opciones" type="Button" parent="Panel_Opciones/VBoxContainer"]
+[node name="Boton_Cerrar_Opciones" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1382954270]
 custom_minimum_size = Vector2(140, 36)
 layout_mode = 2
 size_flags_horizontal = 4

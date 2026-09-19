@@ -134,6 +134,19 @@ class_name GeneradorPasto
 
 @export var interactuar_con_personajes: bool = true
 
+@export_group("Rendimiento y Visibilidad")
+## Distancia máxima en metros a la que se dibuja el pasto durante el juego (65m para máximo rendimiento móvil/PC).
+@export_range(10.0, 300.0, 5.0) var distancia_visibilidad_juego: float = 65.0:
+	set(valor):
+		distancia_visibilidad_juego = valor
+		_aplicar_configuracion_visibilidad()
+
+## Si está activo, en el editor de Godot no habrá límite de distancia para diseñar y construir cómodamente sin que el pasto desaparezca.
+@export var deshabilitar_culling_en_editor: bool = true:
+	set(valor):
+		deshabilitar_culling_en_editor = valor
+		_aplicar_configuracion_visibilidad()
+
 @export_group("Acciones")
 @export var forzar_regenerar: bool = false:
 	set(_v):
@@ -151,6 +164,19 @@ func _actualizar_parametro_shader(param: String, valor: Variant) -> void:
 	if material_espiritual is ShaderMaterial:
 		(material_espiritual as ShaderMaterial).set_shader_parameter(param, valor)
 
+func _aplicar_configuracion_visibilidad() -> void:
+	if not is_inside_tree():
+		return
+	if Engine.is_editor_hint() and deshabilitar_culling_en_editor:
+		# En el editor: culling por distancia desactivado para ver todo el nivel libremente
+		visibility_range_end = 0.0
+		visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+	else:
+		# En el juego: culling estricto de alto rendimiento con transición suave
+		visibility_range_end = distancia_visibilidad_juego
+		visibility_range_end_margin = 10.0
+		visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+
 func _ready() -> void:
 	# Duplicar materiales para que cada GeneradorPasto tenga instancias independientes.
 	# Esto es ESENCIAL en multijugador LAN donde ambos personajes comparten el mismo
@@ -164,12 +190,10 @@ func _ready() -> void:
 			var mat_espiritual := material_espiritual as ShaderMaterial
 			mat_espiritual.set_shader_parameter("color_base", Color(0.10, 0.24, 0.46, 1.0))
 			mat_espiritual.set_shader_parameter("color_punta", Color(0.18, 0.36, 0.60, 1.0))
-	# Optimización de renderizado (culling y sombras)
+	# Optimización de renderizado y culling
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if visibility_range_end == 0.0:
-		visibility_range_end = 65.0
-		visibility_range_end_margin = 10.0
-		visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	extra_cull_margin = 6.0
+	_aplicar_configuracion_visibilidad()
 
 	_conectar_senales_personaje()
 	_actualizar_material_por_reino()
@@ -273,10 +297,7 @@ func generar() -> void:
 
 	# --- MODO 0: PINTADO MANUAL ---
 	if modo_distribucion == 0:
-		var total_pintado = datos_pasto_pintado.size()
-		multimesh.instance_count = total_pintado
-		for i in range(total_pintado):
-			multimesh.set_instance_transform(i, datos_pasto_pintado[i])
+		_actualizar_multimesh_pintado()
 		return
 
 	# --- MODO 1: ÁREA RECTANGULAR AUTOMÁTICA ---
@@ -338,6 +359,10 @@ func generar() -> void:
 			t.origin = pos
 
 			multimesh.set_instance_transform(i, t)
+
+	var aabb_calc = AABB(Vector3(-half_x - 1.0, -1.0, -half_z - 1.0), Vector3(area.x + 2.0, (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 2.0, area.y + 2.0))
+	multimesh.custom_aabb = aabb_calc
+	custom_aabb = aabb_calc
 
 # ==============================================================================
 # MÉTODOS DEL PINCEL 3D (Pintar, Borrar, Limpiar)
@@ -488,8 +513,26 @@ func _actualizar_multimesh_pintado() -> void:
 
 	var total = datos_pasto_pintado.size()
 	multimesh.instance_count = total
+	var min_pos = Vector3(999999.0, 999999.0, 999999.0)
+	var max_pos = Vector3(-999999.0, -999999.0, -999999.0)
+
 	for i in range(total):
-		multimesh.set_instance_transform(i, datos_pasto_pintado[i])
+		var t = datos_pasto_pintado[i]
+		multimesh.set_instance_transform(i, t)
+		min_pos.x = minf(min_pos.x, t.origin.x - 1.0)
+		min_pos.y = minf(min_pos.y, t.origin.y - 0.5)
+		min_pos.z = minf(min_pos.z, t.origin.z - 1.0)
+		max_pos.x = maxf(max_pos.x, t.origin.x + 1.0)
+		max_pos.y = maxf(max_pos.y, t.origin.y + (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 1.0)
+		max_pos.z = maxf(max_pos.z, t.origin.z + 1.0)
+
+	if total > 0:
+		var aabb_p = AABB(min_pos, max_pos - min_pos)
+		multimesh.custom_aabb = aabb_p
+		custom_aabb = aabb_p
+	else:
+		multimesh.custom_aabb = AABB()
+		custom_aabb = AABB()
 
 ## Crea una malla de briznas afiladas en punta con curvatura y normales hemisféricas estilizadas
 func _crear_malla_pasto_procedural() -> ArrayMesh:
@@ -575,16 +618,6 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 
-	# En modo AUTO, actualizar el material cada frame según la cámara activa.
-	# Esto garantiza que en multijugador LAN el pasto muestre el color correcto
-	# para el personaje cuya cámara está activa en este cliente.
-	if modo_reino == 0:
-		var nuevo_es_fantasma = _detectar_es_fantasma_por_camara_activa()
-		var mat_correcto = material_espiritual if nuevo_es_fantasma else material_fisico
-		if material_override != mat_correcto:
-			material_override = mat_correcto
-			_shader_mat = material_override as ShaderMaterial if material_override is ShaderMaterial else null
-
 	if not interactuar_con_personajes:
 		return
 
@@ -596,9 +629,12 @@ func _process(_delta: float) -> void:
 
 	# Buscar y pasar la posición del Jugador
 	if not is_instance_valid(_jugador_ref):
-		var vivos = get_tree().get_nodes_in_group("vivos")
-		if vivos.size() > 0:
-			_jugador_ref = vivos[0] as Node3D
+		if is_instance_valid(RedManager) and is_instance_valid(RedManager.jugador_vivo):
+			_jugador_ref = RedManager.jugador_vivo
+		else:
+			var vivos = get_tree().get_nodes_in_group("vivos")
+			if vivos.size() > 0:
+				_jugador_ref = vivos[0] as Node3D
 
 	if is_instance_valid(_jugador_ref):
 		_shader_mat.set_shader_parameter("posicion_jugador", _jugador_ref.global_position)
@@ -607,9 +643,12 @@ func _process(_delta: float) -> void:
 
 	# Buscar y pasar la posición del Fantasma
 	if not is_instance_valid(_fantasma_ref):
-		var fantasmas = get_tree().get_nodes_in_group("fantasmas")
-		if fantasmas.size() > 0:
-			_fantasma_ref = fantasmas[0] as Node3D
+		if is_instance_valid(RedManager) and is_instance_valid(RedManager.fantasma):
+			_fantasma_ref = RedManager.fantasma
+		else:
+			var fantasmas = get_tree().get_nodes_in_group("fantasmas")
+			if fantasmas.size() > 0:
+				_fantasma_ref = fantasmas[0] as Node3D
 
 	if is_instance_valid(_fantasma_ref):
 		_shader_mat.set_shader_parameter("posicion_fantasma", _fantasma_ref.global_position)

@@ -43,7 +43,8 @@ func _ready() -> void:
 			nodos_disparadores.append(n)
 		
 	if nodos_disparadores.is_empty():
-		push_warning("[%s] ADVERTENCIA: No se asignaron disparadores válidos." % name)
+		# Si no tiene disparadores asignados, se mantiene en su estado por defecto
+		actualizar_comportamiento(esta_activo)
 		return
 		
 	# Conectarse dinámicamente a cada disparador y registrar su estado

@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="1_qokjt"]
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_1q87n"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="3_1q87n"]
-[ext_resource type="Script" uid="uid://d22jlrsaycmts" path="res://scripts/core/administrador_plataformas.gd" id="4_wa8a8"]
+[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="4_wa8a8"]
 [ext_resource type="Material" uid="uid://cielo_limbo_mat_001" path="res://shaders/cielo_limbo_mat.tres" id="5_cielo_mat"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1q87n"]
@@ -24,9 +24,12 @@ background_mode = 2
 sky = SubResource("Sky_l5la3")
 tonemap_mode = 2
 glow_enabled = true
+glow_strength = 1.02
+glow_bloom = 0.15
 
 [node name="Nivel2" type="Node3D" unique_id=566491211]
 transform = Transform3D(1, 0, 0, 0, 0.3, 0, 0, 0, 1, 0, 0, 0)
+script = ExtResource("4_wa8a8")
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1618494945]
 transform = Transform3D(20.930002, 0, 0, 0, 1, 0, 0, 0, 21.000002, 17, 0, 5)
@@ -75,5 +78,3 @@ directional_shadow_max_distance = 60.0
 
 
 
-[node name="Node3D" type="Node3D" parent="." unique_id=999305373]
-script = ExtResource("4_wa8a8")

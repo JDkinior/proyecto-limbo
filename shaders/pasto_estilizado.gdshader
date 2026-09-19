@@ -42,19 +42,15 @@ void vertex() {
 	// Posición global de la instancia y vértice
 	vec3 pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 
-	mat3 inv_rot = mat3(
-		vec3(MODEL_MATRIX[0].x, MODEL_MATRIX[1].x, MODEL_MATRIX[2].x),
-		vec3(MODEL_MATRIX[0].y, MODEL_MATRIX[1].y, MODEL_MATRIX[2].y),
-		vec3(MODEL_MATRIX[0].z, MODEL_MATRIX[1].z, MODEL_MATRIX[2].z)
-	);
+	mat3 inv_model = inverse(mat3(MODEL_MATRIX));
 
 	vec2 dir_viento = length(direccion_viento) > 0.001 ? normalize(direccion_viento) : vec2(1.0, 0.0);
 
 	// 1. Simulación de Viento suave
 	float tiempo = TIME * velocidad_viento;
-	float coord_onda = (pos_mundo.x * dir_viento.x + pos_mundo.z * dir_viento.y) / escala_onda;
+	float coord_onda = (pos_mundo.x * dir_viento.x + pos_mundo.z * dir_viento.y) / max(0.1, escala_onda);
 	float onda1 = sin(tiempo + coord_onda);
-	float onda2 = cos(tiempo * 1.5 + (pos_mundo.x * dir_viento.y - pos_mundo.z * dir_viento.x) / (escala_onda * 0.7)) * turbulencia;
+	float onda2 = cos(tiempo * 1.5 + (pos_mundo.x * dir_viento.y - pos_mundo.z * dir_viento.x) / max(0.1, escala_onda * 0.7)) * turbulencia;
 
 	float viento_magnitud = (onda1 + onda2) * fuerza_viento;
 
@@ -75,27 +71,31 @@ void vertex() {
 	// 2. Interacción Suave con Personajes
 	vec3 empuje_mundo = vec3(0.0);
 
-	// Interacción Jugador
-	vec3 dir_jugador = pos_mundo - posicion_jugador;
-	dir_jugador.y = 0.0;
-	float dist_jugador = length(dir_jugador);
-	if (dist_jugador < radio_interaccion && dist_jugador > 0.001) {
-		float factor_suave = smoothstep(radio_interaccion, 0.0, dist_jugador);
-		float factor = factor_suave * factor_suave * fuerza_interaccion * flexion_altura;
-		empuje_mundo += (normalize(dir_jugador) * factor * 0.35) + vec3(0.0, -factor * 0.75, 0.0);
+	// Interacción Jugador (verificar proximidad en altura Y para evitar deformaciones en editor o altura)
+	vec3 delta_jugador = pos_mundo - posicion_jugador;
+	if (abs(delta_jugador.y) < 1.8) {
+		vec3 dir_jugador = vec3(delta_jugador.x, 0.0, delta_jugador.z);
+		float dist_jugador = length(dir_jugador);
+		if (dist_jugador < radio_interaccion && dist_jugador > 0.001) {
+			float factor_suave = smoothstep(radio_interaccion, 0.0, dist_jugador);
+			float factor = factor_suave * factor_suave * fuerza_interaccion * flexion_altura;
+			empuje_mundo += (normalize(dir_jugador) * factor * 0.35) + vec3(0.0, -factor * 0.75, 0.0);
+		}
 	}
 
-	// Interacción Fantasma
-	vec3 dir_fantasma = pos_mundo - posicion_fantasma;
-	dir_fantasma.y = 0.0;
-	float dist_fantasma = length(dir_fantasma);
-	if (dist_fantasma < radio_interaccion && dist_fantasma > 0.001) {
-		float factor_suave_f = smoothstep(radio_interaccion, 0.0, dist_fantasma);
-		float factor_f = factor_suave_f * factor_suave_f * fuerza_interaccion * flexion_altura;
-		empuje_mundo += (normalize(dir_fantasma) * factor_f * 0.35) + vec3(0.0, -factor_f * 0.75, 0.0);
+	// Interacción Fantasma (verificar proximidad en altura Y)
+	vec3 delta_fantasma = pos_mundo - posicion_fantasma;
+	if (abs(delta_fantasma.y) < 1.8) {
+		vec3 dir_fantasma = vec3(delta_fantasma.x, 0.0, delta_fantasma.z);
+		float dist_fantasma = length(dir_fantasma);
+		if (dist_fantasma < radio_interaccion && dist_fantasma > 0.001) {
+			float factor_suave_f = smoothstep(radio_interaccion, 0.0, dist_fantasma);
+			float factor_f = factor_suave_f * factor_suave_f * fuerza_interaccion * flexion_altura;
+			empuje_mundo += (normalize(dir_fantasma) * factor_f * 0.35) + vec3(0.0, -factor_f * 0.75, 0.0);
+		}
 	}
 
-	vec3 desplazamiento_local = inv_rot * (viento_mundo + empuje_mundo);
+	vec3 desplazamiento_local = inv_model * (viento_mundo + empuje_mundo);
 	VERTEX += desplazamiento_local;
 
 	// Normales estilizadas hacia arriba (Upward Foliage Normals) para iluminación uniforme total sin sombras de espalda

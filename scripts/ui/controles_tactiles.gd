@@ -8,15 +8,33 @@ var arrastre_camara : Vector2 = Vector2.ZERO
 var _personaje_conectado: Node
 var joystick_dedo : int = -1
 
+# Colores temáticos modernos (tonos sutiles, luminosos, elegantes y equilibrados)
+const COLOR_VIVO_ACCENT: Color = Color(1.0, 0.96, 0.82, 1.0)          # Crema amarillento luminoso
+const COLOR_VIVO_JOY_BASE: Color = Color(0.98, 0.95, 0.88, 0.92)      # Base joystick crema suave
+const COLOR_VIVO_JOY_THUMB: Color = Color(1.0, 0.97, 0.90, 0.96)     # Palanca joystick crema luminoso
+const COLOR_VIVO_BTN_MOD: Color = Color(1.0, 0.97, 0.90, 0.96)       # Botón pausa / elementos vivo
+const COLOR_VIVO_PANEL_BG: Color = Color(0.10, 0.10, 0.12, 0.92)     # Fondo panel
+const COLOR_VIVO_BORDER: Color = Color(0.95, 0.90, 0.75, 0.90)        # Borde panel vivo crema
+const COLOR_VIVO_BORDER_HOVER: Color = Color(1.0, 0.96, 0.85, 0.95)
+
+const COLOR_FANTASMA_ACCENT: Color = Color(0.60, 0.84, 1.0, 1.0)    # Azul cielo claro puro
+const COLOR_FANTASMA_JOY_BASE: Color = Color(0.68, 0.86, 1.0, 0.92) # Base joystick azul claro
+const COLOR_FANTASMA_JOY_THUMB: Color = Color(0.68, 0.86, 1.0, 0.95)# Palanca azul clara
+const COLOR_FANTASMA_BTN_MOD: Color = Color(0.85, 0.93, 1.0, 0.96)  # Botón pausa / elementos fantasma
+const COLOR_FANTASMA_PANEL_BG: Color = Color(0.06, 0.10, 0.18, 0.94)# Fondo panel azul noche
+const COLOR_FANTASMA_BORDER: Color = Color(0.55, 0.84, 1.0, 0.90)   # Borde panel fantasma
+const COLOR_FANTASMA_BORDER_HOVER: Color = Color(0.70, 0.90, 1.0, 0.95)
+
 func _ready():
 	add_to_group("ui_tactil")
 	var es_fantasma_inicial = false
 	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
 		es_fantasma_inicial = (RedManager.personaje_activo_solo == "fantasma")
+	es_fantasma_ui = es_fantasma_inicial
 	if es_fantasma_inicial:
-		color_personaje_ui = Color(0.30, 0.82, 1.0)
+		color_personaje_ui = COLOR_FANTASMA_ACCENT
 	else:
-		color_personaje_ui = Color(1.0, 0.82, 0.25)
+		color_personaje_ui = COLOR_VIVO_ACCENT
 		
 	_inicializar_joystick()
 	if has_node("HUD_Puntuacion"):
@@ -122,6 +140,10 @@ func _on_btn_cambiar_personaje_pressed() -> void:
 
 func _on_transicion_camara_iniciada(_origen: String, destino: String, duracion: float) -> void:
 	_reproducir_destello_transicion(destino, duracion)
+	var es_fant = (destino == "fantasma")
+	configurar_estilo_personaje(es_fant, true, duracion)
+	_actualizar_boton_cambio(destino)
+	_aplicar_estilo_textos_y_botones(self)
 
 func _reproducir_destello_transicion(destino: String, duracion: float) -> void:
 	if not is_instance_valid(overlay_transicion):
@@ -162,10 +184,12 @@ func mostrar_aviso_cambio_personaje(personaje_activo: String) -> void:
 		
 	if personaje_activo == "jugador":
 		label_aviso_cambio.text = "👤 Controlando: Jugador Vivo (Plano Físico)"
-		label_aviso_cambio.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		label_aviso_cambio.add_theme_color_override("font_color", COLOR_VIVO_ACCENT)
+		label_aviso_cambio.add_theme_color_override("font_outline_color", Color(0.18, 0.12, 0.04, 0.95))
 	else:
 		label_aviso_cambio.text = "👻 Controlando: Fantasma (Plano Espiritual)"
-		label_aviso_cambio.add_theme_color_override("font_color", Color(0.3, 0.85, 1.0))
+		label_aviso_cambio.add_theme_color_override("font_color", COLOR_FANTASMA_ACCENT)
+		label_aviso_cambio.add_theme_color_override("font_outline_color", Color(0.04, 0.10, 0.18, 0.95))
 		
 	_aviso_tween = create_tween()
 	label_aviso_cambio.modulate.a = 1.0
@@ -173,12 +197,16 @@ func mostrar_aviso_cambio_personaje(personaje_activo: String) -> void:
 	_aviso_tween.tween_property(label_aviso_cambio, "modulate:a", 0.0, 0.6)
 
 
+const TEX_JOYSTICK_BASE = preload("res://assets/UI/Control/Joystick-Base.png")
+const TEX_JOYSTICK_THUMB = preload("res://assets/UI/Control/joystick-thumb.png")
+const RATIO_JOYSTICK_THUMB: float = 352.0 / 640.0
+
 func _inicializar_joystick():
 	if not joystick: return
 	
 	joystick.joystick_mode = 1 # JOYSTICK_DYNAMIC
 	joystick.joystick_size = 200.0
-	joystick.tip_size = 70.0
+	joystick.tip_size = joystick.joystick_size * RATIO_JOYSTICK_THUMB
 	joystick.deadzone_ratio = 0.0
 	joystick.clampzone_ratio = 1.0
 	joystick.initial_offset_ratio = Vector2(0.3, 0.5)
@@ -189,70 +217,64 @@ func _inicializar_joystick():
 	joystick.action_up = &"mover_adelante"
 	joystick.action_down = &"mover_atras"
 	
-	_actualizar_estilo_joystick()
+	_style_base = StyleBoxTexture.new()
+	_style_base.texture = TEX_JOYSTICK_BASE
+	
+	_style_tip = StyleBoxTexture.new()
+	_style_tip.texture = TEX_JOYSTICK_THUMB
+	
+	joystick.add_theme_stylebox_override(&"normal_joystick", _style_base)
+	joystick.add_theme_stylebox_override(&"pressed_joystick", _style_base)
+	joystick.add_theme_stylebox_override(&"normal_tip", _style_tip)
+	joystick.add_theme_stylebox_override(&"pressed_tip", _style_tip)
+	
+	_actualizar_estilo_joystick(false)
 	joystick.gui_input.connect(_on_joystick_gui_input)
 
-var color_personaje_ui: Color = Color(1.0, 0.8, 0.2) # Default golden
+var es_fantasma_ui: bool = false
+var color_personaje_ui: Color = COLOR_VIVO_ACCENT
+var _style_base: StyleBoxTexture = null
+var _style_tip: StyleBoxTexture = null
+var _joystick_tween: Tween = null
 
 func obtener_color_ui() -> Color:
 	return color_personaje_ui
 
-func configurar_estilo_personaje(es_fantasma: bool):
-	if es_fantasma:
-		color_personaje_ui = Color(0.30, 0.82, 1.0) # Turquesa / Cian escarchado
-	else:
-		color_personaje_ui = Color(1.0, 0.82, 0.25) # Warm Golden Yellow
-	_actualizar_estilo_joystick()
+func es_fantasma_actual() -> bool:
+	return es_fantasma_ui
 
-func _actualizar_estilo_joystick():
-	if not joystick: return
+func configurar_estilo_personaje(es_fantasma: bool, con_transicion: bool = true, duracion: float = 0.45):
+	es_fantasma_ui = es_fantasma
+	color_personaje_ui = COLOR_FANTASMA_ACCENT if es_fantasma else COLOR_VIVO_ACCENT
+	_actualizar_estilo_joystick(con_transicion, duracion)
+	_redibujar_botones_accion()
+
+func _actualizar_estilo_joystick(con_transicion: bool = true, duracion: float = 0.45):
+	if not joystick or not _style_base or not _style_tip:
+		return
 	
-	var c = color_personaje_ui
-	var es_fantasma = (c.b > 0.6 and c.r < 0.6)
+	var es_fantasma = es_fantasma_ui
+	var target_base = COLOR_FANTASMA_JOY_BASE if es_fantasma else COLOR_VIVO_JOY_BASE
+	var target_tip = COLOR_FANTASMA_JOY_THUMB if es_fantasma else COLOR_VIVO_JOY_THUMB
+	var target_btn_pausa = COLOR_FANTASMA_BTN_MOD if es_fantasma else COLOR_VIVO_BTN_MOD
 	
-	var style_base = StyleBoxFlat.new()
-	if es_fantasma:
-		style_base.bg_color = Color(0.15, 0.45, 0.65, 0.22) # Cristal escarchado cian
-		style_base.border_color = Color(0.40, 0.85, 1.0, 0.75)
-		style_base.border_width_left = 3
-		style_base.border_width_top = 3
-		style_base.border_width_right = 3
-		style_base.border_width_bottom = 3
-		style_base.set_corner_radius_all(100)
-		style_base.shadow_color = Color(0.1, 0.5, 0.8, 0.2)
-		style_base.shadow_size = 8
+	var btn_pausa = get_node_or_null("HUD_Menu/Boton_Pausa")
+	
+	if _joystick_tween and _joystick_tween.is_running():
+		_joystick_tween.kill()
+		
+	if con_transicion:
+		var t_trans = clampf(duracion * 0.75, 0.35, 1.2)
+		_joystick_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_joystick_tween.tween_property(_style_base, "modulate_color", target_base, t_trans)
+		_joystick_tween.tween_property(_style_tip, "modulate_color", target_tip, t_trans)
+		if is_instance_valid(btn_pausa):
+			_joystick_tween.tween_property(btn_pausa, "modulate", target_btn_pausa, t_trans)
 	else:
-		style_base.bg_color = Color(c.r, c.g, c.b, 0.16)
-		style_base.border_color = Color(c.r, c.g, c.b, 0.6)
-		style_base.border_width_left = 3
-		style_base.border_width_top = 3
-		style_base.border_width_right = 3
-		style_base.border_width_bottom = 3
-		style_base.set_corner_radius_all(100)
-	
-	var style_tip = StyleBoxFlat.new()
-	if es_fantasma:
-		style_tip.bg_color = Color(0.22, 0.65, 0.90, 0.45)
-		style_tip.border_color = Color(0.65, 0.95, 1.0, 0.90)
-		style_tip.border_width_left = 2
-		style_tip.border_width_top = 2
-		style_tip.border_width_right = 2
-		style_tip.border_width_bottom = 2
-		style_tip.set_corner_radius_all(35)
-		style_tip.shadow_color = Color(0.2, 0.8, 1.0, 0.3)
-		style_tip.shadow_size = 6
-	else:
-		style_tip.bg_color = Color(c.r, c.g, c.b, 0.35)
-		style_tip.border_color = Color(c.r, c.g, c.b, 0.8)
-		style_tip.border_width_left = 2
-		style_tip.border_width_top = 2
-		style_tip.border_width_right = 2
-		style_tip.border_width_bottom = 2
-		style_tip.set_corner_radius_all(35)
-	
-	joystick.add_theme_stylebox_override(&"normal_joystick", style_base)
-	joystick.add_theme_stylebox_override(&"pressed_joystick", style_base)
-	joystick.add_theme_stylebox_override(&"normal_tip", style_tip)
+		_style_base.modulate_color = target_base
+		_style_tip.modulate_color = target_tip
+		if is_instance_valid(btn_pausa):
+			btn_pausa.modulate = target_btn_pausa
 var _ultimo_tiempo_toque_camara : float = -10.0
 var _ultima_pos_toque_camara : Vector2 = Vector2.ZERO
 var _arrastre_acumulado_toque : float = 0.0
@@ -282,6 +304,34 @@ func esta_bloqueado_para_juego() -> bool:
 		return true
 	return false
 
+func _esta_sobre_boton(pos: Vector2) -> bool:
+	# 1. Comprobar botones táctiles de acción (Salto, Interactuar, Cambiar Personaje)
+	var zona_botones = get_node_or_null("Area_Camara/Zona_Botones_Accion")
+	if is_instance_valid(zona_botones):
+		for hijo in zona_botones.get_children():
+			if hijo is TouchScreenButton and hijo.is_visible_in_tree():
+				var shape = hijo.shape
+				if shape is CircleShape2D:
+					var centro = hijo.global_position
+					var radio = shape.radius * hijo.global_scale.x * 1.35 # Margen de contacto táctil
+					if pos.distance_to(centro) <= radio:
+						return true
+				elif shape is RectangleShape2D:
+					var rect = Rect2(hijo.global_position - shape.size * 0.5, shape.size)
+					if rect.has_point(pos):
+						return true
+			elif hijo is Control and hijo.is_visible_in_tree():
+				if hijo.get_global_rect().has_point(pos):
+					return true
+
+	# 2. Comprobar botón de pausa / menú superior
+	var btn_pausa = get_node_or_null("HUD_Menu/Boton_Pausa")
+	if is_instance_valid(btn_pausa) and btn_pausa.is_visible_in_tree():
+		if btn_pausa.get_global_rect().has_point(pos):
+			return true
+
+	return false
+
 func _input(event):
 	if esta_bloqueado_para_juego():
 		arrastre_camara = Vector2.ZERO
@@ -294,6 +344,11 @@ func _input(event):
 			return
 
 		if event.position.x > mitad_pantalla:
+			# Si el toque ocurrió sobre un botón de la UI, NO procesar centrado de cámara
+			if _esta_sobre_boton(event.position):
+				_ultimo_tiempo_toque_camara = -10.0
+				return
+
 			if event.is_pressed():
 				_arrastre_acumulado_toque = 0.0
 				var tiempo_actual = Time.get_ticks_msec() / 1000.0
@@ -301,14 +356,13 @@ func _input(event):
 				var dist = event.position.distance_to(_ultima_pos_toque_camara)
 
 				if delta_tiempo <= TIEMPO_DOBLE_TOQUE and dist <= DISTANCIA_MAX_DOBLE_TOQUE:
-					# Doble toque rápido detectado en el área de la cámara: centrar cámara detrás
+					# Doble toque rápido detectado en zona libre de la cámara
 					_solicitud_centrado_camara = true
 					_ultimo_tiempo_toque_camara = -10.0
 				else:
 					_ultimo_tiempo_toque_camara = tiempo_actual
 					_ultima_pos_toque_camara = event.position
 			else:
-				# Si soltó tras haber arrastrado ampliamente, no era un toque limpio
 				if _arrastre_acumulado_toque > 25.0:
 					_ultimo_tiempo_toque_camara = -10.0
 
@@ -317,6 +371,9 @@ func _input(event):
 			return
 
 		if event.position.x > mitad_pantalla:
+			# Si el arrastre se originó sobre un botón de acción, no arrastrar la cámara
+			if _esta_sobre_boton(event.position - event.relative):
+				return
 			arrastre_camara += event.relative
 			_arrastre_acumulado_toque += event.relative.length()
 
@@ -396,11 +453,28 @@ func configurar_personaje_local(personaje: Node):
 			if is_instance_valid(ScoreManager):
 				ScoreManager.score_vivo_changed.connect(callback_vivo)
 				_on_score_vivo_changed(ScoreManager.score_vivo)
+				
+			if personaje.has_signal("estado_interaccion_actualizado"):
+				var cb_vivo = Callable(self, "_on_vivo_interaccion_actualizado")
+				if not personaje.estado_interaccion_actualizado.is_connected(cb_vivo):
+					personaje.estado_interaccion_actualizado.connect(cb_vivo)
+				if personaje.has_method("puede_interactuar"):
+					actualizar_boton_vivo(personaje.puede_interactuar())
+				else:
+					actualizar_boton_vivo(false)
 	else:
 		if es_fantasma:
 			aplicar_estilo_fantasma()
 		else:
 			aplicar_estilo_jugador()
+			if personaje.has_signal("estado_interaccion_actualizado"):
+				var cb_vivo = Callable(self, "_on_vivo_interaccion_actualizado")
+				if not personaje.estado_interaccion_actualizado.is_connected(cb_vivo):
+					personaje.estado_interaccion_actualizado.connect(cb_vivo)
+				if personaje.has_method("puede_interactuar"):
+					actualizar_boton_vivo(personaje.puede_interactuar())
+				else:
+					actualizar_boton_vivo(false)
 
 	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
 		if not is_instance_valid(boton_cambiar_personaje):
@@ -442,28 +516,55 @@ func aplicar_estilo_jugador():
 	configurar_estilo_personaje(false)
 	_aplicar_estilo_textos_y_botones(self)
 	
+	if is_instance_valid(texto_puntuacion):
+		texto_puntuacion.add_theme_color_override(&"font_color", Color(1.0, 0.96, 0.88, 1.0))
+		texto_puntuacion.add_theme_color_override(&"font_outline_color", Color(0.18, 0.12, 0.04, 0.95))
+		
 	var btn_interact = get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
 	if btn_interact and btn_interact.has_method("actualizar_estado_habilidad"):
 		btn_interact.actualizar_estado_habilidad(false, 1.0)
+		
+	_redibujar_botones_accion()
 
 func aplicar_estilo_fantasma():
 	configurar_estilo_personaje(true)
 	_aplicar_estilo_textos_y_botones(self)
+	
+	if is_instance_valid(texto_puntuacion):
+		texto_puntuacion.add_theme_color_override(&"font_color", Color(0.90, 0.96, 1.0, 1.0))
+		texto_puntuacion.add_theme_color_override(&"font_outline_color", Color(0.04, 0.10, 0.18, 0.95))
+		
+	_redibujar_botones_accion()
+
+func _redibujar_botones_accion():
+	var zona = get_node_or_null("Area_Camara/Zona_Botones_Accion")
+	if is_instance_valid(zona):
+		for hijo in zona.get_children():
+			if hijo is CanvasItem:
+				hijo.queue_redraw()
 
 func actualizar_boton_aura(activo: bool, progreso: float):
 	var btn = get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
 	if btn and btn.has_method("actualizar_estado_habilidad"):
 		btn.actualizar_estado_habilidad(activo, progreso)
 
+func _on_vivo_interaccion_actualizado(puede_interactuar: bool):
+	actualizar_boton_vivo(puede_interactuar)
+
+func actualizar_boton_vivo(puede_interactuar: bool):
+	var btn = get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Interactuar")
+	if btn and btn.has_method("actualizar_estado_habilidad_vivo"):
+		btn.actualizar_estado_habilidad_vivo(puede_interactuar)
+
 func _aplicar_estilo_textos_y_botones(nodo: Node):
-	var es_fantasma = false
+	var es_fantasma = es_fantasma_ui
 	if is_instance_valid(_personaje_conectado):
 		es_fantasma = _personaje_conectado.is_in_group("fantasmas") or _personaje_conectado.name.to_lower().contains("fantasma") or _personaje_conectado.has_node("HabilidadAura")
 	elif is_instance_valid(RedManager) and RedManager.es_un_jugador:
 		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
 	
-	var color_borde = Color(0.30, 0.82, 1.0, 0.88) if es_fantasma else Color(0.98, 0.78, 0.25, 0.88)
-	var color_borde_hover = Color(0.50, 0.92, 1.0, 0.95) if es_fantasma else Color(1.0, 0.88, 0.4, 0.95)
+	var color_borde = COLOR_FANTASMA_BORDER if es_fantasma else COLOR_VIVO_BORDER
+	var color_borde_hover = COLOR_FANTASMA_BORDER_HOVER if es_fantasma else COLOR_VIVO_BORDER_HOVER
 	
 	_estilar_nodo_recursivo(nodo, color_borde, color_borde_hover, es_fantasma)
 
@@ -477,49 +578,66 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 		nodo.add_theme_constant_override(&"shadow_offset_y", 2)
 		
 	elif nodo is Button:
-		nodo.material = null
-		nodo.add_theme_color_override(&"font_color", Color(1.0, 1.0, 1.0, 1.0))
-		nodo.add_theme_color_override(&"font_pressed_color", Color(0.9, 0.9, 0.9, 1.0))
-		nodo.add_theme_color_override(&"font_hover_color", color_borde_hover)
-		nodo.add_theme_color_override(&"font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
-		nodo.add_theme_constant_override(&"outline_size", 6)
-		
-		var style_normal = StyleBoxFlat.new()
-		style_normal.bg_color = Color(0.08, 0.16, 0.26, 0.88) if es_fantasma else Color(0.10, 0.12, 0.20, 0.90)
-		style_normal.border_color = color_borde
-		style_normal.border_width_left = 2
-		style_normal.border_width_top = 2
-		style_normal.border_width_right = 2
-		style_normal.border_width_bottom = 2
-		style_normal.set_corner_radius_all(12)
-		if es_fantasma:
-			style_normal.shadow_color = Color(0.1, 0.6, 0.9, 0.25)
-			style_normal.shadow_size = 6
-		
-		var style_hover = style_normal.duplicate()
-		style_hover.bg_color = Color(0.14, 0.26, 0.42, 0.92) if es_fantasma else Color(0.16, 0.20, 0.32, 0.95)
-		style_hover.border_color = color_borde_hover
-		
-		var style_pressed = style_normal.duplicate()
-		style_pressed.bg_color = Color(0.06, 0.12, 0.20, 0.95)
-		style_pressed.border_color = color_borde
-		
-		nodo.add_theme_stylebox_override(&"normal", style_normal)
-		nodo.add_theme_stylebox_override(&"hover", style_hover)
-		nodo.add_theme_stylebox_override(&"pressed", style_pressed)
-		nodo.add_theme_stylebox_override(&"focus", style_hover)
+		if nodo.name == "Boton_Pausa":
+			nodo.text = ""
+			nodo.icon = preload("res://assets/UI/Control/boton pausa.png")
+			nodo.expand_icon = true
+			nodo.custom_minimum_size = Vector2(110, 110)
+			
+			var style_p = StyleBoxEmpty.new()
+			nodo.add_theme_stylebox_override(&"normal", style_p)
+			nodo.add_theme_stylebox_override(&"hover", style_p)
+			nodo.add_theme_stylebox_override(&"pressed", style_p)
+			nodo.add_theme_stylebox_override(&"focus", style_p)
+			
+			nodo.modulate = COLOR_FANTASMA_BTN_MOD if es_fantasma else COLOR_VIVO_BTN_MOD
+		else:
+			nodo.material = null
+			nodo.add_theme_color_override(&"font_color", Color(1.0, 1.0, 1.0, 1.0))
+			nodo.add_theme_color_override(&"font_pressed_color", Color(0.9, 0.9, 0.9, 1.0))
+			nodo.add_theme_color_override(&"font_hover_color", color_borde_hover)
+			nodo.add_theme_color_override(&"font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
+			nodo.add_theme_constant_override(&"outline_size", 6)
+			
+			var style_normal = StyleBoxFlat.new()
+			style_normal.bg_color = COLOR_FANTASMA_PANEL_BG if es_fantasma else COLOR_VIVO_PANEL_BG
+			style_normal.border_color = color_borde
+			style_normal.border_width_left = 2
+			style_normal.border_width_top = 2
+			style_normal.border_width_right = 2
+			style_normal.border_width_bottom = 2
+			style_normal.set_corner_radius_all(12)
+			if es_fantasma:
+				style_normal.shadow_color = Color(0.1, 0.6, 0.9, 0.25)
+				style_normal.shadow_size = 6
+			else:
+				style_normal.shadow_color = Color(0.5, 0.35, 0.1, 0.20)
+				style_normal.shadow_size = 6
+			
+			var style_hover = style_normal.duplicate()
+			style_hover.bg_color = Color(0.14, 0.26, 0.42, 0.92) if es_fantasma else Color(0.20, 0.18, 0.12, 0.95)
+			style_hover.border_color = color_borde_hover
+			
+			var style_pressed = style_normal.duplicate()
+			style_pressed.bg_color = Color(0.04, 0.08, 0.16, 0.95) if es_fantasma else Color(0.08, 0.07, 0.04, 0.95)
+			style_pressed.border_color = color_borde
+			
+			nodo.add_theme_stylebox_override(&"normal", style_normal)
+			nodo.add_theme_stylebox_override(&"hover", style_hover)
+			nodo.add_theme_stylebox_override(&"pressed", style_pressed)
+			nodo.add_theme_stylebox_override(&"focus", style_hover)
 
 	elif nodo is Panel and (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones"):
 		nodo.material = null
 		var style_panel = StyleBoxFlat.new()
-		style_panel.bg_color = Color(0.07, 0.14, 0.22, 0.94) if es_fantasma else Color(0.08, 0.10, 0.16, 0.92)
+		style_panel.bg_color = COLOR_FANTASMA_PANEL_BG if es_fantasma else COLOR_VIVO_PANEL_BG
 		style_panel.border_color = color_borde
 		style_panel.border_width_left = 2
 		style_panel.border_width_top = 2
 		style_panel.border_width_right = 2
 		style_panel.border_width_bottom = 2
 		style_panel.set_corner_radius_all(16)
-		style_panel.shadow_color = Color(0.0, 0.0, 0.0, 0.3)
+		style_panel.shadow_color = Color(0.0, 0.0, 0.0, 0.35)
 		style_panel.shadow_size = 16
 		style_panel.shadow_offset = Vector2(0, 4)
 		nodo.add_theme_stylebox_override(&"panel", style_panel)

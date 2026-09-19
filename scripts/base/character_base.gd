@@ -31,6 +31,14 @@ class_name CharacterBase
 @export var TIEMPO_BUFFER_SALTO : float = 0.14
 @export var MAX_SALTOS : int = 2
 
+@export_group("Levitacion / Planeo")
+@export var PUEDE_PLANEAR : bool = false
+@export var MULTIPLICADOR_CAIDA_PLANEO : float = 0.18
+@export var VELOCIDAD_MAX_CAIDA_PLANEO : float = 1.85
+@export var MULTIPLICADOR_VELOCIDAD_PLANEO : float = 1.15
+@export var MULTIPLICADOR_ACELERACION_PLANEO : float = 1.25
+@export var SUAVIDAD_FRENADO_PLANEO : float = 18.0
+
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var objetivo_rotacion_y : float = 0.0
 var objetivo_rotacion_x : float = 0.0
@@ -45,6 +53,7 @@ var sync_rotation: Vector3
 
 var particulas_corazon: CPUParticles3D = null
 var tiempo_cerca_otro: float = 0.0
+var _otro_jugador_cache: Node3D = null
 const DISTANCIA_PROXIMIDAD_CORAZON: float = 1.4 # Deben estar pegados lado a lado
 const TIEMPO_REQUERIDO_PROXIMIDAD: float = 5.0 # 5 segundos continuos de estar cerca
 
@@ -116,6 +125,7 @@ func _process(delta: float):
 	if es_activo():
 		sync_position = global_position
 		sync_rotation = rotation
+		procesar_camara_base(delta)
 	elif multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		# Suavizado de red (Interpolación) solo en multijugador online
 		global_position = global_position.lerp(sync_position, 15.0 * delta)
@@ -211,23 +221,46 @@ func procesar_camara_base(delta: float):
 		else:
 			pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
 
+func esta_planeando() -> bool:
+	if not PUEDE_PLANEAR or is_on_floor():
+		return false
+	if not es_activo() or entrada_bloqueada():
+		return false
+	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso:
+		return false
+	var salto_mantenido = Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept")
+	return salto_mantenido and velocity.y <= 0.0
+
 func procesar_salto_base(delta: float):
 	var salto_mantenido = es_activo() and not entrada_bloqueada() and (Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept"))
+	var planeando = esta_planeando()
 	if not is_on_floor():
 		var gravedad_actual = gravity
 		# Suspensión en el ápice (Apex Hang / Float) al alcanzar la cima del salto
 		if absf(velocity.y) < UMBRAL_VELOCIDAD_APICE and salto_mantenido and MULTIPLICADOR_GRAVEDAD_APICE < 1.0:
 			gravedad_actual *= MULTIPLICADOR_GRAVEDAD_APICE
+		elif planeando:
+			gravedad_actual *= MULTIPLICADOR_CAIDA_PLANEO
 		elif velocity.y < 0.0:
 			gravedad_actual *= MULTIPLICADOR_CAIDA
 		elif velocity.y > 0.0 and not salto_mantenido:
 			gravedad_actual *= MULTIPLICADOR_CORTE_SALTO
 
 		velocity.y -= gravedad_actual * delta
-		if VELOCIDAD_MAX_CAIDA > 0.0:
+		
+		if planeando:
+			# Frenado suave amortiguado si se empieza a planear a alta velocidad de caída
+			if velocity.y < -VELOCIDAD_MAX_CAIDA_PLANEO:
+				velocity.y = move_toward(velocity.y, -VELOCIDAD_MAX_CAIDA_PLANEO, SUAVIDAD_FRENADO_PLANEO * delta)
+			else:
+				velocity.y = maxf(velocity.y, -VELOCIDAD_MAX_CAIDA_PLANEO)
+		elif VELOCIDAD_MAX_CAIDA > 0.0:
 			velocity.y = maxf(velocity.y, -VELOCIDAD_MAX_CAIDA)
 			
 		tiempo_desde_suelo += delta
+		# Si se cae de una plataforma y expira el tiempo coyote, se consume el salto del suelo
+		if tiempo_desde_suelo > TIEMPO_COYOTE and saltos_realizados == 0:
+			saltos_realizados = 1
 	else:
 		tiempo_desde_suelo = 0.0
 		saltos_realizados = 0
@@ -246,7 +279,7 @@ func procesar_salto_base(delta: float):
 			saltos_realizados = 1
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1 # Consumir buffer
 			_al_realizar_salto(1)
-		elif saltos_realizados < MAX_SALTOS:
+		elif saltos_realizados < MAX_SALTOS and not (PUEDE_PLANEAR and not is_on_floor()):
 			velocity.y = FUERZA_SALTO * MULTIPLICADOR_SEGUNDO_SALTO
 			saltos_realizados += 1
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1 # Consumir buffer
@@ -287,8 +320,10 @@ func obtener_direccion_movimiento() -> Vector3:
 	return move_dir.normalized() * clampf(input_len, 0.0, 1.0)
 
 func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
-	var velocidad_objetivo = direccion * VELOCIDAD
-	var tasa_aceleracion = ACELERACION_SUELO if is_on_floor() else ACELERACION_AIRE
+	var planeando = esta_planeando()
+	var vel_max = VELOCIDAD * (MULTIPLICADOR_VELOCIDAD_PLANEO if planeando else 1.0)
+	var velocidad_objetivo = direccion * vel_max
+	var tasa_aceleracion = ACELERACION_SUELO if is_on_floor() else (ACELERACION_AIRE * (MULTIPLICADOR_ACELERACION_PLANEO if planeando else 1.0))
 	
 	if direccion != Vector3.ZERO:
 		velocity.x = move_toward(velocity.x, velocidad_objetivo.x, tasa_aceleracion * delta)
@@ -468,20 +503,32 @@ func _procesar_proximidad_corazon(delta: float):
 
 
 func _buscar_otro_jugador() -> Node3D:
+	if is_instance_valid(_otro_jugador_cache) and _otro_jugador_cache != self:
+		return _otro_jugador_cache
+
+	if is_instance_valid(RedManager):
+		var es_fantasma = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
+		var candidato = RedManager.jugador_vivo if es_fantasma else RedManager.fantasma
+		if is_instance_valid(candidato) and candidato != self:
+			_otro_jugador_cache = candidato
+			return _otro_jugador_cache
+
 	var todos = get_tree().get_nodes_in_group("jugadores")
-	if todos.size() > 1:
-		for p in todos:
-			if p != self and is_instance_valid(p):
-				return p
-				
-	var es_fantasma = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
-	if es_fantasma:
+	for p in todos:
+		if p != self and is_instance_valid(p):
+			_otro_jugador_cache = p
+			return p
+
+	var es_fant = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
+	if es_fant:
 		var vivos = get_tree().get_nodes_in_group("vivos")
 		if vivos.size() > 0 and vivos[0] != self:
+			_otro_jugador_cache = vivos[0]
 			return vivos[0]
 	else:
 		var fantasmas = get_tree().get_nodes_in_group("fantasmas")
 		if fantasmas.size() > 0 and fantasmas[0] != self:
+			_otro_jugador_cache = fantasmas[0]
 			return fantasmas[0]
-			
+
 	return null

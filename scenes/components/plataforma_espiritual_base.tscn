@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cs88ggghqges0"]
 
 [ext_resource type="Script" path="res://scripts/objects/plataforma_espiritual_base.gd" id="1_script"]
-[ext_resource type="Material" uid="uid://plat_espiritual_mat_001" path="res://shaders/plataforma_espiritual_mat.tres" id="2_plat_mat"]
+[ext_resource type="Material" uid="uid://d0roqbkj6r44q" path="res://shaders/plataforma_espiritual_mat.tres" id="2_plat_mat"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_1"]
 size = Vector3(4, 0.4, 4)

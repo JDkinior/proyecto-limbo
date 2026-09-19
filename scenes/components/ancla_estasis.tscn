@@ -1,0 +1,61 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/objects/ancla_estasis.gd" id="1_script"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_estasis"]
+radius = 2.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cristal"]
+transparency = 1
+albedo_color = Color(0.2, 0.85, 1, 0.8)
+roughness = 0.2
+emission_enabled = true
+emission = Color(0.15, 0.75, 1, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="PrismMesh" id="PrismMesh_cristal"]
+material = SubResource("StandardMaterial3D_cristal")
+size = Vector3(0.5, 0.8, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_escarcha"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.6, 0.95, 1, 0.9)
+
+[sub_resource type="BoxMesh" id="BoxMesh_copo"]
+material = SubResource("StandardMaterial3D_escarcha")
+size = Vector3(0.08, 0.08, 0.08)
+
+[node name="AnclaEstasis" type="Area3D"]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("SphereShape3D_estasis")
+
+[node name="CristalVisual" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+mesh = SubResource("PrismMesh_cristal")
+
+[node name="LuzEstasis" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+light_color = Color(0.2, 0.85, 1, 1)
+light_energy = 2.5
+omni_range = 3.5
+
+[node name="ParticulasEscarcha" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+emitting = false
+amount = 20
+lifetime = 0.8
+mesh = SubResource("BoxMesh_copo")
+emission_shape = 1
+emission_sphere_radius = 1.2
+gravity = Vector3(0, 0.4, 0)
+initial_velocity_min = 0.3
+initial_velocity_max = 1.0
+angular_velocity_min = -90.0
+angular_velocity_max = 90.0
+scale_amount_min = 0.6
+scale_amount_max = 1.4

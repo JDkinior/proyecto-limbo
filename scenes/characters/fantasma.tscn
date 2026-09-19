@@ -5,7 +5,7 @@
 [ext_resource type="ArrayMesh" uid="uid://jyq76yt0vfnl" path="res://assets/Modelos/Provicional/misty.obj" id="2_exjl6"]
 [ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/Modelos/Personajes/fantasma.glb" id="4_bxr04"]
 [ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/Texturas/estela_espiritual.png" id="5_estela_tex"]
-[ext_resource type="Shader" path="res://shaders/aura_halo.gdshader" id="6_aura_halo"]
+[ext_resource type="Shader" uid="uid://cgk67pcjy2kiu" path="res://shaders/aura_halo.gdshader" id="6_aura_halo"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08
@@ -27,32 +27,29 @@ transparency = 1
 blend_mode = 1
 shading_mode = 0
 albedo_color = Color(0.2, 0.75, 1, 0.45)
-emission_enabled = true
-emission = Color(0.12, 0.62, 1, 1)
-emission_energy_multiplier = 3.5
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_aura_halo"]
-shader = ExtResource("6_aura_halo")
-
-[sub_resource type="CylinderMesh" id="CylinderMesh_aura_halo"]
-material = SubResource("ShaderMaterial_aura_halo")
-top_radius = 1.16
-bottom_radius = 1.16
-height = 0.025
 [sub_resource type="CylinderMesh" id="CylinderMesh_aura"]
 material = SubResource("StandardMaterial3D_aura")
 top_radius = 1.0
 bottom_radius = 1.0
 height = 0.05
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aura_halo"]
+render_priority = 0
+shader = ExtResource("6_aura_halo")
+shader_parameter/color_halo = Color(0.1, 0.7, 1, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_aura_halo"]
+material = SubResource("ShaderMaterial_aura_halo")
+top_radius = 1.16
+bottom_radius = 1.16
+height = 0.025
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particula_espiritual"]
 transparency = 1
 blend_mode = 1
 shading_mode = 0
 albedo_color = Color(0.3, 0.85, 1, 0.85)
-emission_enabled = true
-emission = Color(0.18, 0.70, 1, 1)
-emission_energy_multiplier = 2.0
 
 [sub_resource type="SphereMesh" id="SphereMesh_particula"]
 material = SubResource("StandardMaterial3D_particula_espiritual")
@@ -60,14 +57,6 @@ radius = 0.05
 height = 0.1
 radial_segments = 6
 rings = 4
-
-[sub_resource type="Curve" id="Curve_estela_scale"]
-_data = [Vector2(0, 0.45), 0.0, 1.5, 0, 0, Vector2(0.35, 1.0), 0.4, 0.4, 0, 0, Vector2(1, 0.6), -0.5, 0.0, 0, 0]
-point_count = 3
-
-[sub_resource type="Gradient" id="Gradient_estela_color"]
-offsets = PackedFloat32Array(0, 0.2, 0.65, 1)
-colors = PackedColorArray(0.3, 0.85, 1, 0, 0.35, 0.88, 1, 0.55, 0.25, 0.75, 1, 0.25, 0.15, 0.5, 0.95, 0)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_estela"]
 transparency = 1
@@ -86,6 +75,14 @@ particles_anim_loop = false
 [sub_resource type="QuadMesh" id="QuadMesh_estela"]
 material = SubResource("StandardMaterial3D_estela")
 size = Vector2(0.22, 0.22)
+
+[sub_resource type="Curve" id="Curve_estela_scale"]
+_data = [Vector2(0, 0.45), 0.0, 1.5, 0, 0, Vector2(0.35, 1), 0.4, 0.4, 0, 0, Vector2(1, 0.6), -0.5, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_estela_color"]
+offsets = PackedFloat32Array(0, 0.2, 0.65, 1)
+colors = PackedColorArray(0.3, 0.85, 1, 0, 0.35, 0.88, 1, 0.55, 0.25, 0.75, 1, 0.25, 0.15, 0.5, 0.95, 0)
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_camara"]
 radius = 0.18
@@ -118,9 +115,10 @@ visible = false
 layers = 4
 mesh = SubResource("CylinderMesh_aura")
 
-[node name="HaloSuave" type="MeshInstance3D" parent="Aura"]
-position = Vector3(0, 0.02, 0)
+[node name="HaloSuave" type="MeshInstance3D" parent="Aura" unique_id=529758050]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
 mesh = SubResource("CylinderMesh_aura_halo")
+
 [node name="ParticulasAuraMistica" type="CPUParticles3D" parent="Aura" unique_id=778899001]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
 layers = 4
@@ -135,13 +133,13 @@ radial_accel_max = 0.6
 scale_amount_min = 0.5
 scale_amount_max = 1.5
 
-[node name="LuzAura" type="OmniLight3D" parent="Aura"]
+[node name="LuzAura" type="OmniLight3D" parent="Aura" unique_id=434952782]
 light_color = Color(0.18, 0.7, 1, 1)
-light_energy = 1.0
 omni_range = 4.5
 omni_attenuation = 1.5
+
 [node name="EstelaFantasma" type="CPUParticles3D" parent="." unique_id=778899003]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 emitting = false
 amount = 10
 lifetime = 0.45
@@ -157,7 +155,7 @@ scale_amount_curve = SubResource("Curve_estela_scale")
 color_ramp = SubResource("Gradient_estela_color")
 
 [node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=987654321]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
 light_color = Color(0.35, 0.75, 1, 1)
 light_energy = 0.8
 omni_range = 3.2
@@ -183,4 +181,4 @@ replication_config = SubResource("SceneReplicationConfig_fantasma")
 script = ExtResource("2_aura_comp")
 
 [node name="fantasma" parent="." unique_id=863164652 instance=ExtResource("4_bxr04")]
-transform = Transform3D(-0.5, 0, 4.371139e-08, 0, 0.5, 0, -4.371139e-08, 0, -0.5, -0.008454323, 0.08923161, 0)
+transform = Transform3D(-0.5, 0, 4.371139e-08, 0, 0.5, 0, -4.371139e-08, 0, -0.5, 0, 0.2, 0)

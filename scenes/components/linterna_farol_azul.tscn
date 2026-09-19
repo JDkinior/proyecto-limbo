@@ -1,18 +1,18 @@
-[gd_scene format=3 uid="uid://linterna_farol_azul_003"]
+[gd_scene format=3 uid="uid://crv2u0gxw2att"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_base"]
 albedo_color = Color(0.2, 0.22, 0.3, 1)
-roughness = 0.8
 metallic = 0.3
+roughness = 0.8
 
 [sub_resource type="BoxMesh" id="BoxMesh_pedestal"]
 material = SubResource("StandardMaterial3D_base")
 size = Vector3(0.5, 0.7, 0.5)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flame_blue"]
-albedo_color = Color(0.3, 0.8, 1.0, 1)
+albedo_color = Color(0.3, 0.8, 1, 1)
 emission_enabled = true
-emission = Color(0.2, 0.7, 1.0, 1)
+emission = Color(0.2, 0.7, 1, 1)
 emission_energy_multiplier = 4.5
 
 [sub_resource type="BoxMesh" id="BoxMesh_flame"]
@@ -23,23 +23,23 @@ size = Vector3(0.3, 0.4, 0.3)
 material = SubResource("StandardMaterial3D_base")
 size = Vector3(0.6, 0.2, 0.6)
 
-[node name="LinternaFarolAzul" type="Node3D"]
+[node name="LinternaFarolAzul" type="Node3D" unique_id=381384253]
 
-[node name="Pedestal" type="MeshInstance3D" parent="."]
+[node name="Pedestal" type="MeshInstance3D" parent="." unique_id=1174151456]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
 mesh = SubResource("BoxMesh_pedestal")
 
-[node name="Flame" type="MeshInstance3D" parent="."]
+[node name="Flame" type="MeshInstance3D" parent="." unique_id=309239272]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 mesh = SubResource("BoxMesh_flame")
 
-[node name="Cap" type="MeshInstance3D" parent="."]
+[node name="Cap" type="MeshInstance3D" parent="." unique_id=760457228]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 mesh = SubResource("BoxMesh_cap")
 
-[node name="OmniLight3D" type="OmniLight3D" parent="."]
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=896847425]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-light_color = Color(0.3, 0.75, 1.0, 1)
+light_color = Color(0.3, 0.75, 1, 1)
 light_energy = 2.5
 omni_range = 6.0
 omni_attenuation = 1.2

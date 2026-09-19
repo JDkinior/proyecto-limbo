@@ -21,7 +21,7 @@ Proyecto Limbo es un juego cooperativo asimétrico desarrollado en **Godot 4**. 
 	*   Sistema de **Aura Temporal**: Se activa con energía que se consume (encogimiento) y tiene tiempo de recarga.
 	*   Sincronización RPC de plataformas.
 	*   Visión espiritual (filtro azul) y teñido de interfaz mediante Shaders.
-*   **`administrador_plataformas.gd`**: Se encarga de inicializar, decorar con el script correspondiente y registrar todas las plataformas del plano espiritual en el grupo `"plataformas_aura"`.
+*   **`nivel_base.gd`**: Clase base de nivel (`NivelBase`) que estandariza el ciclo de vida de los niveles (reemplaza al legacy `administrador_plataformas.gd`). Inicializa las plataformas del plano espiritual en el grupo `"plataformas_aura"`, ejecuta la optimización de culling automática (`OptimizadorCulling`), valida la estructura contractual mínima de la escena (Vivo, Fantasma, HUD, Goal) y totaliza las monedas con `ScoreManager`.
 *   **`plataforma_aura.gd`**: Script individual para cada plataforma que gestiona de manera local y sincronizada sus colisiones físicas, opacidad y áreas de contacto.
 
 ## 🌐 Sistema Multijugador (P2P)
@@ -186,8 +186,17 @@ scenes/
   characters/
     fantasma.tscn
     jugador.tscn
+  components/
+    ancla_estasis.tscn        # NUEVO: ancla espiritual para congelar tiempo
+    caja_empujable.tscn       # NUEVO: caja con fisica empujable
+    manivela_continua.tscn    # NUEVO: manivela sostenida
+    muro_agrietado.tscn       # NUEVO: muro rompible por impacto
+    palanca_interactiva.tscn  # NUEVO: interruptor de palanca
+    plataforma_colapso.tscn   # NUEVO: plataforma con temporizador de colapso
   levels/
     mundo_pruebas.tscn
+    Nivel 1 _ El Despertar Separado.tscn
+    nivel 2.tscn
   ui/
     controles_tactiles.tscn
 
@@ -199,12 +208,19 @@ scripts/
     habilidad_aura.gd
     jugador.gd
   core/
-    administrador_plataformas.gd
+    nivel_base.gd             # NUEVO: clase base estandarizada de nivel
     red_manager.gd
-    score_manager.gd          # NUEVO: singleton de puntuacion
+    score_manager.gd          # singleton de puntuacion
   objects/
-    coin.gd                    # NUEVO: moneda coleccionable
-    goal.gd                    # NUEVO: objetivo de nivel
+    ancla_estasis.gd          # NUEVO: ancla de estasis temporal
+    caja_empujable.gd         # NUEVO: caja empujable
+    coin.gd                   # moneda coleccionable
+    goal.gd                   # objetivo de nivel
+    manivela_continua.gd      # NUEVO: manivela sostenida
+    muro_agrietado.gd         # NUEVO: muro destructible
+    palanca_interactiva.gd    # NUEVO: palanca interactiva
+    plataforma_aura.gd        # plataforma espiritual de aura
+    plataforma_colapso.gd     # NUEVO: plataforma de colapso con soporte de estasis
   ui/
     area_camara.gd
     boton_tactil_visual.gd
@@ -580,10 +596,15 @@ Nota importante:
 
 Responsabilidades:
 
-- Redibujar botones tactiles circulares.
-- Mantener apariencia amarilla semitransparente por defecto.
-
-Cuando el Fantasma es el personaje local, `controles_tactiles.gd` aplica un shader azul recursivo que afecta tambien estos botones.
+- Renderizar los botones táctiles utilizando la suite completa de texturas gráficas de `assets/UI/Control/`:
+  - Salto: `Salto Vivo.png` y `Salto Fantasma.png`.
+  - Acción / Interactuar: `Accion Vivo.png` y `Accion Fantasma.png`.
+  - Cambio de Personaje: `Boton cambio vivo.png` y `Boton cambio fantasma.png`.
+  - Pausa: `boton pausa.png`.
+- Conmutar automáticamente los sprites en tiempo real según el personaje activo (Vivo vs Fantasma).
+- Centrar y escalar automáticamente los sprites gráficos con los radios de interacción (`CircleShape2D`).
+- Proporcionar respuesta visual táctil interactiva al presionar (click feedback al 92%).
+- Gestionar los estados visuales especiales de la habilidad espectral del fantasma (anillo de pulso activo y arco de cooldown circular sobre el botón de acción).
 
 ## 8. Sistema Multijugador
 
@@ -657,12 +678,16 @@ El sistema de plataformas espirituales está completamente refactorizado bajo un
 - Tiene un área de detección dinámica (`Area3D` interna llamada `AreaContacto`) que duplica y expande ligeramente su colisión física. Esta área detecta la presencia del fantasma (capa 3) sin fallas físicas ni parpadeos al moverse.
 - Expone la función `@rpc("any_peer", "call_local", "reliable") func rpc_sincronizar_estado(activo: bool)` para aplicar local e individualmente su estado físico (`collision_layer` y `collision_mask`) y visual (opacidad recursiva de sus materiales).
 
-### AdministradorPlataformas
+### NivelBase (Ciclo de Vida y Estandarización de Niveles)
 
-`scripts/core/administrador_plataformas.gd`:
+`scripts/core/nivel_base.gd`:
 
-- Actúa únicamente como inicializador al arrancar el nivel.
-- Escanea de forma recursiva la escena, detecta las plataformas espirituales, les adjunta dinámicamente el script `PlataformaAura` si no lo tienen, las inicializa y las añade al grupo `"plataformas_aura"`. Esto elimina todo acoplamiento directo y redundancia de replicación/polling con los personajes.
+- Hereda de `Node3D` con `class_name NivelBase`. Reemplaza la funcionalidad del antiguo `administrador_plataformas.gd`.
+- **Inicialización de Plataformas**: Al arrancar el nivel (`_ready`), escanea de forma recursiva la jerarquía, detecta las plataformas espirituales (capa 3), les adjunta dinámicamente el script `PlataformaAura` si no lo tienen y las registra en el grupo `"plataformas_aura"`.
+- **Optimización de Culling**: Invoca automáticamente a `OptimizadorCulling.optimizar_nivel(self)` para habilitar frustum culling, oclusión y agrupar mallas estáticas.
+- **Validación de Contrato de Nivel**: Verifica la existencia de los nodos esenciales (`Vivo`, `Fantasma`, `HUD`, `Goal`) emitiendo advertencias claras si algún componente falta en la escena.
+- **Puntuación y Coleccionables**: Cuenta automáticamente todas las monedas (`Coin`) presentes en el nivel y llama de forma diferida a `ScoreManager.iniciar_nivel(total_monedas)`.
+- **Ganchos Virtuales**: Expone `_al_iniciar_nivel()` y `_al_terminar_nivel()` para que cada nivel hijo extienda lógica particular sin romper el contrato base.
 
 ### Fantasma
 
@@ -671,6 +696,44 @@ El sistema de plataformas espirituales está completamente refactorizado bajo un
 - Como autoridad del multijugador, monitoriza en cada tick de física si está en contacto con alguna plataforma del grupo `"plataformas_aura"` consultando su área de detección.
 - Si el fantasma la toca y su habilidad de aura está activa, refresca un temporizador de contacto con amortiguación (`BUFFER_CONTACTO_PLATAFORMA = 0.25` segundos) para evitar pérdidas de colisión transitorias al moverse.
 - Sincroniza el estado llamando a `plataforma.rpc_sincronizar_estado.rpc(true)` si la habilidad está activa y hay contacto, o `false` en caso contrario (desactivándose para el vivo cuando se apaga la habilidad o se pierde el contacto).
+
+## 10.1 Mecánicas Interactivas y Puzles Cooperativos
+
+Se han diseñado e implementado 6 componentes interactivos modulares (`scripts/objects/` y `scenes/components/`) para enriquecer las mecánicas de cooperación asimétrica entre el Jugador Vivo y el Fantasma:
+
+### 1. Caja Empujable (`caja_empujable.gd` / `caja_empujable.tscn`)
+- **Física**: `RigidBody3D` con masa equilibrada, fricción moderada y restricciones angulares (`axis_lock_angular_*`) para prevenir vuelcos involuntarios.
+- **Interacción**: Empujable físicamente por el Jugador Vivo mediante impulsos calculados en `CharacterBase._physics_process` (`aplicar_empuje(fuerza, direccion)`).
+- **Utilidad**: Bloquea pasos, sirve de escalón para alcanzar salientes y presiona placas de presión o interruptores de suelo.
+- **Sincronización**: Estado físico replicado con autoridad de red o `MultiplayerSynchronizer`.
+
+### 2. Plataforma de Colapso (`plataforma_colapso.gd` / `plataforma_colapso.tscn`)
+- **Física y Detección**: `StaticBody3D` con colisión en Capas 1 (Mundo) y 2 (Vivo), dotada de un `Area3D` superior de detección.
+- **Mecánica**: Al ser pisada por el Vivo, inicia una secuencia de advertencia con vibración (`tiempo_aviso`), colapsa deshabilitando su colisión y desvaneciéndose visualmente (`tiempo_colapso`), y se restaura automáticamente.
+- **Sinergia con Fantasma (Éxtasis / Estasis)**: Incluye funciones `congelar_estasis()` y `descongelar_estasis()`. Si el Fantasma activa su aura o un `AnclaEstasis` cerca de la plataforma, el temporizador de colapso o caída se congela en el tiempo, permitiendo al Vivo cruzar tramos imposibles.
+- **Red**: Sincronización de eventos mediante RPCs confiables `@rpc("call_local", "reliable")`.
+
+### 3. Muro Agrietado (`muro_agrietado.gd` / `muro_agrietado.tscn`)
+- **Física**: `StaticBody3D` destructible en Capa 1 y 2.
+- **Mecánica**: Requiere impactos o golpes contundentes del Jugador Vivo (`recibir_impacto(fuerza)`). Cuenta con puntos de resistencia (`salud`).
+- **Feedback**: Sacudida de impacto procedimental y al destruirse genera una explosión de partículas (`CPUParticles3D`/`GPUParticles3D`) desactivando sus colisiones.
+- **Red**: Notificación RPC a todos los clientes (`destruir_muro`).
+
+### 4. Manivela Continua (`manivela_continua.gd` / `manivela_continua.tscn`)
+- **Mecánica**: Requiere que un jugador mantenga presionado el botón de interactuar dentro de su `Area3D` para girar la manivela progresivamente de 0.0 a 1.0.
+- **Comportamiento**: Si el jugador suelta el botón o se aleja antes de llegar al 100%, la manivela retrocede elásticamente a su posición inicial, salvo que esté congelada en el tiempo por el Fantasma (`congelar_estasis()`).
+- **Señales**: Emite `progreso_cambiado(progreso)` y `completado()` para accionar compuertas, puentes o elevadores.
+
+### 5. Palanca Interactiva (`palanca_interactiva.gd` / `palanca_interactiva.tscn`)
+- **Mecánica**: Interruptor conmutable (`Area3D`) con soporte para modo biestable (toggle on/off) o con temporizador de retorno automático (`tiempo_retorno`).
+- **Soporte Co-op**: Configurable para interacción física del Vivo, interacción espiritual del Fantasma o ambas.
+- **Feedback**: Animación de rotación interpolada (`Tween`) y luz indicadora de estado (rojo = inactivo, verde = activo).
+- **Señales y Red**: Emite `palanca_activada(nuevo_estado)` y sincroniza el cambio vía RPC.
+
+### 6. Ancla de Estasis (`ancla_estasis.gd` / `ancla_estasis.tscn`)
+- **Mecánica Espiritual**: `Area3D` configurada en Capa 4 (Aura). Reacciona a la presencia del campo de aura del Fantasma.
+- **Sinergia Cooperativa**: Al recibir la energía del aura, el ancla entra en estado de resonancia y propaga la congelación temporal (`congelar_estasis()`) a todos los nodos vinculados en su lista (`nodos_afectados`: plataformas móviles, manivelas en progreso, plataformas de colapso).
+- **Finalización**: Cuando el Fantasma apaga su aura o se retira del radio, el ancla descongela suavemente los mecanismos.
 
 ## 11. Flujo General De Juego
 
@@ -731,7 +794,7 @@ Seguir estas reglas antes de modificar:
 6. Usar senales para comunicacion de abajo hacia arriba.
 7. Usar llamadas directas solo de arriba hacia abajo cuando el padre controla al hijo.
 8. Respetar autoridad multiplayer: todo input local debe estar protegido con `is_multiplayer_authority()`.
-9. Antes de cambiar plataformas, revisar tanto `fantasma.gd` como `administrador_plataformas.gd`.
+9. Antes de cambiar plataformas, revisar tanto `fantasma.gd` como `nivel_base.gd`.
 10. Si se agregan plataformas de aura, marcarlas con layer o mask `Plano_Espiritual`; el nombre ya no importa.
 11. Si se agregan nuevos personajes o habilidades, crear componentes hijos como `HabilidadAura`.
 12. Si se modifica la jerarquia de la escena de nivel, actualizar rutas relativas en `CharacterBase` y UI.
@@ -748,13 +811,11 @@ Estado:
 
 ### Duplicidad de plataformas
 
-`Fantasma` y `AdministradorPlataformas` pueden aplicar estados de plataforma.
+`NivelBase` inicializa y decora plataformas una sola vez al cargar (`_ready()`), mientras que `Fantasma` sincroniza sus activaciones con RPC según la presencia del aura.
 
-Riesgo:
+Estado:
 
-- Logs duplicados.
-- Estados aplicados dos veces.
-- Dificultad para depurar red.
+- **Resuelto**. `NivelBase` únicamente decora y agrupa las plataformas en `"plataformas_aura"` durante el arranque, eliminando redundancias y llamadas duplicadas.
 
 Solucion recomendada:
 
@@ -1037,6 +1098,7 @@ Responsabilidades:
 
 ### 1. Moneda Vivo (`scenes/components/moneda_vivo.tscn` / `moneda_vivo.gd`)
 - Moneda en Capa 4, detecta solo al Vivo (Capa 2). Suma score en el `ScoreManager` de forma sincronizada y se autodestruye mediante RPC. Gira constantemente en su eje Y.
+- **Adaptación Visual Espectral**: Cuando es observada desde la perspectiva del Fantasma (en multijugador o en un solo jugador al alternar reino), se modula dinámicamente con un material azul espiritual brillante y una luz `OmniLight3D` cian, mientras que el Vivo la observa en su tono dorado cálido original.
 
 ### 2. Moneda Fantasma (`scenes/components/moneda_fantasma.tscn` / `moneda_fantasma.gd`)
 - Moneda en Capa 4, detecta solo al Fantasma (Capa 3). Es invisible para el Vivo (ya que se modula a la Capa Visual 3 y la cámara del Vivo la excluye). Gira constantemente en su eje Y.
@@ -1059,9 +1121,19 @@ Responsabilidades:
 ### 7. Plataforma Espiritual Base (`scenes/components/plataforma_espiritual_base.tscn` / `plataforma_espiritual_base.gd`)
 - Hereda de `elemento_interactivo_base.gd`. Al activarse, se vuelve visible (opacidad 100%) y activa colisión en Capas 2 y 3. Al desactivarse es invisible e intangible.
 
-### 8. Disparadores de Prueba
+### 8. Disparadores y Mecanismos Físicos y Espirituales
 - **Botón de Presión (`boton_presion.tscn` / `boton_presion.gd`)**: Emite señales al ser pisado por el Vivo o la Caja.
-- **Interruptor de Aura (`interruptor_aura.tscn` / `interruptor_aura.gd`)**: Emite señales cuando el Fantasma está cerca y su habilidad de aura está activa (calculado por distancia horizontal).
+- **Interruptor de Aura (`interruptor_aura.tscn` / `interruptor_aura.gd`)**: Emite señales cuando el Fantasma está cerca y su habilidad de aura está activa.
+- **Palanca Interactiva (`palanca_interactiva.tscn` / `palanca_interactiva.gd`)**: Mecanismo físico que el Vivo acciona con el botón de Interactuar. Soporta modo conmutador On/Off o temporizado con auto-retorno.
+- **Manivela Continua (`manivela_continua.tscn` / `manivela_continua.gd`)**: Mecanismo de torno que el Vivo opera manteniendo presionado Interactuar para mover plataformas/compuertas (0% a 100%), desenrollándose si se suelta. Soporta congelamiento por Aura del Fantasma.
+- **Muro Agrietado Destructible (`muro_agrietado.tscn` / `muro_agrietado.gd`)**: Bloqueo de piedra física que el Vivo destruye ejecutando su Embate Físico hacia adelante.
+- **Ancla de Éxtasis / Congelamiento (`ancla_estasis.tscn` / `ancla_estasis.gd`)**: Componente que al recibir el pulso de Aura del Fantasma, congela en el tiempo el mecanismo o plataforma asignado por X segundos (congelando caídas, rotaciones y retrocesos).
+
+### 9. Habilidades Definitivas de los Personajes
+| Personaje | Plano | Habilidad Activa (Botón Acción) | Movilidad Especial |
+| :--- | :---: | :--- | :--- |
+| **Jugador Vivo** | Físico (Capa 2) | **Accionar Mecanismos** (Palancas, Manivelas) o **Embate Físico** (Tackle rompe-muros e impulso) | Doble Salto ágil |
+| **Fantasma** | Espiritual (Capa 3) | **Aura de Resonancia y Éxtasis** (Materializa plataformas, activa interruptores y congela mecanismos en el tiempo) | Levitación / Planeo lento con salto alto |
 
 ## 21. Archivos Que Una IA Deberia Leer Primero
 
@@ -1079,7 +1151,7 @@ Orden recomendado:
 10. `scripts/objects/coin.gd`.
 11. `scripts/objects/goal.gd`.
 12. `scripts/ui/controles_tactiles.gd`.
-13. `scripts/core/administrador_plataformas.gd`.
+13. `scripts/core/nivel_base.gd`.
 
 Con ese orden se entiende primero el objetivo, luego la configuracion, despues la escena principal y finalmente los sistemas que se comunican entre si.
 

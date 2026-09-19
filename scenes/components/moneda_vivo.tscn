@@ -1,10 +1,22 @@
 [gd_scene format=3 uid="uid://cs88ggghqges5"]
 
 [ext_resource type="Script" uid="uid://ca6w4dirjwhye" path="res://scripts/objects/moneda_vivo.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://dnnv67oic3l7y" path="res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinRuby.glb" id="2_mesh"]
+[ext_resource type="PackedScene" uid="uid://b404wuhwh436i" path="res://assets/Modelos/Entorno/Moneda Vivo.glb" id="2_mesh"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_g0mv7"]
 radius = 0.8754716
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particula_gema"]
+shading_mode = 0
+albedo_color = Color(1, 0.92, 0.28, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_particula"]
+material = SubResource("StandardMaterial3D_particula_gema")
+size = Vector3(0.12, 0.12, 0.12)
+
+[sub_resource type="Curve" id="Curve_escala_gema"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.6, 0.9), -0.5, -0.5, 0, 0, Vector2(1, 0), -2.5, 0.0, 0, 0]
+point_count = 3
 
 [node name="MonedaVivo" type="Area3D" unique_id=1921210106]
 collision_layer = 8
@@ -12,13 +24,34 @@ collision_mask = 2
 script = ExtResource("1_script")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1459349969]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)
 shape = SubResource("SphereShape3D_g0mv7")
 
-[node name="AncientCoinRuby" parent="." unique_id=92089052 instance=ExtResource("2_mesh")]
-transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, -0.05, 0.05, -0.35)
+[node name="Moneda Vivo" parent="." unique_id=92089052 instance=ExtResource("2_mesh")]
 
 [node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=987654323]
-light_color = Color(1.0, 0.8, 0.2, 1)
+light_color = Color(1, 0.8, 0.2, 1)
 light_energy = 2.0
 omni_range = 3.5
+
+[node name="ParticulasRecoleccion" type="CPUParticles3D" parent="." unique_id=1982736411]
+emitting = false
+amount = 22
+lifetime = 0.42
+one_shot = true
+explosiveness = 1.0
+mesh = SubResource("BoxMesh_particula")
+emission_shape = 1
+emission_sphere_radius = 0.2
+spread = 180.0
+gravity = Vector3(0, -1.2, 0)
+initial_velocity_min = 3.5
+initial_velocity_max = 6.0
+damping_min = 4.0
+damping_max = 6.0
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = -360.0
+angular_velocity_max = 360.0
+scale_amount_min = 0.6
+scale_amount_max = 1.3
+scale_amount_curve = SubResource("Curve_escala_gema")

@@ -8,7 +8,7 @@ class_name PlataformaEspiritualBase
 
 @export_group("Configuración Visual")
 @export var opacidad_activa: float = 1.0
-@export var opacidad_inactiva: float = 0.0
+@export var opacidad_inactiva: float = 0.45
 
 var _materiales_cacheados: Dictionary = {} # { MeshInstance3D: { "override": Material, "surfaces": Array[Material] } }
 
@@ -28,9 +28,9 @@ func actualizar_comportamiento(activo: bool) -> void:
 		collision_mask = (1 << 1) | (1 << 2)
 		_cambiar_opacidad(opacidad_activa)
 	else:
-		# Inactiva: invisible e intangible para ambos
-		collision_layer = 0
-		collision_mask = 0
+		# Inactiva para el Vivo, pero SIEMPRE sólida para el Fantasma en el plano espiritual (Capa 3)
+		collision_layer = 1 << 2
+		collision_mask = 1 << 2
 		_cambiar_opacidad(opacidad_inactiva)
 
 func _cambiar_opacidad(opacidad: float) -> void:

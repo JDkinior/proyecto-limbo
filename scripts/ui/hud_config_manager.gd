@@ -30,9 +30,8 @@ const DEFAULT_CONFIG: Dictionary = {
 	"btn_cambiar_offset_y": 0.0,
 	"btn_cambiar_scale": 1.0,
 	
-	# Botón de Pausa
-	"btn_pausa_pos_ratio_x": 0.92,
-	"btn_pausa_pos_ratio_y": 0.06,
+	# Botón de Pausa — btn_pausa_pos_ratio_y = margen como fracción de screen_height (igual top y right)
+	"btn_pausa_pos_ratio_y": 0.035,
 	"btn_pausa_scale": 1.0,
 	
 	# Opacidad de Controles
@@ -84,10 +83,12 @@ static func aplicar_a_hud(hud_root: Control, custom_cfg: Dictionary = {}) -> voi
 	if is_instance_valid(joystick):
 		var j_scale: float = cfg.get("joystick_scale", 1.0)
 		var j_size: float = cfg.get("joystick_size", 200.0)
+		if j_size < 150.0:
+			j_size = 200.0
 		if "joystick_size" in joystick:
 			joystick.joystick_size = j_size * j_scale
 		if "tip_size" in joystick:
-			joystick.tip_size = (j_size * 0.35) * j_scale
+			joystick.tip_size = (j_size * (352.0 / 640.0)) * j_scale
 		
 		# Ajustar offset inicial en cuadrante inferior izquierdo o posición
 		var target_j_x: float = cfg.get("joystick_pos_ratio_x", 0.15) * screen_size.x
@@ -123,8 +124,8 @@ static func aplicar_a_hud(hud_root: Control, custom_cfg: Dictionary = {}) -> voi
 		var btn_saltar = zona_botones.get_node_or_null("Boton_Saltar")
 		if is_instance_valid(btn_saltar):
 			btn_saltar.position = Vector2(
-				cfg.get("btn_saltar_offset_x", 25.0),
-				cfg.get("btn_saltar_offset_y", 42.0)
+				cfg.get("btn_saltar_offset_x", 40.0),
+				cfg.get("btn_saltar_offset_y", 51.0)
 			)
 			var s: float = cfg.get("btn_saltar_scale", 1.0)
 			btn_saltar.scale = Vector2(s, s)
@@ -132,8 +133,8 @@ static func aplicar_a_hud(hud_root: Control, custom_cfg: Dictionary = {}) -> voi
 		var btn_interact = zona_botones.get_node_or_null("Boton_Interactuar")
 		if is_instance_valid(btn_interact):
 			btn_interact.position = Vector2(
-				cfg.get("btn_interactuar_offset_x", 42.0),
-				cfg.get("btn_interactuar_offset_y", -45.0)
+				cfg.get("btn_interactuar_offset_x", 40.0),
+				cfg.get("btn_interactuar_offset_y", -51.0)
 			)
 			var s: float = cfg.get("btn_interactuar_scale", 1.0)
 			btn_interact.scale = Vector2(s, s)
@@ -141,21 +142,28 @@ static func aplicar_a_hud(hud_root: Control, custom_cfg: Dictionary = {}) -> voi
 		var btn_cambiar = zona_botones.get_node_or_null("Boton_Cambiar_Personaje")
 		if is_instance_valid(btn_cambiar):
 			btn_cambiar.position = Vector2(
-				cfg.get("btn_cambiar_offset_x", -55.0),
-				cfg.get("btn_cambiar_offset_y", -15.0)
+				cfg.get("btn_cambiar_offset_x", -45.0),
+				cfg.get("btn_cambiar_offset_y", 0.0)
 			)
 			var s: float = cfg.get("btn_cambiar_scale", 1.0)
 			btn_cambiar.scale = Vector2(s, s)
 
-	# 3. Aplicar a Botón de Pausa (HUD_Menu)
+	# 3. Aplicar a Botón de Pausa (HUD_Menu) — se mueve via offsets de ancla, no global_position
 	var hud_menu = hud_root.get_node_or_null("HUD_Menu")
 	if is_instance_valid(hud_menu):
 		var p_scale: float = cfg.get("btn_pausa_scale", 1.0)
-		hud_menu.scale = Vector2(p_scale, p_scale)
-		var p_size_x = hud_menu.size.x if hud_menu.size.x > 0 else 120.0
-		var target_px: float = cfg.get("btn_pausa_pos_ratio_x", 0.92) * screen_size.x - (p_size_x * 0.5 * p_scale)
-		var target_py: float = cfg.get("btn_pausa_pos_ratio_y", 0.06) * screen_size.y
-		hud_menu.global_position = Vector2(target_px, target_py)
+		var base_pausa_sz: float = 110.0
+		var btn_size: float = base_pausa_sz * p_scale
+		# p_scale afecta el tamaño del botón hijo, no del contenedor
+		var btn_p = hud_menu.get_node_or_null("Boton_Pausa")
+		if is_instance_valid(btn_p):
+			btn_p.custom_minimum_size = Vector2(btn_size, btn_size)
+		# Reposicionar via offsets de ancla para que sea responsivo a cualquier pantalla
+		var margen: float = cfg.get("btn_pausa_pos_ratio_y", 0.035) * screen_size.y
+		hud_menu.offset_right = -margen
+		hud_menu.offset_left = -margen - btn_size
+		hud_menu.offset_top = margen
+		hud_menu.offset_bottom = margen + btn_size
 		
 	# 4. Modulación/Opacidad general si aplica
 	var opacidad: float = cfg.get("hud_opacidad", 1.0)

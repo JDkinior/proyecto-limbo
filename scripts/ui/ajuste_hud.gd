@@ -205,12 +205,16 @@ func _construir_interfaz():
 	add_child(toast_guardado)
 
 func _crear_elementos_hud_interactivos():
+	var es_fantasma = false
+	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
+		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
+
 	# 1. Joystick
 	nodo_joystick = Control.new()
 	nodo_joystick.name = "Preview_Joystick"
-	nodo_joystick.custom_minimum_size = Vector2(180, 180)
-	nodo_joystick.size = Vector2(180, 180)
-	nodo_joystick.pivot_offset = Vector2(90, 90)
+	nodo_joystick.custom_minimum_size = Vector2(200, 200)
+	nodo_joystick.size = Vector2(200, 200)
+	nodo_joystick.pivot_offset = Vector2(100, 100)
 	nodo_joystick.gui_input.connect(func(ev): _manejar_input_elemento("joystick", ev, nodo_joystick))
 	_crear_dibujo_joystick(nodo_joystick)
 	add_child(nodo_joystick)
@@ -228,42 +232,45 @@ func _crear_elementos_hud_interactivos():
 	_crear_marco_seleccion(nodo_grupo_botones)
 	add_child(nodo_grupo_botones)
 	
-	# Botón Saltar (sin etiquetas exteriores que se corten)
+	# Botón Saltar (con textura real)
 	nodo_btn_saltar = Control.new()
 	nodo_btn_saltar.name = "Preview_Btn_Saltar"
-	nodo_btn_saltar.custom_minimum_size = Vector2(76, 76)
-	nodo_btn_saltar.size = Vector2(76, 76)
-	nodo_btn_saltar.pivot_offset = Vector2(38, 38)
+	nodo_btn_saltar.custom_minimum_size = Vector2(93, 100)
+	nodo_btn_saltar.size = Vector2(93, 100)
+	nodo_btn_saltar.pivot_offset = Vector2(46.5, 50)
 	nodo_btn_saltar.gui_input.connect(func(ev): _manejar_input_boton_accion("btn_saltar", ev, nodo_btn_saltar))
-	_crear_dibujo_boton_accion(nodo_btn_saltar, Color(1.0, 0.82, 0.25), "▲")
+	var tex_salto = preload("res://assets/UI/Control/Salto Fantasma.png") if es_fantasma else preload("res://assets/UI/Control/Salto Vivo.png")
+	_crear_dibujo_boton_textura(nodo_btn_saltar, tex_salto)
 	nodo_grupo_botones.add_child(nodo_btn_saltar)
 	
-	# Botón Interactuar
+	# Botón Interactuar / Acción (con textura real)
 	nodo_btn_interactuar = Control.new()
 	nodo_btn_interactuar.name = "Preview_Btn_Interactuar"
-	nodo_btn_interactuar.custom_minimum_size = Vector2(76, 76)
-	nodo_btn_interactuar.size = Vector2(76, 76)
-	nodo_btn_interactuar.pivot_offset = Vector2(38, 38)
+	nodo_btn_interactuar.custom_minimum_size = Vector2(93, 100)
+	nodo_btn_interactuar.size = Vector2(93, 100)
+	nodo_btn_interactuar.pivot_offset = Vector2(46.5, 50)
 	nodo_btn_interactuar.gui_input.connect(func(ev): _manejar_input_boton_accion("btn_interactuar", ev, nodo_btn_interactuar))
-	_crear_dibujo_boton_accion(nodo_btn_interactuar, Color(0.35, 0.85, 1.0), "◆")
+	var tex_interact = preload("res://assets/UI/Control/Accion Fantasma.png") if es_fantasma else preload("res://assets/UI/Control/Accion Vivo.png")
+	_crear_dibujo_boton_textura(nodo_btn_interactuar, tex_interact)
 	nodo_grupo_botones.add_child(nodo_btn_interactuar)
 	
-	# Botón Cambiar Personaje
+	# Botón Cambiar Personaje (con textura real)
 	nodo_btn_cambiar = Control.new()
 	nodo_btn_cambiar.name = "Preview_Btn_Cambiar"
-	nodo_btn_cambiar.custom_minimum_size = Vector2(76, 76)
-	nodo_btn_cambiar.size = Vector2(76, 76)
-	nodo_btn_cambiar.pivot_offset = Vector2(38, 38)
+	nodo_btn_cambiar.custom_minimum_size = Vector2(93, 100)
+	nodo_btn_cambiar.size = Vector2(93, 100)
+	nodo_btn_cambiar.pivot_offset = Vector2(46.5, 50)
 	nodo_btn_cambiar.gui_input.connect(func(ev): _manejar_input_boton_accion("btn_cambiar", ev, nodo_btn_cambiar))
-	_crear_dibujo_boton_accion(nodo_btn_cambiar, Color(0.85, 0.6, 1.0), "⇄")
+	var tex_cambio = preload("res://assets/UI/Control/Boton cambio vivo.png") if es_fantasma else preload("res://assets/UI/Control/Boton cambio fantasma.png")
+	_crear_dibujo_boton_textura(nodo_btn_cambiar, tex_cambio)
 	nodo_grupo_botones.add_child(nodo_btn_cambiar)
 	
-	# 3. Botón de Pausa
+	# 3. Botón de Pausa (con textura real)
 	nodo_btn_pausa = Control.new()
 	nodo_btn_pausa.name = "Preview_Btn_Pausa"
-	nodo_btn_pausa.custom_minimum_size = Vector2(130, 42)
-	nodo_btn_pausa.size = Vector2(130, 42)
-	nodo_btn_pausa.pivot_offset = Vector2(65, 21)
+	nodo_btn_pausa.custom_minimum_size = Vector2(110, 110)
+	nodo_btn_pausa.size = Vector2(110, 110)
+	nodo_btn_pausa.pivot_offset = Vector2(55, 55)
 	nodo_btn_pausa.gui_input.connect(func(ev): _manejar_input_elemento("btn_pausa", ev, nodo_btn_pausa))
 	_crear_dibujo_boton_pausa(nodo_btn_pausa)
 	add_child(nodo_btn_pausa)
@@ -271,44 +278,47 @@ func _crear_elementos_hud_interactivos():
 # --- Renderizado de Botones ---
 
 func _crear_dibujo_joystick(parent: Control):
-	var panel = Panel.new()
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color(0.2, 0.6, 0.9, 0.22)
-	sb.border_color = Color(0.4, 0.85, 1.0, 0.85)
-	sb.border_width_left = 3
-	sb.border_width_top = 3
-	sb.border_width_right = 3
-	sb.border_width_bottom = 3
-	sb.set_corner_radius_all(90)
-	panel.add_theme_stylebox_override("panel", sb)
-	parent.add_child(panel)
+	var es_fantasma = false
+	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
+		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
+		
+	var base = TextureRect.new()
+	base.name = "BaseJoystick"
+	base.texture = preload("res://assets/UI/Control/Joystick-Base.png")
+	base.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	base.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	base.set_anchors_preset(Control.PRESET_FULL_RECT)
+	base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	base.modulate = Color(0.68, 0.86, 1.0, 0.92) if es_fantasma else Color(0.98, 0.95, 0.88, 0.92)
+	parent.add_child(base)
 	
-	# Perilla Central
-	var knob = Panel.new()
-	knob.size = Vector2(64, 64)
-	knob.position = Vector2(58, 58)
+	# Perilla Central con proporción exacta del diseño (352/640)
+	var knob = TextureRect.new()
+	knob.name = "KnobJoystick"
+	knob.texture = preload("res://assets/UI/Control/joystick-thumb.png")
+	knob.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	knob.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb_k = StyleBoxFlat.new()
-	sb_k.bg_color = Color(0.3, 0.75, 1.0, 0.55)
-	sb_k.border_color = Color(0.7, 0.95, 1.0, 0.95)
-	sb_k.border_width_left = 2
-	sb_k.border_width_top = 2
-	sb_k.border_width_right = 2
-	sb_k.border_width_bottom = 2
-	sb_k.set_corner_radius_all(32)
-	knob.add_theme_stylebox_override("panel", sb_k)
+	knob.modulate = Color(0.68, 0.86, 1.0, 0.95) if es_fantasma else Color(1.0, 0.97, 0.90, 0.96)
+	
+	var thumb_ratio = 352.0 / 640.0
+	var knob_size = parent.size * thumb_ratio
+	knob.size = knob_size
+	knob.position = (parent.size - knob_size) * 0.5
 	parent.add_child(knob)
 
 func _crear_marco_seleccion(parent: Control):
+	var es_fantasma = false
+	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
+		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
+		
 	var panel_marco = Panel.new()
 	panel_marco.name = "MarcoSeleccion"
 	panel_marco.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel_marco.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb = StyleBoxFlat.new()
 	sb.bg_color = Color(1, 1, 1, 0.04)
-	sb.border_color = Color(0.4, 0.85, 1.0, 0.45)
+	sb.border_color = Color(0.55, 0.84, 1.0, 0.6) if es_fantasma else Color(0.95, 0.90, 0.75, 0.6)
 	sb.border_width_left = 1
 	sb.border_width_top = 1
 	sb.border_width_right = 1
@@ -316,6 +326,20 @@ func _crear_marco_seleccion(parent: Control):
 	sb.set_corner_radius_all(14)
 	panel_marco.add_theme_stylebox_override("panel", sb)
 	parent.add_child(panel_marco)
+
+func _crear_dibujo_boton_textura(parent: Control, tex: Texture2D):
+	var es_fantasma = false
+	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
+		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
+		
+	var tr = TextureRect.new()
+	tr.texture = tex
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.modulate = Color(0.85, 0.93, 1.0, 0.96) if es_fantasma else Color(1.0, 0.97, 0.90, 0.98)
+	parent.add_child(tr)
 
 func _crear_dibujo_boton_accion(parent: Control, color_borde: Color, icono: String):
 	var panel = Panel.new()
@@ -342,28 +366,18 @@ func _crear_dibujo_boton_accion(parent: Control, color_borde: Color, icono: Stri
 	parent.add_child(lbl_ico)
 
 func _crear_dibujo_boton_pausa(parent: Control):
-	var panel = Panel.new()
-	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb = StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.16, 0.24, 0.85)
-	sb.border_color = Color(0.4, 0.8, 1.0, 0.75)
-	sb.border_width_left = 2
-	sb.border_width_top = 2
-	sb.border_width_right = 2
-	sb.border_width_bottom = 2
-	sb.set_corner_radius_all(10)
-	panel.add_theme_stylebox_override("panel", sb)
-	parent.add_child(panel)
-	
-	var label = Label.new()
-	label.text = "⏸ Pausa"
-	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 13)
-	label.add_theme_color_override("font_color", Color.WHITE)
-	parent.add_child(label)
+	var es_fantasma = false
+	if is_instance_valid(RedManager) and RedManager.es_un_jugador:
+		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
+		
+	var tr = TextureRect.new()
+	tr.texture = preload("res://assets/UI/Control/boton pausa.png")
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.modulate = Color(0.85, 0.93, 1.0, 0.96) if es_fantasma else Color(1.0, 0.97, 0.90, 0.98)
+	parent.add_child(tr)
 
 func _estilar_boton(btn: Button, color_base: Color):
 	var sb_n = StyleBoxFlat.new()
@@ -439,11 +453,12 @@ func _actualizar_posiciones_y_escalas():
 	) - (nodo_btn_cambiar.size * 0.5)
 	
 	# 3. Botón de Pausa
-	var p_scale: float = config_actual.get("btn_pausa_scale", 1.0)
+	var p_scale: float = config_actual.get("btn_pausa_scale", 1.39)
 	nodo_btn_pausa.scale = Vector2(p_scale, p_scale)
+	var margen_p: float = config_actual.get("btn_pausa_pos_ratio_y", 0.035) * screen_size.y
 	var p_pos = Vector2(
-		config_actual.get("btn_pausa_pos_ratio_x", 0.92) * screen_size.x - (nodo_btn_pausa.size.x * 0.5 * p_scale),
-		config_actual.get("btn_pausa_pos_ratio_y", 0.06) * screen_size.y
+		screen_size.x - margen_p - nodo_btn_pausa.size.x * p_scale,
+		margen_p
 	)
 	nodo_btn_pausa.global_position = p_pos
 

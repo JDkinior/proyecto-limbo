@@ -77,7 +77,7 @@ var p2p_modo_inicial: String = "historia"
 var p2p_nivel_inicial: int = 0
 var p2p_personaje_elegido: String = ""
 
-var last_ping_time: float = 0.0
+var last_ping_time: int = 0
 var current_ping_ms: int = -1
 var ping_timer: Timer = null
 var lan_servers_discovered: Dictionary = {} 
@@ -117,7 +117,7 @@ func _ready():
 	var lan = LanDiscovery.new()
 	lan.name = "LanDiscovery"
 	add_child(lan)
-	lan.servidor_encontrado.connect(func(ip, port, name): lan_server_found.emit(ip, port, name))
+	lan.servidor_encontrado.connect(func(ip, port, server_name): lan_server_found.emit(ip, port, server_name))
 	
 	if not multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
 		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
@@ -141,7 +141,7 @@ func _input(event: InputEvent) -> void:
 				alternar_personaje_un_jugador()
 			get_viewport().set_input_as_handled()
 
-func _process(delta):
+func _process(_delta):
 	# Ya no necesitamos poll de webrtc_peer manualmente con EOS
 	var lan_node = get_node_or_null("LanDiscovery") as LanDiscovery
 	if lan_node:
@@ -177,6 +177,9 @@ func _intentar_asignar_autoridades(preservar_rotacion: bool = false):
 	if not is_instance_valid(jugador_vivo) or not is_instance_valid(fantasma):
 		return
 	
+	var sync_vivo = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
+	var sync_fant = fantasma.get_node_or_null("MultiplayerSynchronizer")
+	
 	var es_offline = (multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 	if es_un_jugador or es_offline:
 		es_un_jugador = true
@@ -194,9 +197,7 @@ func _intentar_asignar_autoridades(preservar_rotacion: bool = false):
 			fantasma.sync_position = fantasma.global_position
 			fantasma.sync_rotation = fantasma.rotation
 			
-		var sync_vivo = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
 		if sync_vivo: sync_vivo.set_multiplayer_authority(auth_vivo)
-		var sync_fant = fantasma.get_node_or_null("MultiplayerSynchronizer")
 		if sync_fant: sync_fant.set_multiplayer_authority(auth_fant)
 		
 		jugador_vivo.actualizar_visibilidad_local(preservar_rotacion)
@@ -220,11 +221,9 @@ func _intentar_asignar_autoridades(preservar_rotacion: bool = false):
 	jugador_vivo.set_multiplayer_authority(id_jugador)
 	fantasma.set_multiplayer_authority(id_fantasma)
 
-	var sync_vivo = jugador_vivo.get_node_or_null("MultiplayerSynchronizer")
 	if sync_vivo:
 		sync_vivo.set_multiplayer_authority(id_jugador)
 		
-	var sync_fant = fantasma.get_node_or_null("MultiplayerSynchronizer")
 	if sync_fant:
 		sync_fant.set_multiplayer_authority(id_fantasma)
 	
@@ -353,7 +352,7 @@ func crear_partida(es_lan: bool = false) -> bool:
 	return true
 
 
-func unirse_a_partida(host_puid_or_ip: String, es_lan: bool = false, es_reintento: bool = false) -> bool:
+func unirse_a_partida(host_puid_or_ip: String, es_lan: bool = false, _es_reintento: bool = false) -> bool:
 	if host_puid_or_ip.strip_edges().is_empty():
 		status_webrtc_changed.emit("No se recibió la dirección del host.")
 		return false

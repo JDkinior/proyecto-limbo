@@ -1,34 +1,135 @@
 extends TouchScreenButton
 
-var color_glow: Color = Color(1.0, 0.8, 0.2, 1.0)
-var _ultimo_color: Color = Color(-1, -1, -1)
+const TEX_SALTO_VIVO = preload("res://assets/UI/Control/Salto Vivo.png")
+const TEX_SALTO_FANTASMA = preload("res://assets/UI/Control/Salto Fantasma.png")
+const TEX_ACCION_VIVO = preload("res://assets/UI/Control/Accion Vivo.png")
+const TEX_ACCION_FANTASMA = preload("res://assets/UI/Control/Accion Fantasma.png")
+const TEX_CAMBIO_VIVO = preload("res://assets/UI/Control/Boton cambio vivo.png")
+const TEX_CAMBIO_FANTASMA = preload("res://assets/UI/Control/Boton cambio fantasma.png")
+
+const ASPECT_RATIO_BOTON: float = 443.0 / 411.0
+const FACTOR_ESCALA_SOMBRA: float = 411.0 / 336.0 # Compensa el padding de sombras agrandadas para mantener el tamaño original del botón
+
+const COLOR_VIVO_NORMAL: Color = Color(1.0, 0.97, 0.90, 0.98)
+const COLOR_VIVO_PRESSED: Color = Color(0.88, 0.84, 0.76, 0.92)
+const COLOR_VIVO_DISABLED: Color = Color(0.65, 0.60, 0.50, 0.42) # Opaco / atenuado cuando no hay objetivo
+
+const COLOR_FANTASMA_NORMAL: Color = Color(0.70, 0.90, 1.0, 0.96)
+const COLOR_FANTASMA_PRESSED: Color = Color(0.50, 0.80, 1.0, 0.92)
+
+const COLOR_AURA_READY: Color = Color(0.70, 0.90, 1.0, 0.96)
+const COLOR_AURA_ACTIVE: Color = Color(1.15, 1.35, 1.60, 1.0)
+const COLOR_AURA_COOLDOWN_MOD: Color = Color(0.40, 0.60, 0.85, 0.55)
+const COLOR_AURA_ARC: Color = Color(0.639, 0.831, 0.933, 0.95) # #a3d4ee cyan suave de carga
+const COLOR_ONDA_HABILIDAD: Color = Color(0.984, 0.988, 0.992, 1.0) # #fbfcfd blanco espectral puro
+
+var color_glow: Color = Color(1.0, 0.96, 0.82, 1.0)
+var _color_render: Color = Color(1.0, 0.97, 0.90, 0.98)
+
+var _ultimo_presionado: bool = false
 var es_fantasma: bool = false
 var habilidad_activa: bool = false
-var progreso_cooldown: float = 1.0 # 1.0 = Lista para usar, 0.0 = Recién usada
+var progreso_cooldown: float = 1.0
+var puede_interactuar_vivo: bool = false
 var _pulso_tiempo: float = 0.0
 
+# Variables para transición suave entre iconos/texturas
+var _tex_actual: Texture2D = null
+var _tex_anterior: Texture2D = null
+var _factor_fade_icono: float = 1.0
+var _fade_tween: Tween = null
+
 func _ready():
-	_actualizar_color()
+	_actualizar_color(1.0)
+	_tex_actual = _obtener_textura_objetivo()
+	_color_render = _obtener_color_objetivo()
 	queue_redraw()
 
 func _process(delta: float):
-	_actualizar_color()
+	_actualizar_color(delta)
+	
+	var presionado = is_pressed()
+	if presionado != _ultimo_presionado:
+		_ultimo_presionado = presionado
+		queue_redraw()
 	
 	if habilidad_activa:
 		_pulso_tiempo += delta * 6.0
 		queue_redraw()
-	elif progreso_cooldown < 1.0:
-		queue_redraw()
-	elif color_glow != _ultimo_color:
-		_ultimo_color = color_glow
+	elif progreso_cooldown < 1.0 or _factor_fade_icono < 1.0:
 		queue_redraw()
 
-func _actualizar_color():
+func _obtener_textura_objetivo() -> Texture2D:
+	var es_boton_salto = (action == "saltar" or name.to_lower().contains("saltar"))
+	var es_boton_interactuar = (action == "interactuar" or name.to_lower().contains("interactuar"))
+	if es_boton_salto:
+		return TEX_SALTO_FANTASMA if es_fantasma else TEX_SALTO_VIVO
+	elif es_boton_interactuar:
+		return TEX_ACCION_FANTASMA if es_fantasma else TEX_ACCION_VIVO
+	else:
+		return TEX_CAMBIO_VIVO if es_fantasma else TEX_CAMBIO_FANTASMA
+
+func _obtener_color_objetivo() -> Color:
+	var es_boton_interactuar = (action == "interactuar" or name.to_lower().contains("interactuar"))
+	if es_fantasma and es_boton_interactuar:
+		if habilidad_activa:
+			return COLOR_AURA_ACTIVE
+		elif progreso_cooldown < 1.0:
+			return COLOR_AURA_COOLDOWN_MOD
+		else:
+			return COLOR_AURA_READY if not is_pressed() else COLOR_FANTASMA_PRESSED
+	elif not es_fantasma and es_boton_interactuar:
+		if not puede_interactuar_vivo:
+			return COLOR_VIVO_DISABLED
+		else:
+			return COLOR_VIVO_NORMAL if not is_pressed() else COLOR_VIVO_PRESSED
+	else:
+		if es_fantasma:
+			return COLOR_FANTASMA_NORMAL if not is_pressed() else COLOR_FANTASMA_PRESSED
+		else:
+			return COLOR_VIVO_NORMAL if not is_pressed() else COLOR_VIVO_PRESSED
+
+func actualizar_estado_habilidad_vivo(puede_interactuar: bool):
+	puede_interactuar_vivo = puede_interactuar
+	queue_redraw()
+
+func _iniciar_transicion_textura(nueva_tex: Texture2D):
+	if _tex_actual == null:
+		_tex_actual = nueva_tex
+		_factor_fade_icono = 1.0
+		return
+		
+	if _tex_actual != nueva_tex:
+		_tex_anterior = _tex_actual
+		_tex_actual = nueva_tex
+		_factor_fade_icono = 0.0
+		
+		if _fade_tween and _fade_tween.is_running():
+			_fade_tween.kill()
+		_fade_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_fade_tween.tween_property(self, "_factor_fade_icono", 1.0, 0.45)
+
+func _actualizar_color(delta: float):
 	var parent_ui = get_tree().get_nodes_in_group("ui_tactil")
-	if parent_ui.size() > 0 and parent_ui[0].has_method("obtener_color_ui"):
-		color_glow = parent_ui[0].obtener_color_ui()
-		# Si color_glow es azul/cyan espectral, estamos en modo Fantasma
-		es_fantasma = (color_glow.b > 0.6 and color_glow.r < 0.6)
+	var nuevo_es_fantasma = es_fantasma
+	if parent_ui.size() > 0:
+		if parent_ui[0].has_method("es_fantasma_actual"):
+			nuevo_es_fantasma = parent_ui[0].es_fantasma_actual()
+		elif parent_ui[0].has_method("obtener_color_ui"):
+			color_glow = parent_ui[0].obtener_color_ui()
+			nuevo_es_fantasma = (color_glow.b > color_glow.r)
+		
+	if nuevo_es_fantasma != es_fantasma:
+		es_fantasma = nuevo_es_fantasma
+		var nueva_tex = _obtener_textura_objetivo()
+		_iniciar_transicion_textura(nueva_tex)
+		
+	var target = _obtener_color_objetivo()
+	if _color_render != target:
+		# Interpolación suave y continua del color sincronizada con el vuelo de la cámara
+		var velocidad_lerp = 5.5 * delta
+		_color_render = _color_render.lerp(target, clampf(velocidad_lerp, 0.0, 1.0))
+		queue_redraw()
 
 func actualizar_estado_habilidad(activo: bool, progreso: float):
 	habilidad_activa = activo
@@ -42,172 +143,62 @@ func _draw():
 	var radio: float = shape.radius
 	var centro = Vector2.ZERO
 	var presionado = is_pressed()
+	var es_boton_salto = (action == "saltar" or name.to_lower().contains("saltar"))
 	var es_boton_interactuar = (action == "interactuar" or name.to_lower().contains("interactuar"))
+	var es_boton_cambiar = (action == "cambiar_personaje" or name.to_lower().contains("cambiar"))
 	
-	# Determinar colores base según estado de habilidad y personaje
-	var color_relleno: Color
-	var color_borde: Color
-	var color_icono: Color
-	
-	if es_boton_interactuar and es_fantasma:
-		if habilidad_activa:
-			# Estado ACTIVO: Brillo pulsante cyan intenso
-			var factor_pulso = 0.5 + 0.5 * sin(_pulso_tiempo)
-			color_relleno = Color(0.2, 0.85, 1.0, lerpf(0.35, 0.65, factor_pulso))
-			color_borde = Color(0.6, 0.95, 1.0, 1.0)
-			color_icono = Color(1.0, 1.0, 1.0, 1.0)
+	if es_boton_salto or es_boton_interactuar or es_boton_cambiar:
+		if _tex_actual == null:
+			_tex_actual = _obtener_textura_objetivo()
 			
-			# Anillo de onda exterior expandiéndose
-			var radio_onda = radio * (1.08 + factor_pulso * 0.14)
-			draw_arc(centro, radio_onda, 0, TAU, 32, Color(0.3, 0.85, 1.0, 0.5 * (1.0 - factor_pulso)), 2.5)
-		elif progreso_cooldown < 1.0:
-			# Estado COOLDOWN: Fondo oscuro atenuado con arco de progreso
-			color_relleno = Color(0.08, 0.12, 0.20, 0.30)
-			color_borde = Color(0.25, 0.45, 0.70, 0.35)
-			color_icono = Color(0.5, 0.75, 0.95, 0.45)
+		var escala_click: float = 0.92 if presionado else 1.0
+		var ancho: float = radio * 2.0 * FACTOR_ESCALA_SOMBRA * escala_click
+		var alto: float = ancho * ASPECT_RATIO_BOTON
+		var rect: Rect2 = Rect2(-ancho * 0.5, -alto * 0.5, ancho, alto)
+		
+		# Dibujar transición suave cruzada de textura si el personaje acaba de cambiar
+		if _factor_fade_icono < 1.0 and _tex_anterior != null:
+			var c_ant = _color_render
+			c_ant.a *= (1.0 - _factor_fade_icono)
+			draw_texture_rect(_tex_anterior, rect, false, c_ant)
+			
+			var c_act = _color_render
+			c_act.a *= _factor_fade_icono
+			draw_texture_rect(_tex_actual, rect, false, c_act)
 		else:
-			# Estado LISTO: Cyan místico brillante escarchado
-			var alfa_bg = 0.45 if presionado else 0.24
-			color_relleno = Color(0.18, 0.55, 0.75, alfa_bg)
-			color_borde = Color(0.40, 0.88, 1.0, 0.95 if presionado else 0.80)
-			color_icono = Color(0.95, 0.98, 1.0, 1.0)
-	else:
-		# Botón normal (Salto o Interactuar)
-		if es_fantasma:
-			var alfa_bg = 0.45 if presionado else 0.24
-			color_relleno = Color(0.18, 0.55, 0.75, alfa_bg)
-			color_borde = Color(0.40, 0.88, 1.0, 0.95 if presionado else 0.80)
-			color_icono = Color(0.95, 0.98, 1.0, 1.0)
-		else:
-			var alfa_bg = 0.42 if presionado else 0.20
-			color_relleno = Color(color_glow.r, color_glow.g, color_glow.b, alfa_bg)
-			color_borde = Color(color_glow.r, color_glow.g, color_glow.b, 0.90 if presionado else 0.70)
-			color_icono = Color(1.0, 1.0, 1.0, 0.95 if presionado else 0.85)
-
-	# 1. Dibujar disco de fondo
-	draw_circle(centro, radio, color_relleno)
-	
-	# 2. Dibujar borde principal
-	var grosor_borde = 3.5 if presionado else 2.5
-	draw_arc(centro, radio - (grosor_borde * 0.5), 0, TAU, 48, color_borde, grosor_borde)
-	
-	# 3. Dibujar arco de recarga (Cooldown Sweep)
-	if es_boton_interactuar and es_fantasma and not habilidad_activa and progreso_cooldown < 1.0:
-		var radio_cd = radio - 2.0
-		var angulo_fin = -PI * 0.5 + (progreso_cooldown * TAU)
-		draw_arc(centro, radio_cd, -PI * 0.5, angulo_fin, 48, Color(0.35, 0.85, 1.0, 0.95), 4.0)
-		# Punto indicador en la punta del arco
-		var pos_punta = centro + Vector2(cos(angulo_fin), sin(angulo_fin)) * radio_cd
-		draw_circle(pos_punta, 3.0, Color(1.0, 1.0, 1.0, 0.9))
-
-	# 4. Dibujar Iconografía
-	if action == "saltar" or name.to_lower().contains("saltar"):
-		_dibujar_icono_salto(centro, radio, color_icono)
-	elif action == "cambiar_personaje" or name.to_lower().contains("cambiar"):
-		_dibujar_icono_cambiar_personaje(centro, radio, color_icono)
-	elif es_boton_interactuar:
-		if es_fantasma:
-			_dibujar_icono_aura(centro, radio, color_icono)
-		else:
-			_dibujar_icono_interactuar(centro, radio, color_icono)
-
-func _dibujar_icono_cambiar_personaje(centro: Vector2, radio: float, color: Color):
-	# 1. Flechas orbitales circulares de intercambio (Swap Orbit)
-	var radio_orbita = radio * 0.44
-	var grosor_arco = 2.5
-	
-	# Arco superior (de izquierda a derecha)
-	draw_arc(centro, radio_orbita, -PI * 0.90, -PI * 0.10, 24, color, grosor_arco)
-	# Punta de flecha superior derecha
-	var p_sup = centro + Vector2(cos(-PI * 0.10), sin(-PI * 0.10)) * radio_orbita
-	var flecha_sup = PackedVector2Array([
-		p_sup + Vector2(radio * 0.05, -radio * 0.12),
-		p_sup + Vector2(-radio * 0.12, -radio * 0.02),
-		p_sup + Vector2(-radio * 0.02, radio * 0.10)
-	])
-	draw_colored_polygon(flecha_sup, color)
-	
-	# Arco inferior (de derecha a izquierda)
-	draw_arc(centro, radio_orbita, PI * 0.10, PI * 0.90, 24, color, grosor_arco)
-	# Punta de flecha inferior izquierda
-	var p_inf = centro + Vector2(cos(PI * 0.90), sin(PI * 0.90)) * radio_orbita
-	var flecha_inf = PackedVector2Array([
-		p_inf + Vector2(-radio * 0.05, radio * 0.12),
-		p_inf + Vector2(radio * 0.12, radio * 0.02),
-		p_inf + Vector2(radio * 0.02, -radio * 0.10)
-	])
-	draw_colored_polygon(flecha_inf, color)
-	
-	# 2. Silueta central
-	if es_fantasma:
-		# Fantasma activo -> muestra icono del Vivo (persona con cabeza y hombros)
-		var r_cabeza = radio * 0.12
-		draw_circle(centro + Vector2(0, -radio * 0.09), r_cabeza, color)
-		var pts_torso = PackedVector2Array([
-			centro + Vector2(-radio * 0.18, radio * 0.22),
-			centro + Vector2(-radio * 0.12, radio * 0.05),
-			centro + Vector2(radio * 0.12, radio * 0.05),
-			centro + Vector2(radio * 0.18, radio * 0.22)
-		])
-		draw_colored_polygon(pts_torso, color)
-	else:
-		# Vivo activo -> muestra icono del Fantasma (espíritu flotante)
-		var r_fant = radio * 0.13
-		draw_circle(centro + Vector2(0, -radio * 0.08), r_fant, color)
-		var pts_fant = PackedVector2Array([
-			centro + Vector2(-r_fant, -radio * 0.08),
-			centro + Vector2(-radio * 0.14, radio * 0.14),
-			centro + Vector2(-radio * 0.06, radio * 0.22),
-			centro + Vector2(0, radio * 0.16),
-			centro + Vector2(radio * 0.06, radio * 0.22),
-			centro + Vector2(radio * 0.14, radio * 0.14),
-			centro + Vector2(r_fant, -radio * 0.08)
-		])
-		draw_colored_polygon(pts_fant, color)
-
-func _dibujar_icono_salto(centro: Vector2, radio: float, color: Color):
-	# Flecha estilizada de salto hacia arriba
-	var alto_punta = radio * 0.42
-	var ancho_punta = radio * 0.36
-	var pts_triangulo = PackedVector2Array([
-		centro + Vector2(0, -alto_punta),
-		centro + Vector2(-ancho_punta, 0.0),
-		centro + Vector2(ancho_punta, 0.0)
-	])
-	draw_colored_polygon(pts_triangulo, color)
-	
-	# Barra horizontal estilizada en la base
-	var y_base = centro.y + radio * 0.22
-	draw_line(Vector2(centro.x - ancho_punta * 0.75, y_base), Vector2(centro.x + ancho_punta * 0.75, y_base), color, 3.0)
-
-func _dibujar_icono_aura(centro: Vector2, radio: float, color: Color):
-	# Estrella espectral de 4 puntas (Aura del Fantasma)
-	var radio_largo = radio * 0.44
-	var radio_corto = radio * 0.14
-	var pts_estrella = PackedVector2Array([
-		centro + Vector2(0, -radio_largo),
-		centro + Vector2(radio_corto, -radio_corto),
-		centro + Vector2(radio_largo, 0),
-		centro + Vector2(radio_corto, radio_corto),
-		centro + Vector2(0, radio_largo),
-		centro + Vector2(-radio_corto, radio_corto),
-		centro + Vector2(-radio_largo, 0),
-		centro + Vector2(-radio_corto, -radio_corto)
-	])
-	draw_colored_polygon(pts_estrella, color)
-	
-	# Núcleo brillante central
-	draw_circle(centro, radio * 0.09, Color(1.0, 1.0, 1.0, color.a))
-
-func _dibujar_icono_interactuar(centro: Vector2, radio: float, color: Color):
-	# Anillo y rombo de interacción física
-	draw_arc(centro, radio * 0.32, 0, TAU, 32, color, 2.5)
-	var r_rombo = radio * 0.16
-	var pts_rombo = PackedVector2Array([
-		centro + Vector2(0, -r_rombo),
-		centro + Vector2(r_rombo, 0),
-		centro + Vector2(0, r_rombo),
-		centro + Vector2(-r_rombo, 0)
-	])
-	draw_colored_polygon(pts_rombo, color)
-
+			draw_texture_rect(_tex_actual, rect, false, _color_render)
+		
+		# Efectos especiales de aura fantasma
+		if es_boton_interactuar and es_fantasma:
+			# Compensar el desplazamiento de la sombra inferior para centrar el círculo exactamente en el cuerpo del hexágono
+			var centro_aura: Vector2 = centro + Vector2(0.0, -2.0)
+			var radio_aura: float = radio * 1.19 # ~47.6px, rodea con precisión y simetría las 6 puntas del hexágono
+			
+			if habilidad_activa:
+				# 1. Anillo brillante en el perímetro exterior del hexágono
+				var pulso_anillo = 0.75 + 0.25 * sin(_pulso_tiempo * 2.0)
+				draw_arc(centro_aura, radio_aura, 0, TAU, 48, Color(COLOR_ONDA_HABILIDAD.r, COLOR_ONDA_HABILIDAD.g, COLOR_ONDA_HABILIDAD.b, 0.75 * pulso_anillo), 2.5)
+				
+				# 2. Primera onda de choque expansiva (#fbfcfd)
+				var factor_onda1 = fmod(_pulso_tiempo * 0.35, 1.0)
+				var radio_onda1 = radio_aura + factor_onda1 * (radio * 0.45)
+				var alfa_onda1 = (1.0 - factor_onda1) * 0.85
+				draw_arc(centro_aura, radio_onda1, 0, TAU, 48, Color(COLOR_ONDA_HABILIDAD.r, COLOR_ONDA_HABILIDAD.g, COLOR_ONDA_HABILIDAD.b, alfa_onda1), 2.5)
+				
+				# 3. Segunda onda de choque concéntrica desfasada (#fbfcfd)
+				var factor_onda2 = fmod(_pulso_tiempo * 0.35 + 0.5, 1.0)
+				var radio_onda2 = radio_aura + factor_onda2 * (radio * 0.45)
+				var alfa_onda2 = (1.0 - factor_onda2) * 0.85
+				draw_arc(centro_aura, radio_onda2, 0, TAU, 48, Color(COLOR_ONDA_HABILIDAD.r, COLOR_ONDA_HABILIDAD.g, COLOR_ONDA_HABILIDAD.b, alfa_onda2), 2.5)
+				
+			elif progreso_cooldown < 1.0:
+				# Pista de fondo sutil del cooldown (#a3d4ee translúcido)
+				draw_arc(centro_aura, radio_aura, 0, TAU, 48, Color(COLOR_AURA_ARC.r, COLOR_AURA_ARC.g, COLOR_AURA_ARC.b, 0.25), 2.5)
+				
+				# Arco de recarga (Cooldown Sweep en #a3d4ee)
+				var angulo_fin = -PI * 0.5 + (progreso_cooldown * TAU)
+				draw_arc(centro_aura, radio_aura, -PI * 0.5, angulo_fin, 48, COLOR_AURA_ARC, 4.0)
+				
+				# Punto indicador brillante en la punta del arco (#fbfcfd)
+				var pos_punta = centro_aura + Vector2(cos(angulo_fin), sin(angulo_fin)) * radio_aura
+				draw_circle(pos_punta, 4.0, Color(0.984, 0.988, 0.992, 1.0))
