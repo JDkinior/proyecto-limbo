@@ -197,6 +197,8 @@ shader_parameter/usar_textura_ruido = false
 
 [node name="Nivel1ElDespertarSeparado" type="Node3D" unique_id=2020589322]
 script = ExtResource("16_nivel_base")
+titulo_capitulo_personalizado = "Las ruinas del Limbo"
+tiempo_visible = 2.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=616583212]
 environment = SubResource("Environment_limbo1")

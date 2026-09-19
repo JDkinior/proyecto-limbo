@@ -30,6 +30,7 @@ glow_bloom = 0.15
 [node name="Nivel2" type="Node3D" unique_id=566491211]
 transform = Transform3D(1, 0, 0, 0, 0.3, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("4_wa8a8")
+capitulo = 2
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1618494945]
 transform = Transform3D(20.930002, 0, 0, 0, 1, 0, 0, 0, 21.000002, 17, 0, 5)
