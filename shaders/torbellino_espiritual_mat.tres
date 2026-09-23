@@ -1,0 +1,18 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/torbellino_espiritual.gdshader" id="1_shader"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/color_base = Color(0.08, 0.38, 0.88, 0.55)
+shader_parameter/color_nucleo = Color(0.65, 0.92, 1, 0.85)
+shader_parameter/color_borde = Color(0.35, 0.85, 1, 1)
+shader_parameter/velocidad_giro = 4.5
+shader_parameter/escala_espiral = 4.0
+shader_parameter/velocidad_ondulacion = 2.4
+shader_parameter/amplitud_ondulacion = 0.12
+shader_parameter/fuerza_fresnel = 2.4
+shader_parameter/exponente_fresnel = 2.0
+shader_parameter/energia_emision = 2.2
+shader_parameter/transparencia_base = 0.65

@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://bsprnrvdshlv1"]
+
+[ext_resource type="PackedScene" uid="uid://ddknc1i6uccel" path="res://assets/Decoraciones/Arbol_Otono_03.glb" id="1_dt4sq"]
+[ext_resource type="Material" uid="uid://bfolbaseotono01" path="res://assets/Materiales/Arboles/M_Follaje_Base.tres" id="2_base"]
+[ext_resource type="Material" uid="uid://bfolhojasotono01" path="res://assets/Materiales/Arboles/M_Follaje_Hojas.tres" id="3_hojas"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_wgd1k"]
+size = Vector3(1.5592651, 5.462433, 1)
+
+[node name="Arbol_Otono_032" unique_id=2081343474 instance=ExtResource("1_dt4sq")]
+
+[node name="Arbol_Otono_03" parent="." index="0"]
+surface_material_override/1 = ExtResource("2_base")
+surface_material_override/2 = ExtResource("3_hojas")
+
+[node name="Area3D" type="StaticBody3D" parent="Arbol_Otono_03" parent_id_path=PackedInt32Array(1120177172) index="0" unique_id=20692200]
+collision_layer = 7
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Arbol_Otono_03/Area3D" index="0" unique_id=1714710656]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.10626221, 2.7607718, 0)
+shape = SubResource("BoxShape3D_wgd1k")

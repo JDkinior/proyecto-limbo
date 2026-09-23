@@ -70,12 +70,25 @@ func _inicializar_lobby_3d():
 	root_3d.add_child(menu.light_3d)
 	
 	menu.model_jugador = MeshInstance3D.new()
-	menu.model_jugador.mesh = load("res://assets/Modelos/Provicional/untitled.obj")
+	var mesh_vivo = CapsuleMesh.new()
+	mesh_vivo.radius = 0.25
+	mesh_vivo.height = 0.9
+	var mat_vivo = StandardMaterial3D.new()
+	mat_vivo.albedo_color = Color(1.0, 0.75, 0.2)
+	mesh_vivo.material = mat_vivo
+	menu.model_jugador.mesh = mesh_vivo
 	menu.model_jugador.transform = Transform3D(Basis().scaled(Vector3(0.6, 0.6, 0.6)), Vector3(-0.55, 0.05, 0))
 	root_3d.add_child(menu.model_jugador)
 	
 	menu.model_fantasma = MeshInstance3D.new()
-	menu.model_fantasma.mesh = load("res://assets/Modelos/Provicional/misty.obj")
+	var mesh_fantasma = CapsuleMesh.new()
+	mesh_fantasma.radius = 0.25
+	mesh_fantasma.height = 0.9
+	var mat_fan = StandardMaterial3D.new()
+	mat_fan.albedo_color = Color(0.2, 0.75, 1.0, 0.85)
+	mat_fan.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mesh_fantasma.material = mat_fan
+	menu.model_fantasma.mesh = mesh_fantasma
 	menu.model_fantasma.transform = Transform3D(Basis().scaled(Vector3(0.6, 0.6, 0.6)), Vector3(0.55, 0.1, 0))
 	root_3d.add_child(menu.model_fantasma)
 	

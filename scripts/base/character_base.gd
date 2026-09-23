@@ -8,7 +8,7 @@ class_name CharacterBase
 @export var ACELERACION_AIRE : float = 12.0
 @export var DESACELERACION_AIRE : float = 12.0
 @export var VELOCIDAD_ROTACION_PERSONAJE : float = 12.0
-@export var LIMITE_CAIDA_Y : float = -20.0
+@export var LIMITE_CAIDA_Y : float = -2.0
 
 @export_group("Camara Inteligente")
 @export var SENSIBILIDAD_CAMARA : float = 0.005
@@ -39,6 +39,19 @@ class_name CharacterBase
 @export var MULTIPLICADOR_ACELERACION_PLANEO : float = 1.25
 @export var SUAVIDAD_FRENADO_PLANEO : float = 18.0
 
+@export_group("Silueta de Oclusion")
+## Activa la silueta visible cuando el personaje queda oculto tras obstáculos (muros, rocas, árboles).
+@export var silueta_activa: bool = true:
+	set(valor):
+		silueta_activa = valor
+		actualizar_silueta_oclusion()
+
+## Color y transparencia de la silueta al estar oculto tras obstáculos.
+@export var color_silueta: Color = Color(1.0, 0.55, 0.12, 0.85):
+	set(valor):
+		color_silueta = valor
+		actualizar_silueta_oclusion()
+
 var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var objetivo_rotacion_y : float = 0.0
 var objetivo_rotacion_x : float = 0.0
@@ -50,6 +63,57 @@ var saltos_realizados : int = 0
 # Variables para interpolación de red (anti-stuttering)
 var sync_position: Vector3
 var sync_rotation: Vector3
+
+# ===================================================================
+# GESTIÓN DE FUERZAS EXTERNAS Y VÓRTICES (TORBELLINOS)
+# ===================================================================
+var _fuerza_vortice_acumulada: Vector3 = Vector3.ZERO
+var _arrastre_descendente_vortice: float = 0.0
+var _vortice_esta_absorbido: bool = false
+var _tiempo_absorcion_restante: float = 0.0
+var _duracion_absorcion_total: float = 1.0
+var _centro_absorcion: Vector3 = Vector3.ZERO
+var _impulso_expulsion_pendiente: Vector3 = Vector3.ZERO
+var _angulo_giro_absorcion: float = 0.0
+var _radio_orbita_absorcion: float = 0.6
+var _velocidad_giro_absorcion: float = 14.0
+
+signal fantasma_absorbido_en_vortice(centro: Vector3, duracion: float)
+signal fantasma_expulsado_de_vortice(impulso: Vector3)
+
+var _nodo_vortice_origen: Node3D = null
+
+func aplicar_fuerza_vortice(fuerza_horizontal: Vector3, arrastre_vertical: float = 0.0) -> void:
+	_fuerza_vortice_acumulada += fuerza_horizontal
+	_arrastre_descendente_vortice = maxf(_arrastre_descendente_vortice, arrastre_vertical)
+
+func recibir_impulso_externo(impulso: Vector3) -> void:
+	velocity += impulso
+
+func ser_absorbido_en_vortice(centro: Vector3, duracion: float, impulso_salida: Vector3, nodo_vortice: Node3D = null) -> void:
+	if _vortice_esta_absorbido:
+		return
+	_vortice_esta_absorbido = true
+	_tiempo_absorcion_restante = duracion
+	_duracion_absorcion_total = maxf(duracion, 0.1)
+	_centro_absorcion = centro
+	_nodo_vortice_origen = nodo_vortice
+	_impulso_expulsion_pendiente = impulso_salida
+	_velocidad_giro_absorcion = 14.0
+	
+	var offset = global_position - centro
+	_angulo_giro_absorcion = atan2(offset.x, -offset.z)
+	_radio_orbita_absorcion = clampf(Vector2(offset.x, offset.z).length(), 0.25, 1.2)
+	velocity = Vector3.ZERO
+	fantasma_absorbido_en_vortice.emit(centro, duracion)
+
+func esta_absorbido_en_vortice() -> bool:
+	return _vortice_esta_absorbido
+
+func obtener_progreso_absorcion() -> float:
+	if not _vortice_esta_absorbido: return 0.0
+	return 1.0 - clampf(_tiempo_absorcion_restante / _duracion_absorcion_total, 0.0, 1.0)
+
 
 var particulas_corazon: CPUParticles3D = null
 var tiempo_cerca_otro: float = 0.0
@@ -106,6 +170,7 @@ func _ready():
 	sync_rotation = rotation
 	actualizar_visibilidad_local()
 	_crear_particulas_corazon_proximidad()
+	actualizar_silueta_oclusion()
 	
 	# Buscar controles táctiles en el grupo global "ui_tactil"
 	var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
@@ -222,6 +287,8 @@ func procesar_camara_base(delta: float):
 			pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
 
 func esta_planeando() -> bool:
+	if _vortice_esta_absorbido:
+		return false
 	if not PUEDE_PLANEAR or is_on_floor():
 		return false
 	if not es_activo() or entrada_bloqueada():
@@ -232,6 +299,10 @@ func esta_planeando() -> bool:
 	return salto_mantenido and velocity.y <= 0.0
 
 func procesar_salto_base(delta: float):
+	if _vortice_esta_absorbido:
+		_arrastre_descendente_vortice = 0.0
+		return
+
 	var salto_mantenido = es_activo() and not entrada_bloqueada() and (Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept"))
 	var planeando = esta_planeando()
 	if not is_on_floor():
@@ -248,7 +319,14 @@ func procesar_salto_base(delta: float):
 
 		velocity.y -= gravedad_actual * delta
 		
-		if planeando:
+		# Aplicar arrastre descendente del torbellino si está en su rango
+		if _arrastre_descendente_vortice > 0.0:
+			velocity.y -= _arrastre_descendente_vortice * delta
+			var vel_max_arrastre = maxf(VELOCIDAD_MAX_CAIDA_PLANEO, _arrastre_descendente_vortice * 0.45)
+			if planeando:
+				velocity.y = maxf(velocity.y, -vel_max_arrastre)
+			_arrastre_descendente_vortice = 0.0
+		elif planeando:
 			# Frenado suave amortiguado si se empieza a planear a alta velocidad de caída
 			if velocity.y < -VELOCIDAD_MAX_CAIDA_PLANEO:
 				velocity.y = move_toward(velocity.y, -VELOCIDAD_MAX_CAIDA_PLANEO, SUAVIDAD_FRENADO_PLANEO * delta)
@@ -320,6 +398,38 @@ func obtener_direccion_movimiento() -> Vector3:
 	return move_dir.normalized() * clampf(input_len, 0.0, 1.0)
 
 func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
+	if _vortice_esta_absorbido:
+		if is_instance_valid(_nodo_vortice_origen):
+			_centro_absorcion = _nodo_vortice_origen.global_position
+		_tiempo_absorcion_restante -= delta
+		_angulo_giro_absorcion += _velocidad_giro_absorcion * delta
+		_radio_orbita_absorcion = move_toward(_radio_orbita_absorcion, 0.20, 1.4 * delta)
+		
+		var target_x = _centro_absorcion.x + sin(_angulo_giro_absorcion) * _radio_orbita_absorcion
+		var target_z = _centro_absorcion.z - cos(_angulo_giro_absorcion) * _radio_orbita_absorcion
+		var target_y = move_toward(global_position.y, _centro_absorcion.y - 0.4, 3.0 * delta)
+		
+		var destino = Vector3(target_x, target_y, target_z)
+		velocity = (destino - global_position) / maxf(delta, 0.001)
+		move_and_slide()
+		
+		var dir_vel = Vector2(velocity.x, velocity.z)
+		if dir_vel.length_squared() > 0.01:
+			var target_rot = atan2(-velocity.x, -velocity.z)
+			rotation.y = lerp_angle(rotation.y, target_rot, 20.0 * delta)
+		
+		if _tiempo_absorcion_restante <= 0.0:
+			_vortice_esta_absorbido = false
+			_nodo_vortice_origen = null
+			velocity = _impulso_expulsion_pendiente
+			_fuerza_vortice_acumulada = Vector3.ZERO
+			fantasma_expulsado_de_vortice.emit(_impulso_expulsion_pendiente)
+		
+		_comprobar_caida_vacio()
+		if es_activo() and pivote_camara and pivote_camara.top_level:
+			pivote_camara.global_position = global_position
+		return
+
 	var planeando = esta_planeando()
 	var vel_max = VELOCIDAD * (MULTIPLICADOR_VELOCIDAD_PLANEO if planeando else 1.0)
 	var velocidad_objetivo = direccion * vel_max
@@ -333,6 +443,12 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 		velocity.x = move_toward(velocity.x, 0.0, tasa_frenado * delta)
 		velocity.z = move_toward(velocity.z, 0.0, tasa_frenado * delta)
 	
+	# Aplicar fuerza horizontal acumulada del vórtice (succión radial y rotacional)
+	if _fuerza_vortice_acumulada != Vector3.ZERO:
+		velocity.x += _fuerza_vortice_acumulada.x * delta
+		velocity.z += _fuerza_vortice_acumulada.z * delta
+		_fuerza_vortice_acumulada = Vector3.ZERO
+
 	move_and_slide()
 	
 	# Empujar objetos RigidBody3D (cajas empujables)
@@ -364,6 +480,10 @@ func procesar_movimiento_base(delta: float):
 		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
 		return
 
+	if _vortice_esta_absorbido:
+		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
+		return
+
 	var direccion = obtener_direccion_movimiento()
 	
 	if direccion != Vector3.ZERO:
@@ -378,14 +498,22 @@ func resetear_estados():
 	saltos_realizados = 0
 	tiempo_desde_suelo = 0.0
 	tiempo_desde_salto = 0.0
+	_vortice_esta_absorbido = false
+	_tiempo_absorcion_restante = 0.0
+	_fuerza_vortice_acumulada = Vector3.ZERO
+	_arrastre_descendente_vortice = 0.0
+	_nodo_vortice_origen = null
 
 func _comprobar_caida_vacio():
 	if global_position.y < LIMITE_CAIDA_Y:
 		global_position = posicion_inicial
 		velocity = Vector3.ZERO
+		sync_position = posicion_inicial
 		resetear_estados()
+		centrar_camara_inmediatamente()
 		if pivote_camara and pivote_camara.top_level:
 			pivote_camara.global_position = posicion_inicial
+			pivote_camara.rotation.y = objetivo_rotacion_y
 
 func _crear_particulas_corazon_proximidad():
 	particulas_corazon = CPUParticles3D.new()
@@ -532,3 +660,46 @@ func _buscar_otro_jugador() -> Node3D:
 			return fantasmas[0]
 
 	return null
+
+# ===================================================================
+# SILUETA DE OCLUSIÓN (X-RAY A TRAVÉS DE OBSTÁCULOS)
+# ===================================================================
+func actualizar_silueta_oclusion() -> void:
+	if not is_inside_tree():
+		return
+	
+	var nodo_modelo = find_child("vivo", true, false)
+	if not nodo_modelo:
+		nodo_modelo = find_child("fantasma", true, false)
+	if not nodo_modelo:
+		return
+
+	_aplicar_silueta_recursiva(nodo_modelo)
+
+func _aplicar_silueta_recursiva(nodo: Node) -> void:
+	if nodo is MeshInstance3D and nodo.mesh:
+		# Excluir mallas accesorias de habilidades visuales como auras o halos
+		if nodo.name == "Aura" or nodo.name == "HaloSuave":
+			return
+			
+		for s in range(nodo.mesh.get_surface_count()):
+			var mat = nodo.get_surface_override_material(s)
+			if not mat:
+				mat = nodo.mesh.surface_get_material(s)
+				
+			if mat is StandardMaterial3D:
+				var mat_clon = mat.duplicate() as StandardMaterial3D
+				if silueta_activa:
+					mat_clon.stencil_mode = BaseMaterial3D.STENCIL_MODE_XRAY
+					mat_clon.stencil_color = color_silueta
+					if mat_clon.next_pass is StandardMaterial3D:
+						var np = mat_clon.next_pass as StandardMaterial3D
+						np.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+						np.albedo_color = color_silueta
+				else:
+					mat_clon.stencil_mode = BaseMaterial3D.STENCIL_MODE_DISABLED
+					mat_clon.next_pass = null
+				nodo.set_surface_override_material(s, mat_clon)
+
+	for hijo in nodo.get_children():
+		_aplicar_silueta_recursiva(hijo)

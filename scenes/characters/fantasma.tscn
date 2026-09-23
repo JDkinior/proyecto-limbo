@@ -2,42 +2,35 @@
 
 [ext_resource type="Script" uid="uid://ctluysrmto2cl" path="res://scripts/characters/fantasma.gd" id="1_fantasma"]
 [ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
-[ext_resource type="ArrayMesh" uid="uid://jyq76yt0vfnl" path="res://assets/Modelos/Provicional/misty.obj" id="2_exjl6"]
 [ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/Modelos/Personajes/fantasma.glb" id="4_bxr04"]
 [ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/Texturas/estela_espiritual.png" id="5_estela_tex"]
 [ext_resource type="Shader" uid="uid://cgk67pcjy2kiu" path="res://shaders/aura_halo.gdshader" id="6_aura_halo"]
+[ext_resource type="Shader" path="res://shaders/aura_espiritual.gdshader" id="7_aura_disco"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fantasma_mesh"]
-transparency = 1
-albedo_color = Color(0.35, 0.78, 1, 0.92)
-metallic = 0.1
-roughness = 0.25
-emission_enabled = true
-emission = Color(0.15, 0.65, 1, 1)
-emission_energy_multiplier = 1.8
-rim_enabled = true
-rim = 0.95
-rim_tint = 0.6
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_aura"]
-transparency = 1
-blend_mode = 1
-shading_mode = 0
-albedo_color = Color(0.2, 0.75, 1, 0.45)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aura_disco"]
+render_priority = 0
+shader = ExtResource("7_aura_disco")
+shader_parameter/color_borde = Color(0.2, 0.92, 1, 0.95)
+shader_parameter/color_interior = Color(0.12, 0.72, 1, 0.75)
+shader_parameter/radio_inicio_color = 0.02
+shader_parameter/exponente_degradado = 0.75
+shader_parameter/ancho_anillo_borde = 0.45
+shader_parameter/intensidad_borde = 1.3
+shader_parameter/opacidad = 1.0
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_aura"]
-material = SubResource("StandardMaterial3D_aura")
+material = SubResource("ShaderMaterial_aura_disco")
 top_radius = 1.0
 bottom_radius = 1.0
-height = 0.05
+height = 0.02
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aura_halo"]
 render_priority = 0
 shader = ExtResource("6_aura_halo")
-shader_parameter/color_halo = Color(0.1, 0.7, 1, 1)
+shader_parameter/color_halo = Color(0.18, 0.82, 1, 0.25)
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_aura_halo"]
 material = SubResource("ShaderMaterial_aura_halo")
@@ -103,14 +96,8 @@ script = ExtResource("1_fantasma")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=106071983]
 shape = SubResource("CapsuleShape3D_gdkjs")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=407544265]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -0.55, 0)
-visible = false
-material_override = SubResource("StandardMaterial3D_fantasma_mesh")
-mesh = ExtResource("2_exjl6")
-
 [node name="Aura" type="MeshInstance3D" parent="." unique_id=9998]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.48, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, 0)
 visible = false
 layers = 4
 mesh = SubResource("CylinderMesh_aura")
@@ -119,8 +106,8 @@ mesh = SubResource("CylinderMesh_aura")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
 mesh = SubResource("CylinderMesh_aura_halo")
 
-[node name="ParticulasAuraMistica" type="CPUParticles3D" parent="Aura" unique_id=778899001]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+[node name="ParticulasAuraMistica" type="CPUParticles3D" parent="." unique_id=778899001]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
 layers = 4
 amount = 28
 lifetime = 1.8
@@ -133,7 +120,8 @@ radial_accel_max = 0.6
 scale_amount_min = 0.5
 scale_amount_max = 1.5
 
-[node name="LuzAura" type="OmniLight3D" parent="Aura" unique_id=434952782]
+[node name="LuzAura" type="OmniLight3D" parent="." unique_id=434952782]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
 light_color = Color(0.18, 0.7, 1, 1)
 omni_range = 4.5
 omni_attenuation = 1.5

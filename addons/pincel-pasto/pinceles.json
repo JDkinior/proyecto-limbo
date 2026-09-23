@@ -1,0 +1,30 @@
+{
+	"pinceles_personalizados": {
+		"Corona Perimetral": {
+			"densidad": 180.0,
+			"forma": 3.0,
+			"radio": 2.0
+		},
+		"Detalle Fino": {
+			"densidad": 120.0,
+			"forma": 0.0,
+			"radio": 0.7
+		},
+		"Pasto Silvestre": {
+			"densidad": 60.0,
+			"forma": 0.0,
+			"radio": 2.8
+		},
+		"Pradera Densa": {
+			"densidad": 200.0,
+			"forma": 0.0,
+			"radio": 2.2
+		},
+		"Relleno Masivo": {
+			"densidad": 500.0,
+			"forma": 0.0,
+			"radio": 6.0
+		}
+	},
+	"version": 1
+}

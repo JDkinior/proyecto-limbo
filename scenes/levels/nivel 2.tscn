@@ -3,11 +3,14 @@
 [ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="1_qokjt"]
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_1q87n"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="3_1q87n"]
-[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="4_wa8a8"]
+[ext_resource type="Script" path="res://scripts/core/nivel_base.gd" id="4_wa8a8"]
 [ext_resource type="Material" uid="uid://cielo_limbo_mat_001" path="res://shaders/cielo_limbo_mat.tres" id="5_cielo_mat"]
+[ext_resource type="PackedScene" uid="uid://c7t8u3rm7qv21" path="res://scenes/components/torbellino.tscn" id="6_torbellino"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataforma_espiritual_base.tscn" id="7_plat_esp"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1q87n"]
-transparency = 1
+albedo_color = Color(0.2, 0.28, 0.35, 1)
+roughness = 0.85
 
 [sub_resource type="BoxMesh" id="BoxMesh_wa8a8"]
 material = SubResource("StandardMaterial3D_1q87n")
@@ -28,54 +31,76 @@ glow_strength = 1.02
 glow_bloom = 0.15
 
 [node name="Nivel2" type="Node3D" unique_id=566491211]
-transform = Transform3D(1, 0, 0, 0, 0.3, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("4_wa8a8")
 capitulo = 2
-
-[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=1618494945]
-transform = Transform3D(20.930002, 0, 0, 0, 1, 0, 0, 0, 21.000002, 17, 0, 5)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D" unique_id=1945116783]
-mesh = SubResource("BoxMesh_wa8a8")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=766424479]
-shape = SubResource("BoxShape3D_fthir")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="StaticBody3D"]
-occluder = SubResource("BoxOccluder3D_box")
-
-[node name="Fantasma" parent="." unique_id=1234024380 instance=ExtResource("1_qokjt")]
-transform = Transform3D(1, 0, 0, 0, 3.3333333, 0, 0, 0, 1, 1, 3.6666667, 6)
-
-[node name="Jugador" parent="." unique_id=1234024379 instance=ExtResource("2_1q87n")]
-transform = Transform3D(1, 0, 0, 0, 3.3333333, 0, 0, 0, 1, 17, 2, 5)
-
-[node name="Controles_Tactiles" parent="." unique_id=1456756494 instance=ExtResource("3_1q87n")]
-
-[node name="StaticBody3D2" type="StaticBody3D" parent="." unique_id=1131606818]
-transform = Transform3D(10.465001, 0, 0, 0, 3.4000003, 0, 0, 0, 12.600001, 0, 0, 6)
-collision_layer = 4
-collision_mask = 4
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D2" unique_id=845852166]
-mesh = SubResource("BoxMesh_wa8a8")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D2" unique_id=78397128]
-shape = SubResource("BoxShape3D_fthir")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="StaticBody3D2"]
-occluder = SubResource("BoxOccluder3D_box")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1630039909]
 environment = SubResource("Environment_wa8a8")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1500224680]
-transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 15, 0)
 light_color = Color(1, 0.88, 0.58, 1)
 light_energy = 1.8
 shadow_enabled = true
 directional_shadow_max_distance = 60.0
 
+[node name="Controles_Tactiles" parent="." unique_id=1456756494 instance=ExtResource("3_1q87n")]
 
+[node name="PlataformaSalidaFantasma" type="StaticBody3D" parent="." unique_id=1131606818]
+transform = Transform3D(8, 0, 0, 0, 1.2, 0, 0, 0, 8, 0, 15, 0)
+collision_layer = 4
+collision_mask = 4
 
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PlataformaSalidaFantasma" unique_id=845852166]
+mesh = SubResource("BoxMesh_wa8a8")
 
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PlataformaSalidaFantasma" unique_id=78397128]
+shape = SubResource("BoxShape3D_fthir")
+
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PlataformaSalidaFantasma"]
+occluder = SubResource("BoxOccluder3D_box")
+
+[node name="PlataformasDescenso" type="Node3D" parent="."]
+
+[node name="Plataforma1" parent="PlataformasDescenso" instance=ExtResource("7_plat_esp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 11.5, 2)
+
+[node name="Plataforma2" parent="PlataformasDescenso" instance=ExtResource("7_plat_esp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 7.5, -3)
+
+[node name="Plataforma3" parent="PlataformasDescenso" instance=ExtResource("7_plat_esp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 4, 1)
+
+[node name="PlataformaLlegada" type="StaticBody3D" parent="." unique_id=1618494945]
+transform = Transform3D(14, 0, 0, 0, 1, 0, 0, 0, 14, 18, 0, 0)
+collision_layer = 5
+collision_mask = 5
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PlataformaLlegada" unique_id=1945116783]
+mesh = SubResource("BoxMesh_wa8a8")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PlataformaLlegada" unique_id=766424479]
+shape = SubResource("BoxShape3D_fthir")
+
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PlataformaLlegada"]
+occluder = SubResource("BoxOccluder3D_box")
+
+[node name="Torbellinos" type="Node3D" parent="."]
+
+[node name="Torbellino1" parent="Torbellinos" instance=ExtResource("6_torbellino")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 10, -0.5)
+
+[node name="Torbellino2" parent="Torbellinos" instance=ExtResource("6_torbellino")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 6.5, -1)
+se_mueve = true
+desplazamiento = Vector3(0, 0, 3.5)
+velocidad_movimiento = 2.0
+
+[node name="Torbellino3" parent="Torbellinos" instance=ExtResource("6_torbellino")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5, 2.5, 2)
+
+[node name="Fantasma" parent="." unique_id=1234024380 instance=ExtResource("1_qokjt")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16.5, 0)
+
+[node name="Jugador" parent="." unique_id=1234024379 instance=ExtResource("2_1q87n")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 1.5, 0)

@@ -76,6 +76,9 @@ func _ready():
 	_impacto_query.collision_mask = 1 | 2
 	_impacto_query.exclude = [get_rid()]
 
+	# Silueta cálida ámbar/naranja para el personaje terrenal (Vivo)
+	color_silueta = Color(1.0, 0.55, 0.12, 0.85)
+
 	super()
 	add_to_group("vivos")
 	add_to_group("jugadores")

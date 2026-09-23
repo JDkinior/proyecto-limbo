@@ -128,10 +128,10 @@ script = ExtResource("nivel_base")
 [node name="Controles_Tactiles" parent="." unique_id=665580210 instance=ExtResource("1_qrrgk")]
 
 [node name="Jugador" parent="." unique_id=1519465982 instance=ExtResource("1_l5la3")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.85838, 0.747591, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1, 0)
 
 [node name="Fantasma" parent="." unique_id=1088130288 instance=ExtResource("1_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146.93237, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 1, 0)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2026485019]
 environment = SubResource("Environment_pruebas")

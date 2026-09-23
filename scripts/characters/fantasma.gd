@@ -54,6 +54,9 @@ func _ready():
 	MULTIPLICADOR_ACELERACION_PLANEO = 1.30
 	SUAVIDAD_FRENADO_PLANEO = 18.0
 
+	# Silueta etérea cian/azul místico para el personaje espiritual (Fantasma)
+	color_silueta = Color(0.2, 0.8, 1.0, 0.85)
+
 	super()
 	add_to_group("fantasmas")
 	add_to_group("jugadores")
@@ -201,15 +204,16 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 		return
 
 	var planeando = esta_planeando()
+	var en_vortice = esta_absorbido_en_vortice()
 	var factor_vel = clampf(vel_horizontal / VELOCIDAD, 0.0, 1.0)
 
 	# 1. Transición continua de frecuencia y ondulación suave pura (sin cortes en los ápices)
-	var vel_osc_objetivo = 3.6 if planeando else (2.0 + factor_vel * 0.8)
+	var vel_osc_objetivo = 6.0 if en_vortice else (3.6 if planeando else (2.0 + factor_vel * 0.8))
 	_vel_osc_actual = lerpf(_vel_osc_actual, vel_osc_objetivo, 4.0 * delta)
 	_tiempo_flotacion += delta * _vel_osc_actual
 
 	# Onda sinusoidal pura y suave con amortiguación continua
-	var amplitud_objetivo = 0.048 if planeando else (0.030 + factor_vel * 0.012)
+	var amplitud_objetivo = 0.08 if en_vortice else (0.048 if planeando else (0.030 + factor_vel * 0.012))
 	var y_objetivo = _pos_y_inicial_fantasma + sin(_tiempo_flotacion) * amplitud_objetivo
 	modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, y_objetivo, 12.0 * delta)
 
@@ -217,7 +221,11 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	var diff_ang = wrapf(rotation.y - _rotacion_y_anterior, -PI, PI)
 	var vel_giro = diff_ang / maxf(delta, 0.001)
 	_rotacion_y_anterior = rotation.y
-	var objetivo_roll = clampf(-vel_giro * 0.045, -0.15, 0.15) * (0.35 + factor_vel * 0.65)
+	var objetivo_roll = 0.0
+	if en_vortice:
+		objetivo_roll = sin(_tiempo_flotacion * 2.0) * 0.35
+	else:
+		objetivo_roll = clampf(-vel_giro * 0.045, -0.15, 0.15) * (0.35 + factor_vel * 0.65)
 	_tilt_espectral_roll = lerpf(_tilt_espectral_roll, objetivo_roll, 8.0 * delta)
 	modelo_fantasma.rotation.z = _tilt_espectral_roll
 
@@ -226,7 +234,9 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	_vel_horizontal_anterior = vel_horizontal
 	var inercia_freno = clampf(acel_horizontal * 0.008, -0.06, 0.06)
 	var obj_pitch = 0.0
-	if planeando:
+	if en_vortice:
+		obj_pitch = 0.28
+	elif planeando:
 		obj_pitch = 0.12
 	elif vel_horizontal > 0.2:
 		obj_pitch = (factor_vel * 0.10) + inercia_freno
@@ -236,7 +246,7 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	modelo_fantasma.rotation.x = _tilt_espectral_pitch
 
 	# 4. Squash & Stretch Espectral / Respiración elástica suavizada
-	var factor_estiramiento = sin(_tiempo_flotacion) * (0.016 if planeando else 0.010)
+	var factor_estiramiento = sin(_tiempo_flotacion) * (0.035 if en_vortice else (0.016 if planeando else 0.010))
 	var sx_sign = signf(modelo_fantasma.scale.x) if modelo_fantasma.scale.x != 0.0 else -1.0
 	var sy_sign = signf(modelo_fantasma.scale.y) if modelo_fantasma.scale.y != 0.0 else 1.0
 	var sz_sign = signf(modelo_fantasma.scale.z) if modelo_fantasma.scale.z != 0.0 else -1.0
@@ -249,7 +259,7 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 
 	# 5. Pulso sutil de luminosidad espectral al moverse o levitar
 	if is_instance_valid(luz_fantasma):
-		var energia_objetivo = 1.15 if planeando else (0.80 + factor_vel * 0.20)
+		var energia_objetivo = 1.65 if en_vortice else (1.15 if planeando else (0.80 + factor_vel * 0.20))
 		luz_fantasma.light_energy = lerpf(luz_fantasma.light_energy, energia_objetivo, 6.0 * delta)
 
 func activar_habilidad_especial():
@@ -259,12 +269,13 @@ func activar_habilidad_especial():
 func _actualizar_estela(vel_total: float):
 	if is_instance_valid(estela_fantasma):
 		var planeando = esta_planeando()
+		var en_vortice = esta_absorbido_en_vortice()
 		var tiene_input = false
 		if es_activo():
 			tiene_input = not entrada_bloqueada() and (obtener_direccion_movimiento() != Vector3.ZERO)
 
 		var esta_moviendose = false
-		if planeando:
+		if en_vortice or planeando:
 			esta_moviendose = true
 		elif es_activo():
 			esta_moviendose = (tiene_input and vel_total > 0.25) or (vel_total > 0.85)
@@ -275,12 +286,14 @@ func _actualizar_estela(vel_total: float):
 		
 		if esta_moviendose:
 			var factor = clampf((vel_total - 0.25) / maxf(VELOCIDAD - 0.25, 0.1), 0.0, 1.0)
-			if planeando:
+			if en_vortice:
+				factor = 1.0
+			elif planeando:
 				factor = maxf(factor, 0.85) # Emisión espectral potenciada durante levitación
-			estela_fantasma.scale_amount_min = lerpf(0.5, 0.85, factor)
-			estela_fantasma.scale_amount_max = lerpf(0.75, 1.30, factor)
-			estela_fantasma.initial_velocity_min = lerpf(0.2, 0.55, factor)
-			estela_fantasma.initial_velocity_max = lerpf(0.4, 1.05, factor)
+			estela_fantasma.scale_amount_min = lerpf(0.5, 0.95 if en_vortice else 0.85, factor)
+			estela_fantasma.scale_amount_max = lerpf(0.75, 1.60 if en_vortice else 1.30, factor)
+			estela_fantasma.initial_velocity_min = lerpf(0.2, 0.85 if en_vortice else 0.55, factor)
+			estela_fantasma.initial_velocity_max = lerpf(0.4, 1.45 if en_vortice else 1.05, factor)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GESTIÓN DE ANIMACIONES (Idle y flotar_001)

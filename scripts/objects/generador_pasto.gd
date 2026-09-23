@@ -20,19 +20,30 @@ class_name GeneradorPasto
 @export var activar_pincel: bool = false
 
 ## Radio o tamaño del pincel en metros.
-@export_range(0.2, 15.0, 0.1) var radio_pincel: float = 1.5
+@export_range(0.2, 30.0, 0.1, "or_greater") var radio_pincel: float = 1.5
 
-## Cantidad de briznas que se colocan por cada pasada del pincel.
-@export_range(1, 100, 1) var densidad_pincel: int = 10
+## Densidad o cantidad de briznas del pincel (se adapta proporcionalmente al radio para mantener una densidad constante).
+@export_range(1, 10000, 1, "or_greater") var densidad_pincel: int = 25
 
 ## Alinea la inclinación de las briznas con la pendiente/inclinación de la superficie donde pintas.
 @export var alinear_con_superficie: bool = true
 
-## Forma geométrica del pincel (Círculo, Cuadrado o Triángulo).
-@export_enum("Circular (Redondo)", "Cuadrado", "Triangular") var forma_pincel: int = 0
+## Forma geométrica del pincel (Círculo, Cuadrado, Triángulo, Corona, Sendero).
+@export_enum("Circular (Redondo)", "Cuadrado", "Triangular", "Corona (Anillo)", "Sendero (Línea)") var forma_pincel: int = 0
+
+## Si está activo, el pincel no colocará briznas en zonas donde ya se haya pintado pasto previamente.
+@export var evitar_repintar: bool = false
+
+## Distancia mínima de separación entre briznas para evitar repintar (en metros).
+## Si se establece en 0.0, se calcula automáticamente según la densidad del pincel.
+@export_range(0.0, 1.5, 0.01) var distancia_minima_repintar: float = 0.0
 
 ## Almacena las instancias pintadas para que se guarden permanentemente con tu escena.
-@export var datos_pasto_pintado: Array[Transform3D] = []
+@export var datos_pasto_pintado: Array[Transform3D] = []:
+	set(valor):
+		datos_pasto_pintado = valor
+		if modo_distribucion == 0 and multimesh != null:
+			_actualizar_multimesh_pintado()
 
 
 @export_group("Filtro de Objetos a Pintar")
@@ -410,7 +421,25 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 	var local_center = to_local(pos_mundo)
 	var esc_range = variacion_escala if variacion_escala != null else Vector2(0.65, 1.25)
 	var radio = max(0.1, radio_pincel)
-	var cantidad = max(1, densidad_pincel)
+	var densidad = max(1, densidad_pincel)
+
+	# Adaptar la cantidad de briznas al área geométrica real (m²) de la forma seleccionada
+	# para garantizar que la densidad (briznas/m²) sea exactamente constante sin importar el radio.
+	var r2 = radio * radio
+	var area_forma: float = PI * r2
+	match forma_pincel:
+		1: # Cuadrado (lado 2*radio, área = 4 * r^2)
+			area_forma = 4.0 * r2
+		2: # Triángulo equilátero (área ≈ 1.299038 * r^2)
+			area_forma = 1.299038 * r2
+		3: # Corona / Anillo (área = PI * (r^2 - (0.5r)^2) = 0.75 * PI * r^2)
+			area_forma = 0.75 * PI * r2
+		4: # Sendero / Línea (área = 2r * 0.5r = r^2)
+			area_forma = r2
+		_: # Círculo (área = PI * r^2)
+			area_forma = PI * r2
+
+	var cantidad = clampi(int(round(densidad * area_forma)), 1, 30000)
 
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
@@ -418,9 +447,23 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 	# Calcular orientación local a partir de la normal del mundo
 	var local_normal = (global_transform.basis.inverse() * normal_mundo).normalized() if alinear_con_superficie else Vector3.UP
 
+	var dist_min = distancia_minima_repintar
+	if dist_min <= 0.0:
+		dist_min = clampf(0.85 / sqrt(maxf(1.0, float(densidad))), 0.02, 1.5)
+	var dist_min_sq = dist_min * dist_min
+
 	for _i in range(cantidad):
 		var offset_2d = _generar_offset_forma(rng, radio, forma_pincel)
 		var pos_instancia = local_center + Vector3(offset_2d.x, 0.0, offset_2d.y)
+
+		if evitar_repintar and not datos_pasto_pintado.is_empty():
+			var ocupado = false
+			for t_existente in datos_pasto_pintado:
+				if Vector2(t_existente.origin.x - pos_instancia.x, t_existente.origin.z - pos_instancia.z).length_squared() < dist_min_sq:
+					ocupado = true
+					break
+			if ocupado:
+				continue
 
 		var rot_y = rng.randf_range(0.0, TAU)
 		var factor_esc = rng.randf_range(esc_range.x, esc_range.y)
@@ -475,6 +518,14 @@ func _generar_offset_forma(rng: RandomNumberGenerator, radio: float, forma: int)
 				u = 1.0 - u
 				v = 1.0 - v
 			return (1.0 - u - v) * v0 + u * v1 + v * v2
+		3: # Corona / Anillo (radio interior = 0.5 * radio)
+			var r_in_sq = 0.25 * radio * radio
+			var r_out_sq = radio * radio
+			var r = sqrt(rng.randf_range(r_in_sq, r_out_sq))
+			var theta = rng.randf_range(0.0, TAU)
+			return Vector2(cos(theta) * r, sin(theta) * r)
+		4: # Sendero / Línea (largo 2*radio, ancho 0.5*radio)
+			return Vector2(rng.randf_range(-radio, radio), rng.randf_range(-radio * 0.25, radio * 0.25))
 		_: # Círculo (Forma 0 por defecto)
 			var r = sqrt(rng.randf()) * radio
 			var theta = rng.randf_range(0.0, TAU)
@@ -496,6 +547,11 @@ func _esta_dentro_de_forma(offset: Vector2, radio: float, forma: int) -> bool:
 			var neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
 			var pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
 			return !(neg and pos)
+		3: # Corona / Anillo
+			var d_sq = offset.length_squared()
+			return d_sq <= radio * radio and d_sq >= 0.25 * radio * radio
+		4: # Sendero / Línea
+			return abs(offset.x) <= radio and abs(offset.y) <= radio * 0.25
 		_: # Círculo
 			return offset.length_squared() <= radio * radio
 
@@ -505,6 +561,19 @@ func limpiar_pasto_pintado() -> void:
 	datos_pasto_pintado.clear()
 	if multimesh:
 		multimesh.instance_count = 0
+
+## Actualiza la visualización del multimesh con las briznas pintadas actuales
+func actualizar_multimesh_pintado() -> void:
+	_actualizar_multimesh_pintado()
+
+## Asigna y actualiza directamente el arreglo de briznas pintadas (utilizado por Undo/Redo)
+func asignar_datos_pintados(nuevos_datos: Array) -> void:
+	var arr: Array[Transform3D] = []
+	for item in nuevos_datos:
+		if item is Transform3D:
+			arr.append(item)
+	datos_pasto_pintado = arr
+	_actualizar_multimesh_pintado()
 
 func _actualizar_multimesh_pintado() -> void:
 	if multimesh == null:

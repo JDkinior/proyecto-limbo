@@ -34,9 +34,9 @@ HLeaderboards="*uid://b06khhf20mplm"
 HLobbies="*uid://6iqvm33q0tb1"
 HP2P="*uid://u6ae5fpm6l8q"
 TransitionManager="*res://scripts/ui/transition_manager.gd"
-_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 EnvLoader="*uid://b6te5n15puqys"
 EOSCreds="*uid://d3xu1oxee48aa"
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]
 

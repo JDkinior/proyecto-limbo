@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://c3e72nfrm5rx2"]
+
+[ext_resource type="PackedScene" uid="uid://ci0anc0ddqvmm" path="res://assets/Modelos/Decoraciones/Pilar_Antiguo.glb" id="1_r1t2f"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_2a4cd"]
+size = Vector3(2.883484, 7.599518, 2.859497)
+
+[node name="Pilar_Antiguo2" unique_id=308403905 instance=ExtResource("1_r1t2f")]
+
+[node name="Pilar_Antiguo" parent="." index="0" unique_id=756787918]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+
+[node name="StaticBody3D" type="StaticBody3D" parent="Pilar_Antiguo" index="0" unique_id=1466931261]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Pilar_Antiguo/StaticBody3D" index="0" unique_id=535621380]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.0517578e-05, 3.776748, -0.012390137)
+shape = SubResource("BoxShape3D_2a4cd")

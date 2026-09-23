@@ -1,0 +1,92 @@
+[gd_scene format=3 uid="uid://c7t8u3rm7qv21"]
+
+[ext_resource type="Script" uid="uid://dkss7qb45sk8f" path="res://scripts/objects/torbellino.gd" id="1_script"]
+[ext_resource type="Material" path="res://shaders/torbellino_espiritual_mat.tres" id="2_mat"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_influencia"]
+height = 8.0
+radius = 4.2
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_absorcion"]
+height = 6.0
+radius = 1.3
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_vortice"]
+material = ExtResource("2_mat")
+top_radius = 2.4
+bottom_radius = 0.45
+height = 5.2
+radial_segments = 24
+rings = 6
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particulas"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.35, 0.85, 1, 0.85)
+
+[sub_resource type="SphereMesh" id="SphereMesh_particula"]
+material = SubResource("StandardMaterial3D_particulas")
+radius = 0.08
+height = 0.16
+radial_segments = 6
+rings = 4
+
+[sub_resource type="Curve" id="Curve_escala_particulas"]
+_data = [Vector2(0, 0.3), 0.0, 2.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.1), -2.0, 0.0, 0, 0]
+point_count = 3
+
+[node name="Torbellino" type="Node3D" unique_id=284910291]
+script = ExtResource("1_script")
+
+[node name="AreaInfluencia" type="Area3D" parent="." unique_id=1693462469]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AreaInfluencia" unique_id=1354489760]
+shape = SubResource("CylinderShape3D_influencia")
+
+[node name="AreaAbsorcion" type="Area3D" parent="." unique_id=316071537]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AreaAbsorcion" unique_id=652758026]
+shape = SubResource("CylinderShape3D_absorcion")
+
+[node name="Visual" type="Node3D" parent="." unique_id=1487175179]
+transform = Transform3D(-0.879413, 0, -0.4758307, 0, 1, 0, 0.4758307, 0, -0.879413, 0, 0.20027667, 0)
+
+[node name="EmbudoVortice" type="MeshInstance3D" parent="Visual" unique_id=1499310647]
+mesh = SubResource("CylinderMesh_vortice")
+
+[node name="ParticulasVortice" type="CPUParticles3D" parent="." unique_id=437020266]
+amount = 32
+lifetime = 1.6
+randomness = 0.3
+mesh = SubResource("SphereMesh_particula")
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 4.0
+emission_ring_radius = 2.0
+emission_ring_inner_radius = 0.5
+emission_ring_cone_angle = 90.0
+direction = Vector3(0, 1, 0)
+spread = 25.0
+gravity = Vector3(0, 1.5, 0)
+initial_velocity_min = 1.0
+initial_velocity_max = 2.5
+angular_velocity_min = 90.0
+angular_velocity_max = 270.0
+linear_accel_min = 0.5
+linear_accel_max = 2.0
+scale_amount_curve = SubResource("Curve_escala_particulas")
+color = Color(0.4, 0.9, 1, 0.9)
+
+[node name="LuzTorbellino" type="OmniLight3D" parent="." unique_id=954070431]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+light_color = Color(0.2, 0.75, 1, 1)
+light_energy = 0.98788637
+omni_range = 6.0
