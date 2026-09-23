@@ -1,11 +1,11 @@
 extends TouchScreenButton
 
-const TEX_SALTO_VIVO = preload("res://assets/UI/Control/Salto Vivo.png")
-const TEX_SALTO_FANTASMA = preload("res://assets/UI/Control/Salto Fantasma.png")
-const TEX_ACCION_VIVO = preload("res://assets/UI/Control/Accion Vivo.png")
-const TEX_ACCION_FANTASMA = preload("res://assets/UI/Control/Accion Fantasma.png")
-const TEX_CAMBIO_VIVO = preload("res://assets/UI/Control/Boton cambio vivo.png")
-const TEX_CAMBIO_FANTASMA = preload("res://assets/UI/Control/Boton cambio fantasma.png")
+const TEX_SALTO_VIVO = preload("res://assets/ui/controles/salto_vivo.png")
+const TEX_SALTO_FANTASMA = preload("res://assets/ui/controles/salto_fantasma.png")
+const TEX_ACCION_VIVO = preload("res://assets/ui/controles/accion_vivo.png")
+const TEX_ACCION_FANTASMA = preload("res://assets/ui/controles/accion_fantasma.png")
+const TEX_CAMBIO_VIVO = preload("res://assets/ui/controles/boton_cambio_vivo.png")
+const TEX_CAMBIO_FANTASMA = preload("res://assets/ui/controles/boton_cambio_fantasma.png")
 
 const ASPECT_RATIO_BOTON: float = 443.0 / 411.0
 const FACTOR_ESCALA_SOMBRA: float = 411.0 / 336.0 # Compensa el padding de sombras agrandadas para mantener el tamaño original del botón

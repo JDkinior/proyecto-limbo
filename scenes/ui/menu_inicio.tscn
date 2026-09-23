@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dmenuinicio"]
 
 [ext_resource type="Script" uid="uid://bj4efyh1c20w" path="res://scripts/ui/menu_inicio.gd" id="1_menu"]
-[ext_resource type="Texture2D" uid="uid://dkgwa1n4hm1c7" path="res://assets/Texturas/fondo2.png" id="2_bg"]
+[ext_resource type="Texture2D" uid="uid://dkgwa1n4hm1c7" path="res://assets/texturas/fondos/fondo_pantalla_azul.png" id="2_bg"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_trans"]
 
@@ -666,17 +666,17 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Pantalla Completa"
 
-[node name="HSeparatorHUD" type="HSeparator" parent="PanelOpciones/VBoxContainer"]
+[node name="HSeparatorHUD" type="HSeparator" parent="PanelOpciones/VBoxContainer" unique_id=2045555691]
 layout_mode = 2
 
-[node name="LabelHUD" type="Label" parent="PanelOpciones/VBoxContainer"]
+[node name="LabelHUD" type="Label" parent="PanelOpciones/VBoxContainer" unique_id=2131514336]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 14
 text = "Controles Táctiles (HUD):"
 horizontal_alignment = 1
 
-[node name="BtnAjustarHUD" type="Button" parent="PanelOpciones/VBoxContainer"]
+[node name="BtnAjustarHUD" type="Button" parent="PanelOpciones/VBoxContainer" unique_id=397403082]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.9, 0.4, 1)
@@ -687,24 +687,24 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
 text = "🎮 Personalizar HUD (Posición y Tamaño)"
 
-[node name="LabelTamanoHUD" type="Label" parent="PanelOpciones/VBoxContainer"]
+[node name="LabelTamanoHUD" type="Label" parent="PanelOpciones/VBoxContainer" unique_id=80547177]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Tamaño de Botones de Acción:"
 
-[node name="SliderTamanoHUD" type="HSlider" parent="PanelOpciones/VBoxContainer"]
+[node name="SliderTamanoHUD" type="HSlider" parent="PanelOpciones/VBoxContainer" unique_id=1743485723]
 layout_mode = 2
 min_value = 0.6
 max_value = 2.0
 step = 0.05
-value = 1.39
+value = 1.4
 
-[node name="LabelTamanoJoy" type="Label" parent="PanelOpciones/VBoxContainer"]
+[node name="LabelTamanoJoy" type="Label" parent="PanelOpciones/VBoxContainer" unique_id=642550795]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
 text = "Tamaño de Joystick:"
 
-[node name="SliderTamanoJoy" type="HSlider" parent="PanelOpciones/VBoxContainer"]
+[node name="SliderTamanoJoy" type="HSlider" parent="PanelOpciones/VBoxContainer" unique_id=335489216]
 layout_mode = 2
 min_value = 0.6
 max_value = 2.0

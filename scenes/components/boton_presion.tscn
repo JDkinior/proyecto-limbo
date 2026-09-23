@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://cs88ggghqges1"]
 
 [ext_resource type="Script" uid="uid://c6fvduygb3gsb" path="res://scripts/objects/boton_presion.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://cbi1r6x025n40" path="res://assets/Modelos/Componentes/Base boton.glb" id="2_lymof"]
-[ext_resource type="PackedScene" uid="uid://dmj1re4id33jr" path="res://assets/Modelos/Componentes/Boton.glb" id="3_1rkd8"]
+[ext_resource type="PackedScene" uid="uid://cbi1r6x025n40" path="res://assets/modelos/interactivos/boton_base.glb" id="2_lymof"]
+[ext_resource type="PackedScene" uid="uid://dmj1re4id33jr" path="res://assets/modelos/interactivos/boton_pulsador.glb" id="3_1rkd8"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_trigger"]
 size = Vector3(1.35, 0.45, 1.35)

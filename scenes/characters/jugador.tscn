@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://cs78ggghqges5"]
 
 [ext_resource type="Script" uid="uid://cnl73c2m5k0tt" path="res://scripts/characters/jugador.gd" id="1_scrip"]
-[ext_resource type="PackedScene" uid="uid://bomagwdy8wkmh" path="res://assets/Modelos/Personajes/vivo.glb" id="3_65j3h"]
-[ext_resource type="Texture2D" uid="uid://drnfc7pw14xcw" path="res://assets/Texturas/polvo_puff.png" id="4_polvo_tex"]
+[ext_resource type="PackedScene" uid="uid://bomagwdy8wkmh" path="res://assets/modelos/personajes/vivo.glb" id="3_65j3h"]
+[ext_resource type="Texture2D" uid="uid://drnfc7pw14xcw" path="res://assets/texturas/efectos/polvo_puff.png" id="4_polvo_tex"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_polvo"]
 transparency = 1

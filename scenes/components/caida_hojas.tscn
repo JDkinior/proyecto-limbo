@@ -1,0 +1,39 @@
+[gd_scene format=3 uid="uid://bcaidahojas001"]
+
+[ext_resource type="Material" uid="uid://bhojasparticula01" path="res://assets/materiales/entorno/m_hojas_particula.tres" id="1_mat"]
+
+[sub_resource type="Gradient" id="Gradient_hojas"]
+offsets = PackedFloat32Array(0, 0.15, 0.85, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="QuadMesh" id="QuadMesh_hoja"]
+material = ExtResource("1_mat")
+size = Vector2(0.35, 0.35)
+
+[node name="HojasCayendo" type="CPUParticles3D"]
+amount = 7
+lifetime = 8.0
+preprocess = 4.0
+randomness = 0.6
+lifetime_randomness = 0.25
+mesh = SubResource("QuadMesh_hoja")
+emission_shape = 2
+emission_box_extents = Vector3(2, 0.6, 2)
+direction = Vector3(0.35, -1, 0.2)
+spread = 35.0
+gravity = Vector3(0.35, -0.65, 0.2)
+initial_velocity_min = 0.08
+initial_velocity_max = 0.25
+angular_velocity_min = -15.0
+angular_velocity_max = 15.0
+linear_accel_min = -0.1
+linear_accel_max = 0.1
+tangential_accel_min = -0.35
+tangential_accel_max = 0.35
+damping_min = 0.4
+damping_max = 0.75
+angle_min = -8.0
+angle_max = 8.0
+scale_amount_min = 0.5
+scale_amount_max = 0.9
+color_ramp = SubResource("Gradient_hojas")

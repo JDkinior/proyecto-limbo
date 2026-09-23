@@ -226,6 +226,10 @@ func _actualizar_visual(_opacidad: float = 1.0):
 	# para que el cilindro nunca forme un poste/aguja vertical en el centro.
 	var escala_y = clampf(r / 0.8, 0.001, 1.0)
 	mesh_visual.scale = Vector3(r, escala_y, r)
+	if _mat_aura is ShaderMaterial:
+		(_mat_aura as ShaderMaterial).set_shader_parameter("radio_actual", r)
+	if _mat_halo is ShaderMaterial:
+		(_mat_halo as ShaderMaterial).set_shader_parameter("radio_actual", r)
 
 func esta_activa() -> bool:
 	return activa

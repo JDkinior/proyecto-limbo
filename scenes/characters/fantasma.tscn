@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://ctluysrmto2cl" path="res://scripts/characters/fantasma.gd" id="1_fantasma"]
 [ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
-[ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/Modelos/Personajes/fantasma.glb" id="4_bxr04"]
-[ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/Texturas/estela_espiritual.png" id="5_estela_tex"]
+[ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/modelos/personajes/fantasma.glb" id="4_bxr04"]
+[ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/texturas/efectos/estela_espiritual.png" id="5_estela_tex"]
 [ext_resource type="Shader" uid="uid://cgk67pcjy2kiu" path="res://shaders/aura_halo.gdshader" id="6_aura_halo"]
 [ext_resource type="Shader" path="res://shaders/aura_espiritual.gdshader" id="7_aura_disco"]
 
@@ -15,7 +15,8 @@ render_priority = 0
 shader = ExtResource("7_aura_disco")
 shader_parameter/color_borde = Color(0.2, 0.92, 1, 0.95)
 shader_parameter/color_interior = Color(0.12, 0.72, 1, 0.75)
-shader_parameter/radio_inicio_color = 0.02
+shader_parameter/radio_hueco_metros = 0.85
+shader_parameter/radio_actual = 10.0
 shader_parameter/exponente_degradado = 0.75
 shader_parameter/ancho_anillo_borde = 0.45
 shader_parameter/intensidad_borde = 1.3

@@ -1,8 +1,9 @@
 [gd_scene format=3 uid="uid://bsprnrvdshlv1"]
 
-[ext_resource type="PackedScene" uid="uid://ddknc1i6uccel" path="res://assets/Decoraciones/Arbol_Otono_03.glb" id="1_dt4sq"]
-[ext_resource type="Material" uid="uid://bfolbaseotono01" path="res://assets/Materiales/Arboles/M_Follaje_Base.tres" id="2_base"]
-[ext_resource type="Material" uid="uid://bfolhojasotono01" path="res://assets/Materiales/Arboles/M_Follaje_Hojas.tres" id="3_hojas"]
+[ext_resource type="PackedScene" uid="uid://ddknc1i6uccel" path="res://assets/modelos/entorno/arboles/arbol_otono_03.glb" id="1_dt4sq"]
+[ext_resource type="Material" uid="uid://bfolbaseotono01" path="res://assets/materiales/entorno/m_follaje_base.tres" id="2_base"]
+[ext_resource type="Material" uid="uid://bfolhojasotono01" path="res://assets/materiales/entorno/m_follaje_hojas.tres" id="3_hojas"]
+[ext_resource type="PackedScene" uid="uid://bcaidahojas001" path="res://scenes/components/caida_hojas.tscn" id="4_leaves"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wgd1k"]
 size = Vector3(1.5592651, 5.462433, 1)
@@ -20,3 +21,7 @@ collision_mask = 7
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Arbol_Otono_03/Area3D" index="0" unique_id=1714710656]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.10626221, 2.7607718, 0)
 shape = SubResource("BoxShape3D_wgd1k")
+
+[node name="HojasCayendo" parent="." instance=ExtResource("4_leaves")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.6, 0)
+emission_box_extents = Vector3(1.9, 0.6, 1.8)

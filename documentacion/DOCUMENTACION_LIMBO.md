@@ -175,8 +175,27 @@ La organizacion actual ya sigue una arquitectura separada por dominio:
 
 ```text
 assets/
-  Texturas/
-    Provicionales/
+  fuentes_blender/
+  materiales/
+    entorno/
+  modelos/
+    entorno/
+      arboles/
+      cristales/
+      estructuras/
+      iluminacion/
+    interactivos/
+    personajes/
+    provisional/
+  texturas/
+    efectos/
+    entorno/
+    fondos/
+    provisional/
+  ui/
+    controles/
+    fondos/
+    iconos/
 
 documentacion/
   DOCUMENTACION_PROYECTO.md
@@ -596,11 +615,11 @@ Nota importante:
 
 Responsabilidades:
 
-- Renderizar los botones táctiles utilizando la suite completa de texturas gráficas de `assets/UI/Control/`:
-  - Salto: `Salto Vivo.png` y `Salto Fantasma.png`.
-  - Acción / Interactuar: `Accion Vivo.png` y `Accion Fantasma.png`.
-  - Cambio de Personaje: `Boton cambio vivo.png` y `Boton cambio fantasma.png`.
-  - Pausa: `boton pausa.png`.
+- Renderizar los botones táctiles utilizando la suite completa de texturas gráficas de `assets/ui/controles/`:
+  - Salto: `salto_vivo.png` y `salto_fantasma.png`.
+  - Acción / Interactuar: `accion_vivo.png` y `accion_fantasma.png`.
+  - Cambio de Personaje: `boton_cambio_vivo.png` y `boton_cambio_fantasma.png`.
+  - Pausa: `boton_pausa.png`.
 - Conmutar automáticamente los sprites en tiempo real según el personaje activo (Vivo vs Fantasma).
 - Centrar y escalar automáticamente los sprites gráficos con los radios de interacción (`CircleShape2D`).
 - Proporcionar respuesta visual táctil interactiva al presionar (click feedback al 92%).

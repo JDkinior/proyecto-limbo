@@ -239,7 +239,7 @@ func _crear_elementos_hud_interactivos():
 	nodo_btn_saltar.size = Vector2(93, 100)
 	nodo_btn_saltar.pivot_offset = Vector2(46.5, 50)
 	nodo_btn_saltar.gui_input.connect(func(ev): _manejar_input_boton_accion("btn_saltar", ev, nodo_btn_saltar))
-	var tex_salto = preload("res://assets/UI/Control/Salto Fantasma.png") if es_fantasma else preload("res://assets/UI/Control/Salto Vivo.png")
+	var tex_salto = preload("res://assets/ui/controles/salto_fantasma.png") if es_fantasma else preload("res://assets/ui/controles/salto_vivo.png")
 	_crear_dibujo_boton_textura(nodo_btn_saltar, tex_salto)
 	nodo_grupo_botones.add_child(nodo_btn_saltar)
 	
@@ -250,7 +250,7 @@ func _crear_elementos_hud_interactivos():
 	nodo_btn_interactuar.size = Vector2(93, 100)
 	nodo_btn_interactuar.pivot_offset = Vector2(46.5, 50)
 	nodo_btn_interactuar.gui_input.connect(func(ev): _manejar_input_boton_accion("btn_interactuar", ev, nodo_btn_interactuar))
-	var tex_interact = preload("res://assets/UI/Control/Accion Fantasma.png") if es_fantasma else preload("res://assets/UI/Control/Accion Vivo.png")
+	var tex_interact = preload("res://assets/ui/controles/accion_fantasma.png") if es_fantasma else preload("res://assets/ui/controles/accion_vivo.png")
 	_crear_dibujo_boton_textura(nodo_btn_interactuar, tex_interact)
 	nodo_grupo_botones.add_child(nodo_btn_interactuar)
 	
@@ -261,7 +261,7 @@ func _crear_elementos_hud_interactivos():
 	nodo_btn_cambiar.size = Vector2(93, 100)
 	nodo_btn_cambiar.pivot_offset = Vector2(46.5, 50)
 	nodo_btn_cambiar.gui_input.connect(func(ev): _manejar_input_boton_accion("btn_cambiar", ev, nodo_btn_cambiar))
-	var tex_cambio = preload("res://assets/UI/Control/Boton cambio vivo.png") if es_fantasma else preload("res://assets/UI/Control/Boton cambio fantasma.png")
+	var tex_cambio = preload("res://assets/ui/controles/boton_cambio_vivo.png") if es_fantasma else preload("res://assets/ui/controles/boton_cambio_fantasma.png")
 	_crear_dibujo_boton_textura(nodo_btn_cambiar, tex_cambio)
 	nodo_grupo_botones.add_child(nodo_btn_cambiar)
 	
@@ -284,7 +284,7 @@ func _crear_dibujo_joystick(parent: Control):
 		
 	var base = TextureRect.new()
 	base.name = "BaseJoystick"
-	base.texture = preload("res://assets/UI/Control/Joystick-Base.png")
+	base.texture = preload("res://assets/ui/controles/joystick_base.png")
 	base.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	base.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	base.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -295,7 +295,7 @@ func _crear_dibujo_joystick(parent: Control):
 	# Perilla Central con proporción exacta del diseño (352/640)
 	var knob = TextureRect.new()
 	knob.name = "KnobJoystick"
-	knob.texture = preload("res://assets/UI/Control/joystick-thumb.png")
+	knob.texture = preload("res://assets/ui/controles/joystick_thumb.png")
 	knob.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	knob.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -371,7 +371,7 @@ func _crear_dibujo_boton_pausa(parent: Control):
 		es_fantasma = (RedManager.personaje_activo_solo == "fantasma")
 		
 	var tr = TextureRect.new()
-	tr.texture = preload("res://assets/UI/Control/boton pausa.png")
+	tr.texture = preload("res://assets/ui/controles/boton_pausa.png")
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tr.set_anchors_preset(Control.PRESET_FULL_RECT)

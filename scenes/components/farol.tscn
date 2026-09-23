@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b2w7sve5fbqiy"]
 
-[ext_resource type="PackedScene" uid="uid://bt3mqepths5oo" path="res://assets/Modelos/Entorno/Farol.glb" id="1_a2i1g"]
+[ext_resource type="PackedScene" uid="uid://bt3mqepths5oo" path="res://assets/modelos/entorno/iluminacion/farol.glb" id="1_a2i1g"]
 
 [node name="Farol" unique_id=1573612018 instance=ExtResource("1_a2i1g")]
 

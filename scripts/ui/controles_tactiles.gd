@@ -197,8 +197,8 @@ func mostrar_aviso_cambio_personaje(personaje_activo: String) -> void:
 	_aviso_tween.tween_property(label_aviso_cambio, "modulate:a", 0.0, 0.6)
 
 
-const TEX_JOYSTICK_BASE = preload("res://assets/UI/Control/Joystick-Base.png")
-const TEX_JOYSTICK_THUMB = preload("res://assets/UI/Control/joystick-thumb.png")
+const TEX_JOYSTICK_BASE = preload("res://assets/ui/controles/joystick_base.png")
+const TEX_JOYSTICK_THUMB = preload("res://assets/ui/controles/joystick_thumb.png")
 const RATIO_JOYSTICK_THUMB: float = 352.0 / 640.0
 
 func _inicializar_joystick():
@@ -424,7 +424,7 @@ func configurar_personaje_local(personaje: Node):
 			aplicar_estilo_fantasma()
 
 			# Cargar textura de esmeralda y modular a verde/cyan espectral
-			var tex_emerald = load("res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinEmerald_AncientCoinEmerald_1_Color.png")
+			var tex_emerald = load("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinEmerald_AncientCoinEmerald_1_Color.png")
 			icono_moneda.texture = tex_emerald
 			icono_moneda.self_modulate = Color(0.4, 1.0, 0.8) # Tinte espectral
 			
@@ -446,7 +446,7 @@ func configurar_personaje_local(personaje: Node):
 		else:
 			aplicar_estilo_jugador()
 			# Cargar textura de rubí y modular a rojo vida
-			var tex_ruby = load("res://assets/Modelos/Provicional/RuinsGLB/Accessories/AncientCoinRuby_AncientGoldCoinRuby_1_Color.png")
+			var tex_ruby = load("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinRuby_AncientGoldCoinRuby_1_Color.png")
 			icono_moneda.texture = tex_ruby
 			icono_moneda.self_modulate = Color(1.0, 0.4, 0.4) # Tinte rojo
 			
@@ -580,7 +580,7 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 	elif nodo is Button:
 		if nodo.name == "Boton_Pausa":
 			nodo.text = ""
-			nodo.icon = preload("res://assets/UI/Control/boton pausa.png")
+			nodo.icon = preload("res://assets/ui/controles/boton_pausa.png")
 			nodo.expand_icon = true
 			nodo.custom_minimum_size = Vector2(110, 110)
 			

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dlr4n5fwa5co0"]
 
-[ext_resource type="PackedScene" uid="uid://bst3syn5w14jm" path="res://assets/Modelos/Entorno/Cristales.glb" id="1_qswo4"]
+[ext_resource type="PackedScene" uid="uid://bst3syn5w14jm" path="res://assets/modelos/entorno/cristales/cristales.glb" id="1_qswo4"]
 
 [node name="Cristales" type="Node3D" unique_id=1793408612]
 

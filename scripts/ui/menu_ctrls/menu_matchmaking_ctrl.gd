@@ -388,7 +388,7 @@ func _inicializar_nuevos_paneles():
 	light_omni_vivo.omni_range = 4.0
 	root_3d_vivo.add_child(light_omni_vivo)
 	
-	var escena_vivo = load("res://assets/Modelos/Personajes/vivo.glb")
+	var escena_vivo = load("res://assets/modelos/personajes/vivo.glb")
 	if escena_vivo:
 		vivo_model_solo = escena_vivo.instantiate()
 		vivo_model_solo.transform = Transform3D(Basis().scaled(Vector3(0.45, 0.45, 0.45)), Vector3(0, -0.08, 0))
@@ -505,7 +505,7 @@ func _inicializar_nuevos_paneles():
 	light_omni_fantasma.omni_range = 4.0
 	root_3d_fantasma.add_child(light_omni_fantasma)
 	
-	var escena_fantasma = load("res://assets/Modelos/Personajes/fantasma.glb")
+	var escena_fantasma = load("res://assets/modelos/personajes/fantasma.glb")
 	if escena_fantasma:
 		fantasma_model_solo = escena_fantasma.instantiate()
 		fantasma_model_solo.transform = Transform3D(Basis().scaled(Vector3(0.45, 0.45, 0.45)), Vector3(0, -0.06, 0))

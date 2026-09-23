@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c3e72nfrm5rx2"]
 
-[ext_resource type="PackedScene" uid="uid://ci0anc0ddqvmm" path="res://assets/Modelos/Decoraciones/Pilar_Antiguo.glb" id="1_r1t2f"]
+[ext_resource type="PackedScene" uid="uid://ci0anc0ddqvmm" path="res://assets/modelos/entorno/estructuras/pilar_antiguo.glb" id="1_r1t2f"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_2a4cd"]
 size = Vector3(2.883484, 7.599518, 2.859497)

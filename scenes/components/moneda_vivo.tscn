@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cs88ggghqges5"]
 
 [ext_resource type="Script" uid="uid://ca6w4dirjwhye" path="res://scripts/objects/moneda_vivo.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b404wuhwh436i" path="res://assets/Modelos/Entorno/Moneda Vivo.glb" id="2_mesh"]
+[ext_resource type="PackedScene" uid="uid://b404wuhwh436i" path="res://assets/modelos/interactivos/moneda_vivo.glb" id="2_mesh"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_g0mv7"]
 radius = 0.8754716
