@@ -17,6 +17,7 @@ var _tilt_espectral_pitch: float = 0.0
 var _tilt_espectral_roll: float = 0.0
 var _rotacion_y_anterior: float = 0.0
 var _vel_horizontal_anterior: float = 0.0
+var _rotacion_inicial_modelo_fantasma: Vector3 = Vector3(0.0, PI, 0.0)
 var _pos_anterior_remoto: Vector3 = Vector3.ZERO
 ## Control de reproducción de animaciones del fantasma (Idle y flotar/movimiento).
 @export var animaciones_activas: bool = true
@@ -58,6 +59,7 @@ func _ready():
 	color_silueta = Color(0.2, 0.8, 1.0, 0.85)
 
 	super()
+	_rotacion_y_anterior = rotacion_inicial.y
 	add_to_group("fantasmas")
 	add_to_group("jugadores")
 	# Fantasma pertenece solo a la capa 3 (Plano Espiritual)
@@ -81,6 +83,7 @@ func _ready():
 	if is_instance_valid(modelo_fantasma):
 		_pos_y_inicial_fantasma = modelo_fantasma.position.y
 		_escala_base_fantasma = modelo_fantasma.scale.abs()
+		_rotacion_inicial_modelo_fantasma = modelo_fantasma.rotation
 	_rotacion_y_anterior = rotation.y
 	_pos_anterior_remoto = global_position
 
@@ -104,7 +107,7 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 		camera.cull_mask = obtener_cull_mask_personaje()
 		camera.environment = obtener_entorno_personaje()
 
-const CIELO_FANTASMA_MAT = preload("res://shaders/cielo_fantasma_mat.tres")
+const CIELO_FANTASMA_MAT = preload("res://shaders/entorno/cielo/cielo_fantasma_mat.tres")
 
 func _crear_entorno_fantasma() -> Environment:
 	var env = Environment.new()
@@ -199,8 +202,9 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 
 	if not flotacion_procedural_activa:
 		modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, _pos_y_inicial_fantasma, 10.0 * delta)
-		modelo_fantasma.rotation.x = lerpf(modelo_fantasma.rotation.x, 0.0, 10.0 * delta)
-		modelo_fantasma.rotation.z = lerpf(modelo_fantasma.rotation.z, 0.0, 10.0 * delta)
+		modelo_fantasma.rotation.x = lerpf(modelo_fantasma.rotation.x, _rotacion_inicial_modelo_fantasma.x, 10.0 * delta)
+		modelo_fantasma.rotation.z = lerpf(modelo_fantasma.rotation.z, _rotacion_inicial_modelo_fantasma.z, 10.0 * delta)
+		modelo_fantasma.rotation.y = _rotacion_inicial_modelo_fantasma.y
 		return
 
 	var planeando = esta_planeando()
@@ -227,7 +231,7 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	else:
 		objetivo_roll = clampf(-vel_giro * 0.045, -0.15, 0.15) * (0.35 + factor_vel * 0.65)
 	_tilt_espectral_roll = lerpf(_tilt_espectral_roll, objetivo_roll, 8.0 * delta)
-	modelo_fantasma.rotation.z = _tilt_espectral_roll
+	modelo_fantasma.rotation.z = _rotacion_inicial_modelo_fantasma.z + _tilt_espectral_roll
 
 	# 3. Inercia de Aceleración y Frenado / Drag en X (Pitch)
 	var acel_horizontal = (vel_horizontal - _vel_horizontal_anterior) / maxf(delta, 0.001)
@@ -243,7 +247,8 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	else:
 		obj_pitch = inercia_freno * 0.5
 	_tilt_espectral_pitch = lerpf(_tilt_espectral_pitch, obj_pitch, 8.0 * delta)
-	modelo_fantasma.rotation.x = _tilt_espectral_pitch
+	modelo_fantasma.rotation.x = _rotacion_inicial_modelo_fantasma.x + _tilt_espectral_pitch
+	modelo_fantasma.rotation.y = _rotacion_inicial_modelo_fantasma.y
 
 	# 4. Squash & Stretch Espectral / Respiración elástica suavizada
 	var factor_estiramiento = sin(_tiempo_flotacion) * (0.035 if en_vortice else (0.016 if planeando else 0.010))
@@ -401,3 +406,11 @@ func _actualizar_animaciones(delta: float):
 		anim_player.play(anim_deseada, blend_time)
 
 	anim_player.speed_scale = speed
+ 
+func _al_resetear_estados() -> void:
+	_tilt_espectral_pitch = 0.0
+	_tilt_espectral_roll = 0.0
+	_rotacion_y_anterior = rotacion_inicial.y
+	_vel_horizontal_anterior = 0.0
+	if is_instance_valid(modelo_fantasma):
+		modelo_fantasma.rotation = _rotacion_inicial_modelo_fantasma

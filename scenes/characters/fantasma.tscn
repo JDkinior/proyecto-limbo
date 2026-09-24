@@ -4,8 +4,8 @@
 [ext_resource type="Script" uid="uid://bn6e1xdgxvoff" path="res://scripts/characters/habilidad_aura.gd" id="2_aura_comp"]
 [ext_resource type="PackedScene" uid="uid://crot8mivbea2l" path="res://assets/modelos/personajes/fantasma.glb" id="4_bxr04"]
 [ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/texturas/efectos/estela_espiritual.png" id="5_estela_tex"]
-[ext_resource type="Shader" uid="uid://cgk67pcjy2kiu" path="res://shaders/aura_halo.gdshader" id="6_aura_halo"]
-[ext_resource type="Shader" path="res://shaders/aura_espiritual.gdshader" id="7_aura_disco"]
+[ext_resource type="Shader" uid="uid://cgk67pcjy2kiu" path="res://shaders/characters/aura_halo.gdshader" id="6_aura_halo"]
+[ext_resource type="Shader" path="res://shaders/characters/aura_espiritual.gdshader" id="7_aura_disco"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08

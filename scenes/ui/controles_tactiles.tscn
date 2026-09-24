@@ -20,7 +20,14 @@ shadow_size = 4
 shadow_color = Color(0, 0, 0, 0.5)
 
 [sub_resource type="LabelSettings" id="LabelSettings_panel"]
-font_size = 24
+font_size = 32
+outline_size = 6
+outline_color = Color(0, 0, 0, 1)
+shadow_size = 4
+shadow_color = Color(0, 0, 0, 0.6)
+
+[sub_resource type="LabelSettings" id="LabelSettings_subtitulo"]
+font_size = 20
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
@@ -123,19 +130,29 @@ custom_minimum_size = Vector2(110, 110)
 layout_mode = 2
 flat = true
 
+[node name="Fondo_Oscuro" type="ColorRect" parent="." unique_id=999888777]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.55)
+
 [node name="Panel_Pausa" type="Panel" parent="." unique_id=322189228]
 visible = false
-custom_minimum_size = Vector2(280, 260)
+custom_minimum_size = Vector2(460, 470)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -140.0
-offset_top = -130.0
-offset_right = 140.0
-offset_bottom = 130.0
+offset_left = -230.0
+offset_top = -235.0
+offset_right = 230.0
+offset_bottom = 235.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -144,13 +161,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = -20.0
+offset_left = 28.0
+offset_top = 24.0
+offset_right = -28.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 14
 alignment = 1
 
 [node name="Label_Titulo" type="Label" parent="Panel_Pausa/VBoxContainer" unique_id=1914673860]
@@ -163,36 +180,42 @@ horizontal_alignment = 1
 layout_mode = 2
 
 [node name="Boton_Continuar" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=357201905]
-custom_minimum_size = Vector2(180, 35)
+custom_minimum_size = Vector2(380, 58)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Continuar"
 
+[node name="Boton_Reiniciar" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=1829104721]
+custom_minimum_size = Vector2(380, 58)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Reiniciar al Punto de Control"
+
 [node name="Boton_Opciones" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=245179629]
-custom_minimum_size = Vector2(180, 35)
+custom_minimum_size = Vector2(380, 58)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Ajustes"
 
 [node name="Boton_Salir" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=285213554]
-custom_minimum_size = Vector2(180, 35)
+custom_minimum_size = Vector2(380, 58)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Salir al Menú"
 
 [node name="Panel_Opciones" type="Panel" parent="." unique_id=253214794]
 visible = false
-custom_minimum_size = Vector2(400, 360)
+custom_minimum_size = Vector2(560, 580)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -180.0
-offset_right = 200.0
-offset_bottom = 180.0
+offset_left = -280.0
+offset_top = -290.0
+offset_right = 280.0
+offset_bottom = 290.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -201,13 +224,13 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = -20.0
+offset_left = 32.0
+offset_top = 24.0
+offset_right = -32.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 12
 alignment = 1
 
 [node name="Label_Titulo" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=731413464]
@@ -220,18 +243,25 @@ horizontal_alignment = 1
 layout_mode = 2
 
 [node name="Boton_Personalizar_HUD" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390906]
-custom_minimum_size = Vector2(280, 40)
+custom_minimum_size = Vector2(460, 56)
 layout_mode = 2
 size_flags_horizontal = 4
-text = "🎮 Personalizar HUD (Mover y Escalar)"
+text = "📱 Personalizar HUD (Táctil)"
+
+[node name="Boton_Mapear_Control" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390907]
+custom_minimum_size = Vector2(460, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🎮 Configurar Control / Mando"
 
 [node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=774955636]
 layout_mode = 2
 text = "Tamaño Botones de Acción:"
+label_settings = SubResource("LabelSettings_subtitulo")
 horizontal_alignment = 1
 
 [node name="Slider_Escala_Botones" type="HSlider" parent="Panel_Opciones/VBoxContainer" unique_id=1556023312]
-custom_minimum_size = Vector2(260, 0)
+custom_minimum_size = Vector2(440, 36)
 layout_mode = 2
 size_flags_horizontal = 4
 min_value = 0.6
@@ -242,10 +272,11 @@ value = 1.4
 [node name="Label_Escala_Joy" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=1849519380]
 layout_mode = 2
 text = "Tamaño Joystick Virtual:"
+label_settings = SubResource("LabelSettings_subtitulo")
 horizontal_alignment = 1
 
 [node name="Slider_Escala_Joy" type="HSlider" parent="Panel_Opciones/VBoxContainer" unique_id=1620610421]
-custom_minimum_size = Vector2(260, 0)
+custom_minimum_size = Vector2(440, 36)
 layout_mode = 2
 size_flags_horizontal = 4
 min_value = 0.6
@@ -257,14 +288,17 @@ value = 1.0
 layout_mode = 2
 
 [node name="Boton_Cerrar_Opciones" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1382954270]
-custom_minimum_size = Vector2(140, 36)
+custom_minimum_size = Vector2(240, 54)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Atrás"
 
 [connection signal="pressed" from="HUD_Menu/Boton_Pausa" to="." method="_on_boton_pausa_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Continuar" to="." method="_on_boton_continuar_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Reiniciar" to="." method="_on_boton_reiniciar_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Opciones" to="." method="_on_boton_opciones_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Salir" to="." method="_on_boton_salir_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Personalizar_HUD" to="." method="_on_boton_personalizar_hud_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Mapear_Control" to="." method="_on_boton_mapear_control_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]
+

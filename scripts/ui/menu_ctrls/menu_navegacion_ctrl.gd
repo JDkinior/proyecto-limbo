@@ -149,6 +149,50 @@ func mostrar_panel(panel_activo: Panel):
 	else:
 		if menu.has_method("cambiar_color_ambiente"):
 			menu.cambiar_color_ambiente(Color(0, 0, 0, 0), 0.35)
+			
+	enfocar_primer_control_en_panel(panel_activo)
+
+func enfocar_primer_control_en_panel(panel_activo: Panel) -> void:
+	if not is_instance_valid(panel_activo) or not panel_activo.visible:
+		return
+		
+	var control_a_enfocar: Control = null
+	if panel_activo == menu.panel_principal:
+		control_a_enfocar = menu.get_node_or_null("PanelPrincipal/VBoxContainer/BtnJugar")
+	elif is_instance_valid(menu.panel_modos) and panel_activo == menu.panel_modos:
+		control_a_enfocar = menu.btn_modo_solo if is_instance_valid(menu.btn_modo_solo) else menu.btn_modo_online
+	elif is_instance_valid(menu.panel_un_jugador) and panel_activo == menu.panel_un_jugador:
+		if is_instance_valid(menu.matchmaking_ctrl):
+			if is_instance_valid(menu.matchmaking_ctrl.btn_iniciar_solo):
+				control_a_enfocar = menu.matchmaking_ctrl.btn_iniciar_solo
+			elif is_instance_valid(menu.matchmaking_ctrl.btn_card_vivo_solo):
+				control_a_enfocar = menu.matchmaking_ctrl.btn_card_vivo_solo
+	elif is_instance_valid(menu.panel_salas) and panel_activo == menu.panel_salas:
+		control_a_enfocar = menu.btn_crear_sala if is_instance_valid(menu.btn_crear_sala) else menu.btn_refrescar_salas
+	elif panel_activo == menu.panel_jugar:
+		control_a_enfocar = menu.get_node_or_null("PanelJugar/VBoxContainer/BtnHost")
+	elif panel_activo == menu.panel_lobby:
+		control_a_enfocar = menu.btn_listo if is_instance_valid(menu.btn_listo) else menu.btn_iniciar
+	elif panel_activo == menu.panel_amigos:
+		control_a_enfocar = menu.get_node_or_null("PanelAmigos/VBoxContainer/BtnVolver")
+	elif panel_activo == menu.panel_opciones:
+		control_a_enfocar = menu.btn_mapear_control if is_instance_valid(menu.btn_mapear_control) else menu.btn_fullscreen
+		
+	if is_instance_valid(control_a_enfocar) and control_a_enfocar.is_visible_in_tree() and (not (control_a_enfocar is Button) or not control_a_enfocar.disabled):
+		control_a_enfocar.grab_focus()
+	else:
+		var primer_btn = _buscar_primer_boton_enfocable(panel_activo)
+		if is_instance_valid(primer_btn):
+			primer_btn.grab_focus()
+
+func _buscar_primer_boton_enfocable(nodo: Node) -> Button:
+	if nodo is Button and nodo.is_visible_in_tree() and not nodo.disabled:
+		return nodo
+	for hijo in nodo.get_children():
+		var res = _buscar_primer_boton_enfocable(hijo)
+		if res != null:
+			return res
+	return null
 
 func _inicializar_boton_reconectar():
 	var red_mgr = menu.get_node_or_null("/root/RedManager")

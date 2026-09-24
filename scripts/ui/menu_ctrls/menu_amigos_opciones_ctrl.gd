@@ -31,7 +31,9 @@ func _conectar_senales():
 	if is_instance_valid(btn_volver_opc):
 		btn_volver_opc.pressed.connect(_on_btn_volver_opciones_pressed)
 		
-	# Controles de Personalización del HUD
+	# Controles de Personalización del HUD y Mando
+	if is_instance_valid(menu.btn_mapear_control):
+		menu.btn_mapear_control.pressed.connect(_on_btn_mapear_control_pressed)
 	if is_instance_valid(menu.btn_ajustar_hud):
 		menu.btn_ajustar_hud.pressed.connect(_on_btn_ajustar_hud_pressed)
 	if is_instance_valid(menu.slider_tamano_hud):
@@ -99,6 +101,17 @@ func _on_btn_fullscreen_toggled(button_pressed):
 
 func _on_btn_volver_opciones_pressed():
 	menu.mostrar_panel(menu.panel_principal)
+
+func _on_btn_mapear_control_pressed():
+	var escena_ctrl = load("res://scenes/ui/ajuste_control.tscn")
+	if escena_ctrl:
+		var ctrl_modal = escena_ctrl.instantiate()
+		menu.add_child(ctrl_modal)
+		ctrl_modal.cerrado.connect(func():
+			_cargar_opciones()
+			if is_instance_valid(menu.btn_mapear_control):
+				menu.btn_mapear_control.grab_focus()
+		)
 
 func _on_btn_ajustar_hud_pressed():
 	var escena_editor = load("res://scenes/ui/ajuste_hud.tscn")

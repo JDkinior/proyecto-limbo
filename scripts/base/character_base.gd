@@ -56,6 +56,10 @@ var gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 var objetivo_rotacion_y : float = 0.0
 var objetivo_rotacion_x : float = 0.0
 var posicion_inicial : Vector3
+var rotacion_inicial : Vector3
+var punto_control : Vector3 = Vector3.ZERO
+var rotacion_punto_control : Vector3 = Vector3.ZERO
+var rotacion_inicial_camara_x : float = PITCH_DEFECTO_CAMARA
 var tiempo_desde_suelo : float = 0.0
 var tiempo_desde_salto : float = 0.0
 var saltos_realizados : int = 0
@@ -166,6 +170,10 @@ func _ready():
 		objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
 	posicion_inicial = global_position
+	rotacion_inicial = rotation
+	punto_control = posicion_inicial
+	rotacion_punto_control = rotacion_inicial
+	rotacion_inicial_camara_x = objetivo_rotacion_x
 	sync_position = global_position
 	sync_rotation = rotation
 	actualizar_visibilidad_local()
@@ -193,9 +201,13 @@ func _process(delta: float):
 		procesar_camara_base(delta)
 	elif multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		# Suavizado de red (Interpolación) solo en multijugador online
-		global_position = global_position.lerp(sync_position, 15.0 * delta)
-		rotation.y = lerp_angle(rotation.y, sync_rotation.y, 15.0 * delta)
-		rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
+		if global_position.distance_squared_to(sync_position) > 16.0:
+			global_position = sync_position
+			rotation = sync_rotation
+		else:
+			global_position = global_position.lerp(sync_position, 15.0 * delta)
+			rotation.y = lerp_angle(rotation.y, sync_rotation.y, 15.0 * delta)
+			rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
 
 
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
@@ -275,6 +287,21 @@ func procesar_camara_base(delta: float):
 			if giro != Vector2.ZERO:
 				objetivo_rotacion_y -= giro.x * SENSIBILIDAD_CAMARA
 				objetivo_rotacion_x = clamp(objetivo_rotacion_x - giro.y * SENSIBILIDAD_CAMARA, LIMITE_PITCH_MIN, LIMITE_PITCH_MAX)
+
+		# Control de rotación con stick derecho de control / gamepad
+		var dev_cam = 0
+		if is_inside_tree() and get_tree() and get_tree().root and get_tree().root.has_node("GamepadManager"):
+			dev_cam = get_tree().root.get_node("GamepadManager").dispositivo_activo
+		var stick_cam_x = Input.get_joy_axis(dev_cam, JOY_AXIS_RIGHT_X)
+		var stick_cam_y = Input.get_joy_axis(dev_cam, JOY_AXIS_RIGHT_Y)
+		var stick_vec = Vector2(stick_cam_x, stick_cam_y)
+		var deadzone_cam = 0.15
+		if stick_vec.length() > deadzone_cam:
+			var factor_cam = (stick_vec.length() - deadzone_cam) / (1.0 - deadzone_cam)
+			var dir_cam = stick_vec.normalized() * factor_cam
+			var vel_cam_mando = 3.2 # Radianes por segundo
+			objetivo_rotacion_y -= dir_cam.x * vel_cam_mando * delta
+			objetivo_rotacion_x = clamp(objetivo_rotacion_x - dir_cam.y * vel_cam_mando * delta, LIMITE_PITCH_MIN, LIMITE_PITCH_MAX)
 
 		var suavizado_camara = 1.0 - exp(-SUAVIDAD_CAMARA * delta)
 		pivote_camara.rotation.y = lerp_angle(pivote_camara.rotation.y, objetivo_rotacion_y, suavizado_camara)
@@ -503,17 +530,44 @@ func resetear_estados():
 	_fuerza_vortice_acumulada = Vector3.ZERO
 	_arrastre_descendente_vortice = 0.0
 	_nodo_vortice_origen = null
+	_al_resetear_estados()
+
+func _al_resetear_estados():
+	# Hook virtual para subclases
+	pass
+
+func establecer_punto_control(nueva_pos: Vector3, nueva_rot: Vector3 = Vector3.ZERO) -> void:
+	punto_control = nueva_pos
+	if nueva_rot != Vector3.ZERO:
+		rotacion_punto_control = nueva_rot
+
+func reaparecer() -> void:
+	var destino = punto_control if punto_control != Vector3.ZERO else posicion_inicial
+	var rot_dest = rotacion_punto_control if punto_control != Vector3.ZERO else rotacion_inicial
+	global_position = destino
+	velocity = Vector3.ZERO
+	rotation = rot_dest
+	sync_position = destino
+	sync_rotation = rot_dest
+
+	resetear_estados()
+
+	objetivo_rotacion_y = rot_dest.y
+	objetivo_rotacion_x = rotacion_inicial_camara_x
+
+	if pivote_camara:
+		pivote_camara.global_position = destino
+		pivote_camara.rotation.y = rot_dest.y
+		var arm = obtener_spring_arm()
+		if arm:
+			pivote_camara.rotation.x = 0.0
+			arm.rotation.x = rotacion_inicial_camara_x
+		else:
+			pivote_camara.rotation.x = rotacion_inicial_camara_x
 
 func _comprobar_caida_vacio():
 	if global_position.y < LIMITE_CAIDA_Y:
-		global_position = posicion_inicial
-		velocity = Vector3.ZERO
-		sync_position = posicion_inicial
-		resetear_estados()
-		centrar_camara_inmediatamente()
-		if pivote_camara and pivote_camara.top_level:
-			pivote_camara.global_position = posicion_inicial
-			pivote_camara.rotation.y = objetivo_rotacion_y
+		reaparecer()
 
 func _crear_particulas_corazon_proximidad():
 	particulas_corazon = CPUParticles3D.new()

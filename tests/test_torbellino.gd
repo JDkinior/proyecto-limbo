@@ -5,7 +5,7 @@ func suite_name() -> String:
 	return "torbellino"
 
 func test_torbellino_instantiation() -> void:
-	var scene = load("res://scenes/components/torbellino.tscn")
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
 	assert_ne(scene, null, "La escena torbellino.tscn debe existir")
 	var instance = track(scene.instantiate()) as Torbellino
 	assert_ne(instance, null, "Debe ser instancia de Torbellino")
@@ -15,7 +15,7 @@ func test_torbellino_instantiation() -> void:
 	assert_true(instance.fuerza_arrastre_vertical > 0.0, "Fuerza de arrastre vertical debe ser positiva")
 
 func test_torbellino_child_nodes() -> void:
-	var scene = load("res://scenes/components/torbellino.tscn")
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
 	var instance = track(scene.instantiate()) as Torbellino
 	assert_ne(instance, null, "Instancia creada")
 	
@@ -35,7 +35,7 @@ func test_torbellino_child_nodes() -> void:
 	assert_ne(light, null, "Debe existir LuzTorbellino")
 
 func test_torbellino_candidato_filter() -> void:
-	var scene = load("res://scenes/components/torbellino.tscn")
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
 	var instance = track(scene.instantiate()) as Torbellino
 	
 	var static_body = track(StaticBody3D.new())
@@ -47,7 +47,7 @@ func test_torbellino_candidato_filter() -> void:
 	assert_true(instance._es_candidato_valido(char_body), "Fantasma debe ser candidato valido")
 
 func test_torbellino_movimiento_patrulla() -> void:
-	var scene = load("res://scenes/components/torbellino.tscn")
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
 	var instance = track(scene.instantiate()) as Torbellino
 	
 	instance.position = Vector3(0, 5, 0)

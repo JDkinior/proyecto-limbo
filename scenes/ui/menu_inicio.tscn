@@ -622,9 +622,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -230.0
-offset_top = -270.0
+offset_top = -295.0
 offset_right = 230.0
-offset_bottom = 270.0
+offset_bottom = 295.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
@@ -673,8 +673,19 @@ layout_mode = 2
 layout_mode = 2
 theme_override_colors/font_color = Color(0.4, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 14
-text = "Controles Táctiles (HUD):"
+text = "Controles y Jugabilidad:"
 horizontal_alignment = 1
+
+[node name="BtnMapearControl" type="Button" parent="PanelOpciones/VBoxContainer" unique_id=4028591823]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.90, 1, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
+text = "🕹️ Configurar Control / Mando"
 
 [node name="BtnAjustarHUD" type="Button" parent="PanelOpciones/VBoxContainer" unique_id=397403082]
 custom_minimum_size = Vector2(0, 42)
@@ -685,7 +696,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_pressed")
 theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_btn_disabled")
-text = "🎮 Personalizar HUD (Posición y Tamaño)"
+text = "📱 Personalizar HUD (Posición y Tamaño)"
 
 [node name="LabelTamanoHUD" type="Label" parent="PanelOpciones/VBoxContainer" unique_id=80547177]
 layout_mode = 2

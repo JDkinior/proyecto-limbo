@@ -1,0 +1,75 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/components/mecanismos/manivela_continua.gd" id="1_script"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_interact"]
+height = 2.2
+radius = 1.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_post"]
+albedo_color = Color(0.24, 0.22, 0.20, 1)
+metallic = 0.6
+roughness = 0.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_post"]
+material = SubResource("StandardMaterial3D_post")
+top_radius = 0.12
+bottom_radius = 0.18
+height = 1.1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rueda"]
+albedo_color = Color(0.70, 0.50, 0.22, 1)
+metallic = 0.7
+roughness = 0.35
+
+[sub_resource type="TorusMesh" id="TorusMesh_rueda"]
+material = SubResource("StandardMaterial3D_rueda")
+inner_radius = 0.35
+outer_radius = 0.45
+
+[sub_resource type="BoxMesh" id="BoxMesh_rayo"]
+material = SubResource("StandardMaterial3D_rueda")
+size = Vector3(0.85, 0.05, 0.05)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_manubrio"]
+material = SubResource("StandardMaterial3D_rueda")
+top_radius = 0.03
+bottom_radius = 0.03
+height = 0.25
+
+[node name="ManivelaContinua" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+shape = SubResource("CylinderShape3D_interact")
+
+[node name="PilarBase" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+mesh = SubResource("CylinderMesh_post")
+
+[node name="Rueda" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0.15)
+
+[node name="Aro" type="MeshInstance3D" parent="Rueda"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0, 0)
+mesh = SubResource("TorusMesh_rueda")
+
+[node name="Rayo1" type="MeshInstance3D" parent="Rueda"]
+mesh = SubResource("BoxMesh_rayo")
+
+[node name="Rayo2" type="MeshInstance3D" parent="Rueda"]
+transform = Transform3D(-4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_rayo")
+
+[node name="Manubrio" type="MeshInstance3D" parent="Rueda"]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0.38, 0, 0.12)
+mesh = SubResource("CylinderMesh_manubrio")
+
+[node name="LuzIndicador" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 0.3)
+light_color = Color(0.85, 0.4, 0.1, 1)
+light_energy = 0.8
+omni_range = 2.0

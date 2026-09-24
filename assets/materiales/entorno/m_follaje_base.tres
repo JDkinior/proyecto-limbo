@@ -1,12 +1,19 @@
-[gd_resource type="StandardMaterial3D" load_steps=2 format=3 uid="uid://bfolbaseotono01"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bfolbaseotono01"]
 
-[ext_resource type="Texture2D" uid="uid://k1rgob1qiojb" path="res://assets/texturas/entorno/follaje_arbol_base.png" id="1_tex"]
+[ext_resource type="Shader" uid="uid://b3kopkfreul6t" path="res://shaders/entorno/arboles/follaje_viento.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" uid="uid://k1rgob1qiojb" path="res://assets/texturas/entorno/follaje_arbol_base.png" id="2_tex"]
 
 [resource]
 resource_name = "M_Follaje_Base"
-transparency = 2
-alpha_scissor_threshold = 0.35
-cull_mode = 2
-roughness = 0.9
-albedo_texture = ExtResource("1_tex")
-texture_filter = 1
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/textura_albedo = ExtResource("2_tex")
+shader_parameter/color_albedo = Color(1, 1, 1, 1)
+shader_parameter/umbral_alfa = 0.35
+shader_parameter/rugosidad = 0.9
+shader_parameter/especular = 0.5
+shader_parameter/direccion_viento = Vector2(0.868, 0.496)
+shader_parameter/velocidad_viento = 1.8
+shader_parameter/fuerza_sway = 0.16
+shader_parameter/turbulencia_lateral = 0.25
+shader_parameter/altura_base_copa = 2.0

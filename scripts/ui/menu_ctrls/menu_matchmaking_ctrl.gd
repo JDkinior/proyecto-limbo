@@ -577,15 +577,13 @@ func _inicializar_nuevos_paneles():
 	btn_volver_solo.text = "← Volver a Selección de Modos"
 	btn_volver_solo.custom_minimum_size = Vector2(0, 44)
 	btn_volver_solo.add_theme_stylebox_override("normal", style_btn_normal)
-	btn_volver_solo.add_theme_stylebox_override("hover", style_btn_hover)
-	btn_volver_solo.add_theme_stylebox_override("pressed", style_btn_pressed)
-	btn_volver_solo.add_theme_font_size_override("font_size", 15)
-	btn_volver_solo.pressed.connect(func():
-		if menu.has_method("cambiar_color_ambiente"):
-			menu.cambiar_color_ambiente(Color(0, 0, 0, 0), 0.35)
-		menu.mostrar_panel(menu.panel_modos)
-	)
+	btn_volver_solo.pressed.connect(_on_btn_volver_un_jugador_pressed)
 	vbox_solo.add_child(btn_volver_solo)
+	
+	menu.btn_card_vivo_solo = btn_card_vivo_solo
+	menu.btn_card_fantasma_solo = btn_card_fantasma_solo
+	menu.btn_iniciar_solo = btn_iniciar_solo
+	menu.btn_volver_un_jugador = btn_volver_solo
 	
 	_actualizar_seleccion_visual_un_jugador()
 	
@@ -773,6 +771,11 @@ func _on_btn_modo_solo_pressed():
 	if is_instance_valid(menu.panel_un_jugador):
 		menu.mostrar_panel(menu.panel_un_jugador)
 		_actualizar_seleccion_visual_un_jugador()
+
+func _on_btn_volver_un_jugador_pressed():
+	if menu.has_method("cambiar_color_ambiente"):
+		menu.cambiar_color_ambiente(Color(0, 0, 0, 0), 0.35)
+	menu.mostrar_panel(menu.panel_modos)
 
 func _on_btn_host_pressed():
 	if not is_instance_valid(menu) or not menu.is_inside_tree(): return

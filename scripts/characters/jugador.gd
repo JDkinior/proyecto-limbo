@@ -28,6 +28,7 @@ var _pos_anterior_remoto: Vector3 = Vector3.ZERO
 var _pos_y_inicial_vivo: float = 0.129
 var _tiempo_paso_vivo: float = 0.0
 var _balanceo_paso_actual: float = 0.0
+var _rotacion_inicial_modelo_vivo: Vector3 = Vector3(0.0, PI, 0.0)
 
 var _eval_shape: SphereShape3D = null
 var _eval_query: PhysicsShapeQueryParameters3D = null
@@ -99,6 +100,7 @@ func _ready():
 
 	if is_instance_valid(modelo_vivo):
 		_pos_y_inicial_vivo = modelo_vivo.position.y
+		_rotacion_inicial_modelo_vivo = modelo_vivo.rotation
 	_pos_anterior_remoto = global_position
 
 	_configurar_animaciones()
@@ -324,7 +326,7 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 		camera.cull_mask = obtener_cull_mask_personaje()
 		camera.environment = obtener_entorno_personaje()
 
-const CIELO_VIVO_MAT = preload("res://shaders/cielo_vivo_mat.tres")
+const CIELO_VIVO_MAT = preload("res://shaders/entorno/cielo/cielo_vivo_mat.tres")
 
 func _crear_entorno_vivo() -> Environment:
 	var env = Environment.new()
@@ -469,7 +471,8 @@ func _procesar_inclinacion_visual(delta: float):
 	elif en_suelo and vel_horizontal > 0.5:
 		objetivo_inclinacion = factor_vel * 0.07
 	_inclinacion_actual = lerpf(_inclinacion_actual, objetivo_inclinacion, 14.0 * delta)
-	modelo_vivo.rotation.x = _inclinacion_actual
+	modelo_vivo.rotation.x = _rotacion_inicial_modelo_vivo.x + _inclinacion_actual
+	modelo_vivo.rotation.y = _rotacion_inicial_modelo_vivo.y
 
 	# 2. Amortiguación y rebote sutil sincronizado con la caminata (muy suave y sin mareos)
 	if en_suelo and vel_horizontal > 0.35:
@@ -493,12 +496,12 @@ func _procesar_inclinacion_visual(delta: float):
 		# Balanceo lateral mínimo y orgánico (reducido al mínimo para confort visual)
 		var balanceo_objetivo = sin((t_anim / dur) * TAU) * 0.008 * factor_vel
 		_balanceo_paso_actual = lerpf(_balanceo_paso_actual, balanceo_objetivo, 14.0 * delta)
-		modelo_vivo.rotation.z = _balanceo_paso_actual
+		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 	else:
 		# Regreso suave a la postura y altura de reposo
 		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, _pos_y_inicial_vivo, 12.0 * delta)
 		_balanceo_paso_actual = lerpf(_balanceo_paso_actual, 0.0, 12.0 * delta)
-		modelo_vivo.rotation.z = _balanceo_paso_actual
+		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 
 func _al_realizar_salto(numero_salto: int):
 	if numero_salto == 2 and is_instance_valid(particulas_aterrizaje):
@@ -535,3 +538,12 @@ func _emitir_impacto_aterrizaje():
 	if is_instance_valid(particulas_aterrizaje):
 		particulas_aterrizaje.restart()
 		particulas_aterrizaje.emitting = true
+
+func _al_resetear_estados() -> void:
+	_esta_haciendo_embate = false
+	_tiempo_embate = 0.0
+	_inclinacion_actual = 0.0
+	_balanceo_paso_actual = 0.0
+	if is_instance_valid(modelo_vivo):
+		modelo_vivo.rotation = _rotacion_inicial_modelo_vivo
+

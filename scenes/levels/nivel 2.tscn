@@ -4,9 +4,9 @@
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_1q87n"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="3_1q87n"]
 [ext_resource type="Script" path="res://scripts/core/nivel_base.gd" id="4_wa8a8"]
-[ext_resource type="Material" uid="uid://cielo_limbo_mat_001" path="res://shaders/cielo_limbo_mat.tres" id="5_cielo_mat"]
-[ext_resource type="PackedScene" uid="uid://c7t8u3rm7qv21" path="res://scenes/components/torbellino.tscn" id="6_torbellino"]
-[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataforma_espiritual_base.tscn" id="7_plat_esp"]
+[ext_resource type="Material" uid="uid://cielo_limbo_mat_001" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="5_cielo_mat"]
+[ext_resource type="PackedScene" uid="uid://c7t8u3rm7qv21" path="res://scenes/components/peligros/torbellino.tscn" id="6_torbellino"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataformas/plataforma_espiritual_base.tscn" id="7_plat_esp"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1q87n"]
 albedo_color = Color(0.2, 0.28, 0.35, 1)

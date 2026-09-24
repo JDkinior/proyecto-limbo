@@ -206,18 +206,51 @@ scenes/
     fantasma.tscn
     jugador.tscn
   components/
-    ancla_estasis.tscn        # NUEVO: ancla espiritual para congelar tiempo
-    caja_empujable.tscn       # NUEVO: caja con fisica empujable
-    manivela_continua.tscn    # NUEVO: manivela sostenida
-    muro_agrietado.tscn       # NUEVO: muro rompible por impacto
-    palanca_interactiva.tscn  # NUEVO: interruptor de palanca
-    plataforma_colapso.tscn   # NUEVO: plataforma con temporizador de colapso
+    coleccionables/
+      gema_espiritual.tscn
+      moneda_fantasma.tscn
+      moneda_vivo.tscn
+    mecanismos/
+      ancla_estasis.tscn
+      boton_presion.tscn
+      caja_empujable.tscn
+      interruptor_aura.tscn
+      manivela_continua.tscn
+      muro_agrietado.tscn
+      palanca_interactiva.tscn
+      puerta_interactiva.tscn
+    metas/
+      goal.tscn
+    peligros/
+      torbellino.tscn
+    plataformas/
+      plataforma_colapso.tscn
+      plataforma_espiritual_base.tscn
+  entorno/
+    arboles/
+      arbol_1.tscn ... arbol_4.tscn
+      caida_hojas.tscn
+    cielo/
+      administrador_nubes_3d.tscn
+      nube_estilizada_3d.tscn
+      nube_estilizada_espiritual_3d.tscn
+    cristales/
+      cristales.tscn
+    iluminacion/
+      farol.tscn
+    pilares/
+      pilar_antiguo.tscn
+    vegetacion/
+      pasto_area.tscn
   levels/
     mundo_pruebas.tscn
     Nivel 1 _ El Despertar Separado.tscn
     nivel 2.tscn
   ui/
+    ajuste_hud.tscn
     controles_tactiles.tscn
+    menu_inicio.tscn
+    pantalla_resultados.tscn
 
 scripts/
   base/
@@ -226,26 +259,81 @@ scripts/
     fantasma.gd
     habilidad_aura.gd
     jugador.gd
+  components/
+    coleccionables/
+      coleccionable_base.gd
+      gema_espiritual.gd
+      moneda_fantasma.gd
+      moneda_vivo.gd
+    mecanismos/
+      ancla_estasis.gd
+      boton_presion.gd
+      caja_empujable.gd
+      elemento_interactivo_base.gd
+      interruptor_aura.gd
+      manivela_continua.gd
+      muro_agrietado.gd
+      palanca_interactiva.gd
+      puerta_interactiva.gd
+    metas/
+      goal.gd
+    peligros/
+      torbellino.gd
+    plataformas/
+      plataforma_colapso.gd
+      plataforma_espiritual_base.gd
   core/
-    nivel_base.gd             # NUEVO: clase base estandarizada de nivel
+    amigos_manager.gd
+    eos_manager.gd
+    lan_discovery.gd
+    nivel_base.gd
+    optimizador_culling.gd
     red_manager.gd
-    score_manager.gd          # singleton de puntuacion
-  objects/
-    ancla_estasis.gd          # NUEVO: ancla de estasis temporal
-    caja_empujable.gd         # NUEVO: caja empujable
-    coin.gd                   # moneda coleccionable
-    goal.gd                   # objetivo de nivel
-    manivela_continua.gd      # NUEVO: manivela sostenida
-    muro_agrietado.gd         # NUEVO: muro destructible
-    palanca_interactiva.gd    # NUEVO: palanca interactiva
-    plataforma_aura.gd        # plataforma espiritual de aura
-    plataforma_colapso.gd     # NUEVO: plataforma de colapso con soporte de estasis
+    score_manager.gd
+  entorno/
+    cielo/
+      administrador_nubes.gd
+      nube_flotante.gd
+    vegetacion/
+      generador_pasto.gd
   ui/
-    area_camara.gd
+    ajuste_hud.gd
     boton_tactil_visual.gd
     controles_tactiles.gd
-    fantasma_camera_environment.tres
-    joystick_virtual.gd
+    hud_config_manager.gd
+    menu_ctrls/
+    menu_inicio.gd
+    pantalla_resultados.gd
+    transition_manager.gd
+
+shaders/
+  characters/
+    aura_espiritual.gdshader
+    aura_halo.gdshader
+    silueta_personaje.gdshader
+  components/
+    coleccionables/
+      material_orbe_espiritual.tres
+      orbe_espiritual.gdshader
+    peligros/
+      torbellino_espiritual.gdshader
+      torbellino_espiritual_mat.tres
+    plataformas/
+      plataforma_espiritual.gdshader
+      plataforma_espiritual_mat.tres
+  entorno/
+    cielo/
+      cielo_estilizado_nubes.gdshader
+      cielo_fantasma_mat.tres
+      cielo_limbo_mat.tres
+      cielo_vivo_mat.tres
+      nube_3d_espiritual_mat.tres
+      nube_3d_estilizada.gdshader
+      nube_3d_fisica_mat.tres
+    vegetacion/
+      pasto_espiritual_mat.tres
+      pasto_estilizado.gdshader
+      pasto_fisico_mat.tres
 ```
 
 Regla de mantenimiento:
@@ -1115,18 +1203,18 @@ Responsabilidades:
 
 ## Nuevas Escenas y Scripts de Entorno Reutilizables
 
-### 1. Moneda Vivo (`scenes/components/moneda_vivo.tscn` / `moneda_vivo.gd`)
+### 1. Moneda Vivo (`scenes/components/coleccionables/moneda_vivo.tscn` / `moneda_vivo.gd`)
 - Moneda en Capa 4, detecta solo al Vivo (Capa 2). Suma score en el `ScoreManager` de forma sincronizada y se autodestruye mediante RPC. Gira constantemente en su eje Y.
 - **Adaptación Visual Espectral**: Cuando es observada desde la perspectiva del Fantasma (en multijugador o en un solo jugador al alternar reino), se modula dinámicamente con un material azul espiritual brillante y una luz `OmniLight3D` cian, mientras que el Vivo la observa en su tono dorado cálido original.
 
-### 2. Moneda Fantasma (`scenes/components/moneda_fantasma.tscn` / `moneda_fantasma.gd`)
+### 2. Moneda Fantasma (`scenes/components/coleccionables/moneda_fantasma.tscn` / `moneda_fantasma.gd`)
 - Moneda en Capa 4, detecta solo al Fantasma (Capa 3). Es invisible para el Vivo (ya que se modula a la Capa Visual 3 y la cámara del Vivo la excluye). Gira constantemente en su eje Y.
 
-### 3. Caja Empujable (`scenes/components/caja_empujable.tscn` / `caja_empujable.gd`)
+### 3. Caja Empujable (`scenes/components/mecanismos/caja_empujable.tscn` / `caja_empujable.gd`)
 - RigidBody3D en Capa 2. Se congela localmente en el Cliente (`freeze = true`) y el movimiento se simula solo en el Servidor, enviándose a los clientes mediante `MultiplayerSynchronizer`.
 - Los personajes aplican fuerzas mediante el RPC `rpc_aplicar_impulso` en el servidor, garantizando que el Cliente también pueda empujar la caja.
 
-### 4. Meta de Nivel (`scenes/components/goal.tscn` / `goal.gd`)
+### 4. Meta de Nivel (`scenes/components/metas/goal.tscn` / `goal.gd`)
 - Area3D en Capa 4. Lleva un registro indexado de cuerpos dentro del área. Si el Vivo y el Fantasma están dentro simultáneamente, realiza la transición de escena a través de `RedManager.completar_nivel()` o RPC a todos los peers.
 
 ### 5. Clase Base: Elemento Interactivo (`scripts/objects/elemento_interactivo_base.gd`)
@@ -1134,19 +1222,19 @@ Responsabilidades:
 - Expone un array de disparadores `disparadores_objetivo` y una condición lógica de combinación (`condicion_combinacion` tipo AND o OR) en el Inspector.
 - Conecta dinámicamente señales mediante Callables en Godot 4.7 y sincroniza el estado en multijugador P2P usando el RPC `rpc_sincronizar_estado`.
 
-### 6. Puerta Interactiva (`scenes/components/puerta_interactiva.tscn` / `puerta_interactiva.gd`)
+### 6. Puerta Interactiva (`scenes/components/mecanismos/puerta_interactiva.tscn` / `puerta_interactiva.gd`)
 - Hereda de `elemento_interactivo_base.gd`. Al activarse por sus disparadores, se desplaza suavemente vía `Tween` y desactiva su colisión.
 
-### 7. Plataforma Espiritual Base (`scenes/components/plataforma_espiritual_base.tscn` / `plataforma_espiritual_base.gd`)
+### 7. Plataforma Espiritual Base (`scenes/components/plataformas/plataforma_espiritual_base.tscn` / `plataforma_espiritual_base.gd`)
 - Hereda de `elemento_interactivo_base.gd`. Al activarse, se vuelve visible (opacidad 100%) y activa colisión en Capas 2 y 3. Al desactivarse es invisible e intangible.
 
 ### 8. Disparadores y Mecanismos Físicos y Espirituales
-- **Botón de Presión (`boton_presion.tscn` / `boton_presion.gd`)**: Emite señales al ser pisado por el Vivo o la Caja.
-- **Interruptor de Aura (`interruptor_aura.tscn` / `interruptor_aura.gd`)**: Emite señales cuando el Fantasma está cerca y su habilidad de aura está activa.
-- **Palanca Interactiva (`palanca_interactiva.tscn` / `palanca_interactiva.gd`)**: Mecanismo físico que el Vivo acciona con el botón de Interactuar. Soporta modo conmutador On/Off o temporizado con auto-retorno.
-- **Manivela Continua (`manivela_continua.tscn` / `manivela_continua.gd`)**: Mecanismo de torno que el Vivo opera manteniendo presionado Interactuar para mover plataformas/compuertas (0% a 100%), desenrollándose si se suelta. Soporta congelamiento por Aura del Fantasma.
-- **Muro Agrietado Destructible (`muro_agrietado.tscn` / `muro_agrietado.gd`)**: Bloqueo de piedra física que el Vivo destruye ejecutando su Embate Físico hacia adelante.
-- **Ancla de Éxtasis / Congelamiento (`ancla_estasis.tscn` / `ancla_estasis.gd`)**: Componente que al recibir el pulso de Aura del Fantasma, congela en el tiempo el mecanismo o plataforma asignado por X segundos (congelando caídas, rotaciones y retrocesos).
+- **Botón de Presión (`scenes/components/mecanismos/boton_presion.tscn` / `boton_presion.gd`)**: Emite señales al ser pisado por el Vivo o la Caja.
+- **Interruptor de Aura (`scenes/components/mecanismos/interruptor_aura.tscn` / `interruptor_aura.gd`)**: Emite señales cuando el Fantasma está cerca y su habilidad de aura está activa.
+- **Palanca Interactiva (`scenes/components/mecanismos/palanca_interactiva.tscn` / `palanca_interactiva.gd`)**: Mecanismo físico que el Vivo acciona con el botón de Interactuar. Soporta modo conmutador On/Off o temporizado con auto-retorno.
+- **Manivela Continua (`scenes/components/mecanismos/manivela_continua.tscn` / `manivela_continua.gd`)**: Mecanismo de torno que el Vivo opera manteniendo presionado Interactuar para mover plataformas/compuertas (0% a 100%), desenrollándose si se suelta. Soporta congelamiento por Aura del Fantasma.
+- **Muro Agrietado Destructible (`scenes/components/mecanismos/muro_agrietado.tscn` / `muro_agrietado.gd`)**: Bloqueo de piedra física que el Vivo destruye ejecutando su Embate Físico hacia adelante.
+- **Ancla de Éxtasis / Congelamiento (`scenes/components/mecanismos/ancla_estasis.tscn` / `ancla_estasis.gd`)**: Componente que al recibir el pulso de Aura del Fantasma, congela en el tiempo el mecanismo o plataforma asignado por X segundos (congelando caídas, rotaciones y retrocesos).
 
 ### 9. Habilidades Definitivas de los Personajes
 | Personaje | Plano | Habilidad Activa (Botón Acción) | Movilidad Especial |

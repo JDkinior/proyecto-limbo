@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://cs88ggghqges0"]
+
+[ext_resource type="Script" path="res://scripts/components/plataformas/plataforma_espiritual_base.gd" id="1_script"]
+[ext_resource type="Material" uid="uid://d0roqbkj6r44q" path="res://shaders/components/plataformas/plataforma_espiritual_mat.tres" id="2_plat_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_1"]
+size = Vector3(4, 0.4, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1"]
+material = ExtResource("2_plat_mat")
+size = Vector3(4, 0.4, 4)
+
+[node name="PlataformaEspiritualBase" type="StaticBody3D"]
+collision_layer = 4
+collision_mask = 4
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_1")

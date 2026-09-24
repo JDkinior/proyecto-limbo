@@ -45,12 +45,18 @@ func _ready():
 	_crear_hud_un_jugador()
 	HudConfigManager.aplicar_a_hud(self)
 	_inicializar_controles_opciones_hud()
+	
+	var gm = _obtener_gamepad_manager()
+	if is_instance_valid(gm):
+		if not gm.control_conectado_cambiado.is_connected(_on_control_conectado_cambiado):
+			gm.control_conectado_cambiado.connect(_on_control_conectado_cambiado)
+		if not gm.modo_control_cambiado.is_connected(_on_modo_control_cambiado):
+			gm.modo_control_cambiado.connect(_on_modo_control_cambiado)
+	_actualizar_visibilidad_elementos_juego()
 
 var label_ping: Label = null
 @onready var boton_cambiar_personaje: TouchScreenButton = get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Cambiar_Personaje")
-var label_aviso_cambio: Label = null
 var overlay_transicion: ColorRect = null
-var _aviso_tween: Tween = null
 var _overlay_tween: Tween = null
 
 func _crear_indicador_ping():
@@ -101,20 +107,6 @@ func _crear_hud_un_jugador() -> void:
 
 	if not es_solo:
 		return
-		
-	if not has_node("LabelAvisoCambio"):
-		label_aviso_cambio = Label.new()
-		label_aviso_cambio.name = "LabelAvisoCambio"
-		label_aviso_cambio.set_anchors_preset(Control.PRESET_CENTER_TOP)
-		label_aviso_cambio.offset_top = 80
-		label_aviso_cambio.grow_horizontal = Control.GROW_DIRECTION_BOTH
-		label_aviso_cambio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label_aviso_cambio.add_theme_font_size_override("font_size", 18)
-		label_aviso_cambio.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
-		label_aviso_cambio.add_theme_constant_override("outline_size", 8)
-		label_aviso_cambio.modulate.a = 0.0
-		label_aviso_cambio.z_index = 10
-		add_child(label_aviso_cambio)
 
 	if not has_node("OverlayTransicion"):
 		overlay_transicion = ColorRect.new()
@@ -168,33 +160,12 @@ func _on_personaje_solo_cambiado(nuevo_personaje: String) -> void:
 	else:
 		aplicar_estilo_jugador()
 	_actualizar_boton_cambio(nuevo_personaje)
-	mostrar_aviso_cambio_personaje(nuevo_personaje)
 
 func _actualizar_boton_cambio(_personaje_activo: String) -> void:
 	if not is_instance_valid(boton_cambiar_personaje):
 		boton_cambiar_personaje = get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Cambiar_Personaje")
 	if is_instance_valid(boton_cambiar_personaje):
 		boton_cambiar_personaje.queue_redraw()
-
-func mostrar_aviso_cambio_personaje(personaje_activo: String) -> void:
-	if not is_instance_valid(label_aviso_cambio):
-		return
-	if _aviso_tween and _aviso_tween.is_running():
-		_aviso_tween.kill()
-		
-	if personaje_activo == "jugador":
-		label_aviso_cambio.text = "👤 Controlando: Jugador Vivo (Plano Físico)"
-		label_aviso_cambio.add_theme_color_override("font_color", COLOR_VIVO_ACCENT)
-		label_aviso_cambio.add_theme_color_override("font_outline_color", Color(0.18, 0.12, 0.04, 0.95))
-	else:
-		label_aviso_cambio.text = "👻 Controlando: Fantasma (Plano Espiritual)"
-		label_aviso_cambio.add_theme_color_override("font_color", COLOR_FANTASMA_ACCENT)
-		label_aviso_cambio.add_theme_color_override("font_outline_color", Color(0.04, 0.10, 0.18, 0.95))
-		
-	_aviso_tween = create_tween()
-	label_aviso_cambio.modulate.a = 1.0
-	_aviso_tween.tween_interval(1.8)
-	_aviso_tween.tween_property(label_aviso_cambio, "modulate:a", 0.0, 0.6)
 
 
 const TEX_JOYSTICK_BASE = preload("res://assets/ui/controles/joystick_base.png")
@@ -300,7 +271,7 @@ func esta_bloqueado_para_juego() -> bool:
 	var panel_o = get_node_or_null("Panel_Opciones")
 	if is_instance_valid(panel_o) and panel_o.visible:
 		return true
-	if has_node("AjusteHUD"):
+	if has_node("AjusteHUD") or has_node("AjusteControl"):
 		return true
 	return false
 
@@ -424,8 +395,13 @@ func configurar_personaje_local(personaje: Node):
 			aplicar_estilo_fantasma()
 
 			# Cargar textura de esmeralda y modular a verde/cyan espectral
-			var tex_emerald = load("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinEmerald_AncientCoinEmerald_1_Color.png")
-			icono_moneda.texture = tex_emerald
+			var tex_emerald = null
+			if ResourceLoader.exists("res://assets/ui/iconos/moneda_esmeralda.png"):
+				tex_emerald = load("res://assets/ui/iconos/moneda_esmeralda.png")
+			elif ResourceLoader.exists("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinEmerald_AncientCoinEmerald_1_Color.png"):
+				tex_emerald = load("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinEmerald_AncientCoinEmerald_1_Color.png")
+			if tex_emerald:
+				icono_moneda.texture = tex_emerald
 			icono_moneda.self_modulate = Color(0.4, 1.0, 0.8) # Tinte espectral
 			
 			# Conectar señal de puntuación del fantasma
@@ -446,8 +422,13 @@ func configurar_personaje_local(personaje: Node):
 		else:
 			aplicar_estilo_jugador()
 			# Cargar textura de rubí y modular a rojo vida
-			var tex_ruby = load("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinRuby_AncientGoldCoinRuby_1_Color.png")
-			icono_moneda.texture = tex_ruby
+			var tex_ruby = null
+			if ResourceLoader.exists("res://assets/ui/iconos/moneda_rubi.png"):
+				tex_ruby = load("res://assets/ui/iconos/moneda_rubi.png")
+			elif ResourceLoader.exists("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinRuby_AncientGoldCoinRuby_1_Color.png"):
+				tex_ruby = load("res://assets/modelos/provisional/RuinsGLB/Accessories/AncientCoinRuby_AncientGoldCoinRuby_1_Color.png")
+			if tex_ruby:
+				icono_moneda.texture = tex_ruby
 			icono_moneda.self_modulate = Color(1.0, 0.4, 0.4) # Tinte rojo
 			
 			if is_instance_valid(ScoreManager):
@@ -599,6 +580,13 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			nodo.add_theme_color_override(&"font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
 			nodo.add_theme_constant_override(&"outline_size", 6)
 			
+			if nodo.name == "Boton_Personalizar_HUD" or nodo.name == "Boton_Mapear_Control":
+				nodo.add_theme_font_size_override(&"font_size", 20)
+			elif nodo.name == "Boton_Reiniciar":
+				nodo.add_theme_font_size_override(&"font_size", 21)
+			else:
+				nodo.add_theme_font_size_override(&"font_size", 22)
+			
 			var style_normal = StyleBoxFlat.new()
 			style_normal.bg_color = COLOR_FANTASMA_PANEL_BG if es_fantasma else COLOR_VIVO_PANEL_BG
 			style_normal.border_color = color_borde
@@ -606,7 +594,11 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			style_normal.border_width_top = 2
 			style_normal.border_width_right = 2
 			style_normal.border_width_bottom = 2
-			style_normal.set_corner_radius_all(12)
+			style_normal.set_corner_radius_all(14)
+			style_normal.content_margin_top = 8
+			style_normal.content_margin_bottom = 8
+			style_normal.content_margin_left = 16
+			style_normal.content_margin_right = 16
 			if es_fantasma:
 				style_normal.shadow_color = Color(0.1, 0.6, 0.9, 0.25)
 				style_normal.shadow_size = 6
@@ -636,11 +628,33 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 		style_panel.border_width_top = 2
 		style_panel.border_width_right = 2
 		style_panel.border_width_bottom = 2
-		style_panel.set_corner_radius_all(16)
-		style_panel.shadow_color = Color(0.0, 0.0, 0.0, 0.35)
-		style_panel.shadow_size = 16
-		style_panel.shadow_offset = Vector2(0, 4)
+		style_panel.set_corner_radius_all(20)
+		style_panel.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+		style_panel.shadow_size = 22
+		style_panel.shadow_offset = Vector2(0, 6)
 		nodo.add_theme_stylebox_override(&"panel", style_panel)
+
+	elif nodo is HSlider:
+		nodo.custom_minimum_size.y = maxf(nodo.custom_minimum_size.y, 38.0)
+		var style_slider_bg = StyleBoxFlat.new()
+		style_slider_bg.bg_color = Color(0.12, 0.15, 0.22, 0.90) if es_fantasma else Color(0.18, 0.16, 0.12, 0.90)
+		style_slider_bg.border_color = Color(0.3, 0.35, 0.45, 0.6) if es_fantasma else Color(0.4, 0.35, 0.25, 0.6)
+		style_slider_bg.border_width_left = 1
+		style_slider_bg.border_width_top = 1
+		style_slider_bg.border_width_right = 1
+		style_slider_bg.border_width_bottom = 1
+		style_slider_bg.set_corner_radius_all(6)
+		style_slider_bg.content_margin_top = 6
+		style_slider_bg.content_margin_bottom = 6
+		nodo.add_theme_stylebox_override(&"slider", style_slider_bg)
+		
+		var style_slider_area = StyleBoxFlat.new()
+		style_slider_area.bg_color = color_borde
+		style_slider_area.set_corner_radius_all(6)
+		style_slider_area.content_margin_top = 6
+		style_slider_area.content_margin_bottom = 6
+		nodo.add_theme_stylebox_override(&"grabber_area", style_slider_area)
+		nodo.add_theme_stylebox_override(&"grabber_area_highlight", style_slider_area)
 
 	for hijo in nodo.get_children():
 		_estilar_nodo_recursivo(hijo, color_borde, color_borde_hover, es_fantasma)
@@ -649,21 +663,104 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 
 # --- Gestores de HUD: Menú de Pausa, Ajustes y Salida Segura ---
 
+func _obtener_gamepad_manager() -> Node:
+	if is_inside_tree() and get_tree() and get_tree().root:
+		return get_tree().root.get_node_or_null("GamepadManager")
+	return null
+
 func _actualizar_visibilidad_elementos_juego() -> void:
 	var bloq = esta_bloqueado_para_juego()
-	var en_editor = has_node("AjusteHUD")
+	var en_editor = has_node("AjusteHUD") or has_node("AjusteControl")
+	var gm = _obtener_gamepad_manager()
+	var ocultar_por_control = is_instance_valid(gm) and gm.debe_ocultar_hud_tactil()
+	
+	var panel_p = get_node_or_null("Panel_Pausa")
+	var panel_o = get_node_or_null("Panel_Opciones")
+	var fondo_oscuro = get_node_or_null("Fondo_Oscuro")
+	if is_instance_valid(fondo_oscuro):
+		fondo_oscuro.visible = (panel_p != null and panel_p.visible) or (panel_o != null and panel_o.visible)
 	
 	if is_instance_valid(joystick):
-		joystick.visible = !bloq
+		joystick.visible = not bloq and not ocultar_por_control
 	var zona = get_node_or_null("Area_Camara/Zona_Botones_Accion")
 	if is_instance_valid(zona):
-		zona.visible = not bloq and not en_editor
+		zona.visible = not bloq and not en_editor and not ocultar_por_control
 	var hud_puntuacion = get_node_or_null("HUD_Puntuacion")
 	if is_instance_valid(hud_puntuacion):
-		hud_puntuacion.visible = !en_editor
+		hud_puntuacion.visible = not en_editor
 	var hud_menu = get_node_or_null("HUD_Menu")
 	if is_instance_valid(hud_menu):
-		hud_menu.visible = !en_editor
+		hud_menu.visible = not en_editor
+
+func _on_control_conectado_cambiado(conectado: bool, _device_id: int) -> void:
+	if conectado:
+		joystick_dedo = -1
+		Input.action_release("mover_izquierda")
+		Input.action_release("mover_derecha")
+		Input.action_release("mover_adelante")
+		Input.action_release("mover_atras")
+		print("[ControlesTactiles] Control conectado -> Inicialmente ocultando controles en pantalla.")
+	else:
+		print("[ControlesTactiles] Control desconectado -> Restaurando controles en pantalla.")
+	_actualizar_visibilidad_elementos_juego()
+
+func _on_modo_control_cambiado(activo: bool) -> void:
+	if activo:
+		joystick_dedo = -1
+		Input.action_release("mover_izquierda")
+		Input.action_release("mover_derecha")
+		Input.action_release("mover_adelante")
+		Input.action_release("mover_atras")
+	_actualizar_visibilidad_elementos_juego()
+
+func _unhandled_input(event: InputEvent) -> void:
+	var panel_o = get_node_or_null("Panel_Opciones")
+	var panel_p = get_node_or_null("Panel_Pausa")
+	var ajuste_ctrl = get_node_or_null("AjusteControl")
+	var ajuste_hud = get_node_or_null("AjusteHUD")
+	
+	var algun_menu_abierto = is_instance_valid(ajuste_ctrl) or is_instance_valid(ajuste_hud) or (is_instance_valid(panel_o) and panel_o.visible) or (is_instance_valid(panel_p) and panel_p.visible)
+	
+	# Botón B (ui_cancel) para Volver / Cancelar cuando un menú o pausa está abierto
+	if algun_menu_abierto and (event.is_action_pressed("ui_cancel") or (event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_B)):
+		if is_instance_valid(ajuste_ctrl):
+			ajuste_ctrl.cerrar()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(ajuste_hud):
+			ajuste_hud.queue_free()
+			if is_instance_valid(panel_o):
+				panel_o.visible = true
+				_inicializar_controles_opciones_hud()
+			_actualizar_visibilidad_elementos_juego()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(panel_o) and panel_o.visible:
+			_on_boton_cerrar_opciones_pressed()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(panel_p) and panel_p.visible:
+			_on_boton_continuar_pressed()
+			get_viewport().set_input_as_handled()
+			return
+
+	# Botón Start / Escape (acción "pausa") para alternar pausa
+	if event.is_action_pressed("pausa"):
+		if is_instance_valid(ajuste_ctrl):
+			ajuste_ctrl.cerrar()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(ajuste_hud):
+			ajuste_hud.queue_free()
+			get_viewport().set_input_as_handled()
+			return
+		if is_instance_valid(panel_o) and panel_o.visible:
+			_on_boton_cerrar_opciones_pressed()
+			get_viewport().set_input_as_handled()
+			return
+			
+		_on_boton_pausa_pressed()
+		get_viewport().set_input_as_handled()
 
 func _on_boton_pausa_pressed() -> void:
 	var panel_p = get_node_or_null("Panel_Pausa")
@@ -672,6 +769,11 @@ func _on_boton_pausa_pressed() -> void:
 		var panel_o = get_node_or_null("Panel_Opciones")
 		if panel_o:
 			panel_o.visible = false
+		if panel_p.visible:
+			var btn_cont = panel_p.get_node_or_null("VBoxContainer/Boton_Continuar")
+			var gm = _obtener_gamepad_manager()
+			if is_instance_valid(btn_cont) and is_instance_valid(gm) and gm.hay_control_conectado():
+				btn_cont.grab_focus()
 	_actualizar_visibilidad_elementos_juego()
 	print("[ControlesTactiles] Menú de Pausa alternado a: ", panel_p.visible if panel_p else false)
 
@@ -681,12 +783,39 @@ func _on_boton_continuar_pressed() -> void:
 		panel_p.visible = false
 	_actualizar_visibilidad_elementos_juego()
 
+func _on_boton_reiniciar_pressed() -> void:
+	var panel_p = get_node_or_null("Panel_Pausa")
+	if panel_p:
+		panel_p.visible = false
+	_actualizar_visibilidad_elementos_juego()
+	
+	var es_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var jugadores = get_tree().get_nodes_in_group("jugadores")
+	if jugadores.is_empty():
+		var escena = get_tree().current_scene
+		if escena:
+			var pj_vivo = escena.find_child("Jugador", true, false)
+			if pj_vivo: jugadores.append(pj_vivo)
+			var pj_fant = escena.find_child("Fantasma", true, false)
+			if pj_fant: jugadores.append(pj_fant)
+			
+	for pj in jugadores:
+		if pj.has_method("reaparecer"):
+			if es_solo or (pj.has_method("es_activo") and pj.es_activo()):
+				pj.reaparecer()
+	print("[ControlesTactiles] Jugador(es) reiniciado(s) al último punto de control.")
+
 func _on_boton_opciones_pressed() -> void:
 	var panel_p = get_node_or_null("Panel_Pausa")
 	var panel_o = get_node_or_null("Panel_Opciones")
 	if panel_o:
 		panel_o.visible = true
 		_inicializar_controles_opciones_hud()
+		var gm = _obtener_gamepad_manager()
+		if is_instance_valid(gm) and gm.hay_control_conectado():
+			var btn_hud = panel_o.get_node_or_null("VBoxContainer/Boton_Personalizar_HUD")
+			if is_instance_valid(btn_hud):
+				btn_hud.grab_focus()
 	if panel_p:
 		panel_p.visible = false
 	_actualizar_visibilidad_elementos_juego()
@@ -699,6 +828,11 @@ func _on_boton_cerrar_opciones_pressed() -> void:
 		panel_o.visible = false
 	if panel_p:
 		panel_p.visible = true
+		var gm = _obtener_gamepad_manager()
+		if is_instance_valid(gm) and gm.hay_control_conectado():
+			var btn_opc = panel_p.get_node_or_null("VBoxContainer/Boton_Opciones")
+			if is_instance_valid(btn_opc):
+				btn_opc.grab_focus()
 	_actualizar_visibilidad_elementos_juego()
 	print("[ControlesTactiles] Volviendo a Menú de Pausa (Ocultando Ajustes)")
 
@@ -747,6 +881,25 @@ func _on_boton_personalizar_hud_pressed() -> void:
 				panel_o.visible = true
 			_inicializar_controles_opciones_hud()
 			HudConfigManager.aplicar_a_hud(self)
+			_actualizar_visibilidad_elementos_juego()
+		)
+
+func _on_boton_mapear_control_pressed() -> void:
+	var panel_o = get_node_or_null("Panel_Opciones")
+	if panel_o:
+		panel_o.visible = false
+		
+	var escena_ctrl = load("res://scenes/ui/ajuste_control.tscn")
+	if escena_ctrl:
+		var ctrl_modal = escena_ctrl.instantiate()
+		add_child(ctrl_modal)
+		_actualizar_visibilidad_elementos_juego()
+		ctrl_modal.cerrado.connect(func():
+			if panel_o:
+				panel_o.visible = true
+				var btn_map = panel_o.get_node_or_null("VBoxContainer/Boton_Mapear_Control")
+				if is_instance_valid(btn_map):
+					btn_map.grab_focus()
 			_actualizar_visibilidad_elementos_juego()
 		)
 
