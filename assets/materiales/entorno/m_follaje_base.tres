@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" format=3 uid="uid://bfolbaseotono01"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://db45ounoaoutg"]
 
 [ext_resource type="Shader" uid="uid://b3kopkfreul6t" path="res://shaders/entorno/arboles/follaje_viento.gdshader" id="1_shader"]
 [ext_resource type="Texture2D" uid="uid://k1rgob1qiojb" path="res://assets/texturas/entorno/follaje_arbol_base.png" id="2_tex"]
