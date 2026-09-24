@@ -12,8 +12,8 @@ config_version=5
 
 config/name="Proyecto Limbo"
 run/main_scene="res://scenes/ui/menu_inicio.tscn"
-run/max_fps=60
 config/features=PackedStringArray("4.7", "Mobile")
+run/max_fps=60
 boot_splash/bg_color=Color(0, 0, 0, 1)
 boot_splash/stretch_mode=0
 boot_splash/image="res://assets/ui/iconos/icono_app_432.png"
@@ -40,7 +40,6 @@ GamepadManager="*res://scripts/core/gamepad_manager.gd"
 VibrationManager="*res://scripts/core/vibration_manager.gd"
 EnvLoader="*uid://b6te5n15puqys"
 EOSCreds="*uid://d3xu1oxee48aa"
-_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
 
 [display]
 
@@ -120,11 +119,11 @@ common/physics_interpolation=true
 
 [rendering]
 
-environment/glow/upscale_mode=0
 occlusion_culling/bvh_build_quality=1
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true
+environment/glow/upscale_mode=0
 occlusion_culling/use_occlusion_culling=true
 occlusion_culling/occlusion_culling_buffer_size=128
 occlusion_culling/jitter_fix=false

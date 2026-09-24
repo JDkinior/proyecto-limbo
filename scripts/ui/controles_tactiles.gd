@@ -270,14 +270,20 @@ const DISTANCIA_MAX_DOBLE_TOQUE : float = 45.0
 func _on_joystick_gui_input(event: InputEvent):
 	if event is InputEventScreenTouch:
 		if event.is_pressed():
-			joystick_dedo = event.index
-			if camara_dedo == event.index:
-				camara_dedo = -1
+			if joystick_dedo == -1:
+				joystick_dedo = event.index
+				if camara_dedo == event.index:
+					camara_dedo = -1
 		else:
 			if joystick_dedo == event.index:
 				joystick_dedo = -1
+				Input.action_release("mover_izquierda")
+				Input.action_release("mover_derecha")
+				Input.action_release("mover_adelante")
+				Input.action_release("mover_atras")
 	elif event is InputEventScreenDrag:
-		joystick_dedo = event.index
+		if joystick_dedo == -1:
+			joystick_dedo = event.index
 
 func esta_bloqueado_para_juego() -> bool:
 	if intro_nivel_en_progreso:
@@ -393,27 +399,36 @@ func _input(event):
 	if esta_bloqueado_para_juego():
 		arrastre_camara = Vector2.ZERO
 		camara_dedo = -1
+		joystick_dedo = -1
 		dedos_en_botones.clear()
+		Input.action_release("mover_izquierda")
+		Input.action_release("mover_derecha")
+		Input.action_release("mover_adelante")
+		Input.action_release("mover_atras")
 		return
+
+	var mitad_pantalla = get_viewport_rect().size.x * 0.5
 
 	if event is InputEventScreenTouch:
 		if event.is_pressed():
-			# 1. Toque sobre joystick virtual
-			if (joystick_dedo != -1 and event.index == joystick_dedo) or _esta_sobre_joystick(event.position):
-				joystick_dedo = event.index
+			# 1. Mitad izquierda: territorio exclusivo del Joystick / mano izquierda
+			# La regla de movimiento de cámara NUNCA opera ni interviene aquí.
+			if event.position.x < mitad_pantalla or _esta_sobre_joystick(event.position):
+				if joystick_dedo == -1:
+					joystick_dedo = event.index
 				if camara_dedo == event.index:
 					camara_dedo = -1
 				return
 
-			# 2. Toque inicial directo sobre un botón del HUD
+			# 2. Mitad derecha: Toque inicial directo sobre un botón del HUD
 			var boton = _obtener_boton_en_pos(event.position)
 			if boton != null:
 				dedos_en_botones[event.index] = boton
 				_ultimo_tiempo_toque_camara = -10.0
 				return
 
-			# 3. Toque en área de cámara (movimiento y orientación)
-			if camara_dedo == -1:
+			# 3. Mitad derecha: Toque en área de cámara (movimiento y orientación con mano derecha)
+			if camara_dedo == -1 and event.index != joystick_dedo:
 				camara_dedo = event.index
 				_arrastre_acumulado_toque = 0.0
 				_ultimo_delta_arrastre = Vector2.ZERO
@@ -433,6 +448,10 @@ func _input(event):
 			# Dedo levantado / pantalla soltada
 			if event.index == joystick_dedo:
 				joystick_dedo = -1
+				Input.action_release("mover_izquierda")
+				Input.action_release("mover_derecha")
+				Input.action_release("mover_adelante")
+				Input.action_release("mover_atras")
 				return
 
 			if event.index in dedos_en_botones:
@@ -451,24 +470,33 @@ func _input(event):
 				return
 
 	elif event is InputEventScreenDrag:
-		# Ignorar si proviene del dedo del joystick
+		var mitad_pantalla_drag = get_viewport_rect().size.x * 0.5
+
+		# 1. Ignorar si proviene del dedo del joystick para no interferir en su control
 		if event.index == joystick_dedo:
 			return
 
-		# Ignorar si es un dedo presionando un botón directamente
+		# 2. Ignorar si es un dedo presionando un botón directamente
 		if event.index in dedos_en_botones:
 			return
 
-		# Si es el dedo asignado a la cámara (o si aún no había ninguno asignado y no proviene de joystick ni botón)
-		if event.index == camara_dedo or (camara_dedo == -1 and not _esta_sobre_joystick(event.position - event.relative) and not _esta_sobre_boton(event.position - event.relative)):
-			camara_dedo = event.index
-
-			# El arrastre de cámara continúa suavemente sin interrupción, incluso si el
-			# dedo cruza o pasa por encima de los botones del HUD.
+		# 3. Arrastre de cámara existente (dedo ya asignado en la mitad derecha)
+		if event.index == camara_dedo:
+			# El arrastre de cámara continúa suavemente sin interrupción incluso sobre botones
 			arrastre_camara += event.relative
 			_arrastre_acumulado_toque += event.relative.length()
 			_ultimo_delta_arrastre = event.relative
 			get_viewport().set_input_as_handled()
+			return
+
+		# 4. Asignación si camara_dedo no estaba activo, SOLO si ocurre en la mitad derecha y no sobre botones
+		if camara_dedo == -1 and event.position.x >= mitad_pantalla_drag and not _esta_sobre_boton(event.position - event.relative):
+			camara_dedo = event.index
+			arrastre_camara += event.relative
+			_arrastre_acumulado_toque += event.relative.length()
+			_ultimo_delta_arrastre = event.relative
+			get_viewport().set_input_as_handled()
+			return
 
 func consumir_arrastre() -> Vector2:
 	var temp = arrastre_camara
