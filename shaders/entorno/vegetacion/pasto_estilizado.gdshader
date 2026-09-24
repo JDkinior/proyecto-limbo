@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, diffuse_lambert, specular_disabled;
+render_mode cull_disabled, diffuse_lambert, specular_disabled, skip_vertex_transform;
 
 // ==========================================
 // SHADER DE PASTO ESTILIZADO 3D (GODOT 4)
@@ -41,8 +41,6 @@ void vertex() {
 
 	// Posición global de la instancia y vértice
 	vec3 pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-
-	mat3 inv_model = inverse(mat3(MODEL_MATRIX));
 
 	vec2 dir_viento = length(direccion_viento) > 0.001 ? normalize(direccion_viento) : vec2(1.0, 0.0);
 
@@ -95,8 +93,8 @@ void vertex() {
 		}
 	}
 
-	vec3 desplazamiento_local = inv_model * (viento_mundo + empuje_mundo);
-	VERTEX += desplazamiento_local;
+	vec3 pos_final_mundo = pos_mundo + viento_mundo + empuje_mundo;
+	VERTEX = (VIEW_MATRIX * vec4(pos_final_mundo, 1.0)).xyz;
 
 	// Normales estilizadas hacia arriba (Upward Foliage Normals) para iluminación uniforme total sin sombras de espalda
 	NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;

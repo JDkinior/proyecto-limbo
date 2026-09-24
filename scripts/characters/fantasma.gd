@@ -92,8 +92,12 @@ func _ready():
 func _on_aura_estado_cambiado(activo: bool, progreso_cooldown: float):
 	aura_estado_actualizado.emit(activo, progreso_cooldown)
 
+var _entorno_fantasma_cache: Environment = null
+
 func obtener_entorno_personaje() -> Environment:
-	return _crear_entorno_fantasma()
+	if _entorno_fantasma_cache == null:
+		_entorno_fantasma_cache = _crear_entorno_fantasma()
+	return _entorno_fantasma_cache
 
 func obtener_cull_mask_personaje() -> int:
 	return 1048575
@@ -115,6 +119,7 @@ func _crear_entorno_fantasma() -> Environment:
 	
 	var sky = Sky.new()
 	sky.sky_material = CIELO_FANTASMA_MAT
+	sky.radiance_size = Sky.RADIANCE_SIZE_128
 	env.sky = sky
 	
 	# Iluminación ambiental MÍSTICA Y ETÉREA (turquesa/cian suave sobre piedra)

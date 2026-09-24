@@ -217,7 +217,7 @@ text = "Salir al Menú"
 
 [node name="Panel_Opciones" type="Panel" parent="." unique_id=253214794]
 visible = false
-custom_minimum_size = Vector2(560, 640)
+custom_minimum_size = Vector2(560, 690)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -225,9 +225,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -280.0
-offset_top = -320.0
+offset_top = -345.0
 offset_right = 280.0
-offset_bottom = 320.0
+offset_bottom = 345.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -271,6 +271,12 @@ custom_minimum_size = Vector2(460, 56)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "📳 Vibración: Activada"
+
+[node name="Boton_FPS" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390909]
+custom_minimum_size = Vector2(460, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "📊 Mostrar FPS: Desactivado"
 
 [node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=774955636]
 layout_mode = 2
@@ -321,5 +327,6 @@ text = "Atrás"
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Personalizar_HUD" to="." method="_on_boton_personalizar_hud_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Mapear_Control" to="." method="_on_boton_mapear_control_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Vibracion" to="." method="_on_boton_vibracion_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_FPS" to="." method="_on_boton_fps_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]
 

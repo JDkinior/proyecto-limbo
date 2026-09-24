@@ -672,6 +672,10 @@ func _aplicar_estilo_textos_y_botones(nodo: Node):
 	_estilar_nodo_recursivo(nodo, color_borde, color_borde_hover, es_fantasma)
 
 func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: Color, es_fantasma: bool = false):
+	# Evitar procesar menús pausados u opciones si están ocultos durante el juego
+	if (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones") and (nodo is CanvasItem and not (nodo as CanvasItem).visible):
+		return
+		
 	if nodo is Label:
 		nodo.add_theme_color_override(&"font_color", Color(1.0, 1.0, 1.0, 1.0))
 		nodo.add_theme_color_override(&"font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
@@ -1003,6 +1007,7 @@ func _on_boton_pausa_pressed() -> void:
 		if panel_o:
 			panel_o.visible = false
 		if panel_p.visible:
+			_aplicar_estilo_textos_y_botones(panel_p)
 			var btn_cont = panel_p.get_node_or_null("VBoxContainer/Boton_Continuar")
 			var gm = _obtener_gamepad_manager()
 			if is_instance_valid(btn_cont) and is_instance_valid(gm) and gm.hay_control_conectado():
@@ -1085,6 +1090,7 @@ func _on_boton_opciones_pressed() -> void:
 	var panel_o = get_node_or_null("Panel_Opciones")
 	if panel_o:
 		panel_o.visible = true
+		_aplicar_estilo_textos_y_botones(panel_o)
 		_inicializar_controles_opciones_hud()
 		var gm = _obtener_gamepad_manager()
 		if is_instance_valid(gm) and gm.hay_control_conectado():
@@ -1127,6 +1133,7 @@ func _inicializar_controles_opciones_hud() -> void:
 			slider_joy.value_changed.connect(_on_slider_escala_joy_changed)
 			
 	_actualizar_texto_boton_vibracion()
+	_actualizar_texto_boton_fps()
 
 func _on_boton_vibracion_pressed() -> void:
 	if is_instance_valid(VibrationManager):
@@ -1141,6 +1148,19 @@ func _actualizar_texto_boton_vibracion() -> void:
 	if is_instance_valid(btn_vib) and is_instance_valid(VibrationManager):
 		var activa = VibrationManager.esta_habilitada()
 		btn_vib.text = "📳 Vibración: Activada" if activa else "📳 Vibración: Desactivada"
+
+func _on_boton_fps_pressed() -> void:
+	var fps_node = get_node_or_null("/root/FPSCounter")
+	if is_instance_valid(fps_node):
+		fps_node.alternar()
+		_actualizar_texto_boton_fps()
+
+func _actualizar_texto_boton_fps() -> void:
+	var btn_fps = get_node_or_null("Panel_Opciones/VBoxContainer/Boton_FPS")
+	var fps_node = get_node_or_null("/root/FPSCounter")
+	if is_instance_valid(btn_fps) and is_instance_valid(fps_node):
+		var activa = fps_node.esta_activo()
+		btn_fps.text = "📊 Mostrar FPS: Activado" if activa else "📊 Mostrar FPS: Desactivado"
 
 func _on_slider_escala_botones_changed(val: float) -> void:
 	var cfg = HudConfigManager.cargar_config()

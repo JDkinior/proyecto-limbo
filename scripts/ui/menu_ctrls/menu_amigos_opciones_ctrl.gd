@@ -28,6 +28,8 @@ func _conectar_senales():
 		menu.btn_fullscreen.toggled.connect(_on_btn_fullscreen_toggled)
 	if is_instance_valid(menu.btn_vibracion):
 		menu.btn_vibracion.toggled.connect(_on_btn_vibracion_toggled)
+	if is_instance_valid(menu.btn_mostrar_fps):
+		menu.btn_mostrar_fps.toggled.connect(_on_btn_mostrar_fps_toggled)
 		
 	var btn_volver_opc = menu.get_node_or_null("PanelOpciones/VBoxContainer/BtnVolver")
 	if is_instance_valid(btn_volver_opc):
@@ -108,6 +110,11 @@ func _on_btn_vibracion_toggled(button_pressed: bool):
 		if button_pressed:
 			vm.vibrar_click()
 
+func _on_btn_mostrar_fps_toggled(button_pressed: bool):
+	var fps_node = menu.get_node_or_null("/root/FPSCounter")
+	if is_instance_valid(fps_node):
+		fps_node.establecer_activo(button_pressed)
+
 func _on_btn_volver_opciones_pressed():
 	menu.mostrar_panel(menu.panel_principal)
 
@@ -184,3 +191,7 @@ func _cargar_opciones():
 	var vm = menu.get_node_or_null("/root/VibrationManager")
 	if is_instance_valid(menu.btn_vibracion) and is_instance_valid(vm):
 		menu.btn_vibracion.set_pressed_no_signal(vm.esta_habilitada())
+		
+	var fps_node = menu.get_node_or_null("/root/FPSCounter")
+	if is_instance_valid(menu.btn_mostrar_fps) and is_instance_valid(fps_node):
+		menu.btn_mostrar_fps.set_pressed_no_signal(fps_node.esta_activo())

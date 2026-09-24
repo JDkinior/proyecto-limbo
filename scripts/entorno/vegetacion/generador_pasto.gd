@@ -166,6 +166,8 @@ class_name GeneradorPasto
 var _jugador_ref: Node3D = null
 var _fantasma_ref: Node3D = null
 var _shader_mat: ShaderMaterial = null
+var _chunks: Array[MultiMeshInstance3D] = []
+const TAMANO_CHUNK: float = 12.0
 
 func _actualizar_parametro_shader(param: String, valor: Variant) -> void:
 	if material_override is ShaderMaterial:
@@ -228,6 +230,12 @@ func _on_reino_cambiado(es_fantasma: bool) -> void:
 		if material_override != mat_correcto:
 			material_override = mat_correcto
 			_shader_mat = material_override as ShaderMaterial if material_override is ShaderMaterial else null
+			_actualizar_material_chunks()
+
+func _actualizar_material_chunks() -> void:
+	for chunk in _chunks:
+		if is_instance_valid(chunk):
+			chunk.material_override = material_override
 
 func _actualizar_material_por_reino() -> void:
 	if material_fisico == null:
@@ -248,6 +256,7 @@ func _actualizar_material_por_reino() -> void:
 
 	if material_override is ShaderMaterial:
 		_shader_mat = material_override as ShaderMaterial
+	_actualizar_material_chunks()
 
 # Determina si el personaje que actualmente controla la cámara activa es fantasma.
 # Funciona tanto en un jugador (personaje_activo_solo) como en multijugador LAN/online.
@@ -308,7 +317,10 @@ func generar() -> void:
 
 	# --- MODO 0: PINTADO MANUAL ---
 	if modo_distribucion == 0:
-		_actualizar_multimesh_pintado()
+		if Engine.is_editor_hint():
+			_actualizar_multimesh_pintado()
+		else:
+			_construir_chunks_runtime(datos_pasto_pintado, mesh_a_usar)
 		return
 
 	# --- MODO 1: ÁREA RECTANGULAR AUTOMÁTICA ---
@@ -316,13 +328,14 @@ func generar() -> void:
 	var area = area_tamano if area_tamano != null else Vector2(50.0, 50.0)
 	var esc_range = variacion_escala if variacion_escala != null else Vector2(0.65, 1.25)
 
-	multimesh.instance_count = count
-
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
 
 	var half_x = area.x * 0.5
 	var half_z = area.y * 0.5
+
+	var transforms_generados: Array[Transform3D] = []
+	transforms_generados.resize(count)
 
 	if distribucion_uniforme_grid and count > 0:
 		# Distribución estratificada (Jittered Grid) para cobertura homogénea total sin huecos ni calvas
@@ -351,7 +364,7 @@ func generar() -> void:
 				t = t.rotated(Vector3.UP, rot_y)
 				t.origin = pos
 
-				multimesh.set_instance_transform(idx, t)
+				transforms_generados[idx] = t
 				idx += 1
 	else:
 		# Distribución puramente aleatoria
@@ -369,11 +382,17 @@ func generar() -> void:
 			t = t.rotated(Vector3.UP, rot_y)
 			t.origin = pos
 
-			multimesh.set_instance_transform(i, t)
+			transforms_generados[i] = t
 
-	var aabb_calc = AABB(Vector3(-half_x - 1.0, -1.0, -half_z - 1.0), Vector3(area.x + 2.0, (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 2.0, area.y + 2.0))
-	multimesh.custom_aabb = aabb_calc
-	custom_aabb = aabb_calc
+	if Engine.is_editor_hint():
+		multimesh.instance_count = count
+		for i in range(count):
+			multimesh.set_instance_transform(i, transforms_generados[i])
+		var aabb_calc = AABB(Vector3(-half_x - 1.0, -1.0, -half_z - 1.0), Vector3(area.x + 2.0, (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 2.0, area.y + 2.0))
+		multimesh.custom_aabb = aabb_calc
+		custom_aabb = aabb_calc
+	else:
+		_construir_chunks_runtime(transforms_generados, mesh_a_usar)
 
 # ==============================================================================
 # MÉTODOS DEL PINCEL 3D (Pintar, Borrar, Limpiar)
@@ -576,6 +595,13 @@ func asignar_datos_pintados(nuevos_datos: Array) -> void:
 	_actualizar_multimesh_pintado()
 
 func _actualizar_multimesh_pintado() -> void:
+	if not Engine.is_editor_hint():
+		var mesh_a_usar: Mesh = mesh_personalizado
+		if mesh_a_usar == null:
+			mesh_a_usar = _crear_malla_pasto_procedural()
+		_construir_chunks_runtime(datos_pasto_pintado, mesh_a_usar)
+		return
+
 	if multimesh == null:
 		generar()
 		return
@@ -602,6 +628,73 @@ func _actualizar_multimesh_pintado() -> void:
 	else:
 		multimesh.custom_aabb = AABB()
 		custom_aabb = AABB()
+
+func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh) -> void:
+	for chunk in _chunks:
+		if is_instance_valid(chunk):
+			chunk.queue_free()
+	_chunks.clear()
+
+	if transforms.is_empty() or mesh_a_usar == null:
+		if multimesh:
+			multimesh.instance_count = 0
+		return
+
+	# Agrupar las transformaciones en una cuadrícula espacial (X, Z) de TAMANO_CHUNK (12m x 12m)
+	var celdas: Dictionary = {}
+	for t in transforms:
+		var cx = int(floor(t.origin.x / TAMANO_CHUNK))
+		var cz = int(floor(t.origin.z / TAMANO_CHUNK))
+		var key = Vector2i(cx, cz)
+		if not celdas.has(key):
+			celdas[key] = []
+		celdas[key].append(t)
+
+	var h_pasto = alto_pasto if alto_pasto != null else 0.45
+	var mat_actual = material_override if material_override != null else material_fisico
+
+	for key in celdas:
+		var lista: Array = celdas[key]
+		var total_chunk = lista.size()
+		if total_chunk == 0:
+			continue
+
+		var chunk_inst = MultiMeshInstance3D.new()
+		chunk_inst.name = "PastoChunk_%d_%d" % [key.x, key.y]
+		var mm = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh_a_usar
+		mm.instance_count = total_chunk
+
+		var min_p = Vector3(999999.0, 999999.0, 999999.0)
+		var max_p = Vector3(-999999.0, -999999.0, -999999.0)
+
+		for i in range(total_chunk):
+			var t: Transform3D = lista[i]
+			mm.set_instance_transform(i, t)
+			min_p.x = minf(min_p.x, t.origin.x - 0.5)
+			min_p.y = minf(min_p.y, t.origin.y - 0.2)
+			min_p.z = minf(min_p.z, t.origin.z - 0.5)
+			max_p.x = maxf(max_p.x, t.origin.x + 0.5)
+			max_p.y = maxf(max_p.y, t.origin.y + h_pasto + 0.5)
+			max_p.z = maxf(max_p.z, t.origin.z + 0.5)
+
+		var aabb_chunk = AABB(min_p, max_p - min_p)
+		mm.custom_aabb = aabb_chunk
+		chunk_inst.custom_aabb = aabb_chunk
+		chunk_inst.multimesh = mm
+		chunk_inst.material_override = mat_actual
+		chunk_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		chunk_inst.visibility_range_end = distancia_visibilidad_juego
+		chunk_inst.visibility_range_end_margin = 10.0
+		chunk_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+
+		add_child(chunk_inst)
+		_chunks.append(chunk_inst)
+
+	# Vaciar el multimesh propio en runtime para evitar doble renderizado
+	if multimesh:
+		multimesh.instance_count = 0
 
 ## Crea una malla de briznas afiladas en punta con curvatura y normales hemisféricas estilizadas
 func _crear_malla_pasto_procedural() -> ArrayMesh:

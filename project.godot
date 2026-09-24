@@ -12,6 +12,7 @@ config_version=5
 
 config/name="Proyecto Limbo"
 run/main_scene="res://scenes/ui/menu_inicio.tscn"
+run/max_fps=60
 config/features=PackedStringArray("4.7", "Mobile")
 boot_splash/bg_color=Color(0, 0, 0, 1)
 boot_splash/stretch_mode=0
@@ -20,6 +21,7 @@ config/icon="res://assets/ui/iconos/icono_app_432.png"
 
 [autoload]
 
+FPSCounter="*res://scripts/core/fps_counter.gd"
 RedManager="*uid://b8bvwaut6jq1b"
 ScoreManager="*res://scripts/core/score_manager.gd"
 EosManager="*res://scripts/core/eos_manager.gd"
@@ -118,10 +120,11 @@ common/physics_interpolation=true
 
 [rendering]
 
+environment/glow/upscale_mode=0
 occlusion_culling/bvh_build_quality=1
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true
 occlusion_culling/use_occlusion_culling=true
 occlusion_culling/occlusion_culling_buffer_size=128
-occlusion_culling/jitter_fix=true
+occlusion_culling/jitter_fix=false

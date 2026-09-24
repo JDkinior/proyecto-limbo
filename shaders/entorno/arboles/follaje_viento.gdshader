@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
 
 // ====================================================================
 // SHADER DE FOLLAJE CON VIENTO UNIFICADO (GODOT 4)
@@ -98,9 +98,10 @@ void vertex() {
 		dir_viento.y * empuje_viento + dir_perpendicular.y * bamboleo_lateral
 	);
 
-	// 6. Aplicar desplazamiento al vértice en espacio local
-	mat3 inv_model = inverse(mat3(MODEL_MATRIX));
-	VERTEX += inv_model * desplazamiento_mundo;
+	// 6. Aplicar desplazamiento al vértice transformando directamente a espacio de vista
+	pos_mundo += desplazamiento_mundo;
+	VERTEX = (VIEW_MATRIX * vec4(pos_mundo, 1.0)).xyz;
+	NORMAL = (VIEW_MATRIX * vec4(MODEL_NORMAL_MATRIX * NORMAL, 0.0)).xyz;
 }
 
 void fragment() {

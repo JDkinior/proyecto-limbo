@@ -521,18 +521,13 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 	var transform_inicio: Transform3D = cam_origen.global_transform
 	var fov_inicio: float = cam_origen.fov
 
-	# Crear cámara de vuelo de transición limpia
-	if is_instance_valid(_camara_transicion):
-		_camara_transicion.queue_free()
-
-	_camara_transicion = Camera3D.new()
-	_camara_transicion.name = "CamaraTransicionSuave"
-	var escena = get_tree().current_scene
-	if is_instance_valid(escena):
-		escena.add_child(_camara_transicion)
-	else:
+	# Usar cámara de vuelo de transición persistente sin instanciación/destrucción repetida
+	if not is_instance_valid(_camara_transicion):
+		_camara_transicion = Camera3D.new()
+		_camara_transicion.name = "CamaraTransicionSuave"
 		add_child(_camara_transicion)
 
+	_camara_transicion.top_level = true
 	_camara_transicion.global_transform = transform_inicio
 	_camara_transicion.fov = fov_inicio
 	_camara_transicion.near = cam_origen.near
@@ -632,10 +627,7 @@ func _completar_transicion_camara(nuevo_personaje: String, destino: CharacterBas
 
 	if is_instance_valid(_camara_transicion):
 		_camara_transicion.current = false
-		_camara_transicion.queue_free()
-		_camara_transicion = null
 
-	reino_cambiado.emit(reino_espiritual_activo)
 	transicion_camara_completada.emit(nuevo_personaje)
 	print("[RedManager] Transición de cámara completada sin saltos angulares. Controlando: ", nuevo_personaje)
 

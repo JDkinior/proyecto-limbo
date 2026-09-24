@@ -34,6 +34,7 @@ extends Control
 @onready var volume_slider = $PanelOpciones/VBoxContainer/VolumeSlider
 @onready var btn_fullscreen = $PanelOpciones/VBoxContainer/BtnFullscreen
 @onready var btn_vibracion = $PanelOpciones/VBoxContainer/BtnVibracion
+@onready var btn_mostrar_fps = $PanelOpciones/VBoxContainer/BtnMostrarFPS
 @onready var btn_ajustar_hud = $PanelOpciones/VBoxContainer/BtnAjustarHUD
 @onready var btn_mapear_control = $PanelOpciones/VBoxContainer/BtnMapearControl
 @onready var slider_tamano_hud = $PanelOpciones/VBoxContainer/SliderTamanoHUD

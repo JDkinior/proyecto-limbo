@@ -622,9 +622,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -230.0
-offset_top = -295.0
+offset_top = -315.0
 offset_right = 230.0
-offset_bottom = 295.0
+offset_bottom = 315.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
@@ -672,6 +672,12 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 button_pressed = true
 text = "Vibración Háptica (Mando / Celular)"
+
+[node name="BtnMostrarFPS" type="CheckButton" parent="PanelOpciones/VBoxContainer" unique_id=94701110]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Mostrar Contador de FPS"
 
 [node name="HSeparatorHUD" type="HSeparator" parent="PanelOpciones/VBoxContainer" unique_id=2045555691]
 layout_mode = 2

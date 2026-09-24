@@ -320,8 +320,12 @@ func _emitir_efectos_embate() -> void:
 # ENTORNO VISUAL Y CULL MASK
 # ─────────────────────────────────────────────────────────────────────────────
 
+var _entorno_vivo_cache: Environment = null
+
 func obtener_entorno_personaje() -> Environment:
-	return _crear_entorno_vivo()
+	if _entorno_vivo_cache == null:
+		_entorno_vivo_cache = _crear_entorno_vivo()
+	return _entorno_vivo_cache
 
 func obtener_cull_mask_personaje() -> int:
 	return 1048575 & ~(1 << 2)
@@ -342,6 +346,7 @@ func _crear_entorno_vivo() -> Environment:
 	
 	var sky = Sky.new()
 	sky.sky_material = CIELO_VIVO_MAT
+	sky.radiance_size = Sky.RADIANCE_SIZE_128
 	env.sky = sky
 	
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
