@@ -29,6 +29,13 @@ const NOMBRES_CAPITULOS := {
 	4: "El Último Umbral",
 }
 
+signal intro_capitulo_finalizada
+
+var intro_en_curso: bool = false
+var _intro_tween: Tween = null
+var _intro_canvas: CanvasLayer = null
+var _puntuacion_inicializada: bool = false
+
 func _ready() -> void:
 	# 1. Optimizar renderizado, planos de corte y oclusión
 	OptimizadorCulling.optimizar_nivel(self)
@@ -36,11 +43,18 @@ func _ready() -> void:
 	# 2. Validar que el nivel contiene los componentes mínimos requeridos
 	_validar_estructura_minima()
 	
-	# 3. Contar coleccionables e inicializar el marcador sincronizado
-	_inicializar_puntuacion.call_deferred()
-	
-	# 4. Mostrar el rótulo del capítulo con fade-in
-	_mostrar_intro_capitulo()
+	# 3. Si hay intro de capítulo, ocultar HUD y reproducir intro; de lo contrario inicializar directamente
+	if mostrar_intro_capitulo:
+		_ocultar_hud_inicial()
+		_mostrar_intro_capitulo()
+	else:
+		_inicializar_puntuacion.call_deferred()
+
+func _ocultar_hud_inicial() -> void:
+	var uis = get_tree().get_nodes_in_group("ui_tactil")
+	for ui in uis:
+		if is_instance_valid(ui) and ui.has_method("ocultar_para_intro_nivel"):
+			ui.ocultar_para_intro_nivel()
 
 func _validar_estructura_minima() -> void:
 	var tiene_vivo = false
@@ -94,19 +108,55 @@ func _inicializar_puntuacion() -> void:
 				elif nombre_low.contains("vivo") or nombre_low.contains("coin") or script_path.contains("vivo"):
 					total_vivo += 1
 
+	_puntuacion_inicializada = true
 	if is_instance_valid(ScoreManager):
 		ScoreManager.iniciar_nivel(tiempo_objetivo, total_vivo, total_fantasma)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if intro_en_curso:
+		if (event is InputEventScreenTouch and event.pressed) or \
+		   (event is InputEventMouseButton and event.pressed) or \
+		   (event is InputEventKey and event.pressed and not event.echo) or \
+		   (event is InputEventJoypadButton and event.pressed):
+			_saltar_intro_capitulo()
+			get_viewport().set_input_as_handled()
+
+func _saltar_intro_capitulo() -> void:
+	if not intro_en_curso:
+		return
+	if is_instance_valid(_intro_tween) and _intro_tween.is_running():
+		_intro_tween.kill()
+	
+	if is_instance_valid(_intro_canvas):
+		var overlay = _intro_canvas.get_node_or_null("Overlay")
+		if is_instance_valid(overlay):
+			var tw_salto = create_tween()
+			tw_salto.tween_property(overlay, "modulate:a", 0.0, 0.20).set_trans(Tween.TRANS_SINE)
+			tw_salto.tween_callback(func():
+				if is_instance_valid(_intro_canvas):
+					_intro_canvas.queue_free()
+				_al_desaparecer_intro_capitulo()
+			)
+		else:
+			if is_instance_valid(_intro_canvas):
+				_intro_canvas.queue_free()
+			_al_desaparecer_intro_capitulo()
+	else:
+		_al_desaparecer_intro_capitulo()
+
 func _mostrar_intro_capitulo() -> void:
 	if not mostrar_intro_capitulo:
+		_al_desaparecer_intro_capitulo()
 		return
 
+	intro_en_curso = true
 	var titulo: String = _obtener_titulo_intro()
 
 	var canvas := CanvasLayer.new()
 	canvas.name = "Intro_Capitulo"
 	canvas.layer = 100
 	add_child(canvas)
+	_intro_canvas = canvas
 
 	var overlay := Control.new()
 	overlay.name = "Overlay"
@@ -185,11 +235,30 @@ func _mostrar_intro_capitulo() -> void:
 
 	var group := overlay
 	group.modulate.a = 0.0
-	var tw := create_tween()
-	tw.tween_property(group, "modulate:a", 1.0, tiempo_fade_in)
-	tw.tween_interval(tiempo_visible)
-	tw.tween_property(group, "modulate:a", 0.0, tiempo_fade_out)
-	tw.tween_callback(canvas.queue_free)
+	_intro_tween = create_tween()
+	_intro_tween.tween_property(group, "modulate:a", 1.0, tiempo_fade_in)
+	_intro_tween.tween_interval(tiempo_visible)
+	_intro_tween.tween_property(group, "modulate:a", 0.0, tiempo_fade_out)
+	_intro_tween.tween_callback(func():
+		intro_en_curso = false
+		if is_instance_valid(canvas):
+			canvas.queue_free()
+		_al_desaparecer_intro_capitulo()
+	)
+
+func _al_desaparecer_intro_capitulo() -> void:
+	intro_en_curso = false
+	intro_capitulo_finalizada.emit()
+	
+	# Inicializar cronómetro y marcador sincronizado al comenzar la jugabilidad real
+	if not _puntuacion_inicializada:
+		_inicializar_puntuacion()
+	
+	# Activar y mostrar controles con transición suave
+	var uis = get_tree().get_nodes_in_group("ui_tactil")
+	for ui in uis:
+		if is_instance_valid(ui) and ui.has_method("aparecer_con_transicion"):
+			ui.aparecer_con_transicion()
 
 func _aplicar_peso_fuente(label: Label, embolden: float) -> void:
 	var variacion := FontVariation.new()

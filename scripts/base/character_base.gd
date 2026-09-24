@@ -63,6 +63,7 @@ var rotacion_inicial_camara_x : float = PITCH_DEFECTO_CAMARA
 var tiempo_desde_suelo : float = 0.0
 var tiempo_desde_salto : float = 0.0
 var saltos_realizados : int = 0
+var _vel_y_previa_base : float = 0.0
 
 # Variables para interpolación de red (anti-stuttering)
 var sync_position: Vector3
@@ -250,6 +251,8 @@ func entrada_bloqueada() -> bool:
 	if tree and tree.current_scene:
 		if tree.current_scene.has_node("CanvasResultados") or tree.current_scene.has_node("PantallaResultados"):
 			return true
+		if tree.current_scene is NivelBase and tree.current_scene.intro_en_curso:
+			return true
 	if is_instance_valid(controles_tactiles) and controles_tactiles.has_method("esta_bloqueado_para_juego"):
 		if controles_tactiles.esta_bloqueado_para_juego():
 			return true
@@ -367,8 +370,12 @@ func procesar_salto_base(delta: float):
 		if tiempo_desde_suelo > TIEMPO_COYOTE and saltos_realizados == 0:
 			saltos_realizados = 1
 	else:
+		if tiempo_desde_suelo > 0.12 and _vel_y_previa_base < -2.8:
+			_al_aterrizar_base(_vel_y_previa_base)
 		tiempo_desde_suelo = 0.0
 		saltos_realizados = 0
+
+	_vel_y_previa_base = velocity.y
 
 	if not es_activo() or entrada_bloqueada() or (is_instance_valid(RedManager) and RedManager.transicion_en_progreso):
 		return
@@ -390,9 +397,15 @@ func procesar_salto_base(delta: float):
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1 # Consumir buffer
 			_al_realizar_salto(saltos_realizados)
 
-func _al_realizar_salto(_numero_salto: int):
-	# Hook virtual para subclases (efectos visuales, partículas, squash/stretch)
-	pass
+func _al_aterrizar_base(vel_y: float) -> void:
+	if es_activo() and is_instance_valid(VibrationManager):
+		var factor = clampf(abs(vel_y) / 8.0, 0.4, 1.8)
+		VibrationManager.vibrar_aterrizaje(factor)
+
+func _al_realizar_salto(numero_salto: int):
+	# Feedback háptico y vibración de salto
+	if es_activo() and is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_salto(numero_salto)
 
 func obtener_direccion_movimiento() -> Vector3:
 	if entrada_bloqueada():
@@ -542,6 +555,9 @@ func establecer_punto_control(nueva_pos: Vector3, nueva_rot: Vector3 = Vector3.Z
 		rotacion_punto_control = nueva_rot
 
 func reaparecer() -> void:
+	if es_activo() and is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_dano()
+
 	var destino = punto_control if punto_control != Vector3.ZERO else posicion_inicial
 	var rot_dest = rotacion_punto_control if punto_control != Vector3.ZERO else rotacion_inicial
 	global_position = destino

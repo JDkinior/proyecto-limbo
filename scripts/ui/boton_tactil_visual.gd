@@ -33,6 +33,9 @@ var progreso_cooldown: float = 1.0
 var puede_interactuar_vivo: bool = false
 var _pulso_tiempo: float = 0.0
 
+var _pulso_visual_activo: bool = false
+var _pulso_visual_tween: Tween = null
+
 # Variables para transición suave entre iconos/texturas
 var _tex_actual: Texture2D = null
 var _tex_anterior: Texture2D = null
@@ -45,10 +48,25 @@ func _ready():
 	_color_render = _obtener_color_objetivo()
 	queue_redraw()
 
+func animar_pulsacion() -> void:
+	_pulso_visual_activo = true
+	queue_redraw()
+	if _pulso_visual_tween and _pulso_visual_tween.is_running():
+		_pulso_visual_tween.kill()
+	var escala_orig = scale
+	_pulso_visual_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_pulso_visual_tween.tween_property(self, "scale", escala_orig * 0.90, 0.06)
+	_pulso_visual_tween.tween_property(self, "scale", escala_orig, 0.10)
+	_pulso_visual_tween.tween_callback(func():
+		_pulso_visual_activo = false
+		scale = escala_orig
+		queue_redraw()
+	)
+
 func _process(delta: float):
 	_actualizar_color(delta)
 	
-	var presionado = is_pressed()
+	var presionado = is_pressed() or _pulso_visual_activo
 	if presionado != _ultimo_presionado:
 		_ultimo_presionado = presionado
 		queue_redraw()
@@ -70,6 +88,7 @@ func _obtener_textura_objetivo() -> Texture2D:
 		return TEX_CAMBIO_VIVO if es_fantasma else TEX_CAMBIO_FANTASMA
 
 func _obtener_color_objetivo() -> Color:
+	var presionado = is_pressed() or _pulso_visual_activo
 	var es_boton_interactuar = (action == "interactuar" or name.to_lower().contains("interactuar"))
 	if es_fantasma and es_boton_interactuar:
 		if habilidad_activa:
@@ -77,17 +96,17 @@ func _obtener_color_objetivo() -> Color:
 		elif progreso_cooldown < 1.0:
 			return COLOR_AURA_COOLDOWN_MOD
 		else:
-			return COLOR_AURA_READY if not is_pressed() else COLOR_FANTASMA_PRESSED
+			return COLOR_AURA_READY if not presionado else COLOR_FANTASMA_PRESSED
 	elif not es_fantasma and es_boton_interactuar:
 		if not puede_interactuar_vivo:
 			return COLOR_VIVO_DISABLED
 		else:
-			return COLOR_VIVO_NORMAL if not is_pressed() else COLOR_VIVO_PRESSED
+			return COLOR_VIVO_NORMAL if not presionado else COLOR_VIVO_PRESSED
 	else:
 		if es_fantasma:
-			return COLOR_FANTASMA_NORMAL if not is_pressed() else COLOR_FANTASMA_PRESSED
+			return COLOR_FANTASMA_NORMAL if not presionado else COLOR_FANTASMA_PRESSED
 		else:
-			return COLOR_VIVO_NORMAL if not is_pressed() else COLOR_VIVO_PRESSED
+			return COLOR_VIVO_NORMAL if not presionado else COLOR_VIVO_PRESSED
 
 func actualizar_estado_habilidad_vivo(puede_interactuar: bool):
 	puede_interactuar_vivo = puede_interactuar
@@ -142,7 +161,7 @@ func _draw():
 		
 	var radio: float = shape.radius
 	var centro = Vector2.ZERO
-	var presionado = is_pressed()
+	var presionado = is_pressed() or _pulso_visual_activo
 	var es_boton_salto = (action == "saltar" or name.to_lower().contains("saltar"))
 	var es_boton_interactuar = (action == "interactuar" or name.to_lower().contains("interactuar"))
 	var es_boton_cambiar = (action == "cambiar_personaje" or name.to_lower().contains("cambiar"))

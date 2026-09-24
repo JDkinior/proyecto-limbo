@@ -135,6 +135,8 @@ Datos importantes:
 - Autoload activo:
   - `RedManager`: `scripts/core/red_manager.gd`.
   - `ScoreManager`: `scripts/core/score_manager.gd` (singleton de puntuacion, agregado 2026-06-16).
+  - `GamepadManager`: `scripts/core/gamepad_manager.gd` (singleton de gestión y asignación de controles).
+  - `VibrationManager`: `scripts/core/vibration_manager.gd` (singleton de vibración y respuesta háptica para mando y móvil).
   - `_mcp_game_helper`: helper del addon `godot_ai`.
 - Controles tactiles:
   - `input_devices/pointing/emulate_touch_from_mouse=true`, util para probar controles moviles con mouse.
@@ -1197,7 +1199,7 @@ Responsabilidades:
 - Agregamos un marcador visual asimétrico en la esquina superior izquierda del HUD táctil.
 - **Rol de Vivo**: Se configura automáticamente con la textura de la moneda de rubí (`AncientCoinRuby`), se modula a color **Rojo**, muestra el texto inicial como `"Esencias de Vida: 0"`, y se conecta a la señal `score_vivo_changed` de `ScoreManager`.
 - **Rol de Fantasma**: Se configura automáticamente con la textura de la moneda de esmeralda (`AncientCoinEmerald`), se modula a color **Verde**, muestra el texto inicial como `"Fragmentos Espectrales: 0"`, y se conecta a la señal `score_fantasma_changed` de `ScoreManager`.
-- **Menú de Pausa**: Agrupado bajo un único botón de **Pausa** en la esquina superior derecha que despliega el panel de pausa (`Panel_Pausa`). Desde aquí se puede reanudar el juego (Continuar), abrir el sub-panel de Ajustes (`Panel_Opciones`) o desconectarse de forma limpia y salir al menú principal (llamando a `RedManager.desconectar()`).
+- **Menú de Pausa**: Agrupado bajo un único botón de **Pausa** en la esquina superior derecha que despliega el panel de pausa (`Panel_Pausa`). Desde aquí se puede reanudar el juego (Continuar), reiniciar al punto de control (solo reubica a los personajes a su checkpoint sin reiniciar el nivel ni los mecanismos), reiniciar el nivel completo (`Boton_Reiniciar_Nivel`), abrir el sub-panel de Ajustes (`Panel_Opciones`), entrar al Modo Foto o desconectarse de forma limpia y salir al menú principal (llamando a `RedManager.desconectar()`).
 
 ---
 

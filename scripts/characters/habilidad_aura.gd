@@ -188,6 +188,11 @@ func rpc_activar_aura():
 	estado_cambiado.emit(true, 0.0)
 	radio_actualizado.emit(0.0)
 
+	if is_instance_valid(VibrationManager):
+		var p = get_parent()
+		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
+			VibrationManager.vibrar_aura_activar()
+
 func desactivar():
 	if multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer) and not (is_instance_valid(RedManager) and RedManager.es_un_jugador):
 		rpc("rpc_desactivar_aura")
@@ -200,6 +205,11 @@ func rpc_desactivar_aura():
 	_en_fase_aparicion = false
 	radio_actual = 0.0
 	cooldown_actual = tiempo_recarga
+
+	if is_instance_valid(VibrationManager):
+		var p = get_parent()
+		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
+			VibrationManager.vibrar_aura_desactivar()
 
 	_aplicar_opacidad(0.0)
 

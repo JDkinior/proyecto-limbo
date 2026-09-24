@@ -233,7 +233,9 @@ func _procesar_input_habilidad() -> void:
 		var mecanismo = _obtener_mecanismo_prioritario()
 		if is_instance_valid(mecanismo):
 			if mecanismo.has_method("intentar_interactuar"):
-				mecanismo.intentar_interactuar(self)
+				if mecanismo.intentar_interactuar(self):
+					if es_activo() and is_instance_valid(VibrationManager):
+						VibrationManager.vibrar_mecanismo()
 			return
 
 		# 2. Si NO hay mecanismos pero hay un muro rompible o caja enfrente: Realizar Embate Rompedor
@@ -248,6 +250,8 @@ func ejecutar_embate() -> void:
 	_cooldown_embate_actual = tiempo_cooldown_embate
 	_esta_haciendo_embate = true
 	_tiempo_embate = 0.22
+	if es_activo() and is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_embate()
 
 	# 1. Obtener la dirección deseada (Input del joystick/teclado relativo a la cámara)
 	var dir_input = obtener_direccion_movimiento()
@@ -296,8 +300,12 @@ func _comprobar_impacto_frontal(direccion: Vector3) -> void:
 			if is_instance_valid(colisionador):
 				if colisionador.has_method("recibir_impacto"):
 					colisionador.recibir_impacto(self)
+					if es_activo() and is_instance_valid(VibrationManager):
+						VibrationManager.vibrar_impacto_fuerte()
 				elif colisionador is RigidBody3D:
 					colisionador.apply_central_impulse(direccion * 7.0)
+					if es_activo() and is_instance_valid(VibrationManager):
+						VibrationManager.vibrar_embate()
 
 @rpc("any_peer", "call_remote", "unreliable")
 func rpc_reproducir_embate() -> void:
@@ -504,6 +512,7 @@ func _procesar_inclinacion_visual(delta: float):
 		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 
 func _al_realizar_salto(numero_salto: int):
+	super(numero_salto)
 	if numero_salto == 2 and is_instance_valid(particulas_aterrizaje):
 		particulas_aterrizaje.restart()
 		particulas_aterrizaje.emitting = true
@@ -535,6 +544,8 @@ func _actualizar_particulas_polvo(vel_y_previa: float = 0.0):
 				particulas_polvo.direction = dir_expulsion
 
 func _emitir_impacto_aterrizaje():
+	if es_activo() and is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_aterrizaje(1.2)
 	if is_instance_valid(particulas_aterrizaje):
 		particulas_aterrizaje.restart()
 		particulas_aterrizaje.emitting = true

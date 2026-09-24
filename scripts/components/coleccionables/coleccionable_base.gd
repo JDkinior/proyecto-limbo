@@ -56,6 +56,9 @@ func _ejecutar_efecto_recoleccion() -> void:
 		return
 	_ya_recogido = true
 	set_process(false)
+
+	if is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_coleccionable()
 	
 	# Desactivar colisiones de inmediato
 	set_deferred("monitoring", false)

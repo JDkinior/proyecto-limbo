@@ -216,6 +216,8 @@ func _on_absorcion_body_entered(body: Node3D) -> void:
 		_disparar_efecto_absorcion()
 
 func _disparar_efecto_absorcion() -> void:
+	if is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_dano()
 	if is_instance_valid(luz_nucleo):
 		var tween = create_tween()
 		tween.tween_property(luz_nucleo, "light_energy", 4.0, 0.15)

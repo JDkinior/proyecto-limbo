@@ -90,6 +90,8 @@ func _animar_presion(presionado: bool) -> void:
 	tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	
 	if presionado:
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_mecanismo()
 		var target_pos = posicion_inicial_boton - Vector3(0, distancia_hundimiento, 0)
 		tween.tween_property(nodo_boton, "position", target_pos, 0.15)
 		_configurar_material(color_presionado, true)

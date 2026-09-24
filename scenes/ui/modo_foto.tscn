@@ -1,0 +1,437 @@
+[gd_scene format=3 uid="uid://c7q3siuxshd43"]
+
+[ext_resource type="Script" path="res://scripts/ui/modo_foto.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/ui/filtro_foto.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_filtro"]
+shader = ExtResource("2_shader")
+shader_parameter/modo_filtro = 0
+shader_parameter/intensidad_filtro = 0.0
+shader_parameter/intensidad_vineta = 0.0
+shader_parameter/brillo = 0.0
+shader_parameter/contraste = 1.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_barra_sup"]
+bg_color = Color(0.08, 0.10, 0.14, 0.82)
+border_width_bottom = 2
+border_color = Color(0.95, 0.88, 0.65, 0.6)
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 10
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_barra_inf"]
+bg_color = Color(0.08, 0.10, 0.14, 0.88)
+border_width_top = 2
+border_color = Color(0.95, 0.88, 0.65, 0.6)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 12
+shadow_offset = Vector2(0, -4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel_lateral"]
+bg_color = Color(0.08, 0.11, 0.16, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.95, 0.88, 0.65, 0.75)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+shadow_color = Color(0, 0, 0, 0.45)
+shadow_size = 16
+shadow_offset = Vector2(0, 6)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_toast"]
+bg_color = Color(0.06, 0.09, 0.15, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.85, 1.0, 0.9)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 12
+
+[node name="ModoFoto" type="Control" unique_id=2081928371]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="CanvasFiltro" type="CanvasLayer" parent="." unique_id=2081928372]
+layer = 90
+
+[node name="FiltroColorRect" type="ColorRect" parent="CanvasFiltro" unique_id=2081928373]
+material = SubResource("ShaderMaterial_filtro")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CuadriculaTercios" type="Control" parent="CanvasFiltro" unique_id=2081928374]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LineaH1" type="ColorRect" parent="CanvasFiltro/CuadriculaTercios" unique_id=2081928375]
+layout_mode = 1
+anchors_preset = 10
+anchor_top = 0.333
+anchor_right = 1.0
+anchor_bottom = 0.333
+offset_top = -1.0
+offset_bottom = 1.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.32)
+
+[node name="LineaH2" type="ColorRect" parent="CanvasFiltro/CuadriculaTercios" unique_id=2081928376]
+layout_mode = 1
+anchors_preset = 10
+anchor_top = 0.666
+anchor_right = 1.0
+anchor_bottom = 0.666
+offset_top = -1.0
+offset_bottom = 1.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.32)
+
+[node name="LineaV1" type="ColorRect" parent="CanvasFiltro/CuadriculaTercios" unique_id=2081928377]
+layout_mode = 1
+anchors_preset = 9
+anchor_left = 0.333
+anchor_right = 0.333
+anchor_bottom = 1.0
+offset_left = -1.0
+offset_right = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.32)
+
+[node name="LineaV2" type="ColorRect" parent="CanvasFiltro/CuadriculaTercios" unique_id=2081928378]
+layout_mode = 1
+anchors_preset = 9
+anchor_left = 0.666
+anchor_right = 0.666
+anchor_bottom = 1.0
+offset_left = -1.0
+offset_right = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.32)
+
+[node name="CanvasHUD" type="CanvasLayer" parent="." unique_id=2081928379]
+layer = 95
+
+[node name="FlashFoto" type="ColorRect" parent="CanvasHUD" unique_id=2081928380]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 1)
+
+[node name="ContenedorUI" type="Control" parent="CanvasHUD" unique_id=2081928381]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BarraSuperior" type="PanelContainer" parent="CanvasHUD/ContenedorUI" unique_id=2081928382]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 68.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_barra_sup")
+
+[node name="Margin" type="MarginContainer" parent="CanvasHUD/ContenedorUI/BarraSuperior" unique_id=2081928383]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 8
+
+[node name="HBox" type="HBoxContainer" parent="CanvasHUD/ContenedorUI/BarraSuperior/Margin" unique_id=2081928384]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="VBox" type="VBoxContainer" parent="CanvasHUD/ContenedorUI/BarraSuperior/Margin/HBox" unique_id=2081928385]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="Label_Titulo" type="Label" parent="CanvasHUD/ContenedorUI/BarraSuperior/Margin/HBox/VBox" unique_id=2081928386]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.8, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.8)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 22
+text = "📷 MODO FOTO"
+
+[node name="Label_Info" type="Label" parent="CanvasHUD/ContenedorUI/BarraSuperior/Margin/HBox/VBox" unique_id=2081928387]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.9, 0.98, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 15
+text = "Enfoque: Vivo | Filtro: Normal"
+
+[node name="BtnSalir" type="Button" parent="CanvasHUD/ContenedorUI/BarraSuperior/Margin/HBox" unique_id=2081928388]
+custom_minimum_size = Vector2(130, 48)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 18
+text = "✖️ Salir"
+
+[node name="BarraInferior" type="PanelContainer" parent="CanvasHUD/ContenedorUI" unique_id=2081928389]
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -80.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_barra_inf")
+
+[node name="Margin" type="MarginContainer" parent="CanvasHUD/ContenedorUI/BarraInferior" unique_id=2081928390]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 10
+
+[node name="HBox" type="HBoxContainer" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin" unique_id=2081928391]
+layout_mode = 2
+theme_override_constants/separation = 14
+alignment = 1
+
+[node name="BtnFiltro" type="Button" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin/HBox" unique_id=2081928392]
+custom_minimum_size = Vector2(170, 56)
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="LabelFiltro" type="Label" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin/HBox/BtnFiltro" unique_id=2081928393]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 17
+text = "🎨 Filtro: Normal"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BtnSujeto" type="Button" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin/HBox" unique_id=2081928394]
+custom_minimum_size = Vector2(130, 56)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 17
+text = "👤 Vivo"
+
+[node name="BtnTomarFoto" type="Button" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin/HBox" unique_id=2081928395]
+custom_minimum_size = Vector2(200, 60)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(1, 0.98, 0.88, 1)
+theme_override_font_sizes/font_size = 20
+text = "📸 CAPTURAR"
+
+[node name="BtnAjustesExtra" type="Button" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin/HBox" unique_id=2081928396]
+custom_minimum_size = Vector2(130, 56)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 17
+text = "⚙️ Ajustes"
+
+[node name="BtnOcultarUI" type="Button" parent="CanvasHUD/ContenedorUI/BarraInferior/Margin/HBox" unique_id=2081928397]
+custom_minimum_size = Vector2(120, 56)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_font_sizes/font_size = 17
+text = "👁️ Ocultar"
+
+[node name="PanelLateralAjustes" type="PanelContainer" parent="CanvasHUD/ContenedorUI" unique_id=2081928398]
+visible = false
+custom_minimum_size = Vector2(340, 420)
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -230.0
+offset_right = -20.0
+offset_bottom = 210.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel_lateral")
+
+[node name="Margin" type="MarginContainer" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes" unique_id=2081928399]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin" unique_id=2081928400]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LabelTituloAjustes" type="Label" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928401]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.94, 0.78, 1)
+theme_override_font_sizes/font_size = 20
+text = "⚙️ Ajustes de Cámara"
+horizontal_alignment = 1
+
+[node name="HSeparator1" type="HSeparator" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928402]
+layout_mode = 2
+
+[node name="HBoxZoom" type="VBoxContainer" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928403]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox/HBoxZoom" unique_id=2081928404]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "🔍 Zoom / Campo Visual (FOV):"
+
+[node name="SliderZoom" type="HSlider" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox/HBoxZoom" unique_id=2081928405]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+min_value = 18.0
+max_value = 90.0
+value = 70.0
+
+[node name="HBoxRoll" type="VBoxContainer" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928406]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox/HBoxRoll" unique_id=2081928407]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "🔄 Inclinación (Roll Tilt):"
+
+[node name="SliderRoll" type="HSlider" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox/HBoxRoll" unique_id=2081928408]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+min_value = -45.0
+max_value = 45.0
+value = 0.0
+
+[node name="HBoxVineta" type="VBoxContainer" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928409]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox/HBoxVineta" unique_id=2081928410]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = "⬛ Viñeta Fotográfica:"
+
+[node name="SliderVineta" type="HSlider" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox/HBoxVineta" unique_id=2081928411]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 0.0
+
+[node name="BtnGrid" type="Button" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928412]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "📐 Cuadrícula: NO"
+
+[node name="BtnMirarCamara" type="Button" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928413]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "👀 Mirar a Cámara: NO"
+
+[node name="BtnOcultarPersonaje" type="Button" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928414]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "👻 Ocultar Personajes"
+
+[node name="BtnResetearCamara" type="Button" parent="CanvasHUD/ContenedorUI/PanelLateralAjustes/Margin/VBox" unique_id=2081928415]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "🔄 Restablecer Cámara"
+
+[node name="ToastFoto" type="PanelContainer" parent="CanvasHUD" unique_id=2081928416]
+visible = false
+custom_minimum_size = Vector2(320, 80)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -100.0
+offset_right = 354.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_toast")
+
+[node name="HBox" type="HBoxContainer" parent="CanvasHUD/ToastFoto" unique_id=2081928417]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TextureRectPreview" type="TextureRect" parent="CanvasHUD/ToastFoto/HBox" unique_id=2081928418]
+custom_minimum_size = Vector2(70, 70)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="VBox" type="VBoxContainer" parent="CanvasHUD/ToastFoto/HBox" unique_id=2081928419]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="LabelExito" type="Label" parent="CanvasHUD/ToastFoto/HBox/VBox" unique_id=2081928420]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.95, 0.6, 1)
+theme_override_font_sizes/font_size = 17
+text = "📸 ¡Foto capturada!"
+
+[node name="LabelRuta" type="Label" parent="CanvasHUD/ToastFoto/HBox/VBox" unique_id=2081928421]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 13
+text = "Fotos / limbo_foto.png"
+text_overrun_behavior = 3

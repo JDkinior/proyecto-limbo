@@ -7,6 +7,11 @@ extends Control
 var arrastre_camara : Vector2 = Vector2.ZERO
 var _personaje_conectado: Node
 var joystick_dedo : int = -1
+var camara_dedo : int = -1
+var dedos_en_botones : Dictionary = {}
+var _ultimo_delta_arrastre : Vector2 = Vector2.ZERO
+var intro_nivel_en_progreso: bool = false
+var _transicion_hud_tween: Tween = null
 
 # Colores temáticos modernos (tonos sutiles, luminosos, elegantes y equilibrados)
 const COLOR_VIVO_ACCENT: Color = Color(1.0, 0.96, 0.82, 1.0)          # Crema amarillento luminoso
@@ -52,7 +57,16 @@ func _ready():
 			gm.control_conectado_cambiado.connect(_on_control_conectado_cambiado)
 		if not gm.modo_control_cambiado.is_connected(_on_modo_control_cambiado):
 			gm.modo_control_cambiado.connect(_on_modo_control_cambiado)
-	_actualizar_visibilidad_elementos_juego()
+	
+	# Comprobar si el nivel actual tiene intro de capítulo activa para iniciar oculto
+	var nivel_propietario = get_parent() as NivelBase
+	if not nivel_propietario and get_tree() and get_tree().current_scene is NivelBase:
+		nivel_propietario = get_tree().current_scene as NivelBase
+		
+	if is_instance_valid(nivel_propietario) and nivel_propietario.mostrar_intro_capitulo:
+		ocultar_para_intro_nivel()
+	else:
+		_actualizar_visibilidad_elementos_juego()
 
 var label_ping: Label = null
 @onready var boton_cambiar_personaje: TouchScreenButton = get_node_or_null("Area_Camara/Zona_Botones_Accion/Boton_Cambiar_Personaje")
@@ -257,12 +271,17 @@ func _on_joystick_gui_input(event: InputEvent):
 	if event is InputEventScreenTouch:
 		if event.is_pressed():
 			joystick_dedo = event.index
+			if camara_dedo == event.index:
+				camara_dedo = -1
 		else:
-			joystick_dedo = -1
+			if joystick_dedo == event.index:
+				joystick_dedo = -1
 	elif event is InputEventScreenDrag:
 		joystick_dedo = event.index
 
 func esta_bloqueado_para_juego() -> bool:
+	if intro_nivel_en_progreso:
+		return true
 	if not is_visible_in_tree():
 		return true
 	var panel_p = get_node_or_null("Panel_Pausa")
@@ -271,57 +290,134 @@ func esta_bloqueado_para_juego() -> bool:
 	var panel_o = get_node_or_null("Panel_Opciones")
 	if is_instance_valid(panel_o) and panel_o.visible:
 		return true
-	if has_node("AjusteHUD") or has_node("AjusteControl"):
+	if has_node("AjusteHUD") or has_node("AjusteControl") or has_node("ModoFoto"):
 		return true
 	return false
 
-func _esta_sobre_boton(pos: Vector2) -> bool:
-	# 1. Comprobar botones táctiles de acción (Salto, Interactuar, Cambiar Personaje)
-	var zona_botones = get_node_or_null("Area_Camara/Zona_Botones_Accion")
-	if is_instance_valid(zona_botones):
-		for hijo in zona_botones.get_children():
-			if hijo is TouchScreenButton and hijo.is_visible_in_tree():
-				var shape = hijo.shape
-				if shape is CircleShape2D:
-					var centro = hijo.global_position
-					var radio = shape.radius * hijo.global_scale.x * 1.35 # Margen de contacto táctil
-					if pos.distance_to(centro) <= radio:
-						return true
-				elif shape is RectangleShape2D:
-					var rect = Rect2(hijo.global_position - shape.size * 0.5, shape.size)
-					if rect.has_point(pos):
-						return true
-			elif hijo is Control and hijo.is_visible_in_tree():
-				if hijo.get_global_rect().has_point(pos):
-					return true
+func _esta_sobre_joystick(pos: Vector2) -> bool:
+	if not is_instance_valid(joystick) or not joystick.is_visible_in_tree():
+		return false
+	var rect_joy = joystick.get_global_rect()
+	if rect_joy.size.x > 0 and rect_joy.size.y > 0:
+		return rect_joy.has_point(pos)
+	var screen_sz = get_viewport_rect().size
+	return Rect2(0, screen_sz.y * 0.4, screen_sz.x * 0.5, screen_sz.y * 0.6).has_point(pos)
 
-	# 2. Comprobar botón de pausa / menú superior
+func _obtener_boton_en_pos(pos: Vector2) -> Node:
+	# 1. Comprobar botón de pausa / menú superior
 	var btn_pausa = get_node_or_null("HUD_Menu/Boton_Pausa")
 	if is_instance_valid(btn_pausa) and btn_pausa.is_visible_in_tree():
 		if btn_pausa.get_global_rect().has_point(pos):
-			return true
+			return btn_pausa
 
-	return false
+	# 2. Comprobar botones táctiles de acción (Salto, Interactuar, Cambiar Personaje)
+	var zona_botones = get_node_or_null("Area_Camara/Zona_Botones_Accion")
+	if not is_instance_valid(zona_botones):
+		zona_botones = find_child("Zona_Botones_Accion", true, false)
+
+	if is_instance_valid(zona_botones) and zona_botones.is_visible_in_tree():
+		var mejor_boton: Node = null
+		var menor_dist: float = 1e9
+
+		for hijo in zona_botones.get_children():
+			if not hijo.is_visible_in_tree():
+				continue
+			if hijo is TouchScreenButton:
+				var shape = hijo.shape
+				if shape is CircleShape2D:
+					var centro = hijo.global_position
+					var radio = shape.radius * hijo.global_scale.x * 1.25 # Margen de contacto táctil
+					var dist = pos.distance_to(centro)
+					if dist <= radio and dist < menor_dist:
+						menor_dist = dist
+						mejor_boton = hijo
+				elif shape is RectangleShape2D:
+					var rect = Rect2(hijo.global_position - shape.size * 0.5 * hijo.global_scale, shape.size * hijo.global_scale)
+					if rect.has_point(pos):
+						var dist_c = pos.distance_to(hijo.global_position)
+						if dist_c < menor_dist:
+							menor_dist = dist_c
+							mejor_boton = hijo
+			elif hijo is Control:
+				if hijo.get_global_rect().has_point(pos):
+					var dist_c = pos.distance_to(hijo.global_position + hijo.size * 0.5)
+					if dist_c < menor_dist:
+						menor_dist = dist_c
+						mejor_boton = hijo
+
+		if mejor_boton != null:
+			return mejor_boton
+
+	return null
+
+func _esta_sobre_boton(pos: Vector2) -> bool:
+	return _obtener_boton_en_pos(pos) != null
+
+func _ejecutar_accion_boton(boton: Node) -> void:
+	if not is_instance_valid(boton) or not boton.is_visible_in_tree():
+		return
+
+	if boton is TouchScreenButton:
+		var act = boton.action
+		if act != "":
+			Input.action_press(act)
+			var ev_press = InputEventAction.new()
+			ev_press.action = act
+			ev_press.pressed = true
+			Input.parse_input_event(ev_press)
+
+			var timer = get_tree().create_timer(0.12)
+			timer.timeout.connect(func():
+				var ev_release = InputEventAction.new()
+				ev_release.action = act
+				ev_release.pressed = false
+				Input.parse_input_event(ev_release)
+				Input.action_release(act)
+			)
+
+		if boton.has_method("animar_pulsacion"):
+			boton.animar_pulsacion()
+		elif boton is CanvasItem:
+			boton.queue_redraw()
+
+		if boton == boton_cambiar_personaje:
+			_on_btn_cambiar_personaje_pressed()
+
+	elif boton is Button:
+		if boton.name == "Boton_Pausa":
+			_on_boton_pausa_pressed()
+		else:
+			boton.emit_signal("pressed")
 
 func _input(event):
 	if esta_bloqueado_para_juego():
 		arrastre_camara = Vector2.ZERO
+		camara_dedo = -1
+		dedos_en_botones.clear()
 		return
 
-	var mitad_pantalla = get_viewport_rect().size.x / 2
-
 	if event is InputEventScreenTouch:
-		if joystick_dedo != -1 and event.index == joystick_dedo:
-			return
+		if event.is_pressed():
+			# 1. Toque sobre joystick virtual
+			if (joystick_dedo != -1 and event.index == joystick_dedo) or _esta_sobre_joystick(event.position):
+				joystick_dedo = event.index
+				if camara_dedo == event.index:
+					camara_dedo = -1
+				return
 
-		if event.position.x > mitad_pantalla:
-			# Si el toque ocurrió sobre un botón de la UI, NO procesar centrado de cámara
-			if _esta_sobre_boton(event.position):
+			# 2. Toque inicial directo sobre un botón del HUD
+			var boton = _obtener_boton_en_pos(event.position)
+			if boton != null:
+				dedos_en_botones[event.index] = boton
 				_ultimo_tiempo_toque_camara = -10.0
 				return
 
-			if event.is_pressed():
+			# 3. Toque en área de cámara (movimiento y orientación)
+			if camara_dedo == -1:
+				camara_dedo = event.index
 				_arrastre_acumulado_toque = 0.0
+				_ultimo_delta_arrastre = Vector2.ZERO
+
 				var tiempo_actual = Time.get_ticks_msec() / 1000.0
 				var delta_tiempo = tiempo_actual - _ultimo_tiempo_toque_camara
 				var dist = event.position.distance_to(_ultima_pos_toque_camara)
@@ -333,20 +429,46 @@ func _input(event):
 				else:
 					_ultimo_tiempo_toque_camara = tiempo_actual
 					_ultima_pos_toque_camara = event.position
-			else:
+		else:
+			# Dedo levantado / pantalla soltada
+			if event.index == joystick_dedo:
+				joystick_dedo = -1
+				return
+
+			if event.index in dedos_en_botones:
+				dedos_en_botones.erase(event.index)
+				return
+
+			if event.index == camara_dedo:
+				camara_dedo = -1
+
 				if _arrastre_acumulado_toque > 25.0:
 					_ultimo_tiempo_toque_camara = -10.0
 
+				_ultimo_delta_arrastre = Vector2.ZERO
+				_arrastre_acumulado_toque = 0.0
+				get_viewport().set_input_as_handled()
+				return
+
 	elif event is InputEventScreenDrag:
-		if joystick_dedo != -1 and event.index == joystick_dedo:
+		# Ignorar si proviene del dedo del joystick
+		if event.index == joystick_dedo:
 			return
 
-		if event.position.x > mitad_pantalla:
-			# Si el arrastre se originó sobre un botón de acción, no arrastrar la cámara
-			if _esta_sobre_boton(event.position - event.relative):
-				return
+		# Ignorar si es un dedo presionando un botón directamente
+		if event.index in dedos_en_botones:
+			return
+
+		# Si es el dedo asignado a la cámara (o si aún no había ninguno asignado y no proviene de joystick ni botón)
+		if event.index == camara_dedo or (camara_dedo == -1 and not _esta_sobre_joystick(event.position - event.relative) and not _esta_sobre_boton(event.position - event.relative)):
+			camara_dedo = event.index
+
+			# El arrastre de cámara continúa suavemente sin interrupción, incluso si el
+			# dedo cruza o pasa por encima de los botones del HUD.
 			arrastre_camara += event.relative
 			_arrastre_acumulado_toque += event.relative.length()
+			_ultimo_delta_arrastre = event.relative
+			get_viewport().set_input_as_handled()
 
 func consumir_arrastre() -> Vector2:
 	var temp = arrastre_camara
@@ -582,7 +704,7 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			
 			if nodo.name == "Boton_Personalizar_HUD" or nodo.name == "Boton_Mapear_Control":
 				nodo.add_theme_font_size_override(&"font_size", 20)
-			elif nodo.name == "Boton_Reiniciar":
+			elif nodo.name == "Boton_Reiniciar" or nodo.name == "Boton_Reiniciar_Nivel" or nodo.name == "Boton_Modo_Foto":
 				nodo.add_theme_font_size_override(&"font_size", 21)
 			else:
 				nodo.add_theme_font_size_override(&"font_size", 22)
@@ -668,9 +790,111 @@ func _obtener_gamepad_manager() -> Node:
 		return get_tree().root.get_node_or_null("GamepadManager")
 	return null
 
+func ocultar_para_intro_nivel() -> void:
+	intro_nivel_en_progreso = true
+	visible = false
+	modulate.a = 0.0
+	
+	if is_instance_valid(joystick):
+		joystick.visible = false
+		joystick.modulate.a = 0.0
+	
+	var zona = get_node_or_null("Area_Camara/Zona_Botones_Accion")
+	if is_instance_valid(zona):
+		zona.visible = false
+		zona.modulate.a = 0.0
+		
+	var hud_menu = get_node_or_null("HUD_Menu")
+	if is_instance_valid(hud_menu):
+		hud_menu.visible = false
+		hud_menu.modulate.a = 0.0
+		
+	var hud_puntuacion = get_node_or_null("HUD_Puntuacion")
+	if is_instance_valid(hud_puntuacion):
+		hud_puntuacion.visible = false
+		hud_puntuacion.modulate.a = 0.0
+		
+	if is_instance_valid(label_ping) and is_instance_valid(label_ping.get_parent()):
+		label_ping.get_parent().visible = false
+		label_ping.get_parent().modulate.a = 0.0
+
+func aparecer_con_transicion() -> void:
+	intro_nivel_en_progreso = false
+	
+	if _transicion_hud_tween and _transicion_hud_tween.is_running():
+		_transicion_hud_tween.kill()
+		
+	visible = true
+	modulate.a = 1.0
+	
+	var cfg = HudConfigManager.cargar_config()
+	var opacidad_final: float = cfg.get("hud_opacidad", 1.0)
+	
+	var gm = _obtener_gamepad_manager()
+	var ocultar_tactil = is_instance_valid(gm) and gm.debe_ocultar_hud_tactil()
+	
+	var duracion: float = 0.5
+	_transicion_hud_tween = create_tween().set_parallel(true)
+	
+	# 1. Transición del Joystick Virtual
+	if is_instance_valid(joystick) and not ocultar_tactil:
+		joystick.visible = true
+		joystick.modulate.a = 0.0
+		
+		var screen_sz = get_viewport_rect().size
+		var target_j_x: float = cfg.get("joystick_pos_ratio_x", 0.15) * screen_sz.x
+		var target_j_y: float = cfg.get("joystick_pos_ratio_y", 0.75) * screen_sz.y
+		joystick.pivot_offset = Vector2(target_j_x, target_j_y - screen_sz.y * 0.5)
+		joystick.scale = Vector2(0.72, 0.72)
+		
+		_transicion_hud_tween.tween_property(joystick, "modulate:a", opacidad_final, duracion).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		_transicion_hud_tween.tween_property(joystick, "scale", Vector2.ONE, duracion).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
+	# 2. Transición del Grupo de Botones de Acción (Salto, Interactuar, Cambiar)
+	var zona = get_node_or_null("Area_Camara/Zona_Botones_Accion")
+	if is_instance_valid(zona) and not ocultar_tactil:
+		zona.visible = true
+		zona.modulate.a = 0.0
+		var escala_final_zona: float = cfg.get("botones_accion_scale", 1.39)
+		var vec_escala_final = Vector2(escala_final_zona, escala_final_zona)
+		
+		zona.pivot_offset = Vector2(20, 20)
+		zona.scale = vec_escala_final * 0.70
+		
+		_transicion_hud_tween.tween_property(zona, "modulate:a", opacidad_final, duracion).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		_transicion_hud_tween.tween_property(zona, "scale", vec_escala_final, duracion).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
+	# 3. Transición del Botón de Pausa (HUD_Menu)
+	var hud_menu = get_node_or_null("HUD_Menu")
+	if is_instance_valid(hud_menu):
+		hud_menu.visible = true
+		hud_menu.modulate.a = 0.0
+		hud_menu.pivot_offset = hud_menu.size * 0.5 if hud_menu.size != Vector2.ZERO else Vector2(55, 55)
+		hud_menu.scale = Vector2(0.70, 0.70)
+		
+		_transicion_hud_tween.tween_property(hud_menu, "modulate:a", 1.0, duracion).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		_transicion_hud_tween.tween_property(hud_menu, "scale", Vector2.ONE, duracion).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	
+	# 4. Transición del Indicador de Ping
+	if is_instance_valid(label_ping) and is_instance_valid(label_ping.get_parent()):
+		var container_ping = label_ping.get_parent()
+		container_ping.visible = true
+		container_ping.modulate.a = 0.0
+		_transicion_hud_tween.tween_property(container_ping, "modulate:a", 1.0, duracion).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	
+	# 5. El HUD de puntuación queda visible con alfa 0.0 para activarse con monedas
+	var hud_puntuacion = get_node_or_null("HUD_Puntuacion")
+	if is_instance_valid(hud_puntuacion):
+		hud_puntuacion.visible = true
+		hud_puntuacion.modulate.a = 0.0
+	
+	_transicion_hud_tween.chain().tween_callback(func():
+		_actualizar_visibilidad_elementos_juego()
+	)
+
 func _actualizar_visibilidad_elementos_juego() -> void:
 	var bloq = esta_bloqueado_para_juego()
-	var en_editor = has_node("AjusteHUD") or has_node("AjusteControl")
+	var en_editor = has_node("AjusteHUD") or has_node("AjusteControl") or has_node("ModoFoto")
 	var gm = _obtener_gamepad_manager()
 	var ocultar_por_control = is_instance_valid(gm) and gm.debe_ocultar_hud_tactil()
 	
@@ -687,14 +911,18 @@ func _actualizar_visibilidad_elementos_juego() -> void:
 		zona.visible = not bloq and not en_editor and not ocultar_por_control
 	var hud_puntuacion = get_node_or_null("HUD_Puntuacion")
 	if is_instance_valid(hud_puntuacion):
-		hud_puntuacion.visible = not en_editor
+		hud_puntuacion.visible = not en_editor and not intro_nivel_en_progreso
 	var hud_menu = get_node_or_null("HUD_Menu")
 	if is_instance_valid(hud_menu):
-		hud_menu.visible = not en_editor
+		hud_menu.visible = not en_editor and not intro_nivel_en_progreso
+	if is_instance_valid(label_ping) and is_instance_valid(label_ping.get_parent()):
+		label_ping.get_parent().visible = not intro_nivel_en_progreso
 
 func _on_control_conectado_cambiado(conectado: bool, _device_id: int) -> void:
 	if conectado:
 		joystick_dedo = -1
+		camara_dedo = -1
+		dedos_en_botones.clear()
 		Input.action_release("mover_izquierda")
 		Input.action_release("mover_derecha")
 		Input.action_release("mover_adelante")
@@ -707,6 +935,8 @@ func _on_control_conectado_cambiado(conectado: bool, _device_id: int) -> void:
 func _on_modo_control_cambiado(activo: bool) -> void:
 	if activo:
 		joystick_dedo = -1
+		camara_dedo = -1
+		dedos_en_botones.clear()
 		Input.action_release("mover_izquierda")
 		Input.action_release("mover_derecha")
 		Input.action_release("mover_adelante")
@@ -714,6 +944,9 @@ func _on_modo_control_cambiado(activo: bool) -> void:
 	_actualizar_visibilidad_elementos_juego()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if has_node("ModoFoto"):
+		return
+		
 	var panel_o = get_node_or_null("Panel_Opciones")
 	var panel_p = get_node_or_null("Panel_Pausa")
 	var ajuste_ctrl = get_node_or_null("AjusteControl")
@@ -789,21 +1022,63 @@ func _on_boton_reiniciar_pressed() -> void:
 		panel_p.visible = false
 	_actualizar_visibilidad_elementos_juego()
 	
-	var es_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
-	var jugadores = get_tree().get_nodes_in_group("jugadores")
-	if jugadores.is_empty():
-		var escena = get_tree().current_scene
-		if escena:
-			var pj_vivo = escena.find_child("Jugador", true, false)
-			if pj_vivo: jugadores.append(pj_vivo)
-			var pj_fant = escena.find_child("Fantasma", true, false)
-			if pj_fant: jugadores.append(pj_fant)
-			
-	for pj in jugadores:
-		if pj.has_method("reaparecer"):
-			if es_solo or (pj.has_method("es_activo") and pj.es_activo()):
-				pj.reaparecer()
-	print("[ControlesTactiles] Jugador(es) reiniciado(s) al último punto de control.")
+	# Reiniciar ÚNICAMENTE al personaje activo actual (no a ambos personajes)
+	var pj_activo: Node = null
+	if is_instance_valid(_personaje_conectado) and _personaje_conectado.has_method("reaparecer"):
+		pj_activo = _personaje_conectado
+	else:
+		var jugadores = get_tree().get_nodes_in_group("jugadores")
+		if jugadores.is_empty():
+			var escena = get_tree().current_scene
+			if escena:
+				var pj_vivo = escena.find_child("Jugador", true, false)
+				if pj_vivo: jugadores.append(pj_vivo)
+				var pj_fant = escena.find_child("Fantasma", true, false)
+				if pj_fant: jugadores.append(pj_fant)
+		for pj in jugadores:
+			if pj.has_method("es_activo") and pj.es_activo():
+				pj_activo = pj
+				break
+				
+	if is_instance_valid(pj_activo) and pj_activo.has_method("reaparecer"):
+		pj_activo.reaparecer()
+		print("[ControlesTactiles] Solo el personaje activo (%s) fue reiniciado a su punto de control." % pj_activo.name)
+
+func _on_boton_reiniciar_nivel_pressed() -> void:
+	var panel_p = get_node_or_null("Panel_Pausa")
+	if panel_p:
+		panel_p.visible = false
+	_actualizar_visibilidad_elementos_juego()
+	
+	print("[ControlesTactiles] Reiniciando nivel completo...")
+	if is_instance_valid(RedManager) and RedManager.has_method("reintentar_nivel_actual"):
+		RedManager.reintentar_nivel_actual()
+	else:
+		get_tree().reload_current_scene()
+
+func _on_boton_modo_foto_pressed() -> void:
+	var panel_p = get_node_or_null("Panel_Pausa")
+	if panel_p:
+		panel_p.visible = false
+	_actualizar_visibilidad_elementos_juego()
+	
+	var escena_foto = load("res://scenes/ui/modo_foto.tscn")
+	if escena_foto:
+		var modo_foto = escena_foto.instantiate()
+		modo_foto.name = "ModoFoto"
+		add_child(modo_foto)
+		_actualizar_visibilidad_elementos_juego()
+		modo_foto.cerrado.connect(func():
+			if is_instance_valid(panel_p):
+				panel_p.visible = true
+				var gm = _obtener_gamepad_manager()
+				if is_instance_valid(gm) and gm.hay_control_conectado():
+					var btn_foto = panel_p.get_node_or_null("VBoxContainer/Boton_Modo_Foto")
+					if is_instance_valid(btn_foto):
+						btn_foto.grab_focus()
+			_actualizar_visibilidad_elementos_juego()
+		)
+	print("[ControlesTactiles] Modo Foto activado.")
 
 func _on_boton_opciones_pressed() -> void:
 	var panel_p = get_node_or_null("Panel_Pausa")
@@ -850,6 +1125,22 @@ func _inicializar_controles_opciones_hud() -> void:
 		slider_joy.set_value_no_signal(cfg.get("joystick_scale", 1.0))
 		if not slider_joy.value_changed.is_connected(_on_slider_escala_joy_changed):
 			slider_joy.value_changed.connect(_on_slider_escala_joy_changed)
+			
+	_actualizar_texto_boton_vibracion()
+
+func _on_boton_vibracion_pressed() -> void:
+	if is_instance_valid(VibrationManager):
+		var nuevo_estado = not VibrationManager.esta_habilitada()
+		VibrationManager.establecer_habilitada(nuevo_estado)
+		_actualizar_texto_boton_vibracion()
+		if nuevo_estado:
+			VibrationManager.vibrar(60, 0.5, 0.2, 0.12)
+
+func _actualizar_texto_boton_vibracion() -> void:
+	var btn_vib = get_node_or_null("Panel_Opciones/VBoxContainer/Boton_Vibracion")
+	if is_instance_valid(btn_vib) and is_instance_valid(VibrationManager):
+		var activa = VibrationManager.esta_habilitada()
+		btn_vib.text = "📳 Vibración: Activada" if activa else "📳 Vibración: Desactivada"
 
 func _on_slider_escala_botones_changed(val: float) -> void:
 	var cfg = HudConfigManager.cargar_config()

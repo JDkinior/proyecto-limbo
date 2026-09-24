@@ -76,6 +76,8 @@ func _set_estado(activo: bool) -> void:
 	if esta_activa == activo:
 		return
 	esta_activa = activo
+	if is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_mecanismo()
 	if es_temporizada and esta_activa:
 		_timer_retorno = tiempo_retorno
 		

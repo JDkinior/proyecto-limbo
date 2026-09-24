@@ -26,6 +26,8 @@ func _conectar_senales():
 		menu.volume_slider.value_changed.connect(_on_volume_slider_value_changed)
 	if is_instance_valid(menu.btn_fullscreen):
 		menu.btn_fullscreen.toggled.connect(_on_btn_fullscreen_toggled)
+	if is_instance_valid(menu.btn_vibracion):
+		menu.btn_vibracion.toggled.connect(_on_btn_vibracion_toggled)
 		
 	var btn_volver_opc = menu.get_node_or_null("PanelOpciones/VBoxContainer/BtnVolver")
 	if is_instance_valid(btn_volver_opc):
@@ -99,6 +101,13 @@ func _on_btn_fullscreen_toggled(button_pressed):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	_guardar_opciones()
 
+func _on_btn_vibracion_toggled(button_pressed: bool):
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.establecer_habilitada(button_pressed)
+		if button_pressed:
+			vm.vibrar_click()
+
 func _on_btn_volver_opciones_pressed():
 	menu.mostrar_panel(menu.panel_principal)
 
@@ -171,3 +180,7 @@ func _cargar_opciones():
 		menu.slider_tamano_hud.set_value_no_signal(hud_cfg.get("botones_accion_scale", 1.39))
 	if is_instance_valid(menu.slider_tamano_joy):
 		menu.slider_tamano_joy.set_value_no_signal(hud_cfg.get("joystick_scale", 1.0))
+		
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(menu.btn_vibracion) and is_instance_valid(vm):
+		menu.btn_vibracion.set_pressed_no_signal(vm.esta_habilitada())

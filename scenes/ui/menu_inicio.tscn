@@ -666,6 +666,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "Pantalla Completa"
 
+[node name="BtnVibracion" type="CheckButton" parent="PanelOpciones/VBoxContainer" unique_id=94701109]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+button_pressed = true
+text = "Vibración Háptica (Mando / Celular)"
+
 [node name="HSeparatorHUD" type="HSeparator" parent="PanelOpciones/VBoxContainer" unique_id=2045555691]
 layout_mode = 2
 

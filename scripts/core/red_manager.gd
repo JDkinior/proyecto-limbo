@@ -475,6 +475,9 @@ func alternar_personaje_un_jugador() -> void:
 	if not es_un_jugador or transicion_en_progreso:
 		return
 
+	if is_instance_valid(VibrationManager):
+		VibrationManager.vibrar_cambio_personaje()
+
 	if not is_instance_valid(jugador_vivo) or not is_instance_valid(fantasma):
 		buscar_personajes_en_escena()
 
@@ -663,11 +666,28 @@ func completar_nivel():
 		_cargar_nivel_todos("res://scenes/ui/menu_inicio.tscn")
 
 func reintentar_nivel_actual():
-	if not es_un_jugador and not multiplayer.is_server(): return
-	if nivel_actual_index >= 0 and nivel_actual_index < NIVELES.size():
-		_cargar_nivel_todos(NIVELES[nivel_actual_index])
+	if not es_un_jugador and multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		if not multiplayer.is_server():
+			rpc_id(1, "rpc_solicitar_reintentar_nivel")
+			return
+			
+	var ruta_recargar: String = ""
+	var escena = get_tree().current_scene
+	if escena and escena.scene_file_path != "" and not "menu_inicio" in escena.scene_file_path:
+		ruta_recargar = escena.scene_file_path
+	elif nivel_actual_index >= 0 and nivel_actual_index < NIVELES.size():
+		ruta_recargar = NIVELES[nivel_actual_index]
+	elif ultimo_nivel_path != "":
+		ruta_recargar = ultimo_nivel_path
 	else:
-		_cargar_nivel_todos(NIVELES[0])
+		ruta_recargar = NIVELES[0]
+		
+	_cargar_nivel_todos(ruta_recargar)
+
+@rpc("any_peer", "call_local", "reliable")
+func rpc_solicitar_reintentar_nivel():
+	if not multiplayer.is_server(): return
+	reintentar_nivel_actual()
 
 func mostrar_pantalla_resultados():
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:

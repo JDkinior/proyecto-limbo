@@ -142,7 +142,7 @@ color = Color(0, 0, 0, 0.55)
 
 [node name="Panel_Pausa" type="Panel" parent="." unique_id=322189228]
 visible = false
-custom_minimum_size = Vector2(460, 470)
+custom_minimum_size = Vector2(460, 580)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -150,9 +150,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -230.0
-offset_top = -235.0
+offset_top = -290.0
 offset_right = 230.0
-offset_bottom = 235.0
+offset_bottom = 290.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -167,7 +167,7 @@ offset_right = -28.0
 offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 10
 alignment = 1
 
 [node name="Label_Titulo" type="Label" parent="Panel_Pausa/VBoxContainer" unique_id=1914673860]
@@ -180,32 +180,44 @@ horizontal_alignment = 1
 layout_mode = 2
 
 [node name="Boton_Continuar" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=357201905]
-custom_minimum_size = Vector2(380, 58)
+custom_minimum_size = Vector2(380, 50)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Continuar"
 
 [node name="Boton_Reiniciar" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=1829104721]
-custom_minimum_size = Vector2(380, 58)
+custom_minimum_size = Vector2(380, 50)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Reiniciar al Punto de Control"
 
+[node name="Boton_Reiniciar_Nivel" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=1829104723]
+custom_minimum_size = Vector2(380, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Reiniciar Nivel"
+
+[node name="Boton_Modo_Foto" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=1829104722]
+custom_minimum_size = Vector2(380, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "📷 Modo Foto"
+
 [node name="Boton_Opciones" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=245179629]
-custom_minimum_size = Vector2(380, 58)
+custom_minimum_size = Vector2(380, 50)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Ajustes"
 
 [node name="Boton_Salir" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=285213554]
-custom_minimum_size = Vector2(380, 58)
+custom_minimum_size = Vector2(380, 50)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Salir al Menú"
 
 [node name="Panel_Opciones" type="Panel" parent="." unique_id=253214794]
 visible = false
-custom_minimum_size = Vector2(560, 580)
+custom_minimum_size = Vector2(560, 640)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -213,9 +225,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -280.0
-offset_top = -290.0
+offset_top = -320.0
 offset_right = 280.0
-offset_bottom = 290.0
+offset_bottom = 320.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -253,6 +265,12 @@ custom_minimum_size = Vector2(460, 56)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "🎮 Configurar Control / Mando"
+
+[node name="Boton_Vibracion" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390908]
+custom_minimum_size = Vector2(460, 56)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "📳 Vibración: Activada"
 
 [node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=774955636]
 layout_mode = 2
@@ -296,9 +314,12 @@ text = "Atrás"
 [connection signal="pressed" from="HUD_Menu/Boton_Pausa" to="." method="_on_boton_pausa_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Continuar" to="." method="_on_boton_continuar_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Reiniciar" to="." method="_on_boton_reiniciar_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Reiniciar_Nivel" to="." method="_on_boton_reiniciar_nivel_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Modo_Foto" to="." method="_on_boton_modo_foto_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Opciones" to="." method="_on_boton_opciones_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Salir" to="." method="_on_boton_salir_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Personalizar_HUD" to="." method="_on_boton_personalizar_hud_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Mapear_Control" to="." method="_on_boton_mapear_control_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Vibracion" to="." method="_on_boton_vibracion_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]
 
