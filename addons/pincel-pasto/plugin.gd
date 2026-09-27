@@ -121,7 +121,9 @@ func _iniciar_trazo(es_borrado: bool) -> void:
 		return
 	_trazo_en_curso = true
 	_era_borrado = es_borrado
-	if "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
+	if _nodo_pasto.has_method("obtener_datos_pintados"):
+		_datos_antes_del_trazo = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
+	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
 		_datos_antes_del_trazo = _nodo_pasto.datos_pasto_pintado.duplicate()
 	else:
 		_datos_antes_del_trazo = []
@@ -162,7 +164,9 @@ func _finalizar_trazo() -> void:
 	_ultima_pos_pintada = Vector3.INF
 
 	var datos_actuales: Array[Transform3D] = []
-	if "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
+	if _nodo_pasto.has_method("obtener_datos_pintados"):
+		datos_actuales = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
+	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
 		datos_actuales = _nodo_pasto.datos_pasto_pintado
 
 	var cambio_datos: bool = (datos_actuales.size() != _datos_antes_del_trazo.size()) or (datos_actuales != _datos_antes_del_trazo)
@@ -319,10 +323,14 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 func _iniciar_grid_espacial(cell_size: float) -> void:
 	_grid_espacial.clear()
 	_grid_cell_size = max(0.05, cell_size)
-	if not is_instance_valid(_nodo_pasto) or not ("datos_pasto_pintado" in _nodo_pasto):
+	if not is_instance_valid(_nodo_pasto):
 		return
-	var datos: Array = _nodo_pasto.datos_pasto_pintado
-	if datos == null:
+	var datos: Array = []
+	if _nodo_pasto.has_method("obtener_datos_pintados"):
+		datos = _nodo_pasto.obtener_datos_pintados()
+	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
+		datos = _nodo_pasto.datos_pasto_pintado
+	if datos.is_empty():
 		return
 	for t in datos:
 		if t is Transform3D:
@@ -957,6 +965,13 @@ func _crear_popup_ajustes() -> void:
 	_btn_limpiar.pressed.connect(_on_limpiar_pressed)
 	vbox.add_child(_btn_limpiar)
 
+	# --- Botón Optimizar a Binario (.res) ---
+	var btn_optimizar = Button.new()
+	btn_optimizar.text = "💾 Optimizar a Binario (.res)"
+	btn_optimizar.tooltip_text = "Guarda las briznas pintadas en un archivo .res externo para reducir el archivo .tscn a < 40 KB y optimizar la carga en móviles."
+	btn_optimizar.pressed.connect(_on_optimizar_binario_pressed)
+	vbox.add_child(btn_optimizar)
+
 	# --- Guía de atajos rápidos ---
 	var lbl_atajos = Label.new()
 	lbl_atajos.text = "💡 Atajos 3D:\n• Shift + Rueda o [ / ]: Radio del pincel\n• Ctrl + Shift + Rueda: Densidad\n• Clic der. o Shift + Clic: Borrar pasto"
@@ -1054,12 +1069,13 @@ func _on_no_repintar_toggled(activo: bool) -> void:
 func _on_limpiar_pressed() -> void:
 	if not is_instance_valid(_nodo_pasto) or not _nodo_pasto.has_method("limpiar_pasto_pintado"):
 		return
-	if "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado.is_empty():
-		return
-
 	var datos_previos: Array[Transform3D] = []
-	if "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
+	if _nodo_pasto.has_method("obtener_datos_pintados"):
+		datos_previos = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
+	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
 		datos_previos = _nodo_pasto.datos_pasto_pintado.duplicate()
+	if datos_previos.is_empty():
+		return
 
 	var ur = get_undo_redo()
 	if ur != null:
@@ -1071,6 +1087,14 @@ func _on_limpiar_pressed() -> void:
 		ur.commit_action(true)
 	else:
 		_nodo_pasto.limpiar_pasto_pintado()
+
+func _on_optimizar_binario_pressed() -> void:
+	if not is_instance_valid(_nodo_pasto):
+		return
+	if _nodo_pasto.has_method("guardar_a_recurso_binario"):
+		var ok: bool = _nodo_pasto.guardar_a_recurso_binario()
+		if ok:
+			print("[PincelPasto] ¡Pasto optimizado y guardado en archivo binario (.res)!")
 
 # ==============================================================================
 # GIZMO VISUAL 3D (Círculo, Cuadrado, Triángulo)

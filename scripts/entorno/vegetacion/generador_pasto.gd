@@ -2,6 +2,8 @@
 extends MultiMeshInstance3D
 class_name GeneradorPasto
 
+const RecursoDatosPasto = preload("res://scripts/entorno/vegetacion/recurso_datos_pasto.gd")
+
 ## ==========================================================
 ## GENERADOR Y PINCEL DE PASTO ESTILIZADO 3D (GODOT 4)
 ## Soporta generación automática por área y pintado interactivo
@@ -38,12 +40,45 @@ class_name GeneradorPasto
 ## Si se establece en 0.0, se calcula automáticamente según la densidad del pincel.
 @export_range(0.0, 1.5, 0.01) var distancia_minima_repintar: float = 0.0
 
-## Almacena las instancias pintadas para que se guarden permanentemente con tu escena.
-@export var datos_pasto_pintado: Array[Transform3D] = []:
+@export_group("Datos de Pasto Pintado (Binario)")
+## Ruta al archivo binario (.res) que almacena las instancias pintadas.
+## Almacenar las instancias en un archivo .res externo evita inflar la escena .tscn
+## y elimina las advertencias del editor y los tirones de carga.
+@export_file("*.res") var archivo_datos_pasto: String = "":
 	set(valor):
-		datos_pasto_pintado = valor
+		archivo_datos_pasto = valor
+		_cargar_recurso_datos()
 		if modo_distribucion == 0 and multimesh != null:
 			_actualizar_multimesh_pintado()
+
+## Variables en memoria (NO exportadas para que Godot NUNCA las escriba en texto dentro del .tscn)
+var recurso_datos: Resource = null
+var datos_pasto_pintado: Array[Transform3D] = []
+var _datos_modificados: bool = false
+
+func _cargar_recurso_datos() -> void:
+	if archivo_datos_pasto.is_empty():
+		return
+	if ResourceLoader.exists(archivo_datos_pasto):
+		recurso_datos = load(archivo_datos_pasto)
+
+## Obtiene el conjunto de transformaciones activas (prioriza memoria editada, luego recurso binario).
+func obtener_datos_pintados() -> Array[Transform3D]:
+	if not datos_pasto_pintado.is_empty():
+		return datos_pasto_pintado
+	if recurso_datos != null and "transforms" in recurso_datos and not recurso_datos.transforms.is_empty():
+		return recurso_datos.transforms
+	if not archivo_datos_pasto.is_empty() and ResourceLoader.exists(archivo_datos_pasto):
+		_cargar_recurso_datos()
+		if recurso_datos != null and "transforms" in recurso_datos:
+			return recurso_datos.transforms
+	return []
+
+func _asegurar_datos_editables() -> void:
+	if datos_pasto_pintado.is_empty():
+		var datos = obtener_datos_pintados()
+		if not datos.is_empty():
+			datos_pasto_pintado = (datos as Array[Transform3D]).duplicate()
 
 
 @export_group("Filtro de Objetos a Pintar")
@@ -188,24 +223,58 @@ func _aplicar_configuracion_visibilidad() -> void:
 		visibility_range_end = 0.0
 		visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 	else:
-		# En el juego: culling estricto de alto rendimiento con transición suave
+		# En el juego: culling estricto de alto rendimiento con corte limpio y margen de histéresis
 		visibility_range_end = distancia_visibilidad_juego
-		visibility_range_end_margin = 10.0
-		visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		visibility_range_end_margin = 4.0
+		visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+
+func _notification(what: int) -> void:
+	if not Engine.is_editor_hint():
+		return
+	if what == NOTIFICATION_EDITOR_PRE_SAVE:
+		_auto_guardar_en_recurso_si_es_necesario()
+	elif what == NOTIFICATION_EDITOR_POST_SAVE:
+		if modo_distribucion == 0:
+			_actualizar_multimesh_pintado()
+
+func _auto_guardar_en_recurso_si_es_necesario() -> void:
+	if modo_distribucion != 0:
+		return
+	if _datos_modificados and not datos_pasto_pintado.is_empty():
+		guardar_a_recurso_binario()
+	elif not datos_pasto_pintado.is_empty() and archivo_datos_pasto.is_empty():
+		guardar_a_recurso_binario()
+
+	# Fundamental: vaciar temporalmente las instancias del multimesh del nodo para que
+	# Godot NO serialice instancias dentro del archivo de texto .tscn.
+	if multimesh:
+		multimesh.instance_count = 0
 
 func _ready() -> void:
-	# Duplicar materiales para que cada GeneradorPasto tenga instancias independientes.
+	# Asegurar instancias independientes de materiales para cada reino.
 	# Esto es ESENCIAL en multijugador LAN donde ambos personajes comparten el mismo
 	# proceso de Godot: sin duplicar, ambos modificarían el mismo ShaderMaterial.
 	if material_fisico != null:
 		material_fisico = material_fisico.duplicate()
+	else:
+		material_fisico = load("res://shaders/entorno/vegetacion/pasto_fisico_mat.tres").duplicate()
+
 	if material_espiritual != null:
 		material_espiritual = material_espiritual.duplicate()
-		# Aplicar el tono espiritual después de duplicar el material.
-		if material_espiritual is ShaderMaterial:
-			var mat_espiritual := material_espiritual as ShaderMaterial
-			mat_espiritual.set_shader_parameter("color_base", Color(0.10, 0.24, 0.46, 1.0))
-			mat_espiritual.set_shader_parameter("color_punta", Color(0.18, 0.36, 0.60, 1.0))
+	else:
+		material_espiritual = load("res://shaders/entorno/vegetacion/pasto_espiritual_mat.tres").duplicate()
+
+	# Asegurar colores exactos e inalterables para cada reino
+	if material_fisico is ShaderMaterial:
+		var mat_fisico := material_fisico as ShaderMaterial
+		mat_fisico.set_shader_parameter("color_base", Color(0.38, 0.24, 0.02, 1.0))
+		mat_fisico.set_shader_parameter("color_punta", Color(0.66, 0.49, 0.07, 1.0))
+
+	if material_espiritual is ShaderMaterial:
+		var mat_espiritual := material_espiritual as ShaderMaterial
+		mat_espiritual.set_shader_parameter("color_base", Color(0.10, 0.24, 0.46, 1.0))
+		mat_espiritual.set_shader_parameter("color_punta", Color(0.18, 0.36, 0.60, 1.0))
+
 	# Optimización de renderizado y culling
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	extra_cull_margin = 6.0
@@ -259,10 +328,11 @@ func _on_personaje_cambiado(_nuevo_personaje: String) -> void:
 func _on_reino_cambiado(es_fantasma: bool) -> void:
 	if modo_reino == 0:
 		var mat_correcto = material_espiritual if es_fantasma else material_fisico
-		if material_override != mat_correcto:
+		if mat_correcto != null and material_override != mat_correcto:
 			material_override = mat_correcto
 			_shader_mat = material_override as ShaderMaterial if material_override is ShaderMaterial else null
 			_actualizar_material_chunks()
+			print("[GeneradorPasto] Reino cambiado (es_fantasma=%s) -> Material: %s" % [es_fantasma, "ESPIRITUAL (Azul)" if es_fantasma else "FISICO (Dorado/Otoño)"])
 
 func _actualizar_material_chunks() -> void:
 	for chunk in _chunks:
@@ -280,7 +350,7 @@ func _actualizar_material_por_reino() -> void:
 	elif modo_reino == 2:
 		material_override = material_espiritual
 	else:
-		# Modo AUTO: en un solo jugador usamos personaje_activo_solo o la cámara activa.
+		# Modo AUTO: en un solo jugador usamos RedManager o la cámara activa.
 		# En multijugador (LAN o en línea) ambos personajes están en la misma escena,
 		# así que debemos detectar quién controla la cámara activa.
 		var es_fantasma = _detectar_es_fantasma_por_camara_activa()
@@ -289,6 +359,7 @@ func _actualizar_material_por_reino() -> void:
 	if material_override is ShaderMaterial:
 		_shader_mat = material_override as ShaderMaterial
 	_actualizar_material_chunks()
+	print("[GeneradorPasto] Material asignado: %s" % ["ESPIRITUAL (Azul)" if material_override == material_espiritual else "FISICO (Dorado/Otoño)"])
 
 # Determina si el personaje que actualmente controla la cámara activa es fantasma.
 # Funciona tanto en un jugador (personaje_activo_solo) como en multijugador LAN/online.
@@ -296,23 +367,7 @@ func _detectar_es_fantasma_por_camara_activa() -> bool:
 	if Engine.is_editor_hint():
 		return false
 
-	# 1. Intentar detectar por la cámara activa (robusto en multijugador LAN y transición)
-	var cam = get_viewport().get_camera_3d() if is_inside_tree() else null
-	if is_instance_valid(cam):
-		# Si es la cámara de transición, su cull_mask indica el plano activo en tiempo real
-		if cam.name.contains("Transicion"):
-			return (cam.cull_mask & (1 << 2)) != 0
-
-		# Subir por el árbol de nodos desde la cámara buscando el CharacterBase dueño
-		var nodo = cam.get_parent()
-		while is_instance_valid(nodo):
-			if nodo.is_in_group("fantasmas") or nodo.name.to_lower().contains("fantasma"):
-				return true
-			if nodo.is_in_group("vivos") or nodo.name.to_lower().contains("jugador") or nodo.name.to_lower().contains("vivo"):
-				return false
-			nodo = nodo.get_parent()
-
-	# 2. Fallback: usar RedManager
+	# 1. RedManager es la fuente autoritativa en runtime (un jugador y multijugador)
 	var red_mgr = _get_red_manager()
 	if is_instance_valid(red_mgr):
 		if red_mgr.has_method("es_reino_espiritual_activo"):
@@ -323,6 +378,23 @@ func _detectar_es_fantasma_por_camara_activa() -> bool:
 			var mi_id = red_mgr.get_mi_peer_id()
 			if red_mgr.peer_personajes.has(mi_id):
 				return red_mgr.peer_personajes[mi_id] == "fantasma"
+
+	# 2. Fallback por cámara activa sólo si RedManager no está presente
+	var cam = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if is_instance_valid(cam):
+		if cam.name.contains("Transicion"):
+			if is_instance_valid(red_mgr) and "transicion_en_progreso" in red_mgr and red_mgr.transicion_en_progreso:
+				return (cam.cull_mask & (1 << 2)) != 0
+
+		# Subir por el árbol de nodos desde la cámara buscando el CharacterBase dueño
+		var nodo = cam.get_parent()
+		while is_instance_valid(nodo):
+			if nodo.is_in_group("fantasmas") or nodo.name.to_lower().contains("fantasma"):
+				return true
+			if nodo.is_in_group("vivos") or nodo.name.to_lower().contains("jugador") or nodo.name.to_lower().contains("vivo"):
+				return false
+			nodo = nodo.get_parent()
+
 	return false
 
 func _solicitar_regeneracion() -> void:
@@ -353,7 +425,7 @@ func generar() -> void:
 		if Engine.is_editor_hint():
 			_actualizar_multimesh_pintado()
 		else:
-			_construir_chunks_runtime(datos_pasto_pintado, mesh_a_usar)
+			_construir_chunks_runtime(obtener_datos_pintados(), mesh_a_usar)
 		return
 
 	# --- MODO 1: ÁREA RECTANGULAR AUTOMÁTICA ---
@@ -436,6 +508,8 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 	if modo_distribucion != 0:
 		modo_distribucion = 0
 
+	_asegurar_datos_editables()
+
 	var esc_range = variacion_escala if variacion_escala != null else Vector2(0.65, 1.25)
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
@@ -463,12 +537,15 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 
 		datos_pasto_pintado.append(t)
 
+	_datos_modificados = true
 	_actualizar_multimesh_pintado()
 
 ## Pinta un conjunto de briznas según la forma del pincel (Círculo, Cuadrado, Triángulo)
 func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 	if modo_distribucion != 0:
 		modo_distribucion = 0 # Cambiar automáticamente a modo manual al pintar
+
+	_asegurar_datos_editables()
 
 	var local_center = to_local(pos_mundo)
 	var esc_range = variacion_escala if variacion_escala != null else Vector2(0.65, 1.25)
@@ -534,12 +611,16 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 
 		datos_pasto_pintado.append(t)
 
+	_datos_modificados = true
 	_actualizar_multimesh_pintado()
 
 
 ## Borra las briznas que se encuentren dentro del área de la forma en la posición dada
 func borrar_en_posicion(pos_mundo: Vector3, radio_borrado: float) -> void:
-	if modo_distribucion != 0 or datos_pasto_pintado.is_empty():
+	if modo_distribucion != 0:
+		return
+	_asegurar_datos_editables()
+	if datos_pasto_pintado.is_empty():
 		return
 
 	var local_center = to_local(pos_mundo)
@@ -552,6 +633,7 @@ func borrar_en_posicion(pos_mundo: Vector3, radio_borrado: float) -> void:
 
 	if datos_filtrados.size() != datos_pasto_pintado.size():
 		datos_pasto_pintado = datos_filtrados
+		_datos_modificados = true
 		_actualizar_multimesh_pintado()
 
 ## Genera un desplazamiento 2D aleatorio uniforme según la forma elegida
@@ -611,6 +693,8 @@ func _esta_dentro_de_forma(offset: Vector2, radio: float, forma: int) -> bool:
 ## Elimina todas las instancias pintadas
 func limpiar_pasto_pintado() -> void:
 	datos_pasto_pintado.clear()
+	recurso_datos = null
+	_datos_modificados = true
 	if multimesh:
 		multimesh.instance_count = 0
 
@@ -625,27 +709,29 @@ func asignar_datos_pintados(nuevos_datos: Array) -> void:
 		if item is Transform3D:
 			arr.append(item)
 	datos_pasto_pintado = arr
+	_datos_modificados = true
 	_actualizar_multimesh_pintado()
 
 func _actualizar_multimesh_pintado() -> void:
+	var datos = obtener_datos_pintados()
 	if not Engine.is_editor_hint():
 		var mesh_a_usar: Mesh = mesh_personalizado
 		if mesh_a_usar == null:
 			mesh_a_usar = _crear_malla_pasto_procedural()
-		_construir_chunks_runtime(datos_pasto_pintado, mesh_a_usar)
+		_construir_chunks_runtime(datos, mesh_a_usar)
 		return
 
 	if multimesh == null:
 		generar()
 		return
 
-	var total = datos_pasto_pintado.size()
+	var total = datos.size()
 	multimesh.instance_count = total
 	var min_pos = Vector3(999999.0, 999999.0, 999999.0)
 	var max_pos = Vector3(-999999.0, -999999.0, -999999.0)
 
 	for i in range(total):
-		var t = datos_pasto_pintado[i]
+		var t = datos[i]
 		multimesh.set_instance_transform(i, t)
 		min_pos.x = minf(min_pos.x, t.origin.x - 1.0)
 		min_pos.y = minf(min_pos.y, t.origin.y - 0.5)
@@ -661,6 +747,44 @@ func _actualizar_multimesh_pintado() -> void:
 	else:
 		multimesh.custom_aabb = AABB()
 		custom_aabb = AABB()
+
+## Exporta las instancias pintadas actuales a un archivo de recurso binario (.res)
+## y limpia el arreglo en escena para dejar el archivo .tscn ultraligero.
+func guardar_a_recurso_binario(ruta_archivo: String = "") -> bool:
+	var datos = obtener_datos_pintados()
+	if datos.is_empty():
+		push_warning("[GeneradorPasto] No hay instancias pintadas para exportar.")
+		return false
+	
+	if ruta_archivo.is_empty():
+		if not archivo_datos_pasto.is_empty():
+			ruta_archivo = archivo_datos_pasto
+		elif recurso_datos != null and not recurso_datos.resource_path.is_empty():
+			ruta_archivo = recurso_datos.resource_path
+		else:
+			var prefijo := name.to_lower()
+			if owner != null and not owner.scene_file_path.is_empty():
+				prefijo = owner.scene_file_path.get_file().get_basename().to_lower().replace(" ", "_")
+			elif is_inside_tree() and get_tree().current_scene != null and not get_tree().current_scene.scene_file_path.is_empty():
+				prefijo = get_tree().current_scene.scene_file_path.get_file().get_basename().to_lower().replace(" ", "_")
+			ruta_archivo = "res://scenes/levels/pasto_" + prefijo + "_datos.res"
+	
+	var res := RecursoDatosPasto.new()
+	res.transforms = (datos as Array[Transform3D]).duplicate()
+	var err := ResourceSaver.save(res, ruta_archivo)
+	if err == OK:
+		recurso_datos = res
+		archivo_datos_pasto = ruta_archivo
+		datos_pasto_pintado.clear()
+		_datos_modificados = false
+		if multimesh:
+			multimesh.instance_count = 0
+		notify_property_list_changed()
+		print("[GeneradorPasto] Datos exportados exitosamente a: ", ruta_archivo)
+		return true
+	else:
+		push_error("[GeneradorPasto] Error al guardar recurso binario: ", err)
+		return false
 
 func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh) -> void:
 	for chunk in _chunks:
@@ -719,8 +843,8 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 		chunk_inst.material_override = mat_actual
 		chunk_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chunk_inst.visibility_range_end = distancia_visibilidad_juego
-		chunk_inst.visibility_range_end_margin = 10.0
-		chunk_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		chunk_inst.visibility_range_end_margin = 4.0
+		chunk_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 		add_child(chunk_inst)
 		_chunks.append(chunk_inst)
