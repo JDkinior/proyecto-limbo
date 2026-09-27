@@ -97,6 +97,8 @@ func _on_volume_slider_value_changed(value):
 		_guardar_opciones()
 
 func _on_btn_fullscreen_toggled(button_pressed):
+	if OS.get_name() == "Android" or OS.get_name() == "iOS":
+		return
 	if button_pressed:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
@@ -154,10 +156,12 @@ func _guardar_opciones():
 	var bus_index = AudioServer.get_bus_index("Master")
 	if bus_index != -1:
 		config.set_value("audio", "master_volume", db_to_linear(AudioServer.get_bus_volume_db(bus_index)))
-	config.set_value("video", "fullscreen", DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN)
+	if OS.get_name() != "Android" and OS.get_name() != "iOS":
+		config.set_value("video", "fullscreen", DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN)
 	config.save("user://opciones.cfg")
 
 func _cargar_opciones():
+	var es_movil = OS.get_name() == "Android" or OS.get_name() == "iOS"
 	var config = ConfigFile.new()
 	var err = config.load("user://opciones.cfg")
 	if err == OK:
@@ -170,16 +174,28 @@ func _cargar_opciones():
 			
 		var fs = config.get_value("video", "fullscreen", false)
 		if is_instance_valid(menu.btn_fullscreen):
-			menu.btn_fullscreen.button_pressed = fs
-		if fs:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			if es_movil:
+				menu.btn_fullscreen.visible = false
+			else:
+				menu.btn_fullscreen.button_pressed = fs
+		
+		if not es_movil:
+			if fs:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			else:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		else:
-			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	else:
 		if is_instance_valid(menu.volume_slider):
 			menu.volume_slider.value = 0.8
 		if is_instance_valid(menu.btn_fullscreen):
-			menu.btn_fullscreen.button_pressed = false
+			if es_movil:
+				menu.btn_fullscreen.visible = false
+			else:
+				menu.btn_fullscreen.button_pressed = false
+		if es_movil:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 			
 	# Cargar valores del HUD a los sliders de opciones
 	var hud_cfg = HudConfigManager.cargar_config()
