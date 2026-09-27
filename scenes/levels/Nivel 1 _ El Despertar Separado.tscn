@@ -20,6 +20,7 @@
 [ext_resource type="Shader" uid="uid://b5jkqbkbg2hr5" path="res://shaders/entorno/vegetacion/pasto_estilizado.gdshader" id="19_b8igg"]
 [ext_resource type="PackedScene" uid="uid://dxnm72i57ht5d" path="res://scenes/entorno/arboles/arbol_2.tscn" id="20_l6yfi"]
 [ext_resource type="PackedScene" uid="uid://bsprnrvdshlv1" path="res://scenes/entorno/arboles/arbol_3.tscn" id="21_eo0eg"]
+[ext_resource type="PackedScene" uid="uid://c7v4m1arbol04" path="res://scenes/entorno/arboles/arbol_4.tscn" id="21_l6yfi"]
 
 [sub_resource type="Sky" id="Sky_limbo"]
 sky_material = ExtResource("18_cielo_mat")
@@ -420,16 +421,16 @@ LIMITE_CAIDA_Y = -8.0
 [node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]
 
 [node name="Farol" parent="." unique_id=1573612018 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -10.554092, 0.5, 12.994168)
+transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -9.917905, 0.5, 12.594692)
 
 [node name="Farol2" parent="." unique_id=467421392 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.99841785, 0, 0.05623123, 0, 1, 0, -0.05623123, 0, 0.99841785, -4.945175, 0.5, 12.281738)
+transform = Transform3D(0.99841785, 0, 0.05623123, 0, 1, 0, -0.05623123, 0, 0.99841785, -6.1084905, 0.5, 12.880135)
 
 [node name="Farol5" parent="." unique_id=193381668 instance=ExtResource("16_0m24d")]
 transform = Transform3D(0.89095795, 0, -0.4540859, 0, 1, 0, 0.4540859, 0, 0.89095795, -10.146921, 0.5600474, 17.470222)
 
 [node name="Farol4" parent="." unique_id=535821072 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, -5.4496565, 0.5, 16.732094)
+transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, -5.529167, 0.5, 17.451921)
 
 [node name="Farol3" parent="." unique_id=967621521 instance=ExtResource("16_0m24d")]
 transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -5.6000004, 3.1999998, 5.383259)
@@ -444,12 +445,12 @@ transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 13, 1, 1
 material_override = SubResource("ShaderMaterial_so3f3")
 custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.996422, 8.485627, 57.999203)
 visibility_range_end = 0.0
-visibility_range_fade_mode = 0
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
-radio_pincel = 0.2
+radio_pincel = 0.6000000000000001
 densidad_pincel = 20
+forma_pincel = 2
 evitar_repintar = true
 archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1_datos.res"
 solo_pintar_en_objetos = Array[NodePath]([NodePath("../PistaFisicaVivo/EscalonDobleSalto1"), NodePath("../PistaFisicaVivo/SueloVivoBase"), NodePath("../PistaFisicaVivo/PlataformaBotonVivo"), NodePath("../PistaEspiritualFantasma/SueloFantasmaBase"), NodePath("../ZonaReunionFinal/SueloFinal"), NodePath("../PistaEspiritualFantasma/PlataformaFantasmaFinal"), NodePath("../PistaFisicaVivo/PlataformaVivoFinal")])
@@ -461,19 +462,22 @@ material_fisico = SubResource("ShaderMaterial_so3f3")
 material_espiritual = SubResource("ShaderMaterial_eo0eg")
 
 [node name="Arbol_Otono_012" parent="." unique_id=1351562283 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(0.90608954, 0, 0.42308587, 0, 1, 0, -0.42308587, 0, 0.90608954, -11.819879, 2.3841858e-07, 11.302526)
+transform = Transform3D(0.7387715, 0, 0.67395604, 0, 1, 0, -0.67395604, 0, 0.7387715, -10.629364, 2.3841858e-07, 10.993183)
 
 [node name="Arbol_Otono_022" parent="." unique_id=1544037306 instance=ExtResource("20_l6yfi")]
-transform = Transform3D(0.9207965, 0, 0.39004326, 0, 1.0634577, 0, -0.39004326, 0, 0.9207965, -9.963699, 6.598034, -3.4390116)
+transform = Transform3D(1.1970356, 0, 0.5070562, 0, 1.3, 0, -0.5070562, 0, 1.1970356, -9.885283, 6.598034, -3.8451467)
 
 [node name="Arbol_Otono_013" parent="." unique_id=780048475 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(-0.55758977, 0, -0.8301166, 0, 1.0772039, 0, 0.8301166, 0, -0.55758977, -11.571686, -0.015048742, 18.679327)
+transform = Transform3D(0.7606279, 0, 0.64918816, 0, 1, 0, -0.64918816, 0, 0.7606279, -11.431809, -0.015048742, 18.339758)
 
 [node name="Arbol_Otono_023" parent="." unique_id=762732136 instance=ExtResource("20_l6yfi")]
-transform = Transform3D(0.978809, 0, -0.20477507, 0, 1.3885125, 0, 0.20477507, 0, 0.978809, -11.466794, 0, 14.666394)
+transform = Transform3D(0.8316468, 0, 0.55530506, 0, 1, 0, -0.55530506, 0, 0.8316468, -4.6521053, 0, 15.021712)
 
 [node name="Arbol_Otono_032" parent="." unique_id=2081343474 instance=ExtResource("21_eo0eg")]
-transform = Transform3D(0.92721826, 0, -0.37452143, 0, 0.86183345, 0, 0.37452143, 0, 0.92721826, -4.385462, 0, 11.24638)
+transform = Transform3D(1.2053837, 0, -0.48687786, 0, 1.3, 0, 0.48687786, 0, 1.2053837, -5.212906, 0, 10.924573)
 
 [node name="Arbol_Otono_014" parent="." unique_id=962204028 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(-0.217816, 0, 0.9759899, 0, 1.125374, 0, -0.9759899, 0, -0.217816, -4.0964713, 0, 17.023912)
+transform = Transform3D(1.0823392, 0, -0.1963211, 0, 1.1, 0, 0.1963211, 0, 1.0823392, -4.0964713, 0.09794569, 18.3605)
+
+[node name="Arbol_Otono_042" parent="." unique_id=250460251 instance=ExtResource("21_l6yfi")]
+transform = Transform3D(0.68684417, 0, 0.98399454, 0, 1.2, 0, -0.98399454, 0, 0.68684417, -11.413217, 0, 14.642394)
