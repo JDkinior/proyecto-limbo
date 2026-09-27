@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://dkss7qb45sk8f" path="res://scripts/components/peligros/torbellino.gd" id="1_script"]
 [ext_resource type="Material" path="res://shaders/components/peligros/torbellino_espiritual_mat.tres" id="2_mat"]
+[ext_resource type="ArrayMesh" uid="uid://de6k25twkeqw1" path="res://assets/materiales/entorno/m_roca_vortice.tres" id="3_roca_mesh"]
+[ext_resource type="ArrayMesh" uid="uid://fagw0d8u782u" path="res://assets/materiales/entorno/m_roca_vortice_a.tres" id="3_roca_mesh_a"]
+[ext_resource type="ArrayMesh" uid="uid://dfhuapecn4a57" path="res://assets/materiales/entorno/m_roca_vortice_b.tres" id="4_roca_mesh_b"]
+[ext_resource type="ArrayMesh" uid="uid://c2p1uyj66flg" path="res://assets/materiales/entorno/m_roca_vortice_c.tres" id="5_roca_mesh_c"]
 
 [sub_resource type="CylinderShape3D" id="CylinderShape3D_influencia"]
 height = 8.0
@@ -39,8 +43,21 @@ rings = 4
 _data = [Vector2(0, 0.3), 0.0, 2.0, 0, 0, Vector2(0.5, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.1), -2.0, 0.0, 0, 0]
 point_count = 3
 
+
+[sub_resource type="Curve" id="Curve_escala_atraccion"]
+_data = [Vector2(0, 0.2), 0.0, 2.0, 0, 0, Vector2(0.4, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.1), -2.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_color_atraccion"]
+offsets = PackedFloat32Array(0, 0.15, 0.85, 1)
+colors = PackedColorArray(0.196, 0.275, 0.506, 0, 0.196, 0.275, 0.506, 1, 0.196, 0.275, 0.506, 1, 0.196, 0.275, 0.506, 0)
+
+
+
 [node name="Torbellino" type="Node3D" unique_id=284910291]
 script = ExtResource("1_script")
+fuerza_succion_horizontal = 14.0
+fuerza_expulsion_vertical = -18.0
 
 [node name="AreaInfluencia" type="Area3D" parent="." unique_id=1693462469]
 collision_layer = 0
@@ -84,6 +101,103 @@ linear_accel_min = 0.5
 linear_accel_max = 2.0
 scale_amount_curve = SubResource("Curve_escala_particulas")
 color = Color(0.4, 0.9, 1, 0.9)
+
+[node name="ParticulasZonaAtraccion" type="CPUParticles3D" parent="." unique_id=581928471]
+amount = 18
+lifetime = 2.4
+preprocess = 2.4
+randomness = 0.5
+lifetime_randomness = 0.3
+local_coords = true
+extra_cull_margin = 4.0
+ignore_occlusion_culling = true
+visibility_aabb = AABB(-4, -4, -4, 8, 8, 8)
+mesh = ExtResource("3_roca_mesh_a")
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 4.8
+emission_ring_radius = 2.1
+emission_ring_inner_radius = 0.8
+emission_ring_cone_angle = 75.0
+direction = Vector3(0, 1, 0)
+spread = 6.0
+gravity = Vector3(0, 0.25, 0)
+initial_velocity_min = 0.25
+initial_velocity_max = 0.7
+particle_flag_rotate_y = true
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = 80.0
+angular_velocity_max = 240.0
+scale_amount_min = 0.65
+scale_amount_max = 1.35
+scale_amount_curve = SubResource("Curve_escala_atraccion")
+color_ramp = SubResource("Gradient_color_atraccion")
+
+[node name="ParticulasZonaAtraccion2" type="CPUParticles3D" parent="." unique_id=581928472]
+amount = 15
+lifetime = 2.6
+preprocess = 2.6
+randomness = 0.5
+lifetime_randomness = 0.3
+local_coords = true
+extra_cull_margin = 4.0
+ignore_occlusion_culling = true
+visibility_aabb = AABB(-4, -4, -4, 8, 8, 8)
+mesh = ExtResource("4_roca_mesh_b")
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 4.8
+emission_ring_radius = 2.0
+emission_ring_inner_radius = 0.9
+emission_ring_cone_angle = 75.0
+direction = Vector3(0.2, 1, 0.1)
+spread = 10.0
+gravity = Vector3(0, 0.2, 0)
+initial_velocity_min = 0.2
+initial_velocity_max = 0.6
+particle_flag_rotate_y = false
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = 60.0
+angular_velocity_max = 200.0
+scale_amount_min = 0.6
+scale_amount_max = 1.25
+scale_amount_curve = SubResource("Curve_escala_atraccion")
+color_ramp = SubResource("Gradient_color_atraccion")
+
+[node name="ParticulasZonaAtraccion3" type="CPUParticles3D" parent="." unique_id=581928473]
+amount = 15
+lifetime = 2.2
+preprocess = 2.2
+randomness = 0.5
+lifetime_randomness = 0.3
+local_coords = true
+extra_cull_margin = 4.0
+ignore_occlusion_culling = true
+visibility_aabb = AABB(-4, -4, -4, 8, 8, 8)
+mesh = ExtResource("5_roca_mesh_c")
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 4.8
+emission_ring_radius = 2.2
+emission_ring_inner_radius = 0.7
+emission_ring_cone_angle = 75.0
+direction = Vector3(-0.1, 1, 0.2)
+spread = 8.0
+gravity = Vector3(0, 0.3, 0)
+initial_velocity_min = 0.3
+initial_velocity_max = 0.75
+particle_flag_align_y = true
+particle_flag_rotate_y = true
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = 90.0
+angular_velocity_max = 260.0
+scale_amount_min = 0.7
+scale_amount_max = 1.4
+scale_amount_curve = SubResource("Curve_escala_atraccion")
+color_ramp = SubResource("Gradient_color_atraccion")
 
 [node name="LuzTorbellino" type="OmniLight3D" parent="." unique_id=954070431]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)

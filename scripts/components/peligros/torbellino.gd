@@ -14,16 +14,17 @@ signal fantasma_expulsado(fantasma: Node3D)
 
 @export_group("Física de Succión")
 @export var radio_influencia: float = 4.2
-@export var fuerza_succion_horizontal: float = 8.5
-@export var fuerza_giro_tangencial: float = 9.0
-@export var fuerza_arrastre_vertical: float = 9.5
+@export var fuerza_succion_horizontal: float = 14.0 ## Fuerza atractora radial hacia el centro
+@export var fuerza_giro_tangencial: float = 11.0 ## Fuerza de giro circular envolvente
+@export var fuerza_arrastre_vertical: float = 10.0 ## Arrastre hacia abajo para contrarrestar planeo
 @export var afecta_solo_fantasmas: bool = true
 
 @export_group("Absorción y Núcleo")
 @export var radio_nucleo: float = 1.3
-@export var duracion_absorcion: float = 1.0
-@export var fuerza_expulsion_horizontal: float = 6.5
-@export var fuerza_expulsion_vertical: float = -8.0
+@export var duracion_absorcion: float = 1.1 ## Duración de descenso y giro dentro del cono
+@export var fuerza_expulsion_horizontal: float = 5.0
+@export var fuerza_expulsion_vertical: float = -18.0 ## Impulso descendente potente para caer con velocidad
+@export var altura_tornado: float = 5.2 ## Altura total del embudo del torbellino
 @export var es_letal_al_contacto: bool = false
 
 @export_group("Patrulla / Movimiento")
@@ -43,6 +44,9 @@ signal fantasma_expulsado(fantasma: Node3D)
 @onready var modelo_visual: Node3D = get_node_or_null("Visual")
 @onready var luz_nucleo: OmniLight3D = get_node_or_null("LuzTorbellino")
 @onready var particulas_vortice: CPUParticles3D = get_node_or_null("ParticulasVortice")
+@onready var particulas_atraccion: CPUParticles3D = get_node_or_null("ParticulasZonaAtraccion")
+@onready var particulas_atraccion_2: CPUParticles3D = get_node_or_null("ParticulasZonaAtraccion2")
+@onready var particulas_atraccion_3: CPUParticles3D = get_node_or_null("ParticulasZonaAtraccion3")
 
 var _cuerpos_en_influencia: Array[CharacterBody3D] = []
 var _tiempo_acumulado: float = 0.0
@@ -55,6 +59,15 @@ var _timer_espera: float = 0.0
 func _ready() -> void:
 	_pos_y_inicial = position.y
 	_pos_inicial_mov = position
+	
+	# Asegurar configuración anti-culling para evitar que las rocas desaparezcan repentinamente
+	for p in [particulas_atraccion, particulas_atraccion_2, particulas_atraccion_3]:
+		if is_instance_valid(p):
+			p.local_coords = true
+			p.ignore_occlusion_culling = true
+			p.extra_cull_margin = 4.0
+			p.visibility_aabb = AABB(Vector3(-4.0, -4.0, -4.0), Vector3(8.0, 8.0, 8.0))
+
 	if Engine.is_editor_hint():
 		return
 	_configurar_areas()
@@ -126,6 +139,14 @@ func _animar_visuales(delta: float) -> void:
 		var offset_y = sin(_tiempo_acumulado * frecuencia_oscilacion) * oscilacion_altura
 		modelo_visual.position.y = offset_y
 
+	var vel_giro_base = -deg_to_rad(velocidad_rotacion_visual * delta)
+	if is_instance_valid(particulas_atraccion):
+		particulas_atraccion.rotate_y(vel_giro_base * 0.75)
+	if is_instance_valid(particulas_atraccion_2):
+		particulas_atraccion_2.rotate_y(vel_giro_base * 0.65)
+	if is_instance_valid(particulas_atraccion_3):
+		particulas_atraccion_3.rotate_y(vel_giro_base * 0.85)
+
 	if is_instance_valid(luz_nucleo):
 		var pulso = 0.8 + 0.25 * sin(_tiempo_acumulado * 4.0)
 		luz_nucleo.light_energy = 1.6 * pulso
@@ -137,7 +158,7 @@ func _procesar_succion_continua(_delta: float) -> void:
 			_cuerpos_en_influencia.remove_at(i)
 			continue
 
-		# Si el personaje ya fue completamente absorbido, el núcleo maneja su órbita
+		# Si el personaje ya fue completamente absorbido, el cono interior maneja su órbita
 		if cuerpo.has_method("esta_absorbido_en_vortice") and cuerpo.esta_absorbido_en_vortice():
 			continue
 
@@ -149,23 +170,28 @@ func _procesar_succion_continua(_delta: float) -> void:
 			continue
 
 		var factor_distancia = 1.0 - clampf(dist_horizontal / radio_influencia, 0.0, 1.0)
-		# Suavizar curva de atracción (más intensa cerca del centro)
-		var factor_curva = factor_distancia * factor_distancia
+		# Suavizar curva de atracción garantizando una fuerza base efectiva en todo el radio de influencia
+		var factor_succion = lerpf(0.35, 1.0, factor_distancia)
 
-		# 1. Fuerza radial centrípeta (atrae al centro)
+		# 1. Fuerza radial centrípeta (atrae directamente hacia el centro)
 		var dir_radial = Vector3(delta_pos.x, 0.0, delta_pos.z).normalized()
-		var fuerza_radial = dir_radial * (fuerza_succion_horizontal * factor_curva)
+		var fuerza_radial = dir_radial * (fuerza_succion_horizontal * factor_succion)
 
-		# 2. Fuerza tangencial circular (arremolina al personaje hacia la derecha / sentido horario)
+		# 2. Fuerza tangencial circular (arremolina al personaje en sentido horario)
 		var dir_tangencial = Vector3(dir_radial.z, 0.0, -dir_radial.x)
-		var fuerza_tangencial = dir_tangencial * (fuerza_giro_tangencial * factor_curva)
+		var fuerza_tangencial = dir_tangencial * (fuerza_giro_tangencial * factor_succion)
 
 		# 3. Arrastre hacia abajo (cancela o acelera la levitación suave)
-		var arrastre_y = fuerza_arrastre_vertical * (0.4 + factor_curva * 0.6)
+		var arrastre_y = fuerza_arrastre_vertical * (0.5 + factor_succion * 0.5)
 
 		if cuerpo.has_method("aplicar_fuerza_vortice"):
 			cuerpo.aplicar_fuerza_vortice(fuerza_radial + fuerza_tangencial, arrastre_y)
 			fantasma_atraido.emit(cuerpo)
+			
+			# Vibración de viento y succión proporcional a la cercanía del jugador activo
+			var es_activo = cuerpo.has_method("es_activo") and cuerpo.es_activo()
+			if es_activo and is_instance_valid(VibrationManager):
+				VibrationManager.actualizar_succion_torbellino(factor_distancia)
 
 func _on_influencia_body_entered(body: Node3D) -> void:
 	if not _es_candidato_valido(body):
@@ -176,6 +202,13 @@ func _on_influencia_body_entered(body: Node3D) -> void:
 func _on_influencia_body_exited(body: Node3D) -> void:
 	if body is CharacterBody3D:
 		_cuerpos_en_influencia.erase(body)
+		if body.has_method("es_activo") and body.es_activo():
+			if is_instance_valid(VibrationManager):
+				VibrationManager.detener_succion_torbellino()
+
+func _exit_tree() -> void:
+	if is_instance_valid(VibrationManager):
+		VibrationManager.detener_succion_torbellino()
 
 func _on_absorcion_body_entered(body: Node3D) -> void:
 	if not _es_candidato_valido(body):
@@ -194,7 +227,7 @@ func _on_absorcion_body_entered(body: Node3D) -> void:
 		if body.has_method("esta_absorbido_en_vortice") and body.esta_absorbido_en_vortice():
 			return
 
-		# Calcular impulso de expulsión hacia abajo y en dirección hacia donde iba o alejándose
+		# Calcular impulso de expulsión hacia abajo con fuerza y hacia los lados al salir
 		var dir_horizontal = body.global_position - global_position
 		dir_horizontal.y = 0.0
 		if dir_horizontal.is_zero_approx():
@@ -204,20 +237,19 @@ func _on_absorcion_body_entered(body: Node3D) -> void:
 		var impulso_salida = (dir_horizontal * fuerza_expulsion_horizontal) + (Vector3.DOWN * absf(fuerza_expulsion_vertical))
 
 		if body.has_signal("fantasma_expulsado_de_vortice"):
-			var on_expulsado: Callable
-			on_expulsado = func(_imp):
-				fantasma_expulsado.emit(body)
-				if is_instance_valid(body) and body.is_connected("fantasma_expulsado_de_vortice", on_expulsado):
-					body.disconnect("fantasma_expulsado_de_vortice", on_expulsado)
-			body.connect("fantasma_expulsado_de_vortice", on_expulsado)
+			body.connect("fantasma_expulsado_de_vortice", func(_imp): fantasma_expulsado.emit(body), CONNECT_ONE_SHOT)
 
-		body.ser_absorbido_en_vortice(global_position, duracion_absorcion, impulso_salida, self)
+
+		var altura_real = altura_tornado * global_basis.get_scale().y
+		body.ser_absorbido_en_vortice(global_position, duracion_absorcion, impulso_salida, self, altura_real)
 		fantasma_absorbido.emit(body)
 		_disparar_efecto_absorcion()
 
 func _disparar_efecto_absorcion() -> void:
-	if is_instance_valid(VibrationManager):
-		VibrationManager.vibrar_dano()
+	if not Engine.is_editor_hint():
+		var vib = get_node_or_null("/root/VibrationManager")
+		if is_instance_valid(vib) and vib.has_method("vibrar_dano"):
+			vib.vibrar_dano()
 	if is_instance_valid(luz_nucleo):
 		var tween = create_tween()
 		tween.tween_property(luz_nucleo, "light_energy", 4.0, 0.15)
