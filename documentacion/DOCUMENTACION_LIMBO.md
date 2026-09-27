@@ -1,5 +1,9 @@
 # Documentación Completa del Proyecto Limbo
 
+**Versión Actual:** `1.0.1` (Build Code `2`)  
+**Motor:** Godot Engine 4.7 Mobile / Desktop  
+**Última Actualización:** 26 de Septiembre de 2026  
+
 # Documentación Central - Proyecto Limbo
 
 ## 📌 Descripción General
@@ -39,6 +43,39 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.1 (26 de Septiembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Peligro Espiritual: Torbellino / Vórtice (`torbellino.gd` / `torbellino.tscn`)**:
+    *   Física de atracción dinámica: fuerza centrípeta radial (`fuerza_succion_horizontal = 14.0`) y rotacional circular (`fuerza_giro_tangencial = 11.0`).
+    *   Arrastre vertical hacia abajo (`fuerza_arrastre_vertical = 10.0`) para anular planeos del Fantasma.
+    *   Cono de absorción central con descenso en espiral y expulsión descendente potente hacia el vacío (`fuerza_expulsion_vertical = -18.0`), coordinada con la altura del tornado (`altura_tornado = 5.2`) y el límite inferior del nivel (`LIMITE_CAIDA_Y = -8.0`).
+    *   Partículas orbitales de rocas (`ParticulasZonaAtraccion` 1, 2 y 3) con materiales y mallas procedurales (`m_roca_vortice*.tres`), con `local_coords = true`, `ignore_occlusion_culling = true`, y AABB generoso para evitar culling visual en cámara.
+    *   Suite de pruebas unitarias automatizadas (`tests/test_torbellino.gd`).
+*   **Motor Háptico Dinámico y Continuo (`vibration_manager.gd`)**:
+    *   Sistema de bucle continuo multicanal (`_efectos_continuos`) que orquesta simultáneamente pulsos en móviles (`Input.vibrate_handheld`) y motores débiles/fuertes en gamepads (`Input.start_joy_vibration`).
+    *   Presets especializados:
+        *   **Puertas interactivas**: rumble continuo dependiente de la proximidad del jugador y tope contundente al completar recorrido.
+        *   **Aura espectral**: resonancia continua modulada por el radio de expansión/contracción del aura.
+        *   **Torbellino**: turbulencia proporcional a la cercanía, retumbo violento continuo al ser absorbido y disparo explosivo al ser expulsado.
+        *   **Mecanismos / Manivela continua**: clics rítmicos de engranaje (cada 0.16s) y traba de seguridad al 100%.
+        *   **Empuje de cajas pesadas**: fricción continua sobre piedra.
+        *   **Modo foto**: retroalimentación háptica de obturador.
+*   **Refactorización del Sistema de Salto y Movimiento (`character_base.gd` y `jugador.gd`)**:
+    *   Incorporación de `MULTIPLICADOR_GRAVEDAD_SUBIDA` en `CharacterBase` para desacoplar el ascenso del descenso.
+    *   Ajuste en `Jugador`: Salto de altura fija enérgico (`FUERZA_SALTO = 9.8`, `MULTIPLICADOR_GRAVEDAD_SUBIDA = 2.4`, `MULTIPLICADOR_CAIDA = 3.4`, `MULTIPLICADOR_CORTE_SALTO = 1.0`, `VELOCIDAD_MAX_CAIDA = 28.0`), eliminando cualquier sensación de gravedad lunar y ofreciendo un control plataformero ágil y predecible.
+*   **Estabilidad del Fantasma y Reset de Estados (`fantasma.gd`, `habilidad_aura.gd`)**:
+    *   Reseteo completo de estela de partículas, interpolación física y rotación en `_al_resetear_estados()`.
+    *   Manejo seguro de salida de escena (`_exit_tree`) en el aura para detener vibraciones residuales.
+*   **Optimizaciones de Culling y Entorno (`optimizador_culling.gd`, `caida_hojas.tscn`, `arbol_4.tscn`)**:
+    *   Regla en `OptimizadorCulling` para omitir occlusion culling y expandir márgenes (`extra_cull_margin = 4.0`) en sistemas de partículas de hojas, rocas y vórtices.
+    *   Material de hojas con `billboard_mode = 3` (keep scale) y rotación libre completa (0-360º).
+*   **Mejoras en el Modo Foto (`modo_foto.gd`)**:
+    *   Solicitud de permisos de almacenamiento en tiempo de ejecución en Android (`OS.request_permissions()`).
+    *   Guardado redundante en almacenamiento de usuario (`user://fotos/`) y en la galería pública del dispositivo (`Pictures/ProyectoLimbo`).
+*   **Sincronización de Nivel 1**:
+    *   Unificación del límite de caída `LIMITE_CAIDA_Y = -8.0` para el Fantasma en `scenes/levels/Nivel 1 _ El Despertar Separado.tscn`.
 
 ## 🛠 Log de Actualizaciones - 26 de Octubre de 2023
 
@@ -1244,7 +1281,48 @@ Responsabilidades:
 | **Jugador Vivo** | Físico (Capa 2) | **Accionar Mecanismos** (Palancas, Manivelas) o **Embate Físico** (Tackle rompe-muros e impulso) | Doble Salto ágil |
 | **Fantasma** | Espiritual (Capa 3) | **Aura de Resonancia y Éxtasis** (Materializa plataformas, activa interruptores y congela mecanismos en el tiempo) | Levitación / Planeo lento con salto alto |
 
-## 21. Archivos Que Una IA Deberia Leer Primero
+
+## 21. Sistemas de Peligros, Hápticos y Multimedia (Versión 1.0.1)
+
+### 1. Peligro Espiritual: Torbellino (`scenes/components/peligros/torbellino.tscn` / `torbellino.gd`)
+- **Propósito**: Vórtice dinámico de viento espectral que afecta principalmente a entidades incorpóreas (como el Fantasma).
+- **Física de Succión**:
+  - `radio_influencia = 4.2`: Radio donde los personajes son capturados.
+  - `fuerza_succion_horizontal = 14.0`: Fuerza atractora radial que arrastra hacia el ojo de la tormenta.
+  - `fuerza_giro_tangencial = 11.0`: Fuerza tangencial ortogonal que genera una órbita centrípeta en sentido horario.
+  - `fuerza_arrastre_vertical = 10.0`: Fuerza descendente continua para evitar que el Fantasma eluda el peligro planeando indefinidamente.
+- **Absorción y Expulsión**:
+  - `radio_nucleo = 1.3`: Centro del embudo donde el personaje es absorbido en órbita descendente controlada (`ser_absorbido_en_vortice`).
+  - `duracion_absorcion = 1.1s`: Tiempo de giro en el núcleo antes de la expulsión.
+  - `fuerza_expulsion_vertical = -18.0`: Impulso descendente potente que expulsa al personaje por la base inferior del tornado directamente hacia el abismo (`y_salida = centro_y - (altura * 0.5) - 0.35`).
+- **Renderizado Anti-Culling y Variedad Visual**:
+  - Posee tres emisores `CPUParticles3D` con mallas procedurales de rocas (`m_roca_vortice_a.tres`, `m_roca_vortice_b.tres`, `m_roca_vortice_c.tres`).
+  - Todas las partículas configuran `local_coords = true`, `ignore_occlusion_culling = true`, `extra_cull_margin = 4.0` y un `visibility_aabb` generoso `AABB(-4, -4, -4, 8, 8, 8)` para asegurar que las rocas no desaparezcan cuando el jugador gira la cámara.
+- **Pruebas Automatizadas**: Implementadas en `tests/test_torbellino.gd`.
+
+### 2. Motor Háptico Dinámico y Continuo (`scripts/core/vibration_manager.gd`)
+- **Autoload Global**: Registrado como `VibrationManager`. Administra la vibración en hardware móvil (`Input.vibrate_handheld`) y mandos (`Input.start_joy_vibration`).
+- **Arquitectura de Efectos Continuos**:
+  - En lugar de pulsos aislados, soporta un diccionario `_efectos_continuos` procesado en `_process(delta)`.
+  - Permite modular dinámicamente intensidad, cadencia entre pulsos y motores débiles/fuertes.
+- **Catálogo de Presets Hápticos**:
+  - `iniciar_vibracion_puerta(id, tiempo, proximidad)` / `detener_vibracion_puerta(id, con_impacto, factor)`: Rumble continuo durante la apertura/cierre de compuertas pesadas con choque seco final.
+  - `iniciar_vibracion_aura(intensidad)` / `actualizar_intensidad_aura(ratio)` / `detener_vibracion_aura(con_desvanecimiento)`: Resonancia espectral que vibra al unísono con el radio del campo de fuerza.
+  - `actualizar_succion_torbellino(factor)` / `iniciar_vibracion_torbellino_atrapado()` / `vibrar_expulsion_torbellino()`: Transición desde ligera brisa táctil hasta sacudida violenta y detonación háptica de salida.
+  - `vibrar_manivela_giro()`: Tic mecánico rítmico cada 0.16s al girar una manivela o cabestrante.
+  - `vibrar_manivela_bloqueo()`: Impacto sólido cuando el mecanismo alcanza el 100%.
+  - `iniciar_vibracion_empuje_caja()` / `detener_vibracion_empuje_caja()`: Fricción continua al desplazar cajas sobre superficies rugosas.
+  - `vibrar_salto()`, `vibrar_aterrizaje(intensidad)`, `vibrar_embate()`, `vibrar_coleccionable()`, `vibrar_dano()`.
+- **Persistencia**: Guarda el estado On/Off en `user://opciones.cfg` (sección `[juego]`, clave `vibracion_habilitada`).
+
+### 3. Modo Foto Multi-Plataforma (`scripts/ui/modo_foto.gd`)
+- **Permisos Móviles**: Llama automáticamente a `OS.request_permissions()` en dispositivos Android para acceder al almacenamiento externo.
+- **Guardado Dual Confiable**:
+  - Almacenamiento primario en espacio de la aplicación (`user://fotos/`).
+  - Almacenamiento secundario en la galería de imágenes del dispositivo (`OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)/ProyectoLimbo/`).
+- **Feedback Visual y Háptico**: Destello blanco de obturador, sonido de cámara y pulso háptico instantáneo al tomar la captura.
+
+## 22. Archivos Que Una IA Deberia Leer Primero
 
 Orden recomendado:
 
