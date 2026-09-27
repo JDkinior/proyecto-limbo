@@ -165,6 +165,9 @@ class_name GeneradorPasto
 
 var _jugador_ref: Node3D = null
 var _fantasma_ref: Node3D = null
+var _pos_jugador_ant: Vector3 = Vector3(0, 9999, 0)
+var _pos_fantasma_ant: Vector3 = Vector3(0, 9999, 0)
+var _tiempo_reintento_busqueda: float = 0.0
 var _shader_mat: ShaderMaterial = null
 var _chunks: Array[MultiMeshInstance3D] = []
 const TAMANO_CHUNK: float = 12.0
@@ -209,17 +212,46 @@ func _ready() -> void:
 	_aplicar_configuracion_visibilidad()
 
 	_conectar_senales_personaje()
+	_buscar_referencias_personajes()
 	_actualizar_material_por_reino()
 	generar()
+
+func _get_red_manager() -> Node:
+	if Engine.is_editor_hint():
+		return null
+	if is_inside_tree():
+		return get_tree().root.get_node_or_null("RedManager")
+	return null
+
+func _buscar_referencias_personajes() -> void:
+	if Engine.is_editor_hint():
+		return
+	var red_mgr = _get_red_manager()
+	if not is_instance_valid(_jugador_ref):
+		if is_instance_valid(red_mgr) and "jugador_vivo" in red_mgr and is_instance_valid(red_mgr.jugador_vivo):
+			_jugador_ref = red_mgr.jugador_vivo
+		elif is_inside_tree():
+			var vivos = get_tree().get_nodes_in_group("vivos")
+			if vivos.size() > 0:
+				_jugador_ref = vivos[0] as Node3D
+
+	if not is_instance_valid(_fantasma_ref):
+		if is_instance_valid(red_mgr) and "fantasma" in red_mgr and is_instance_valid(red_mgr.fantasma):
+			_fantasma_ref = red_mgr.fantasma
+		elif is_inside_tree():
+			var fantasmas = get_tree().get_nodes_in_group("fantasmas")
+			if fantasmas.size() > 0:
+				_fantasma_ref = fantasmas[0] as Node3D
 
 func _conectar_senales_personaje() -> void:
 	if Engine.is_editor_hint():
 		return
-	if is_instance_valid(RedManager):
-		if RedManager.has_signal("personaje_solo_cambiado") and not RedManager.personaje_solo_cambiado.is_connected(_on_personaje_cambiado):
-			RedManager.personaje_solo_cambiado.connect(_on_personaje_cambiado)
-		if RedManager.has_signal("reino_cambiado") and not RedManager.reino_cambiado.is_connected(_on_reino_cambiado):
-			RedManager.reino_cambiado.connect(_on_reino_cambiado)
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr):
+		if red_mgr.has_signal("personaje_solo_cambiado") and not red_mgr.personaje_solo_cambiado.is_connected(_on_personaje_cambiado):
+			red_mgr.personaje_solo_cambiado.connect(_on_personaje_cambiado)
+		if red_mgr.has_signal("reino_cambiado") and not red_mgr.reino_cambiado.is_connected(_on_reino_cambiado):
+			red_mgr.reino_cambiado.connect(_on_reino_cambiado)
 
 func _on_personaje_cambiado(_nuevo_personaje: String) -> void:
 	_actualizar_material_por_reino()
@@ -281,15 +313,16 @@ func _detectar_es_fantasma_por_camara_activa() -> bool:
 			nodo = nodo.get_parent()
 
 	# 2. Fallback: usar RedManager
-	if is_instance_valid(RedManager):
-		if RedManager.has_method("es_reino_espiritual_activo"):
-			return RedManager.es_reino_espiritual_activo()
-		if RedManager.es_un_jugador and "personaje_activo_solo" in RedManager:
-			return RedManager.personaje_activo_solo == "fantasma"
-		if "peer_personajes" in RedManager:
-			var mi_id = RedManager.get_mi_peer_id()
-			if RedManager.peer_personajes.has(mi_id):
-				return RedManager.peer_personajes[mi_id] == "fantasma"
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr):
+		if red_mgr.has_method("es_reino_espiritual_activo"):
+			return red_mgr.es_reino_espiritual_activo()
+		if "es_un_jugador" in red_mgr and red_mgr.es_un_jugador and "personaje_activo_solo" in red_mgr:
+			return red_mgr.personaje_activo_solo == "fantasma"
+		if "peer_personajes" in red_mgr and red_mgr.has_method("get_mi_peer_id"):
+			var mi_id = red_mgr.get_mi_peer_id()
+			if red_mgr.peer_personajes.has(mi_id):
+				return red_mgr.peer_personajes[mi_id] == "fantasma"
 	return false
 
 func _solicitar_regeneracion() -> void:
@@ -789,30 +822,21 @@ func _process(_delta: float) -> void:
 	if _shader_mat == null:
 		return
 
-	# Buscar y pasar la posición del Jugador
-	if not is_instance_valid(_jugador_ref):
-		if is_instance_valid(RedManager) and is_instance_valid(RedManager.jugador_vivo):
-			_jugador_ref = RedManager.jugador_vivo
-		else:
-			var vivos = get_tree().get_nodes_in_group("vivos")
-			if vivos.size() > 0:
-				_jugador_ref = vivos[0] as Node3D
+	# Reintentar búsqueda de personajes si aún no son válidos (restringido a 1 vez por segundo para evitar GC churn)
+	if not is_instance_valid(_jugador_ref) or not is_instance_valid(_fantasma_ref):
+		_tiempo_reintento_busqueda += _delta
+		if _tiempo_reintento_busqueda >= 1.0:
+			_tiempo_reintento_busqueda = 0.0
+			_buscar_referencias_personajes()
 
-	if is_instance_valid(_jugador_ref):
-		_shader_mat.set_shader_parameter("posicion_jugador", _jugador_ref.global_position)
-	else:
-		_shader_mat.set_shader_parameter("posicion_jugador", Vector3(0, 9999, 0))
+	# Actualizar posición Jugador solo si se movió (dirty check para evitar llamadas redundantes)
+	var pos_j = _jugador_ref.global_position if is_instance_valid(_jugador_ref) else Vector3(0, 9999, 0)
+	if pos_j.distance_squared_to(_pos_jugador_ant) > 0.0004:
+		_pos_jugador_ant = pos_j
+		_shader_mat.set_shader_parameter("posicion_jugador", pos_j)
 
-	# Buscar y pasar la posición del Fantasma
-	if not is_instance_valid(_fantasma_ref):
-		if is_instance_valid(RedManager) and is_instance_valid(RedManager.fantasma):
-			_fantasma_ref = RedManager.fantasma
-		else:
-			var fantasmas = get_tree().get_nodes_in_group("fantasmas")
-			if fantasmas.size() > 0:
-				_fantasma_ref = fantasmas[0] as Node3D
-
-	if is_instance_valid(_fantasma_ref):
-		_shader_mat.set_shader_parameter("posicion_fantasma", _fantasma_ref.global_position)
-	else:
-		_shader_mat.set_shader_parameter("posicion_fantasma", Vector3(0, 9999, 0))
+	# Actualizar posición Fantasma solo si se movió
+	var pos_f = _fantasma_ref.global_position if is_instance_valid(_fantasma_ref) else Vector3(0, 9999, 0)
+	if pos_f.distance_squared_to(_pos_fantasma_ant) > 0.0004:
+		_pos_fantasma_ant = pos_f
+		_shader_mat.set_shader_parameter("posicion_fantasma", pos_f)
