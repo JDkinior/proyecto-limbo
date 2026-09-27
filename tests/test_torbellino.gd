@@ -286,4 +286,38 @@ func test_estabilidad_camara_vortice_y_reaparicion() -> void:
 	var limite_y_camara = limite_caida_y + 1.8
 	assert_gt(limite_y_camara, limite_caida_y, "El margen de seguridad de la cámara debe mantenerse por encima de LIMITE_CAIDA_Y para evitar colisiones subterráneas o artefactos en 1 frame")
 
+func test_absorcion_metodo_llamada() -> void:
+	var char_script = ResourceLoader.load("res://scripts/base/character_base.gd", "", ResourceLoader.CACHE_MODE_REPLACE) as GDScript
+	assert_ne(char_script, null, "character_base.gd debe cargarse")
+	
+	var found = false
+	for m in char_script.get_script_method_list():
+		if m["name"] == "ser_absorbido_en_vortice":
+			found = true
+			# Los argumentos esperados deben ser al menos 5 para admitir altura_tornado
+			assert_gt(m["args"].size(), 4, "ser_absorbido_en_vortice debe aceptar 5 argumentos")
+			# Las variables default son 2 (nodo_vortice y altura_tornado)
+			assert_true(m["default_args"].size() >= 2, "Debe tener al menos 2 argumentos opcionales con valor por defecto")
+			break
+	assert_true(found, "El método ser_absorbido_en_vortice debe existir en character_base.gd")
+
+func test_orbita_dentro_del_cono_vortice() -> void:
+	# Simular descenso a lo largo de 10 puntos de progreso (0.0 a 1.0)
+	var r_top = 2.4
+	var r_bot = 0.45
+	var r_inicial = 1.2
+	
+	for i in range(11):
+		var progreso = float(i) / 10.0
+		var t_cono = 1.0 - progreso # Desciende de arriba a abajo
+		var r_cono_max = lerpf(r_bot, r_top, t_cono)
+		var r_interior_tornado = r_cono_max * 0.38
+		var t_inward = clampf(progreso * 5.0, 0.0, 1.0)
+		var factor_inward = 1.0 - pow(1.0 - t_inward, 3.0)
+		var r_orbita = lerpf(minf(r_inicial, r_cono_max * 0.80), r_interior_tornado, factor_inward)
+		
+		assert_true(r_orbita < r_cono_max, "El radio en progreso %0.2f (%0.2f) debe ser menor al radio del cono (%0.2f)" % [progreso, r_orbita, r_cono_max])
+		assert_true(r_orbita >= 0.15, "El radio no debe colapsar a cero")
+
+
 

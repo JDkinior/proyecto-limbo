@@ -20,7 +20,7 @@ signal fantasma_expulsado(fantasma: Node3D)
 @export var afecta_solo_fantasmas: bool = true
 
 @export_group("Absorción y Núcleo")
-@export var radio_nucleo: float = 1.3
+@export var radio_nucleo: float = 1.15
 @export var duracion_absorcion: float = 1.1 ## Duración de descenso y giro dentro del cono
 @export var fuerza_expulsion_horizontal: float = 5.0
 @export var fuerza_expulsion_vertical: float = -18.0 ## Impulso descendente potente para caer con velocidad

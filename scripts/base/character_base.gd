@@ -82,7 +82,17 @@ var _centro_absorcion: Vector3 = Vector3.ZERO
 var _impulso_expulsion_pendiente: Vector3 = Vector3.ZERO
 var _angulo_giro_absorcion: float = 0.0
 var _radio_orbita_absorcion: float = 0.6
-var _velocidad_giro_absorcion: float = 14.0
+var _radio_inicial_absorcion: float = 0.6
+var _velocidad_giro_absorcion: float = 12.0
+var _y_entrada_vortice: float = 0.0
+var _y_salida_vortice: float = 0.0
+var _altura_vortice: float = 5.2
+var _tiempo_impulso_caida: float = 0.0
+var _vel_max_caida_impulso: float = 0.0
+var _pos_camara_fija_vortice: Vector3 = Vector3.ZERO
+var _rot_camara_fija_vortice: Vector3 = Vector3.ZERO
+var _rot_x_arm_fija_vortice: float = 0.0
+var _camara_fijada_en_vortice: bool = false
 
 signal fantasma_absorbido_en_vortice(centro: Vector3, duracion: float)
 signal fantasma_expulsado_de_vortice(impulso: Vector3)
@@ -96,7 +106,7 @@ func aplicar_fuerza_vortice(fuerza_horizontal: Vector3, arrastre_vertical: float
 func recibir_impulso_externo(impulso: Vector3) -> void:
 	velocity += impulso
 
-func ser_absorbido_en_vortice(centro: Vector3, duracion: float, impulso_salida: Vector3, nodo_vortice: Node3D = null) -> void:
+func ser_absorbido_en_vortice(centro: Vector3, duracion: float, impulso_salida: Vector3, nodo_vortice: Node3D = null, altura_tornado: float = 5.2) -> void:
 	if _vortice_esta_absorbido:
 		return
 	_vortice_esta_absorbido = true
@@ -105,12 +115,49 @@ func ser_absorbido_en_vortice(centro: Vector3, duracion: float, impulso_salida: 
 	_centro_absorcion = centro
 	_nodo_vortice_origen = nodo_vortice
 	_impulso_expulsion_pendiente = impulso_salida
-	_velocidad_giro_absorcion = 14.0
+	_velocidad_giro_absorcion = 12.0
+	
+	if is_instance_valid(nodo_vortice) and "altura_tornado" in nodo_vortice:
+		var esc_y = nodo_vortice.global_basis.get_scale().y if is_instance_valid(nodo_vortice) else 1.0
+		_altura_vortice = (nodo_vortice.get("altura_tornado") if nodo_vortice.get("altura_tornado") != null else 5.2) * esc_y
+	else:
+		_altura_vortice = altura_tornado
+		
+	var offset_visual_y = 0.0
+	if is_instance_valid(nodo_vortice) and nodo_vortice.has_node("Visual"):
+		offset_visual_y = nodo_vortice.get_node("Visual").position.y
+	
+	var y_centro_vortice = _centro_absorcion.y + offset_visual_y
+	var y_tope_vortice = y_centro_vortice + (_altura_vortice * 0.5)
+	var y_base_vortice = y_centro_vortice - (_altura_vortice * 0.5)
+	
+	# Salida justo por debajo de la base inferior del torbellino
+	_y_salida_vortice = y_base_vortice - 0.35
+	
+	# Cota vertical de entrada: asegurar que comience dentro del cuerpo del embudo para un descenso visible
+	_y_entrada_vortice = clampf(global_position.y, y_base_vortice + (_altura_vortice * 0.30), y_tope_vortice - 0.20)
 	
 	var offset = global_position - centro
 	_angulo_giro_absorcion = atan2(offset.x, -offset.z)
-	_radio_orbita_absorcion = clampf(Vector2(offset.x, offset.z).length(), 0.25, 1.2)
+	
+	# Calcular radio del cono en el punto vertical de entrada
+	var t_cono_entrada = clampf((_y_entrada_vortice - y_base_vortice) / maxf(_altura_vortice, 0.001), 0.0, 1.0)
+	var r_cono_entrada = lerpf(0.45, 2.4, t_cono_entrada)
+	
+	# Acotar la distancia inicial para que entre directamente dentro del cono sin orbitar por fuera
+	var dist_actual = Vector2(offset.x, offset.z).length()
+	_radio_inicial_absorcion = minf(dist_actual, r_cono_entrada * 0.75)
+	_radio_orbita_absorcion = _radio_inicial_absorcion
 	velocity = Vector3.ZERO
+	
+	# Congelar la cámara en la posición exacta en la que quedó al ser absorbido (evita zoom brusco/cortado)
+	if pivote_camara:
+		_pos_camara_fija_vortice = pivote_camara.global_position
+		_rot_camara_fija_vortice = pivote_camara.rotation
+		var arm = obtener_spring_arm()
+		_rot_x_arm_fija_vortice = arm.rotation.x if arm else pivote_camara.rotation.x
+		_camara_fijada_en_vortice = true
+	
 	fantasma_absorbido_en_vortice.emit(centro, duracion)
 
 func esta_absorbido_en_vortice() -> bool:
@@ -264,7 +311,39 @@ func procesar_camara_base(delta: float):
 	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso: return
 
 	if pivote_camara:
-		pivote_camara.global_position = global_position
+		if _vortice_esta_absorbido:
+			# Mantener la cámara exactamente en la posición en la que quedó al ser absorbido (sin zoom brusco ni saltos)
+			pivote_camara.global_position = _pos_camara_fija_vortice
+			pivote_camara.rotation = _rot_camara_fija_vortice
+			var arm = obtener_spring_arm()
+			if arm:
+				arm.rotation.x = _rot_x_arm_fija_vortice
+			return
+		elif _camara_fijada_en_vortice:
+			# Si el personaje fue expulsado y cae hacia el vacío con impulso vertical descendente o caída libre,
+			# mantener la cámara fija en el punto de observación del vórtice viendo caer al personaje.
+			# Esto evita sumergir la cámara en el abismo, colisionar bajo el suelo o mostrar un frame anómalo antes de reaparecer.
+			var en_caida_al_vacio = _tiempo_impulso_caida > 0.0 or velocity.y < -4.5 or global_position.y < (LIMITE_CAIDA_Y + 2.0)
+			if en_caida_al_vacio and not is_on_floor():
+				pivote_camara.global_position = _pos_camara_fija_vortice
+				pivote_camara.rotation = _rot_camara_fija_vortice
+				var arm = obtener_spring_arm()
+				if arm:
+					arm.rotation.x = _rot_x_arm_fija_vortice
+				return
+			else:
+				# Si aterrizó en plataforma o se estabilizó volando seguro, retornar suavemente hacia el personaje
+				pivote_camara.global_position = pivote_camara.global_position.lerp(global_position, 8.0 * delta)
+				if pivote_camara.global_position.distance_squared_to(global_position) < 0.12:
+					_camara_fijada_en_vortice = false
+		else:
+			# Al seguir normalmente al jugador, evitar que la cámara descienda a las profundidades del abismo si cae al vacío
+			var limite_y_camara = LIMITE_CAIDA_Y + 1.8
+			if global_position.y >= limite_y_camara:
+				pivote_camara.global_position = global_position
+			else:
+				pivote_camara.global_position.x = global_position.x
+				pivote_camara.global_position.z = global_position.z
 
 		# Buscar controles táctiles si aún no se han referenciado
 		if not controles_tactiles:
@@ -360,11 +439,20 @@ func procesar_salto_base(delta: float):
 				velocity.y = maxf(velocity.y, -vel_max_arrastre)
 			_arrastre_descendente_vortice = 0.0
 		elif planeando:
+			# Si el jugador decide abrir sus alas/planear, interrumpe el picado forzado para salvarse
+			_tiempo_impulso_caida = 0.0
+			_vel_max_caida_impulso = 0.0
 			# Frenado suave amortiguado si se empieza a planear a alta velocidad de caída
 			if velocity.y < -VELOCIDAD_MAX_CAIDA_PLANEO:
 				velocity.y = move_toward(velocity.y, -VELOCIDAD_MAX_CAIDA_PLANEO, SUAVIDAD_FRENADO_PLANEO * delta)
 			else:
 				velocity.y = maxf(velocity.y, -VELOCIDAD_MAX_CAIDA_PLANEO)
+		elif _tiempo_impulso_caida > 0.0:
+			# Impulso de expulsión por debajo del torbellino: permite caer velozmente con gran impulso
+			_tiempo_impulso_caida -= delta
+			var vel_terminal_efectiva = maxf(VELOCIDAD_MAX_CAIDA, _vel_max_caida_impulso)
+			velocity.y = maxf(velocity.y, -vel_terminal_efectiva)
+			_vel_max_caida_impulso = move_toward(_vel_max_caida_impulso, VELOCIDAD_MAX_CAIDA, 8.0 * delta)
 		elif VELOCIDAD_MAX_CAIDA > 0.0:
 			velocity.y = maxf(velocity.y, -VELOCIDAD_MAX_CAIDA)
 			
@@ -373,6 +461,8 @@ func procesar_salto_base(delta: float):
 		if tiempo_desde_suelo > TIEMPO_COYOTE and saltos_realizados == 0:
 			saltos_realizados = 1
 	else:
+		_tiempo_impulso_caida = 0.0
+		_vel_max_caida_impulso = 0.0
 		if tiempo_desde_suelo > 0.12 and _vel_y_previa_base < -2.8:
 			_al_aterrizar_base(_vel_y_previa_base)
 		tiempo_desde_suelo = 0.0
@@ -442,35 +532,75 @@ func obtener_direccion_movimiento() -> Vector3:
 
 func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 	if _vortice_esta_absorbido:
+		var offset_visual_y = 0.0
 		if is_instance_valid(_nodo_vortice_origen):
 			_centro_absorcion = _nodo_vortice_origen.global_position
+			if _nodo_vortice_origen.has_node("Visual"):
+				offset_visual_y = _nodo_vortice_origen.get_node("Visual").position.y
+			var esc_y = _nodo_vortice_origen.global_basis.get_scale().y
+			_altura_vortice = (_nodo_vortice_origen.get("altura_tornado") if _nodo_vortice_origen.get("altura_tornado") != null else 5.2) * esc_y
+			_y_salida_vortice = (_centro_absorcion.y + offset_visual_y) - (_altura_vortice * 0.5) - 0.35
+			
 		_tiempo_absorcion_restante -= delta
-		_angulo_giro_absorcion += _velocidad_giro_absorcion * delta
-		_radio_orbita_absorcion = move_toward(_radio_orbita_absorcion, 0.20, 1.4 * delta)
+		var progreso = 1.0 - clampf(_tiempo_absorcion_restante / _duracion_absorcion_total, 0.0, 1.0)
+		
+		# 1. Rotación: Entre más abajo del tornado va, más rápido gira
+		# Inicia en 12.0 rad/s y se acelera progresivamente hasta 38.0 rad/s en el cono inferior
+		var vel_giro_actual = lerpf(12.0, 38.0, progreso * progreso)
+		_velocidad_giro_absorcion = vel_giro_actual
+		_angulo_giro_absorcion += vel_giro_actual * delta
+		
+		# 2. Descenso vertical continuo desde la entrada hasta salir por debajo
+		var target_y = lerpf(_y_entrada_vortice, _y_salida_vortice, progreso)
+		
+		# 3. Embudo interior: calcular el radio del cono en la altura actual
+		var y_base_vortice = (_centro_absorcion.y + offset_visual_y) - (_altura_vortice * 0.5)
+		var t_cono = clampf((target_y - y_base_vortice) / maxf(_altura_vortice, 0.001), 0.0, 1.0)
+		var r_cono_actual = lerpf(0.45, 2.4, t_cono)
+		
+		# Radio objetivo dentro del ojo interior del torbellino (38% del radio del cono en esa cota)
+		var r_interior_tornado = r_cono_actual * 0.38
+		
+		# Transición veloz y suave hacia el ojo interior del vórtice (en los primeros ~0.15s)
+		var t_succion = clampf(progreso * 5.0, 0.0, 1.0)
+		var factor_inward = 1.0 - pow(1.0 - t_succion, 3.0)
+		_radio_orbita_absorcion = lerpf(_radio_inicial_absorcion, r_interior_tornado, factor_inward)
 		
 		var target_x = _centro_absorcion.x + sin(_angulo_giro_absorcion) * _radio_orbita_absorcion
 		var target_z = _centro_absorcion.z - cos(_angulo_giro_absorcion) * _radio_orbita_absorcion
-		var target_y = move_toward(global_position.y, _centro_absorcion.y - 0.4, 3.0 * delta)
 		
 		var destino = Vector3(target_x, target_y, target_z)
 		velocity = (destino - global_position) / maxf(delta, 0.001)
 		move_and_slide()
 		
+		# Orientar visualmente al personaje hacia la dirección tangencial del giro
 		var dir_vel = Vector2(velocity.x, velocity.z)
 		if dir_vel.length_squared() > 0.01:
 			var target_rot = atan2(-velocity.x, -velocity.z)
-			rotation.y = lerp_angle(rotation.y, target_rot, 20.0 * delta)
+			rotation.y = lerp_angle(rotation.y, target_rot, 25.0 * delta)
 		
+		# Al expirar la duración o alcanzar la salida inferior, expulsar con impulso
 		if _tiempo_absorcion_restante <= 0.0:
 			_vortice_esta_absorbido = false
 			_nodo_vortice_origen = null
 			velocity = _impulso_expulsion_pendiente
 			_fuerza_vortice_acumulada = Vector3.ZERO
+			
+			# Configurar impulso de caída rápida
+			_tiempo_impulso_caida = 1.0
+			_vel_max_caida_impulso = absf(_impulso_expulsion_pendiente.y)
+			
 			fantasma_expulsado_de_vortice.emit(_impulso_expulsion_pendiente)
 		
 		_comprobar_caida_vacio()
-		if es_activo() and pivote_camara and pivote_camara.top_level:
-			pivote_camara.global_position = global_position
+		
+		# Mantener la cámara fija en la posición en la que quedó al ser absorbido
+		if _vortice_esta_absorbido and es_activo() and pivote_camara and pivote_camara.top_level:
+			pivote_camara.global_position = _pos_camara_fija_vortice
+			pivote_camara.rotation = _rot_camara_fija_vortice
+			var arm = obtener_spring_arm()
+			if arm:
+				arm.rotation.x = _rot_x_arm_fija_vortice
 		return
 
 	var planeando = esta_planeando()
@@ -514,9 +644,14 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 
 	_comprobar_caida_vacio()
 	
-	# Aseguramos que la cámara siga exactamente la posición del jugador después del movimiento físico
-	if es_activo() and pivote_camara and pivote_camara.top_level:
-		pivote_camara.global_position = global_position
+	# Aseguramos que la cámara siga la posición del jugador después del movimiento físico sin hundirse en el abismo
+	if es_activo() and pivote_camara and pivote_camara.top_level and not _camara_fijada_en_vortice:
+		var limite_y_camara = LIMITE_CAIDA_Y + 1.8
+		if global_position.y >= limite_y_camara:
+			pivote_camara.global_position = global_position
+		else:
+			pivote_camara.global_position.x = global_position.x
+			pivote_camara.global_position.z = global_position.z
 
 func procesar_movimiento_base(delta: float):
 	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso:
@@ -543,9 +678,15 @@ func resetear_estados():
 	tiempo_desde_salto = 0.0
 	_vortice_esta_absorbido = false
 	_tiempo_absorcion_restante = 0.0
+	_tiempo_impulso_caida = 0.0
+	_vel_max_caida_impulso = 0.0
+	_camara_fijada_en_vortice = false
 	_fuerza_vortice_acumulada = Vector3.ZERO
 	_arrastre_descendente_vortice = 0.0
 	_nodo_vortice_origen = null
+	if is_instance_valid(particulas_corazon):
+		particulas_corazon.emitting = false
+		particulas_corazon.restart()
 	_al_resetear_estados()
 
 func _al_resetear_estados():
@@ -568,6 +709,7 @@ func reaparecer() -> void:
 	rotation = rot_dest
 	sync_position = destino
 	sync_rotation = rot_dest
+	_vel_y_previa_base = 0.0
 
 	resetear_estados()
 
@@ -576,13 +718,41 @@ func reaparecer() -> void:
 
 	if pivote_camara:
 		pivote_camara.global_position = destino
-		pivote_camara.rotation.y = rot_dest.y
+		pivote_camara.rotation = Vector3(0.0, rot_dest.y, 0.0)
 		var arm = obtener_spring_arm()
 		if arm:
 			pivote_camara.rotation.x = 0.0
-			arm.rotation.x = rotacion_inicial_camara_x
-		else:
-			pivote_camara.rotation.x = rotacion_inicial_camara_x
+			arm.rotation = Vector3(rotacion_inicial_camara_x, 0.0, 0.0)
+			arm.force_update_transform()
+		pivote_camara.force_update_transform()
+
+		var cam = obtener_camara()
+		if cam:
+			# Posicionar inmediatamente la cámara en una distancia despejada válida para evitar cualquier frame con spring comprimido residual
+			var dist_final = DISTANCIA_CAMARA
+			if arm:
+				dist_final = arm.spring_length
+				if is_inside_tree() and arm.get_world_3d():
+					var espacio = arm.get_world_3d().direct_space_state
+					if espacio:
+						var origen = arm.global_position
+						var dir_cam = arm.global_transform.basis.z * arm.spring_length
+						var query = PhysicsRayQueryParameters3D.create(origen, origen + dir_cam, arm.collision_mask, [get_rid()])
+						var hit = espacio.intersect_ray(query)
+						if hit and not hit.is_empty():
+							dist_final = maxf(origen.distance_to(hit.position) - arm.margin, 0.2)
+			cam.position = Vector3(0.0, 0.0, dist_final)
+			cam.force_update_transform()
+			cam.reset_physics_interpolation()
+		if arm:
+			arm.reset_physics_interpolation()
+		pivote_camara.reset_physics_interpolation()
+
+	# Restablecer interpolación física en toda la jerarquía para eliminar estiramientos o saltos visuales en 1 frame
+	reset_physics_interpolation()
+	propagate_call("reset_physics_interpolation")
+	if pivote_camara and pivote_camara.top_level:
+		pivote_camara.propagate_call("reset_physics_interpolation")
 
 func _comprobar_caida_vacio():
 	if global_position.y < LIMITE_CAIDA_Y:
@@ -755,6 +925,11 @@ func _aplicar_silueta_recursiva(nodo: Node) -> void:
 		if nodo.name == "Aura" or nodo.name == "HaloSuave":
 			return
 			
+		# Evitar que Occlusion Culling descarte la malla en CPU cuando está tras un muro
+		# permitiendo que el shader/stencil X-Ray se renderice en GPU sin parpadeos.
+		nodo.ignore_occlusion_culling = silueta_activa
+		nodo.extra_cull_margin = 0.5 if silueta_activa else 0.0
+
 		for s in range(nodo.mesh.get_surface_count()):
 			var mat = nodo.get_surface_override_material(s)
 			if not mat:
