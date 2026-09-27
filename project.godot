@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Proyecto Limbo"
-config/version="1.0.1"
+config/version="1.0.2"
 run/main_scene="res://scenes/ui/menu_inicio.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 run/max_fps=60
@@ -127,5 +127,5 @@ renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true
 environment/glow/upscale_mode=0
 occlusion_culling/use_occlusion_culling=true
-occlusion_culling/occlusion_culling_buffer_size=128
-occlusion_culling/jitter_fix=false
+occlusion_culling/occlusion_culling_buffer_size=256
+occlusion_culling/jitter_fix=true

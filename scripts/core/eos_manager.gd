@@ -12,7 +12,7 @@ signal log_agregado(msg: String)
 
 @export_group("Epic Online Services Credentials")
 @export var product_name: String = "Proyecto Limbo"
-@export var product_version: String = "1.0.1"
+@export var product_version: String = "1.0.2"
 @export var product_id: String = "3dc843c12f224b21b3a403f9c2d64e80"
 @export var sandbox_id: String = "1dbd33f99f5e49589e6019dc9654ae1e"
 @export var deployment_id: String = "b6c5f3c60f6c41a5a7288cea96896e68"
