@@ -8,12 +8,12 @@ import os
 def smoothstep(edge0, edge1, x):
     t = max(0.0, min(1.0, (x - edge0) / (edge1 - edge0)))
     return t * t * (3.0 - 2.0 * t)
-
 def bake_tree_glb(glb_path):
     bak_path = glb_path + ".bak"
-    if not os.path.exists(bak_path):
+    # Si el GLB fue modificado externamente (por ejemplo desde Blender), refrescar el backup
+    if not os.path.exists(bak_path) or os.path.getmtime(glb_path) > os.path.getmtime(bak_path):
         shutil.copyfile(glb_path, bak_path)
-        print(f"Created backup: {bak_path}")
+        print(f"Created/Refreshed backup: {bak_path}")
 
     # Read from original backup to avoid compounding edits
     with open(bak_path, 'rb') as f:
