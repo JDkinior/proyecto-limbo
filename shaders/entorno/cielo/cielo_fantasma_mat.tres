@@ -5,13 +5,13 @@
 
 [resource]
 shader = ExtResource("1_cielo_shader")
-shader_parameter/usar_textura_optimizada = true
-shader_parameter/textura_ruido_nubes = ExtResource("2_ruido")
 shader_parameter/color_cielo_cenit = Color(0.04, 0.16, 0.32, 1)
 shader_parameter/color_cielo_horizonte = Color(0.2, 0.52, 0.72, 1)
 shader_parameter/color_suelo_horizonte = Color(0.08, 0.24, 0.36, 1)
 shader_parameter/color_suelo_nadir = Color(0.03, 0.08, 0.15, 1)
 shader_parameter/exponente_gradiente_cielo = 1.65
+shader_parameter/usar_textura_optimizada = true
+shader_parameter/textura_ruido_nubes = ExtResource("2_ruido")
 shader_parameter/color_nube_luz = Color(0.42, 0.76, 0.92, 1)
 shader_parameter/color_nube_medio = Color(0.16, 0.36, 0.54, 1)
 shader_parameter/color_nube_sombra = Color(0.06, 0.16, 0.28, 1)
@@ -27,7 +27,7 @@ shader_parameter/fuerza_rim_solar = 1.1
 shader_parameter/grosor_rim = 0.04
 shader_parameter/curvatura_domo = 0.42
 shader_parameter/atenuacion_horizonte = 0.06
-shader_parameter/direccion_viento = Vector2(1, 0.25)
+shader_parameter/direccion_viento = Vector2(0.868, 0.496)
 shader_parameter/velocidad_viento = 0.28
 shader_parameter/velocidad_evolucion = 0.04
 shader_parameter/modo_luna = true

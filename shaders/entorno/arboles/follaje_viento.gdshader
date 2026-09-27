@@ -12,8 +12,11 @@ render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specula
 // 2. filter_linear (sin mipmaps): evita la degradación y el desenfoque
 //    del canal alfa a la distancia, eliminando los bordes oscuros o
 //    moteados al alejarse la cámara.
-// 3. Anclaje pre-horneado en COLOR.r: Elimina el bucle de 16 iteraciones
-//    de distancia por vértice, optimizando el rendimiento en GPU móvil.
+// 3. Anclaje híbrido inteligente:
+//    - Prioridad 1: Si el modelo tiene COLOR.r pre-horneado, lo usa directamente sin coste GPU.
+//    - Prioridad 2: Si el modelo fue re-exportado desde Blender sin vertex colors, se calcula
+//      automáticamente mediante distancia a los nudos de ramas principales (RAMAS[14]),
+//      garantizando que la base de las hojas NUNCA se deslice de las ramas estáticas.
 // ====================================================================
 
 group_uniforms Apariencia;
@@ -32,6 +35,25 @@ uniform float fuerza_sway : hint_range(0.0, 1.0) = 0.16;
 uniform float turbulencia_lateral : hint_range(0.0, 1.0) = 0.25;
 uniform float altura_base_copa = 2.0;
 
+// Nudos y ejes de ramas principales para los árboles de otoño.
+// Sirve como fallback automático e instantáneo cuando un modelo es re-exportado desde Blender sin vertex colors.
+const vec3 RAMAS[14] = vec3[14](
+	vec3(0.0, 2.2, 0.0),
+	vec3(0.0, 3.2, 0.0),
+	vec3(0.73, 2.58, 0.24),
+	vec3(1.44, 2.83, 0.31),
+	vec3(1.53, 3.75, 0.25),
+	vec3(-0.52, 2.01, 0.12),
+	vec3(-1.08, 2.20, -0.16),
+	vec3(-1.41, 2.67, 0.01),
+	vec3(-1.39, 3.28, -0.24),
+	vec3(0.58, 2.85, -0.37),
+	vec3(0.31, 3.35, -0.08),
+	vec3(0.29, 4.05, -0.22),
+	vec3(-0.04, 5.08, -0.17),
+	vec3(-0.71, 2.59, -0.06)
+);
+
 void vertex() {
 	// 1. Origen del árbol en mundo (compartido por toda la instancia)
 	vec3 origen_arbol = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -45,11 +67,18 @@ void vertex() {
 	float altura_relativa = max(0.0, pos_mundo.y - origen_arbol.y);
 	float factor_copa = smoothstep(altura_base_copa - 0.4, altura_base_copa + 0.4, altura_relativa);
 
-	// 4. Anclaje a las ramas pre-horneado en Vertex Colors (COLOR.r):
-	// Los modelos de árboles tienen pre-calculado en vértices el factor de anclaje
-	// (0.0 = unión estática con la madera, 1.0 = puntas con vaivén pleno), eliminando
-	// el costoso bucle de 16 iteraciones de distancia por cada vértice en GPU móvil.
+	// 4. Anclaje a las ramas (unificado para base y tarjetas de hojas):
+	// Prioridad 1: Si el modelo tiene COLOR.r horneado (< 0.98), se utiliza directamente (0 coste en GPU).
+	// Prioridad 2: Si el modelo es nuevo o re-exportado desde Blender (COLOR.r >= 0.98), se calcula proceduralmente.
 	float factor_anclaje = COLOR.r;
+	if (COLOR.r > 0.98) {
+		float dist_rama = 999.0;
+		for (int i = 0; i < 14; i++) {
+			dist_rama = min(dist_rama, distance(VERTEX, RAMAS[i]));
+		}
+		factor_anclaje = smoothstep(0.20, 0.95, dist_rama);
+		factor_anclaje = factor_anclaje * factor_anclaje;
+	}
 	float peso_viento = factor_copa * factor_anclaje;
 
 	// 5. Oscilación de viento unificada

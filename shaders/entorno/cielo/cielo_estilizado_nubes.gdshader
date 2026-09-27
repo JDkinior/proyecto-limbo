@@ -36,7 +36,7 @@ uniform float curvatura_domo : hint_range(0.05, 1.0) = 0.38;
 uniform float atenuacion_horizonte : hint_range(0.0, 1.0) = 0.05;
 
 group_uniforms Viento_Nubes;
-uniform vec2 direccion_viento = vec2(1.0, 0.3);
+uniform vec2 direccion_viento = vec2(0.868, 0.496);
 uniform float velocidad_viento : hint_range(0.0, 3.0) = 0.38;
 uniform float velocidad_evolucion : hint_range(0.0, 1.0) = 0.06;
 
@@ -255,7 +255,7 @@ void sky() {
 		float t_evol = TIME * velocidad_evolucion * 0.025;
 
 		vec2 plano_uv = (dir.xz / (dir.y + curvatura_domo)) * escala_nubes;
-		vec2 uv_nube = plano_uv + dir_viento_norm * t_viento;
+		vec2 uv_nube = plano_uv - dir_viento_norm * t_viento;
 
 		float forma_nube;
 		if (usar_textura_optimizada) {
