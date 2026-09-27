@@ -88,6 +88,13 @@ func _ready():
 	_pos_anterior_remoto = global_position
 
 	_configurar_animaciones()
+	
+	# Pre-inicializar entorno espiritual y cámara para pre-hornear radiancia del cielo al inicio
+	_entorno_fantasma_cache = obtener_entorno_personaje()
+	var cam = obtener_camara()
+	if cam:
+		cam.environment = _entorno_fantasma_cache
+		cam.cull_mask = obtener_cull_mask_personaje()
 
 func _on_aura_estado_cambiado(activo: bool, progreso_cooldown: float):
 	aura_estado_actualizado.emit(activo, progreso_cooldown)

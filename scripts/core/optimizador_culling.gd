@@ -82,11 +82,11 @@ static func _optimizar_multimesh(mm: MultiMeshInstance3D) -> void:
 	# El pasto no necesita proyectar sombras sobre sí mismo ni sobre el mundo
 	mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	
-	# Si no tiene configurado un rango de visibilidad, asignarle uno con fade suave
+	# Si no tiene configurado un rango de visibilidad, asignarle uno de alto rendimiento con corte limpio
 	if mm.visibility_range_end == 0.0:
 		mm.visibility_range_end = RANGO_VISIBILIDAD_PASTO
-		mm.visibility_range_end_margin = 10.0
-		mm.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		mm.visibility_range_end_margin = 4.0
+		mm.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 static func _optimizar_particulas(part: GeometryInstance3D) -> void:
 	var nombre_low = part.name.to_lower()
@@ -96,8 +96,8 @@ static func _optimizar_particulas(part: GeometryInstance3D) -> void:
 
 	if part.visibility_range_end == 0.0:
 		part.visibility_range_end = RANGO_VISIBILIDAD_PARTICULAS
-		part.visibility_range_end_margin = 6.0
-		part.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		part.visibility_range_end_margin = 3.0
+		part.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 static func _optimizar_malla_decorativa(mesh_inst: MeshInstance3D) -> void:
 	var nombre_low = mesh_inst.name.to_lower()
@@ -108,40 +108,40 @@ static func _optimizar_malla_decorativa(mesh_inst: MeshInstance3D) -> void:
 		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 4.0)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_ARBOLES
-			mesh_inst.visibility_range_end_margin = 15.0
-			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			mesh_inst.visibility_range_end_margin = 5.0
+			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 			
 	# Cristales
 	elif nombre_low.contains("cristal") or padre_nombre_low.contains("cristal") or nombre_low.contains("glowcrystal") or nombre_low.contains("monolith"):
 		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 1.5)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_CRISTALES
-			mesh_inst.visibility_range_end_margin = 10.0
-			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			mesh_inst.visibility_range_end_margin = 4.0
+			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 	# Faroles
 	elif nombre_low.contains("farol") or padre_nombre_low.contains("farol"):
 		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 1.5)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_FAROLES
-			mesh_inst.visibility_range_end_margin = 10.0
-			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			mesh_inst.visibility_range_end_margin = 4.0
+			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 			
 	# Monedas
 	elif nombre_low.contains("coin") or nombre_low.contains("moneda") or padre_nombre_low.contains("moneda"):
 		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 1.0)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_MONEDAS
-			mesh_inst.visibility_range_end_margin = 10.0
-			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			mesh_inst.visibility_range_end_margin = 4.0
+			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 	# Nubes
 	elif nombre_low.contains("nube") or padre_nombre_low.contains("nube") or nombre_low.contains("puff"):
 		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 6.0)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = 130.0
-			mesh_inst.visibility_range_end_margin = 15.0
-			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			mesh_inst.visibility_range_end_margin = 5.0
+			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 ## Optimiza cuerpos estáticos grandes añadiéndoles oclusores si carecen de uno
 static func _optimizar_static_body(body: StaticBody3D) -> void:

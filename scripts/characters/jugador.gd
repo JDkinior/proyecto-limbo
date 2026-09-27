@@ -105,6 +105,13 @@ func _ready():
 	_pos_anterior_remoto = global_position
 
 	_configurar_animaciones()
+	
+	# Pre-inicializar entorno físico y cámara para pre-hornear radiancia del cielo al inicio
+	_entorno_vivo_cache = obtener_entorno_personaje()
+	var cam = obtener_camara()
+	if cam:
+		cam.environment = _entorno_vivo_cache
+		cam.cull_mask = obtener_cull_mask_personaje()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GESTIÓN DE MECANISMOS CERCANOS

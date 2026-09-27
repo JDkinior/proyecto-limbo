@@ -642,7 +642,8 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 				# Fallback local para RigidBody3D no sincronizados
 				collider.apply_central_impulse(impulso)
 
-	_comprobar_caida_vacio()
+	if _comprobar_caida_vacio():
+		return
 	
 	# Aseguramos que la cámara siga la posición del jugador después del movimiento físico sin hundirse en el abismo
 	if es_activo() and pivote_camara and pivote_camara.top_level and not _camara_fijada_en_vortice:
@@ -754,9 +755,18 @@ func reaparecer() -> void:
 	if pivote_camara and pivote_camara.top_level:
 		pivote_camara.propagate_call("reset_physics_interpolation")
 
-func _comprobar_caida_vacio():
+func _comprobar_caida_vacio() -> bool:
 	if global_position.y < LIMITE_CAIDA_Y:
 		reaparecer()
+		return true
+	return false
+
+static var _textura_corazon_cache: ImageTexture = null
+
+func _obtener_textura_corazon() -> ImageTexture:
+	if _textura_corazon_cache == null:
+		_textura_corazon_cache = _generar_textura_corazon()
+	return _textura_corazon_cache
 
 func _crear_particulas_corazon_proximidad():
 	particulas_corazon = CPUParticles3D.new()
@@ -781,7 +791,7 @@ func _crear_particulas_corazon_proximidad():
 	mat.vertex_color_use_as_albedo = true
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.billboard_keep_scale = true
-	mat.albedo_texture = _generar_textura_corazon()
+	mat.albedo_texture = _obtener_textura_corazon()
 	mesh.material = mat
 	
 	particulas_corazon.mesh = mesh
