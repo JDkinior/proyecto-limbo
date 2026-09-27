@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.1` (Build Code `2`)  
+**Versión Actual:** `1.0.5` (Build Code `6`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 26 de Septiembre de 2026  
+**Última Actualización:** 27 de Septiembre de 2026  
 
 # Documentación Central - Proyecto Limbo
 
@@ -43,6 +43,29 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.5 (27 de Septiembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Shader de Follaje y Árboles de Otoño (`follaje_viento.gdshader`, `bake_follaje_viento.py`)**:
+    *   **Anclaje procedural a ramas (`RAMAS[14]`)**: Incorporación de coordenadas de nodos de ramas principales para calcular la distancia mínima por vértice de forma procedimental cuando el modelo es re-exportado desde Blender sin Vertex Colors (`COLOR.r > 0.98`), garantizando que la base de las hojas nunca se desprenda de la madera.
+    *   **Prioridad híbrida**: Si el modelo posee Vertex Colors horneados (`COLOR.r < 0.98`), se utiliza directamente a coste cero en GPU móvil.
+    *   **Modelos GLB y Texturas**: Actualización de los 4 árboles de otoño y árbol base con texturas desacopladas de follaje base y tarjetas de hojas individuales (`arbol_otono_0X_follaje_*.png`).
+*   **Sistema de Cielos Estilizados Dinámicos (`cielo_estilizado_nubes.gdshader`)**:
+    *   **Dirección de viento vectorial unificada**: Sincronización precisa a `Vector2(0.868, 0.496)` compartida entre los materiales de cielo de Vivo (`cielo_vivo_mat.tres`), Fantasma (`cielo_fantasma_mat.tres`) y Limbo (`cielo_limbo_mat.tres`), armonizando la deriva visual de nubes con el viento de pasto y árboles.
+    *   **Textura de ruido seamless**: Integración de `ruido_nubes_seamless.png` para muestreo rápido en GPU móvil reduciendo el cálculo analítico de ruido en el fragment shader.
+    *   **Parámetros Celestes**: Opciones de halo solar, tamaño de sol, modo luna y atenuación de horizonte.
+*   **Vegetación y Almacenamiento de Pasto Desacoplado (`recurso_datos_pasto.gd`, `generador_pasto.gd`)**:
+    *   **Recursos binarios externos `.res`**: La densidad, transforms y posiciones de las instancias de pasto de cada nivel se almacenan independientemente en archivos como `pasto_nivel_1_datos.res` y `pasto_mundo_pruebas_datos.res`, reduciendo drásticamente el tamaño y fragmentación de los archivos de escena `.tscn`.
+    *   **Pincel de pasto integrado**: Plugin de editor mejorado con soporte de guardado directo al recurso `.res`, control de radio, densidad y formas de pincel.
+*   **Arquitectura de Niveles y Flujo de Juego (`catalogo_niveles.gd`, `nivel_base.gd`, `goal.gd`)**:
+    *   **Catálogo Centralizado**: Autoload `CatalogoNiveles` que administra la secuencia de fases, metadatos y desbloqueo progresivo.
+    *   **Plantilla de Nivel Estandarizada (`plantilla_nivel.tscn`)**: Escena modelo lista para crear nuevos niveles con contrato de `NivelBase`, iluminación, spawn points, zonas de reunión y optimizadores pre-configurados.
+    *   **Sincronización de Meta y Pantalla de Resultados**: Transiciones P2P homogéneas con evaluación asimétrica de puntajes (`ScoreManager`) y flujo de retorno al lobby.
+*   **Física 3D con Jolt Physics**:
+    *   Calibración de Jolt Physics 3D en `project.godot`: 8 pasos de velocidad, `sleep_time_threshold = 0.25`, límites de 4096 cuerpos, 16384 pares de cuerpos y 8192 restricciones de contacto para máxima estabilidad en plataformas móviles y multijugador.
+*   **Composición del Nivel 1 ("El Despertar Separado")**:
+    *   Rebalanceo de distribución de faroles, ajuste de escala y rotación de arboledas de otoño, y repintado de pasto con mayor densidad en caminos principales.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.1 (26 de Septiembre de 2026)
 
@@ -1321,6 +1344,37 @@ Responsabilidades:
   - Almacenamiento primario en espacio de la aplicación (`user://fotos/`).
   - Almacenamiento secundario en la galería de imágenes del dispositivo (`OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)/ProyectoLimbo/`).
 - **Feedback Visual y Háptico**: Destello blanco de obturador, sonido de cámara y pulso háptico instantáneo al tomar la captura.
+
+### 4. Vegetación Desacoplada y Recursos `.res` (`scripts/entorno/vegetacion/recurso_datos_pasto.gd`)
+- **Arquitectura de Almacenamiento Separado**:
+  - En lugar de serializar arrays gigantescos de matrices `Transform3D` dentro de los archivos `.tscn` de cada nivel, los datos de pasto pintados se persisten en recursos binarios externos `pasto_<nivel>_datos.res`.
+  - Reduce drásticamente el peso del archivo `.tscn` y los conflictos en control de versiones Git.
+- **Pincel en Editor (`addons/pincel-pasto/plugin.gd`)**:
+  - Pincel en tiempo de diseño con control de radio, densidad de instancias, filtros de pintado por objetos (`solo_pintar_en_objetos`) y exportación/importación instantánea al `.res`.
+- **Rendimiento en Shaders**:
+  - `pasto_estilizado.gdshader`: Viento continuo y flexión física reactiva ante la proximidad de los personajes calculada con distancias euclidianas cuadráticas optimizadas (`inversesqrt`, pre-cálculo de escala inversa).
+
+### 5. Sistema de Cielos Estilizados Dinámicos (`shaders/entorno/cielo/cielo_estilizado_nubes.gdshader`)
+- **Shader de Domo Atmosférico**:
+  - Genera gradientes de cielo cenit-horizonte modulados por exponenciales, suelo y efecto horizonte.
+  - Soporte de disco y halo solar configurable o modo lunar místico nocturno.
+- **Nubes Procedurales Optimizadas**:
+  - Muestreo rápido con textura de ruido seamless `ruido_nubes_seamless.png` para evitar ruido fractual en GPU móvil.
+  - Dirección de viento vectorial unificada: `vec2(0.868, 0.496)` compartida entre los materiales de cielo de los reinos (`cielo_vivo_mat.tres`, `cielo_fantasma_mat.tres`, `cielo_limbo_mat.tres`).
+
+### 6. Shader de Follaje de Viento y Anclaje Procedural a Ramas (`shaders/entorno/arboles/follaje_viento.gdshader`)
+- **Anclaje Procedural Híbrido a Ramas**:
+  - Los árboles de otoño usan un sombreado de viento basado en altura de copa y anclaje de ramas.
+  - Para modelos con Vertex Colors pre-calculados (`COLOR.r < 0.98`), se utiliza el valor nativo sin coste en vertex shader.
+  - Para modelos nuevos o re-exportados desde Blender sin vertex colors (`COLOR.r >= 0.98`), el shader evalúa dinámicamente la distancia mínima al array estático de 14 nudos de ramas (`RAMAS[14]`), fijando la base de las tarjetas de hojas a la madera estática e impidiendo desprendimientos visuales.
+
+### 7. Catálogo de Niveles, Plantilla y Transiciones (`scripts/core/catalogo_niveles.gd`)
+- **Autoload Global `CatalogoNiveles`**:
+  - Mantiene el orden de progresión oficial, rutas de escenas de nivel, nombres y estados de bloqueo.
+- **Plantilla de Nivel (`scenes/levels/plantilla_nivel.tscn`)**:
+  - Escena base pre-configurada que implementa el contrato contractual de `NivelBase`: puntos de spawn para Vivo y Fantasma, iluminación ambiental, HUD táctil, `Goal` de nivel y límites de caída.
+- **Motor Jolt Physics 3D**:
+  - Configurado en `project.godot` con límites de 4096 cuerpos rígidos y 16384 pares de contacto para máxima fidelidad física.
 
 ## 22. Archivos Que Una IA Deberia Leer Primero
 
