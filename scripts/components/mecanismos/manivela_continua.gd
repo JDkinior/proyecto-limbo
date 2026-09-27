@@ -33,6 +33,7 @@ var _esta_operando: bool = false
 var _pos_inicial_controlado: Vector3 = Vector3.ZERO
 var _ha_completado: bool = false
 var _tiempo_sync_rpc: float = 0.0
+var _timer_click_manivela: float = 0.0
 
 var esta_congelada: bool = false
 var tiempo_estasis_restante: float = 0.0
@@ -130,8 +131,16 @@ func _physics_process(delta: float) -> void:
 		progreso_actual = minf(progreso_actual + velocidad_giro * delta, 1.0)
 		if is_instance_valid(rueda_giratoria):
 			rueda_giratoria.rotate_z(deg_to_rad(180.0 * delta * 2.0))
+			
+		# Feedback háptico rítmico de engranajes mecánicos al girar
+		_timer_click_manivela += delta
+		if _timer_click_manivela >= 0.16:
+			_timer_click_manivela = 0.0
+			if is_instance_valid(VibrationManager) and is_instance_valid(_jugador_cerca) and _jugador_cerca.has_method("es_activo") and _jugador_cerca.es_activo():
+				VibrationManager.vibrar_manivela_giro()
 	else:
 		_esta_operando = false
+		_timer_click_manivela = 0.0
 		# Si NO está congelada por éxtasis, retrocede por gravedad
 		if not esta_congelada and retorno_automatico and progreso_actual > 0.0:
 			progreso_actual = maxf(progreso_actual - velocidad_retorno * delta, 0.0)
@@ -156,6 +165,8 @@ func _physics_process(delta: float) -> void:
 		if progreso_actual >= 1.0 and not _ha_completado:
 			_ha_completado = true
 			signal_activado.emit()
+			if is_instance_valid(VibrationManager) and is_instance_valid(_jugador_cerca) and _jugador_cerca.has_method("es_activo") and _jugador_cerca.es_activo():
+				VibrationManager.vibrar_manivela_bloqueo()
 			print("[ManivelaContinua] '%s' ¡Mecanismo COMPLETADO al 100%%!" % name)
 		elif progreso_actual <= 0.0 and _ha_completado:
 			_ha_completado = false

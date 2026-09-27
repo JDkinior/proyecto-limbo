@@ -131,10 +131,21 @@ func _process(delta: float):
 			radio_actual = radio_maximo
 			_aplicar_opacidad(1.0)
 			_actualizar_visual(1.0)
+			
+		if is_instance_valid(VibrationManager):
+			var p = get_parent()
+			if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
+				VibrationManager.actualizar_intensidad_aura(0.6 + factor_expansion * 0.4)
 		return
 
 	# 2. FASE DE ENCOGIMIENTO Y DISOLUCIÓN
 	radio_actual = maxf(radio_actual - velocidad_encogimiento * delta, 0.0)
+
+	if is_instance_valid(VibrationManager):
+		var p = get_parent()
+		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
+			var ratio_radio = clampf(radio_actual / maxf(radio_maximo, 0.1), 0.20, 1.0)
+			VibrationManager.actualizar_intensidad_aura(ratio_radio)
 
 	# Zona de disolución final (últimos 1.2 metros):
 	# Se desvanece la opacidad con smoothstep y se aplana la altura para evitar que
@@ -191,7 +202,7 @@ func rpc_activar_aura():
 	if is_instance_valid(VibrationManager):
 		var p = get_parent()
 		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
-			VibrationManager.vibrar_aura_activar()
+			VibrationManager.iniciar_vibracion_aura(1.0)
 
 func desactivar():
 	if multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer) and not (is_instance_valid(RedManager) and RedManager.es_un_jugador):
@@ -209,7 +220,7 @@ func rpc_desactivar_aura():
 	if is_instance_valid(VibrationManager):
 		var p = get_parent()
 		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
-			VibrationManager.vibrar_aura_desactivar()
+			VibrationManager.detener_vibracion_aura(true)
 
 	_aplicar_opacidad(0.0)
 
@@ -246,3 +257,7 @@ func esta_activa() -> bool:
 
 func obtener_radio() -> float:
 	return radio_actual
+
+func _exit_tree() -> void:
+	if is_instance_valid(VibrationManager):
+		VibrationManager.detener_vibracion_aura(false)
