@@ -11,11 +11,11 @@ const DISTANCIA_CORTE_CAMARA_DEFAULT: float = 130.0
 const DISTANCIA_SOMBRA_MAXIMA: float = 60.0
 
 const RANGO_VISIBILIDAD_PASTO: float = 65.0
-const RANGO_VISIBILIDAD_CRISTALES: float = 60.0
-const RANGO_VISIBILIDAD_FAROLES: float = 75.0
-const RANGO_VISIBILIDAD_ARBOLES: float = 85.0
-const RANGO_VISIBILIDAD_MONEDAS: float = 80.0
-const RANGO_VISIBILIDAD_PARTICULAS: float = 45.0
+const RANGO_VISIBILIDAD_CRISTALES: float = 90.0
+const RANGO_VISIBILIDAD_FAROLES: float = 100.0
+const RANGO_VISIBILIDAD_ARBOLES: float = 125.0
+const RANGO_VISIBILIDAD_MONEDAS: float = 90.0
+const RANGO_VISIBILIDAD_PARTICULAS: float = 55.0
 
 ## Optimiza automáticamente todo un nivel o rama del árbol de nodos
 static func optimizar_nivel(nodo_raiz: Node) -> void:
@@ -50,6 +50,11 @@ static func _recorrer_y_optimizar(nodo: Node) -> void:
 	# 6. Optimización de Cuerpos Estáticos y Plataformas (Occlusion Culling)
 	elif nodo is StaticBody3D:
 		_optimizar_static_body(nodo)
+		
+	# 7. Personajes (Siluetas y Occlusion Culling Seguro)
+	elif nodo is CharacterBody3D and (nodo.is_in_group("jugadores") or nodo.is_in_group("vivos") or nodo.is_in_group("fantasmas") or nodo.has_method("actualizar_silueta_oclusion")):
+		_optimizar_personaje(nodo)
+		return
 
 	# Recorrer recursivamente los hijos
 	for hijo in nodo.get_children():
@@ -98,22 +103,25 @@ static func _optimizar_malla_decorativa(mesh_inst: MeshInstance3D) -> void:
 	var nombre_low = mesh_inst.name.to_lower()
 	var padre_nombre_low = mesh_inst.get_parent().name.to_lower() if mesh_inst.get_parent() else ""
 	
-	# Árboles y copas
-	if nombre_low.contains("canopy") or nombre_low.contains("trunk") or padre_nombre_low.contains("arbol"):
+	# Árboles y copas (ampliar margen para evitar que las hojas se corten en los bordes del encuadre por viento/AABB)
+	if nombre_low.contains("canopy") or nombre_low.contains("trunk") or padre_nombre_low.contains("arbol") or nombre_low.contains("arbol"):
+		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 4.0)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_ARBOLES
-			mesh_inst.visibility_range_end_margin = 10.0
+			mesh_inst.visibility_range_end_margin = 15.0
 			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			
 	# Cristales
 	elif nombre_low.contains("cristal") or padre_nombre_low.contains("cristal") or nombre_low.contains("glowcrystal") or nombre_low.contains("monolith"):
+		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 1.5)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_CRISTALES
-			mesh_inst.visibility_range_end_margin = 8.0
+			mesh_inst.visibility_range_end_margin = 10.0
 			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 	# Faroles
 	elif nombre_low.contains("farol") or padre_nombre_low.contains("farol"):
+		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 1.5)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_FAROLES
 			mesh_inst.visibility_range_end_margin = 10.0
@@ -121,6 +129,7 @@ static func _optimizar_malla_decorativa(mesh_inst: MeshInstance3D) -> void:
 			
 	# Monedas
 	elif nombre_low.contains("coin") or nombre_low.contains("moneda") or padre_nombre_low.contains("moneda"):
+		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 1.0)
 		if mesh_inst.visibility_range_end == 0.0:
 			mesh_inst.visibility_range_end = RANGO_VISIBILIDAD_MONEDAS
 			mesh_inst.visibility_range_end_margin = 10.0
@@ -128,27 +137,42 @@ static func _optimizar_malla_decorativa(mesh_inst: MeshInstance3D) -> void:
 
 	# Nubes
 	elif nombre_low.contains("nube") or padre_nombre_low.contains("nube") or nombre_low.contains("puff"):
+		mesh_inst.extra_cull_margin = maxf(mesh_inst.extra_cull_margin, 6.0)
 		if mesh_inst.visibility_range_end == 0.0:
-			mesh_inst.visibility_range_end = 125.0
+			mesh_inst.visibility_range_end = 130.0
 			mesh_inst.visibility_range_end_margin = 15.0
 			mesh_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 ## Optimiza cuerpos estáticos grandes añadiéndoles oclusores si carecen de uno
 static func _optimizar_static_body(body: StaticBody3D) -> void:
-	# No añadir oclusores a plataformas espirituales transparentes/activables por aura
-	if body.is_in_group("plataformas_aura") or body.name.to_lower().contains("cristal") or body.name.to_lower().contains("vidrio"):
+	# 1. No añadir oclusores si el cuerpo o su rama es invisible
+	if not body.is_visible_in_tree():
+		return
+
+	# 2. No añadir oclusores a árboles, ramas ni elementos orgánicos del entorno
+	var nombre_low = body.name.to_lower()
+	var padre_nombre_low = body.get_parent().name.to_lower() if body.get_parent() else ""
+	if nombre_low.contains("arbol") or padre_nombre_low.contains("arbol") or nombre_low.contains("canopy") or nombre_low.contains("trunk"):
+		return
+
+	# 3. No añadir oclusores a plataformas espirituales transparentes/activables por aura o cristales
+	if body.is_in_group("plataformas_aura") or nombre_low.contains("cristal") or nombre_low.contains("vidrio"):
 		return
 		
-	# Verificar si ya tiene un oclusor
+	# 4. Verificar si ya tiene un oclusor
 	for hijo in body.get_children():
 		if hijo is OccluderInstance3D:
 			return
 			
-	# Buscar colisionador de tipo caja con tamaño suficiente para ocluir (> 2.5m)
+	# 5. Solo añadir oclusores a muros o estructuras masivas opacas (grandes en al menos 2 dimensiones, ej. ancho y alto >= 3m)
 	for hijo in body.get_children():
 		if hijo is CollisionShape3D and hijo.shape is BoxShape3D:
 			var box = hijo.shape as BoxShape3D
-			if box.size.x >= 2.5 or box.size.y >= 2.5 or box.size.z >= 2.5:
+			var ejes_grandes = 0
+			if box.size.x >= 3.0: ejes_grandes += 1
+			if box.size.y >= 3.0: ejes_grandes += 1
+			if box.size.z >= 3.0: ejes_grandes += 1
+			if ejes_grandes >= 2:
 				agregar_oclusor_caja(body, box.size, hijo.transform)
 				break
 
@@ -172,3 +196,18 @@ static func agregar_oclusor_caja(padre: Node3D, dimensiones: Vector3, transform_
 	
 	padre.add_child(occluder_inst)
 	return occluder_inst
+
+## Optimiza mallas de personajes para compatibilidad con siluetas y X-Ray evitando que Occlusion Culling las descarte
+static func _optimizar_personaje(personaje: Node) -> void:
+	if personaje.has_method("actualizar_silueta_oclusion"):
+		personaje.actualizar_silueta_oclusion()
+	_asegurar_ignore_occlusion_personaje(personaje)
+
+static func _asegurar_ignore_occlusion_personaje(nodo: Node) -> void:
+	if nodo is MeshInstance3D and nodo.mesh:
+		if nodo.name != "Aura" and nodo.name != "HaloSuave":
+			nodo.ignore_occlusion_culling = true
+			nodo.extra_cull_margin = maxf(nodo.extra_cull_margin, 0.5)
+	for hijo in nodo.get_children():
+		_asegurar_ignore_occlusion_personaje(hijo)
+

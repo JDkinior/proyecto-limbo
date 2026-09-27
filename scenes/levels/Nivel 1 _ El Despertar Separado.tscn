@@ -325,9 +325,6 @@ mesh = SubResource("BoxMesh_outer_wall")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedIzquierda" unique_id=614017027]
 shape = SubResource("BoxShape3D_outer_wall")
 
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="ParedesYLimites/ParedIzquierda" unique_id=364647159]
-occluder = SubResource("BoxOccluder3D_outer_wall")
-
 [node name="ParedDerecha" type="StaticBody3D" parent="ParedesYLimites" unique_id=1088908097]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 4.5, -5)
 
@@ -337,9 +334,6 @@ mesh = SubResource("BoxMesh_outer_wall")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedDerecha" unique_id=511177217]
 shape = SubResource("BoxShape3D_outer_wall")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="ParedesYLimites/ParedDerecha" unique_id=1675578004]
-occluder = SubResource("BoxOccluder3D_outer_wall")
 
 [node name="ParedTrasera" type="StaticBody3D" parent="ParedesYLimites" unique_id=402997194]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 22.5)
@@ -351,9 +345,6 @@ mesh = SubResource("BoxMesh_back_wall")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedTrasera" unique_id=931043360]
 shape = SubResource("BoxShape3D_back_wall")
 
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="ParedesYLimites/ParedTrasera" unique_id=1352360394]
-occluder = SubResource("BoxOccluder3D_back_wall")
-
 [node name="ParedFondoMeta" type="StaticBody3D" parent="ParedesYLimites" unique_id=1373201544]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -34.5)
 
@@ -363,9 +354,6 @@ mesh = SubResource("BoxMesh_back_wall")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedFondoMeta" unique_id=1165157373]
 shape = SubResource("BoxShape3D_back_wall")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="ParedesYLimites/ParedFondoMeta" unique_id=1046612873]
-occluder = SubResource("BoxOccluder3D_back_wall")
 
 [node name="Mecanismos" type="Node3D" parent="." unique_id=262988224]
 
