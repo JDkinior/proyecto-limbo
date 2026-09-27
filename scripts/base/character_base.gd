@@ -22,6 +22,7 @@ class_name CharacterBase
 @export_group("Salto Compartido")
 @export var FUERZA_SALTO : float = 7.5
 @export var MULTIPLICADOR_SEGUNDO_SALTO : float = 0.9
+@export var MULTIPLICADOR_GRAVEDAD_SUBIDA : float = 1.0
 @export var MULTIPLICADOR_CAIDA : float = 2.0
 @export var MULTIPLICADOR_CORTE_SALTO : float = 2.2
 @export var MULTIPLICADOR_GRAVEDAD_APICE : float = 1.0
@@ -344,8 +345,10 @@ func procesar_salto_base(delta: float):
 			gravedad_actual *= MULTIPLICADOR_CAIDA_PLANEO
 		elif velocity.y < 0.0:
 			gravedad_actual *= MULTIPLICADOR_CAIDA
-		elif velocity.y > 0.0 and not salto_mantenido:
-			gravedad_actual *= MULTIPLICADOR_CORTE_SALTO
+		elif velocity.y > 0.0:
+			gravedad_actual *= MULTIPLICADOR_GRAVEDAD_SUBIDA
+			if not salto_mantenido and MULTIPLICADOR_CORTE_SALTO > 1.0:
+				gravedad_actual *= MULTIPLICADOR_CORTE_SALTO
 
 		velocity.y -= gravedad_actual * delta
 		

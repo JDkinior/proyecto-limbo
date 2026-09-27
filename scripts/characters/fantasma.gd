@@ -415,7 +415,16 @@ func _actualizar_animaciones(delta: float):
 func _al_resetear_estados() -> void:
 	_tilt_espectral_pitch = 0.0
 	_tilt_espectral_roll = 0.0
-	_rotacion_y_anterior = rotacion_inicial.y
+	_rotacion_y_anterior = rotation.y
 	_vel_horizontal_anterior = 0.0
+	_pos_anterior_remoto = global_position
+	_tiempo_flotacion = 0.0
+	_vel_osc_actual = 2.0
 	if is_instance_valid(modelo_fantasma):
 		modelo_fantasma.rotation = _rotacion_inicial_modelo_fantasma
+		modelo_fantasma.position.y = _pos_y_inicial_fantasma
+		modelo_fantasma.scale = _escala_base_fantasma
+		modelo_fantasma.reset_physics_interpolation()
+	if is_instance_valid(estela_fantasma):
+		estela_fantasma.emitting = false
+		estela_fantasma.restart()

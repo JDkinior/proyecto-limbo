@@ -49,14 +49,15 @@ func _ready():
 	DESACELERACION_AIRE = 12.0
 	VELOCIDAD_ROTACION_PERSONAJE = 15.5
 
-	# Salto enérgico, doble salto y caída rápida con peso
-	FUERZA_SALTO = 7.8
-	MULTIPLICADOR_SEGUNDO_SALTO = 0.90
-	MULTIPLICADOR_CAIDA = 2.6
-	MULTIPLICADOR_CORTE_SALTO = 2.5
+	# Salto enérgico, doble salto y caída rápida con peso (altura fija y física ágil sin efecto lunar)
+	FUERZA_SALTO = 9.8
+	MULTIPLICADOR_SEGUNDO_SALTO = 0.92
+	MULTIPLICADOR_GRAVEDAD_SUBIDA = 2.4
+	MULTIPLICADOR_CAIDA = 3.4
+	MULTIPLICADOR_CORTE_SALTO = 1.0 # Salto de altura fija: siempre salta lo mismo sin depender de mantener presionado el botón
 	MULTIPLICADOR_GRAVEDAD_APICE = 1.0
 	UMBRAL_VELOCIDAD_APICE = 1.6
-	VELOCIDAD_MAX_CAIDA = 26.0
+	VELOCIDAD_MAX_CAIDA = 28.0
 	TIEMPO_COYOTE = 0.16
 	TIEMPO_BUFFER_SALTO = 0.14
 	MAX_SALTOS = 2

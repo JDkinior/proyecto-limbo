@@ -435,6 +435,7 @@ LIMITE_CAIDA_Y = -8.0
 
 [node name="Fantasma" parent="." unique_id=880578793 instance=ExtResource("3_fantasma")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 18)
+LIMITE_CAIDA_Y = -8.0
 
 [node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]
 
