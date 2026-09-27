@@ -112,6 +112,9 @@ func _ready() -> void:
 	_actualizar_textos_ui()
 	_actualizar_shader_filtro()
 	
+	if OS.has_feature("android"):
+		OS.request_permissions()
+	
 	print("[ModoFoto] Inicializado con éxito. Sujeto inicial: ", _obtener_nombre_sujeto())
 
 func _verificar_entorno_juego() -> void:
@@ -758,10 +761,10 @@ func tomar_foto() -> void:
 	var vp = get_viewport()
 	var img = vp.get_texture().get_image()
 	
-	# 3. Guardar en user://fotos/
+	# 3. Guardar en user://fotos/ (almacenamiento interno confiable)
 	var dir_fotos = "user://fotos"
 	if not DirAccess.dir_exists_absolute(dir_fotos):
-		DirAccess.make_dir_absolute(dir_fotos)
+		DirAccess.make_dir_recursive_absolute(dir_fotos)
 		
 	var time_dict = Time.get_datetime_dict_from_system()
 	var nombre_archivo = "limbo_%04d-%02d-%02d_%02d-%02d-%02d.png" % [
@@ -771,13 +774,30 @@ func tomar_foto() -> void:
 	var ruta_completa = dir_fotos + "/" + nombre_archivo
 	var err = img.save_png(ruta_completa)
 	if err == OK:
-		print("[ModoFoto] Fotografía guardada exitosamente en: ", ruta_completa)
+		print("[ModoFoto] Fotografía guardada exitosamente en user://: ", ruta_completa)
 	else:
-		push_warning("[ModoFoto] Error al guardar imagen: " + str(err))
+		push_warning("[ModoFoto] Error al guardar imagen en user://: " + str(err))
 
-	# 4. Efecto de destello de obturador (Flash)
+	# Intentar guardar también en la carpeta pública de Imágenes del dispositivo (Galería / Pictures)
+	var texto_ubicacion = "Fotos / " + nombre_archivo
+	var sys_pics = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)
+	if not sys_pics.is_empty():
+		var dir_publico = sys_pics.path_join("ProyectoLimbo")
+		if not DirAccess.dir_exists_absolute(dir_publico):
+			DirAccess.make_dir_recursive_absolute(dir_publico)
+		var ruta_publica = dir_publico.path_join(nombre_archivo)
+		var err_pub = img.save_png(ruta_publica)
+		if err_pub == OK:
+			print("[ModoFoto] Fotografía guardada en galería pública: ", ruta_publica)
+			texto_ubicacion = "Imágenes / ProyectoLimbo"
+		else:
+			print("[ModoFoto] No se pudo guardar en carpeta pública (restringido por SO), guardada en datos del juego.")
+
+	# 4. Efecto de destello de obturador (Flash), sonido y vibración háptica
 	_reproducir_destello_flash()
 	_reproducir_sonido_obturador()
+	if is_instance_valid(VibrationManager):
+		VibrationManager.vibrar(45, 0.45, 0.15, 0.08)
 
 	# 5. Restaurar UI
 	if ui_estaba_activa:
@@ -786,7 +806,7 @@ func tomar_foto() -> void:
 		rect_cuadricula.visible = true
 
 	# 6. Mostrar miniatura (polaroid preview)
-	_mostrar_toast_foto(img, nombre_archivo)
+	_mostrar_toast_foto(img, texto_ubicacion)
 	
 	_capturando_foto = false
 
@@ -823,7 +843,7 @@ func _reproducir_sonido_obturador() -> void:
 	player.play()
 	player.finished.connect(player.queue_free)
 
-func _mostrar_toast_foto(img: Image, nombre_archivo: String) -> void:
+func _mostrar_toast_foto(img: Image, texto_info: String) -> void:
 	if not is_instance_valid(card_toast_foto):
 		return
 		
@@ -831,7 +851,7 @@ func _mostrar_toast_foto(img: Image, nombre_archivo: String) -> void:
 	if is_instance_valid(img_preview_foto):
 		img_preview_foto.texture = tex
 	if is_instance_valid(lbl_ruta_foto):
-		lbl_ruta_foto.text = "Fotos / " + nombre_archivo
+		lbl_ruta_foto.text = texto_info
 		
 	card_toast_foto.visible = true
 	card_toast_foto.modulate.a = 0.0

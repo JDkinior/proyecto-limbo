@@ -84,6 +84,11 @@ static func _optimizar_multimesh(mm: MultiMeshInstance3D) -> void:
 		mm.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 
 static func _optimizar_particulas(part: GeometryInstance3D) -> void:
+	var nombre_low = part.name.to_lower()
+	if nombre_low.contains("hoja") or nombre_low.contains("atraccion") or nombre_low.contains("vortice") or nombre_low.contains("torbellino") or nombre_low.contains("roca"):
+		part.ignore_occlusion_culling = true
+		part.extra_cull_margin = maxf(part.extra_cull_margin, 4.0)
+
 	if part.visibility_range_end == 0.0:
 		part.visibility_range_end = RANGO_VISIBILIDAD_PARTICULAS
 		part.visibility_range_end_margin = 6.0

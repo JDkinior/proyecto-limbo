@@ -11,9 +11,12 @@ material = ExtResource("1_mat")
 size = Vector2(0.35, 0.35)
 
 [node name="HojasCayendo" type="CPUParticles3D"]
-amount = 7
-lifetime = 8.0
-preprocess = 4.0
+extra_cull_margin = 3.0
+ignore_occlusion_culling = true
+visibility_aabb = AABB(-3, -4.5, -3, 6, 5.5, 6)
+amount = 14
+lifetime = 6.0
+preprocess = 3.0
 randomness = 0.6
 lifetime_randomness = 0.25
 mesh = SubResource("QuadMesh_hoja")
@@ -32,8 +35,8 @@ tangential_accel_min = -0.35
 tangential_accel_max = 0.35
 damping_min = 0.4
 damping_max = 0.75
-angle_min = -8.0
-angle_max = 8.0
+angle_min = 0.0
+angle_max = 360.0
 scale_amount_min = 0.5
 scale_amount_max = 0.9
 color_ramp = SubResource("Gradient_hojas")
