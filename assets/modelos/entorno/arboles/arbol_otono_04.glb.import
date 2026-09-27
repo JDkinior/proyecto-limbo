@@ -44,12 +44,12 @@ _subresources={
 "M_Follaje_Base": {
 "use_external/enabled": true,
 "use_external/fallback_path": "res://assets/materiales/entorno/m_follaje_base.tres",
-"use_external/path": "uid://bfolbaseotono01"
+"use_external/path": "uid://db45ounoaoutg"
 },
 "M_Follaje_Hojas": {
 "use_external/enabled": true,
 "use_external/fallback_path": "res://assets/materiales/entorno/m_follaje_hojas.tres",
-"use_external/path": "uid://bfolhojasotono01"
+"use_external/path": "uid://dtxsfbmu1kqp5"
 }
 }
 }
