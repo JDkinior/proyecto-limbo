@@ -19,12 +19,15 @@ const ONLINE_CONNECTION_TIMEOUT_SECONDS := 60.0
 const P2P_REQUEST_AUTHORIZATION_TIMEOUT_SECONDS := 12.0
 const P2P_RELAY_COORDINATION_WAIT_SECONDS := 3.0
 const DURACION_TRANSICION_CAMARA := 0.65
-const NIVELES_HISTORIA_COUNT = 2
-const NIVELES = [
-	"res://scenes/levels/Nivel 1 _ El Despertar Separado.tscn",
-	"res://scenes/levels/nivel 2.tscn",
-	"res://scenes/levels/mundo_pruebas.tscn"
-]
+const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
+
+var NIVELES: Array[String]:
+	get:
+		return CatalogoNiveles.obtener_rutas_todos_los_niveles()
+
+var NIVELES_HISTORIA_COUNT: int:
+	get:
+		return CatalogoNiveles.total_niveles_historia()
 
 var jugador_vivo: CharacterBase
 var fantasma: CharacterBase
@@ -132,6 +135,15 @@ func _ready():
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	
+	# Pre-instanciar la cámara de transición persistente para evitar pausas de instanciación en runtime
+	if not is_instance_valid(_camara_transicion):
+		_camara_transicion = Camera3D.new()
+		_camara_transicion.name = "CamaraTransicionSuave"
+		_camara_transicion.top_level = true
+		_camara_transicion.current = false
+		_camara_transicion.cull_mask = 1048575 & ~(1 << 2)
+		add_child(_camara_transicion)
 
 func _input(event: InputEvent) -> void:
 	var es_offline = (multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
@@ -432,8 +444,7 @@ func desconectar(leave_lobby = true):
 		_tween_transicion.kill()
 		_tween_transicion = null
 	if is_instance_valid(_camara_transicion):
-		_camara_transicion.queue_free()
-		_camara_transicion = null
+		_camara_transicion.current = false
 	transicion_en_progreso = false
 
 	es_un_jugador = false

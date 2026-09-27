@@ -149,7 +149,6 @@ func _on_transicion_camara_iniciada(_origen: String, destino: String, duracion: 
 	var es_fant = (destino == "fantasma")
 	configurar_estilo_personaje(es_fant, true, duracion)
 	_actualizar_boton_cambio(destino)
-	_aplicar_estilo_textos_y_botones(self)
 
 func _reproducir_destello_transicion(destino: String, duracion: float) -> void:
 	if not is_instance_valid(overlay_transicion):
@@ -699,7 +698,142 @@ func _aplicar_estilo_textos_y_botones(nodo: Node):
 	
 	_estilar_nodo_recursivo(nodo, color_borde, color_borde_hover, es_fantasma)
 
+var _estilos_cacheados_listos: bool = false
+var _style_empty_cache: StyleBoxEmpty = null
+
+var _style_btn_norm_vivo: StyleBoxFlat = null
+var _style_btn_hov_vivo: StyleBoxFlat = null
+var _style_btn_press_vivo: StyleBoxFlat = null
+
+var _style_btn_norm_fant: StyleBoxFlat = null
+var _style_btn_hov_fant: StyleBoxFlat = null
+var _style_btn_press_fant: StyleBoxFlat = null
+
+var _style_panel_vivo: StyleBoxFlat = null
+var _style_panel_fant: StyleBoxFlat = null
+
+var _style_slider_bg_vivo: StyleBoxFlat = null
+var _style_slider_bg_fant: StyleBoxFlat = null
+var _style_slider_area_vivo: StyleBoxFlat = null
+var _style_slider_area_fant: StyleBoxFlat = null
+
+func _asegurar_estilos_cacheados() -> void:
+	if _estilos_cacheados_listos:
+		return
+	_estilos_cacheados_listos = true
+	_style_empty_cache = StyleBoxEmpty.new()
+
+	# Botones Vivo
+	_style_btn_norm_vivo = StyleBoxFlat.new()
+	_style_btn_norm_vivo.bg_color = COLOR_VIVO_PANEL_BG
+	_style_btn_norm_vivo.border_color = COLOR_VIVO_BORDER
+	_style_btn_norm_vivo.border_width_left = 2
+	_style_btn_norm_vivo.border_width_top = 2
+	_style_btn_norm_vivo.border_width_right = 2
+	_style_btn_norm_vivo.border_width_bottom = 2
+	_style_btn_norm_vivo.set_corner_radius_all(14)
+	_style_btn_norm_vivo.content_margin_top = 8
+	_style_btn_norm_vivo.content_margin_bottom = 8
+	_style_btn_norm_vivo.content_margin_left = 16
+	_style_btn_norm_vivo.content_margin_right = 16
+	_style_btn_norm_vivo.shadow_color = Color(0.5, 0.35, 0.1, 0.20)
+	_style_btn_norm_vivo.shadow_size = 6
+
+	_style_btn_hov_vivo = _style_btn_norm_vivo.duplicate()
+	_style_btn_hov_vivo.bg_color = Color(0.20, 0.18, 0.12, 0.95)
+	_style_btn_hov_vivo.border_color = COLOR_VIVO_BORDER_HOVER
+
+	_style_btn_press_vivo = _style_btn_norm_vivo.duplicate()
+	_style_btn_press_vivo.bg_color = Color(0.08, 0.07, 0.04, 0.95)
+	_style_btn_press_vivo.border_color = COLOR_VIVO_BORDER
+
+	# Botones Fantasma
+	_style_btn_norm_fant = StyleBoxFlat.new()
+	_style_btn_norm_fant.bg_color = COLOR_FANTASMA_PANEL_BG
+	_style_btn_norm_fant.border_color = COLOR_FANTASMA_BORDER
+	_style_btn_norm_fant.border_width_left = 2
+	_style_btn_norm_fant.border_width_top = 2
+	_style_btn_norm_fant.border_width_right = 2
+	_style_btn_norm_fant.border_width_bottom = 2
+	_style_btn_norm_fant.set_corner_radius_all(14)
+	_style_btn_norm_fant.content_margin_top = 8
+	_style_btn_norm_fant.content_margin_bottom = 8
+	_style_btn_norm_fant.content_margin_left = 16
+	_style_btn_norm_fant.content_margin_right = 16
+	_style_btn_norm_fant.shadow_color = Color(0.1, 0.6, 0.9, 0.25)
+	_style_btn_norm_fant.shadow_size = 6
+
+	_style_btn_hov_fant = _style_btn_norm_fant.duplicate()
+	_style_btn_hov_fant.bg_color = Color(0.14, 0.26, 0.42, 0.92)
+	_style_btn_hov_fant.border_color = COLOR_FANTASMA_BORDER_HOVER
+
+	_style_btn_press_fant = _style_btn_norm_fant.duplicate()
+	_style_btn_press_fant.bg_color = Color(0.04, 0.08, 0.16, 0.95)
+	_style_btn_press_fant.border_color = COLOR_FANTASMA_BORDER
+
+	# Paneles
+	_style_panel_vivo = StyleBoxFlat.new()
+	_style_panel_vivo.bg_color = COLOR_VIVO_PANEL_BG
+	_style_panel_vivo.border_color = COLOR_VIVO_BORDER
+	_style_panel_vivo.border_width_left = 2
+	_style_panel_vivo.border_width_top = 2
+	_style_panel_vivo.border_width_right = 2
+	_style_panel_vivo.border_width_bottom = 2
+	_style_panel_vivo.set_corner_radius_all(20)
+	_style_panel_vivo.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	_style_panel_vivo.shadow_size = 22
+	_style_panel_vivo.shadow_offset = Vector2(0, 6)
+
+	_style_panel_fant = StyleBoxFlat.new()
+	_style_panel_fant.bg_color = COLOR_FANTASMA_PANEL_BG
+	_style_panel_fant.border_color = COLOR_FANTASMA_BORDER
+	_style_panel_fant.border_width_left = 2
+	_style_panel_fant.border_width_top = 2
+	_style_panel_fant.border_width_right = 2
+	_style_panel_fant.border_width_bottom = 2
+	_style_panel_fant.set_corner_radius_all(20)
+	_style_panel_fant.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
+	_style_panel_fant.shadow_size = 22
+	_style_panel_fant.shadow_offset = Vector2(0, 6)
+
+	# Sliders
+	_style_slider_bg_vivo = StyleBoxFlat.new()
+	_style_slider_bg_vivo.bg_color = Color(0.18, 0.16, 0.12, 0.90)
+	_style_slider_bg_vivo.border_color = Color(0.4, 0.35, 0.25, 0.6)
+	_style_slider_bg_vivo.border_width_left = 1
+	_style_slider_bg_vivo.border_width_top = 1
+	_style_slider_bg_vivo.border_width_right = 1
+	_style_slider_bg_vivo.border_width_bottom = 1
+	_style_slider_bg_vivo.set_corner_radius_all(6)
+	_style_slider_bg_vivo.content_margin_top = 6
+	_style_slider_bg_vivo.content_margin_bottom = 6
+
+	_style_slider_area_vivo = StyleBoxFlat.new()
+	_style_slider_area_vivo.bg_color = COLOR_VIVO_BORDER
+	_style_slider_area_vivo.set_corner_radius_all(6)
+	_style_slider_area_vivo.content_margin_top = 6
+	_style_slider_area_vivo.content_margin_bottom = 6
+
+	_style_slider_bg_fant = StyleBoxFlat.new()
+	_style_slider_bg_fant.bg_color = Color(0.12, 0.15, 0.22, 0.90)
+	_style_slider_bg_fant.border_color = Color(0.3, 0.35, 0.45, 0.6)
+	_style_slider_bg_fant.border_width_left = 1
+	_style_slider_bg_fant.border_width_top = 1
+	_style_slider_bg_fant.border_width_right = 1
+	_style_slider_bg_fant.border_width_bottom = 1
+	_style_slider_bg_fant.set_corner_radius_all(6)
+	_style_slider_bg_fant.content_margin_top = 6
+	_style_slider_bg_fant.content_margin_bottom = 6
+
+	_style_slider_area_fant = StyleBoxFlat.new()
+	_style_slider_area_fant.bg_color = COLOR_FANTASMA_BORDER
+	_style_slider_area_fant.set_corner_radius_all(6)
+	_style_slider_area_fant.content_margin_top = 6
+	_style_slider_area_fant.content_margin_bottom = 6
+
 func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: Color, es_fantasma: bool = false):
+	_asegurar_estilos_cacheados()
+
 	# Evitar procesar menús pausados u opciones si están ocultos durante el juego
 	if (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones") and (nodo is CanvasItem and not (nodo as CanvasItem).visible):
 		return
@@ -719,11 +853,10 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			nodo.expand_icon = true
 			nodo.custom_minimum_size = Vector2(110, 110)
 			
-			var style_p = StyleBoxEmpty.new()
-			nodo.add_theme_stylebox_override(&"normal", style_p)
-			nodo.add_theme_stylebox_override(&"hover", style_p)
-			nodo.add_theme_stylebox_override(&"pressed", style_p)
-			nodo.add_theme_stylebox_override(&"focus", style_p)
+			nodo.add_theme_stylebox_override(&"normal", _style_empty_cache)
+			nodo.add_theme_stylebox_override(&"hover", _style_empty_cache)
+			nodo.add_theme_stylebox_override(&"pressed", _style_empty_cache)
+			nodo.add_theme_stylebox_override(&"focus", _style_empty_cache)
 			
 			nodo.modulate = COLOR_FANTASMA_BTN_MOD if es_fantasma else COLOR_VIVO_BTN_MOD
 		else:
@@ -741,72 +874,26 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			else:
 				nodo.add_theme_font_size_override(&"font_size", 22)
 			
-			var style_normal = StyleBoxFlat.new()
-			style_normal.bg_color = COLOR_FANTASMA_PANEL_BG if es_fantasma else COLOR_VIVO_PANEL_BG
-			style_normal.border_color = color_borde
-			style_normal.border_width_left = 2
-			style_normal.border_width_top = 2
-			style_normal.border_width_right = 2
-			style_normal.border_width_bottom = 2
-			style_normal.set_corner_radius_all(14)
-			style_normal.content_margin_top = 8
-			style_normal.content_margin_bottom = 8
-			style_normal.content_margin_left = 16
-			style_normal.content_margin_right = 16
-			if es_fantasma:
-				style_normal.shadow_color = Color(0.1, 0.6, 0.9, 0.25)
-				style_normal.shadow_size = 6
-			else:
-				style_normal.shadow_color = Color(0.5, 0.35, 0.1, 0.20)
-				style_normal.shadow_size = 6
+			var style_norm = _style_btn_norm_fant if es_fantasma else _style_btn_norm_vivo
+			var style_hov = _style_btn_hov_fant if es_fantasma else _style_btn_hov_vivo
+			var style_press = _style_btn_press_fant if es_fantasma else _style_btn_press_vivo
 			
-			var style_hover = style_normal.duplicate()
-			style_hover.bg_color = Color(0.14, 0.26, 0.42, 0.92) if es_fantasma else Color(0.20, 0.18, 0.12, 0.95)
-			style_hover.border_color = color_borde_hover
-			
-			var style_pressed = style_normal.duplicate()
-			style_pressed.bg_color = Color(0.04, 0.08, 0.16, 0.95) if es_fantasma else Color(0.08, 0.07, 0.04, 0.95)
-			style_pressed.border_color = color_borde
-			
-			nodo.add_theme_stylebox_override(&"normal", style_normal)
-			nodo.add_theme_stylebox_override(&"hover", style_hover)
-			nodo.add_theme_stylebox_override(&"pressed", style_pressed)
-			nodo.add_theme_stylebox_override(&"focus", style_hover)
+			nodo.add_theme_stylebox_override(&"normal", style_norm)
+			nodo.add_theme_stylebox_override(&"hover", style_hov)
+			nodo.add_theme_stylebox_override(&"pressed", style_press)
+			nodo.add_theme_stylebox_override(&"focus", style_hov)
 
 	elif nodo is Panel and (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones"):
 		nodo.material = null
-		var style_panel = StyleBoxFlat.new()
-		style_panel.bg_color = COLOR_FANTASMA_PANEL_BG if es_fantasma else COLOR_VIVO_PANEL_BG
-		style_panel.border_color = color_borde
-		style_panel.border_width_left = 2
-		style_panel.border_width_top = 2
-		style_panel.border_width_right = 2
-		style_panel.border_width_bottom = 2
-		style_panel.set_corner_radius_all(20)
-		style_panel.shadow_color = Color(0.0, 0.0, 0.0, 0.45)
-		style_panel.shadow_size = 22
-		style_panel.shadow_offset = Vector2(0, 6)
+		var style_panel = _style_panel_fant if es_fantasma else _style_panel_vivo
 		nodo.add_theme_stylebox_override(&"panel", style_panel)
 
 	elif nodo is HSlider:
 		nodo.custom_minimum_size.y = maxf(nodo.custom_minimum_size.y, 38.0)
-		var style_slider_bg = StyleBoxFlat.new()
-		style_slider_bg.bg_color = Color(0.12, 0.15, 0.22, 0.90) if es_fantasma else Color(0.18, 0.16, 0.12, 0.90)
-		style_slider_bg.border_color = Color(0.3, 0.35, 0.45, 0.6) if es_fantasma else Color(0.4, 0.35, 0.25, 0.6)
-		style_slider_bg.border_width_left = 1
-		style_slider_bg.border_width_top = 1
-		style_slider_bg.border_width_right = 1
-		style_slider_bg.border_width_bottom = 1
-		style_slider_bg.set_corner_radius_all(6)
-		style_slider_bg.content_margin_top = 6
-		style_slider_bg.content_margin_bottom = 6
-		nodo.add_theme_stylebox_override(&"slider", style_slider_bg)
+		var style_slider_bg = _style_slider_bg_fant if es_fantasma else _style_slider_bg_vivo
+		var style_slider_area = _style_slider_area_fant if es_fantasma else _style_slider_area_vivo
 		
-		var style_slider_area = StyleBoxFlat.new()
-		style_slider_area.bg_color = color_borde
-		style_slider_area.set_corner_radius_all(6)
-		style_slider_area.content_margin_top = 6
-		style_slider_area.content_margin_bottom = 6
+		nodo.add_theme_stylebox_override(&"slider", style_slider_bg)
 		nodo.add_theme_stylebox_override(&"grabber_area", style_slider_area)
 		nodo.add_theme_stylebox_override(&"grabber_area_highlight", style_slider_area)
 

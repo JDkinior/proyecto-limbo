@@ -1,8 +1,9 @@
 extends Area3D
 
 # Goal: Meta final de nivel. Muestra la pantalla de resultados cuando ambos jugadores están presentes.
-
-@export var next_scene_path: String = "res://scenes/levels/nivel 2.tscn"
+## Sobrescribe la siguiente escena a cargar (opcional). Si está vacía, la progresión se delega al Catálogo de Niveles / RedManager.
+@export_file("*.tscn") var siguiente_escena_override: String = ""
+@export var next_scene_path: String = "" # Mantenido por retrocompatibilidad con escenas existentes
 @export var radio_deteccion_proximidad: float = 2.5
 
 var _cuerpos_dentro: Array[Node] = []

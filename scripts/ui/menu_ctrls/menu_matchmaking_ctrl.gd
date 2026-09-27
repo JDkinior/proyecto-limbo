@@ -1,6 +1,8 @@
 extends Node
 class_name MenuMatchmakingCtrl
 
+const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
+
 var menu: Control
 var _firebase_sala_ids: Array = []
 var _eos_lobbies: Array = []
@@ -305,9 +307,12 @@ func _inicializar_nuevos_paneles():
 	opt_nivel_solo.custom_minimum_size = Vector2(0, 42)
 	opt_nivel_solo.add_theme_stylebox_override("normal", style_input)
 	opt_nivel_solo.add_theme_font_size_override("font_size", 14)
-	opt_nivel_solo.add_item("🌟 Nivel 1: El Despertar Separado", 0)
-	opt_nivel_solo.add_item("🌟 Nivel 2", 1)
-	opt_nivel_solo.add_item("🧪 Mundo de Pruebas (Sandbox)", 2)
+	
+	var todos_niveles = CatalogoNiveles.obtener_todos_los_niveles()
+	for i in range(todos_niveles.size()):
+		var n_info = todos_niveles[i]
+		var prefijo = "🌟 " if n_info.get("es_historia", false) else "🧪 "
+		opt_nivel_solo.add_item(prefijo + n_info.get("titulo", "Nivel %d" % (i + 1)), i)
 	hbox_nivel.add_child(opt_nivel_solo)
 	
 	# Encabezado Selección de Personaje

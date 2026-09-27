@@ -1,6 +1,8 @@
 extends Node3D
 class_name NivelBase
 
+const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
+
 ## ==============================================================================
 ## CLASE MAESTRA DE NIVEL (NivelBase) - PROYECTO LIMBO
 ## Todo mapa o nivel debe heredar o tener este script adjunto a su nodo raíz.
@@ -21,13 +23,8 @@ class_name NivelBase
 @export_range(0.5, 10.0, 0.1) var tiempo_visible: float = 2.5
 @export_range(0.2, 4.0, 0.1) var tiempo_fade_out: float = 1.0
 
-## Nombres por defecto para cada capítulo (se usan si no hay texto personalizado).
-const NOMBRES_CAPITULOS := {
-	1: "El Despertar",
-	2: "El Camino del Faro",
-	3: "La Caída del Limbo",
-	4: "El Último Umbral",
-}
+## Nombres por defecto para cada capítulo (delegado a CatalogoNiveles).
+const NOMBRES_CAPITULOS := CatalogoNiveles.NOMBRES_CAPITULOS
 
 signal intro_capitulo_finalizada
 
@@ -43,7 +40,10 @@ func _ready() -> void:
 	# 2. Validar que el nivel contiene los componentes mínimos requeridos
 	_validar_estructura_minima()
 	
-	# 3. Si hay intro de capítulo, ocultar HUD y reproducir intro; de lo contrario inicializar directamente
+	# 3. Precalentar pipelines gráficos y entornos de ambos reinos
+	_precalentar_pipelines_graficos()
+	
+	# 4. Si hay intro de capítulo, ocultar HUD y reproducir intro; de lo contrario inicializar directamente
 	if mostrar_intro_capitulo:
 		_ocultar_hud_inicial()
 		_mostrar_intro_capitulo()
@@ -55,6 +55,39 @@ func _ocultar_hud_inicial() -> void:
 	for ui in uis:
 		if is_instance_valid(ui) and ui.has_method("ocultar_para_intro_nivel"):
 			ui.ocultar_para_intro_nivel()
+
+func _precalentar_pipelines_graficos() -> void:
+	# Pre-inicializar y compilar silenciosamente en GPU todos los recursos, entornos y shaders
+	# de ambos reinos (Vivo y Fantasma / Capa 3) durante el arranque del nivel,
+	# eliminando al 100% el micro-congelamiento en el primer cambio de personaje.
+	var red_mgr = get_node_or_null("/root/RedManager")
+	if is_instance_valid(red_mgr):
+		red_mgr.buscar_personajes_en_escena()
+		if is_instance_valid(red_mgr.jugador_vivo) and red_mgr.jugador_vivo.has_method("obtener_entorno_personaje"):
+			red_mgr.jugador_vivo.obtener_entorno_personaje()
+		if is_instance_valid(red_mgr.fantasma) and red_mgr.fantasma.has_method("obtener_entorno_personaje"):
+			var env_fant = red_mgr.fantasma.obtener_entorno_personaje()
+			var cam_fant = red_mgr.fantasma.obtener_camara()
+			if is_instance_valid(cam_fant) and env_fant:
+				cam_fant.environment = env_fant
+				cam_fant.cull_mask = red_mgr.fantasma.obtener_cull_mask_personaje()
+
+	# Disparar 1 frame de pre-compilación oculta para compilar pipelines de la Capa 3 (Plano Espiritual)
+	var viewport_prewarm := SubViewport.new()
+	viewport_prewarm.size = Vector2i(16, 16)
+	viewport_prewarm.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var cam_prewarm := Camera3D.new()
+	cam_prewarm.cull_mask = 1048575 # Abarca todas las capas (1, 2, 3, 4)
+	if is_instance_valid(red_mgr) and is_instance_valid(red_mgr.fantasma):
+		cam_prewarm.environment = red_mgr.fantasma.obtener_entorno_personaje()
+		cam_prewarm.global_transform = red_mgr.fantasma.global_transform
+	viewport_prewarm.add_child(cam_prewarm)
+	add_child(viewport_prewarm)
+
+	get_tree().process_frame.connect(func():
+		if is_instance_valid(viewport_prewarm):
+			viewport_prewarm.queue_free()
+	, CONNECT_ONE_SHOT)
 
 func _validar_estructura_minima() -> void:
 	var tiene_vivo = false
@@ -269,4 +302,4 @@ func _aplicar_peso_fuente(label: Label, embolden: float) -> void:
 func _obtener_titulo_intro() -> String:
 	if not titulo_capitulo_personalizado.strip_edges().is_empty():
 		return titulo_capitulo_personalizado.strip_edges()
-	return NOMBRES_CAPITULOS.get(capitulo, "Capítulo %d" % capitulo)
+	return CatalogoNiveles.obtener_titulo_capitulo(capitulo)

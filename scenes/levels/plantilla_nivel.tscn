@@ -1,0 +1,162 @@
+[gd_scene format=3 uid="uid://cy6kqahya5qvo"]
+
+[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="1_nivel_base"]
+[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_jugador"]
+[ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="3_fantasma"]
+[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="4_ui"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/metas/goal.tscn" id="5_goal"]
+[ext_resource type="Material" uid="uid://c7b63irvr06f4" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="6_cielo_mat"]
+[ext_resource type="PackedScene" uid="uid://pasto_area_001" path="res://scenes/entorno/vegetacion/pasto_area.tscn" id="7_pasto_area"]
+
+[sub_resource type="Sky" id="Sky_limbo_tpl"]
+sky_material = ExtResource("6_cielo_mat")
+
+[sub_resource type="Environment" id="Environment_limbo_tpl"]
+background_mode = 2
+sky = SubResource("Sky_limbo_tpl")
+ambient_light_source = 2
+ambient_light_color = Color(0.96, 0.82, 0.52, 1)
+ambient_light_energy = 1.15
+tonemap_mode = 2
+tonemap_exposure = 1.04
+tonemap_white = 1.12
+glow_enabled = true
+glow_intensity = 0.65
+glow_strength = 0.85
+glow_bloom = 0.12
+fog_enabled = true
+fog_light_color = Color(0.96, 0.8, 0.48, 1)
+fog_density = 0.008
+fog_sky_affect = 0.35
+fog_height_density = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vivo"]
+albedo_color = Color(0.55, 0.42, 0.28, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_suelo_vivo"]
+material = SubResource("StandardMaterial3D_vivo")
+size = Vector3(10, 1, 14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_suelo_vivo"]
+size = Vector3(10, 1, 14)
+
+[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_vivo"]
+size = Vector3(10, 1, 14)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fantasma"]
+albedo_color = Color(0.22, 0.36, 0.52, 1)
+roughness = 0.85
+
+[sub_resource type="BoxMesh" id="BoxMesh_suelo_fantasma"]
+material = SubResource("StandardMaterial3D_fantasma")
+size = Vector3(10, 1, 14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_suelo_fantasma"]
+size = Vector3(10, 1, 14)
+
+[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_fantasma"]
+size = Vector3(10, 1, 14)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_meta"]
+albedo_color = Color(0.45, 0.45, 0.48, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="BoxMesh_suelo_meta"]
+material = SubResource("StandardMaterial3D_meta")
+size = Vector3(16, 1, 10)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_suelo_meta"]
+size = Vector3(16, 1, 10)
+
+[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_meta"]
+size = Vector3(16, 1, 10)
+
+[node name="PlantillaNivel" type="Node3D" unique_id=1000000001]
+script = ExtResource("1_nivel_base")
+tiempo_objetivo = 120.0
+mostrar_intro_capitulo = true
+capitulo = 1
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1000000002]
+environment = SubResource("Environment_limbo_tpl")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1000000003]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.5, 0.8660254, -0.5, 0.75, -0.4330127, 0, 15, 0)
+light_color = Color(1, 0.94, 0.82, 1)
+light_energy = 1.25
+shadow_enabled = true
+shadow_bias = 0.04
+shadow_blur = 1.2
+directional_shadow_max_distance = 60.0
+
+[node name="Geometria" type="Node3D" parent="." unique_id=1000000004]
+
+[node name="SueloVivo" type="StaticBody3D" parent="Geometria" unique_id=1000000005]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, -0.5, 8)
+collision_layer = 3
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Geometria/SueloVivo" unique_id=1000000006]
+mesh = SubResource("BoxMesh_suelo_vivo")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometria/SueloVivo" unique_id=1000000007]
+shape = SubResource("BoxShape3D_suelo_vivo")
+
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="Geometria/SueloVivo" unique_id=1000000008]
+occluder = SubResource("BoxOccluder3D_vivo")
+
+[node name="SueloFantasma" type="StaticBody3D" parent="Geometria" unique_id=1000000009]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, -0.5, 8)
+collision_layer = 5
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Geometria/SueloFantasma" unique_id=1000000010]
+mesh = SubResource("BoxMesh_suelo_fantasma")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometria/SueloFantasma" unique_id=1000000011]
+shape = SubResource("BoxShape3D_suelo_fantasma")
+
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="Geometria/SueloFantasma" unique_id=1000000012]
+occluder = SubResource("BoxOccluder3D_fantasma")
+
+[node name="SueloMeta" type="StaticBody3D" parent="Geometria" unique_id=1000000013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -8)
+collision_layer = 1
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Geometria/SueloMeta" unique_id=1000000014]
+mesh = SubResource("BoxMesh_suelo_meta")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Geometria/SueloMeta" unique_id=1000000015]
+shape = SubResource("BoxShape3D_suelo_meta")
+
+[node name="OccluderInstance3D" type="OccluderInstance3D" parent="Geometria/SueloMeta" unique_id=1000000016]
+occluder = SubResource("BoxOccluder3D_meta")
+
+[node name="ZonaMeta" type="Node3D" parent="." unique_id=1000000017]
+
+[node name="Goal" parent="ZonaMeta" unique_id=1000000018 instance=ExtResource("5_goal")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8)
+
+[node name="Spawns" type="Node3D" parent="." unique_id=1000000019]
+
+[node name="Jugador" parent="Spawns" unique_id=1000000020 instance=ExtResource("2_jugador")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.5, 10)
+LIMITE_CAIDA_Y = -8.0
+
+[node name="Fantasma" parent="Spawns" unique_id=1000000021 instance=ExtResource("3_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.5, 10)
+LIMITE_CAIDA_Y = -8.0
+
+[node name="Coleccionables" type="Node3D" parent="." unique_id=1000000022]
+
+[node name="ObstaculosYMecanismos" type="Node3D" parent="." unique_id=1000000023]
+
+[node name="Decoraciones" type="Node3D" parent="." unique_id=1000000024]
+
+[node name="PastoArea" parent="." unique_id=1000000025 instance=ExtResource("7_pasto_area")]
+modo_distribucion = 0
+activar_pincel = false
+radio_pincel = 1.5
+densidad_pincel = 25
+solo_pintar_en_objetos = Array[NodePath]([NodePath("../Geometria/SueloVivo"), NodePath("../Geometria/SueloFantasma"), NodePath("../Geometria/SueloMeta")])
+
+[node name="Controles_Tactiles" parent="." unique_id=1000000026 instance=ExtResource("4_ui")]

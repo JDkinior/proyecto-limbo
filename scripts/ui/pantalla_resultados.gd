@@ -1,5 +1,7 @@
 extends Control
 
+const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
+
 @onready var lbl_titulo = $PanelContenedor/VBox/LblTitulo
 @onready var lbl_tiempo = $PanelContenedor/VBox/ContenedorDetalles/HBoxTiempo/LblTiempoValor
 @onready var lbl_monedas_vivo = $PanelContenedor/VBox/ContenedorTarjetas/TarjetaVivo/VBox/LblMonedasVivo
@@ -301,7 +303,14 @@ func _ejecutar_siguiente_nivel() -> void:
 	if is_instance_valid(RedManager) and RedManager.has_method("completar_nivel"):
 		RedManager.completar_nivel()
 	else:
-		get_tree().change_scene_to_file("res://scenes/levels/nivel 2.tscn")
+		var ruta_actual := ""
+		if get_tree().current_scene:
+			ruta_actual = get_tree().current_scene.scene_file_path
+		var sig_path := CatalogoNiveles.obtener_siguiente_nivel_path(ruta_actual)
+		if not sig_path.is_empty():
+			get_tree().change_scene_to_file(sig_path)
+		else:
+			get_tree().change_scene_to_file("res://scenes/ui/menu_inicio.tscn")
 
 func _ejecutar_reintentar_nivel() -> void:
 	print("[PantallaResultados] Ejecutando Reintento de Nivel...")
