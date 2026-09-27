@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Proyecto Limbo"
-config/version="1.0.3"
+config/version="1.0.4"
 run/main_scene="res://scenes/ui/menu_inicio.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 run/max_fps=60
@@ -117,6 +117,13 @@ pointing/emulate_touch_from_mouse=true
 [physics]
 
 3d/physics_engine="Jolt Physics"
+jolt_physics_3d/simulation/velocity_steps=8
+jolt_physics_3d/simulation/sleep_time_threshold=0.25
+jolt_physics_3d/limits/max_bodies=4096
+jolt_physics_3d/limits/max_body_pairs=16384
+jolt_physics_3d/limits/max_contact_constraints=8192
+3d/time_before_sleep=0.25
+3d/solver/solver_iterations=10
 common/physics_interpolation=true
 
 [rendering]
