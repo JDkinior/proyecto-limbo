@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.5` (Build Code `6`)  
+**Versión Actual:** `1.0.6` (Build Code `7`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 27 de Septiembre de 2026  
+**Última Actualización:** 3 de Octubre de 2026  
 
 # Documentación Central - Proyecto Limbo
 
@@ -43,6 +43,27 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.6 (3 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Gestor Global de Cámara y Modo Grabación Shorts (`CamaraConfigManager` / `camara_config_manager.gd`)**:
+    *   **Autoload persistente**: Nuevo singleton `CamaraConfigManager` que persiste sus ajustes en `user://opciones.cfg` (sección `[camara]`).
+    *   **Modo Grabación Shorts (9:16)**: Modifica dinámicamente la cinemática de la cámara en tercera persona (`SpringArm3D` a 0.65m de altura, distancia a 5.2m, pitch predeterminado de -0.22 rad y desplazamiento vertical `v_offset = -0.15m`) para encuadrar al personaje y plataformas en el tercio seguro superior/central en formatos verticales (TikTok, YouTube Shorts, Reels).
+    *   **Guía Visual 9:16**: Overlay en `CanvasLayer` con oscurecimiento lateral semitransparente y líneas guía para encuadrar con precisión mientras se juega en pantalla panorámica.
+    *   **Ocultar Controles en Pantalla**: Modo limpio para capturas de video que oculta el joystick virtual, botones de acción y contadores de monedas, manteniendo accesible el botón de pausa.
+    *   **Integración de UI**: Nuevo subpanel `Panel_Ajustes_Video` accesible desde el menú de opciones tanto en el HUD (`controles_tactiles.gd` / `.tscn`) como en el menú principal (`menu_inicio.gd` / `.tscn`).
+    *   **Suite de pruebas unitarias**: Implementada en `tests/test_camara_shorts.gd`.
+*   **Rediseño Visual del Torbellino Espiritual (`torbellino_espiritual.gdshader`, `torbellino.tscn`)**:
+    *   **Vórtice volumétrico multi-cinta**: Tres corrientes independientes de cintas energéticas celestes (principal, secundaria y acento) con velocidades angulares diferenciadas.
+    *   **Borde y silueta orgánica**: Reemplazo de bordes rígidos por fresnel orgánico difuminado (`irregularidad_borde`, `difuminado_silueta`, `ancho_borde` y filo azul-blanco con halo envolvente).
+    *   **Partículas de Hojas Absorbidas (`hojas_vortice_espectral.gdshader`, `m_hojas_vortice.tres`)**: Nuevo emisor de hojas que orbitan arrastradas por el vórtice, aportando fisicalidad y feedback visual al peligro.
+    *   **Limitador de brillo fotométrico**: Control de luminancia máxima que preserva la saturación cian/azul impidiendo que el tonemapping y el bloom de la escena quemen el color a blanco puro.
+*   **Cielos y Atmósfera Espiritual (`cielo_estilizado_nubes.gdshader`, `cielo_fantasma_mat.tres`)**:
+    *   Soporte refinado para cielo nocturno espiritual con estrellas dinámicas (`mostrar_estrellas = true`, `densidad_estrellas`, `brillo_estrellas`), disco lunar estilizado y control de gradientes nadir/horizonte.
+*   **Vegetación y Nivel 1**:
+    *   Datos de pasto enriquecidos en `scenes/levels/pasto_nivel_1_datos.res` con mayor densidad y mejor integración en `Nivel 1 _ El Despertar Separado.tscn`.
+    *   Limpieza de assets redundantes de monedas provisionales antiguas.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.5 (27 de Septiembre de 2026)
 
@@ -1375,6 +1396,31 @@ Responsabilidades:
   - Escena base pre-configurada que implementa el contrato contractual de `NivelBase`: puntos de spawn para Vivo y Fantasma, iluminación ambiental, HUD táctil, `Goal` de nivel y límites de caída.
 - **Motor Jolt Physics 3D**:
   - Configurado en `project.godot` con límites de 4096 cuerpos rígidos y 16384 pares de contacto para máxima fidelidad física.
+
+### 8. Gestor de Cámara y Grabación de Video 9:16 (`scripts/core/camara_config_manager.gd`)
+- **Autoload Global `CamaraConfigManager`**:
+  - Centraliza el estado de grabación de contenido y persistencia en `user://opciones.cfg` (sección `[camara]`).
+- **Modo Grabación Shorts (Vertical 9:16)**:
+  - Resuelve el problema clásico de juegos panorámicos donde recortar a vertical corta la cabeza del personaje o esconde las plataformas del suelo.
+  - Al activarse, ajusta automáticamente los parámetros cinemáticos de `CharacterBase` (`obtener_spring_arm()`, `obtener_camara()`):
+    * `ALTURA_SPRING_ARM`: Reducida a `0.65m` (eleva al personaje al tercio superior/central seguro).
+    * `DISTANCIA_CAMARA`: Extendida a `5.2m` (aporta visibilidad amplia del escenario).
+    * `PITCH_DEFECTO`: Inclinado a `-0.22 rad` (~ -12.6°) para visualizar caídas y plataformas inferiores.
+    * `V_OFFSET`: `-0.15m` para que los botones de la interfaz de TikTok/Shorts no tapen la acción.
+- **Herramientas de Apoyo a la Creación de Contenido**:
+  - **Guía Visual 9:16**: Muestra barras laterales oscurecidas y retícula de encuadre en pantalla ancha.
+  - **Ocultar Controles en Pantalla**: Esconde joysticks y botones de HUD dejando únicamente el botón de pausa accesible para capturas cinematográficas limpias.
+  - **Panel de Ajustes de Video**: Integrado en el HUD (`controles_tactiles.gd`) y menú principal (`menu_inicio.gd`).
+
+### 9. Vórtice Volumétrico y Hojas Espectrales (`shaders/components/peligros/torbellino_espiritual.gdshader`)
+- **Arquitectura Multi-Cinta y Fresnels Orgánicos**:
+  - El torbellino espiritual combina tres fases de cintas helicoidales con torsiones sinusoidales y velocidades independientes.
+  - Borde del cono difuminado con filo suave azul blanco y halo exterior envolvente mediante fresnels modulados por `irregularidad_borde`.
+  - Disolución vaporosa en la cima (`difuminado_cima`) y corona de partículas en contacto con el suelo.
+- **Partículas de Hojas en Órbita (`hojas_vortice_espectral.gdshader`)**:
+  - Emisor `CPUParticles3D` con hojas translúcidas que giran en espiral ascendente/descendente reflejando el arrastre físico del viento vórtice.
+- **Limitador de Brillo Fotométrico**:
+  - Función analítica en fragment shader que acota el vector de salida `ALBEDO + EMISSION` antes de que el tonemapping y bloom sature los tonos cian a blanco puro.
 
 ## 22. Archivos Que Una IA Deberia Leer Primero
 
