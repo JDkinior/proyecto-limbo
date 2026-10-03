@@ -207,16 +207,32 @@ func centrar_camara_inmediatamente():
 
 func _ready():
 	objetivo_rotacion_y = rotation.y
+	
+	# Configurar parámetros según modo de cámara activo (Normal o Shorts para video vertical)
+	if is_instance_valid(CamaraConfigManager):
+		DISTANCIA_CAMARA = CamaraConfigManager.obtener_distancia_camara()
+		PITCH_DEFECTO_CAMARA = CamaraConfigManager.obtener_pitch_defecto()
+		LIMITE_PITCH_MIN = CamaraConfigManager.obtener_limite_pitch_min()
+		LIMITE_PITCH_MAX = CamaraConfigManager.obtener_limite_pitch_max()
+		if not CamaraConfigManager.modo_shorts_cambiado.is_connected(_on_modo_shorts_cambiado):
+			CamaraConfigManager.modo_shorts_cambiado.connect(_on_modo_shorts_cambiado)
+
 	var spring_arm = obtener_spring_arm()
 	if spring_arm:
 		spring_arm.add_excluded_object(get_rid())
 		spring_arm.spring_length = DISTANCIA_CAMARA
 		spring_arm.margin = MARGEN_COLISION_CAMARA
+		if is_instance_valid(CamaraConfigManager):
+			spring_arm.position.y = CamaraConfigManager.obtener_altura_spring_arm()
 		objetivo_rotacion_x = spring_arm.rotation.x
 	elif pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
 	else:
 		objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
+
+	var cam = obtener_camara()
+	if cam and is_instance_valid(CamaraConfigManager):
+		cam.v_offset = CamaraConfigManager.obtener_v_offset()
 
 	posicion_inicial = global_position
 	rotacion_inicial = rotation
@@ -259,6 +275,13 @@ func _process(delta: float):
 			rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
 
 
+func _on_modo_shorts_cambiado(_activo: bool) -> void:
+	if is_instance_valid(CamaraConfigManager):
+		DISTANCIA_CAMARA = CamaraConfigManager.obtener_distancia_camara()
+		PITCH_DEFECTO_CAMARA = CamaraConfigManager.obtener_pitch_defecto()
+		LIMITE_PITCH_MIN = CamaraConfigManager.obtener_limite_pitch_min()
+		LIMITE_PITCH_MAX = CamaraConfigManager.obtener_limite_pitch_max()
+
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	# Lógica base de cámara, los hijos extenderán esto
 	var es_mio = es_activo()
@@ -275,6 +298,9 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 			if arm:
 				arm.add_excluded_object(get_rid())
 				arm.rotation.x = objetivo_rotacion_x
+				if is_instance_valid(CamaraConfigManager):
+					arm.position.y = CamaraConfigManager.obtener_altura_spring_arm()
+					arm.spring_length = CamaraConfigManager.obtener_distancia_camara()
 			else:
 				pivote_camara.rotation.x = objetivo_rotacion_x
 		else:
@@ -283,6 +309,8 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 		var cam = obtener_camara()
 		if cam:
 			cam.current = es_mio
+			if is_instance_valid(CamaraConfigManager):
+				cam.v_offset = CamaraConfigManager.obtener_v_offset()
 
 func obtener_entorno_personaje() -> Environment:
 	return null
@@ -393,8 +421,18 @@ func procesar_camara_base(delta: float):
 		if arm:
 			pivote_camara.rotation.x = 0.0
 			arm.rotation.x = lerp_angle(arm.rotation.x, objetivo_rotacion_x, suavizado_camara)
+			if is_instance_valid(CamaraConfigManager):
+				var target_arm_y = CamaraConfigManager.obtener_altura_spring_arm()
+				var target_arm_dist = CamaraConfigManager.obtener_distancia_camara()
+				arm.position.y = lerp(arm.position.y, target_arm_y, 8.0 * delta)
+				arm.spring_length = lerp(arm.spring_length, target_arm_dist, 8.0 * delta)
 		else:
 			pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
+
+		var cam = obtener_camara()
+		if cam and is_instance_valid(CamaraConfigManager):
+			var target_v_offset = CamaraConfigManager.obtener_v_offset()
+			cam.v_offset = lerp(cam.v_offset, target_v_offset, 8.0 * delta)
 
 func esta_planeando() -> bool:
 	if _vortice_esta_absorbido:

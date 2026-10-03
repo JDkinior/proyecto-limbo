@@ -387,3 +387,7 @@ func vibrar_coleccionable() -> void:
 ## Daño recibido o reaparición por caída al vacío
 func vibrar_dano() -> void:
 	vibrar(170, 0.85, 0.75, 0.25)
+
+## Click de interfaz, botón o ajuste
+func vibrar_click() -> void:
+	vibrar(30, 0.20, 0.0, 0.05)

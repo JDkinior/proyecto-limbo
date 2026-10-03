@@ -237,12 +237,12 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 32.0
-offset_top = 24.0
+offset_top = 20.0
 offset_right = -32.0
-offset_bottom = -24.0
+offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 8
 alignment = 1
 
 [node name="Label_Titulo" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=731413464]
@@ -255,28 +255,34 @@ horizontal_alignment = 1
 layout_mode = 2
 
 [node name="Boton_Personalizar_HUD" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390906]
-custom_minimum_size = Vector2(460, 56)
+custom_minimum_size = Vector2(460, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "📱 Personalizar HUD (Táctil)"
 
 [node name="Boton_Mapear_Control" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390907]
-custom_minimum_size = Vector2(460, 56)
+custom_minimum_size = Vector2(460, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "🎮 Configurar Control / Mando"
 
 [node name="Boton_Vibracion" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390908]
-custom_minimum_size = Vector2(460, 56)
+custom_minimum_size = Vector2(460, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "📳 Vibración: Activada"
 
 [node name="Boton_FPS" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390909]
-custom_minimum_size = Vector2(460, 56)
+custom_minimum_size = Vector2(460, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "📊 Mostrar FPS: Desactivado"
+
+[node name="Boton_Ajustes_Video" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390915]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🎬 Ajustes de Video"
 
 [node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=774955636]
 layout_mode = 2
@@ -285,7 +291,7 @@ label_settings = SubResource("LabelSettings_subtitulo")
 horizontal_alignment = 1
 
 [node name="Slider_Escala_Botones" type="HSlider" parent="Panel_Opciones/VBoxContainer" unique_id=1556023312]
-custom_minimum_size = Vector2(440, 36)
+custom_minimum_size = Vector2(440, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 min_value = 0.6
@@ -300,7 +306,7 @@ label_settings = SubResource("LabelSettings_subtitulo")
 horizontal_alignment = 1
 
 [node name="Slider_Escala_Joy" type="HSlider" parent="Panel_Opciones/VBoxContainer" unique_id=1620610421]
-custom_minimum_size = Vector2(440, 36)
+custom_minimum_size = Vector2(440, 30)
 layout_mode = 2
 size_flags_horizontal = 4
 min_value = 0.6
@@ -312,7 +318,81 @@ value = 1.0
 layout_mode = 2
 
 [node name="Boton_Cerrar_Opciones" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1382954270]
-custom_minimum_size = Vector2(240, 54)
+custom_minimum_size = Vector2(240, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Atrás"
+
+[node name="Panel_Ajustes_Video" type="Panel" parent="." unique_id=141872660]
+visible = false
+custom_minimum_size = Vector2(560, 520)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -260.0
+offset_right = 280.0
+offset_bottom = 260.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Ajustes_Video" unique_id=500451299]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 20.0
+offset_right = -32.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Label_Titulo" type="Label" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=731413465]
+layout_mode = 2
+text = "Ajustes de Video"
+label_settings = SubResource("LabelSettings_panel")
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=588381111]
+layout_mode = 2
+
+[node name="Boton_Modo_Shorts" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390910]
+custom_minimum_size = Vector2(460, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "📹 Cámara Shorts (9:16): Desactivada"
+
+[node name="Boton_Guia_Shorts" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390911]
+custom_minimum_size = Vector2(460, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "📐 Guía Visual 9:16: Desactivada"
+
+[node name="Boton_Ocultar_Controles" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390912]
+custom_minimum_size = Vector2(460, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "👁️ Ocultar Controles (Excepto Pausa): Desactivado"
+
+[node name="Label_Info" type="Label" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=774955637]
+layout_mode = 2
+text = "💡 Al activar 'Ocultar Controles', se ocultan los botones y joystick táctiles para grabar partidas limpias. El botón de Pausa permanece visible para que siempre puedas acceder a las opciones."
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 0.85)
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="HSeparator2" type="HSeparator" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=2036685273]
+layout_mode = 2
+
+[node name="Boton_Cerrar_Ajustes_Video" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1382954271]
+custom_minimum_size = Vector2(240, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "Atrás"
@@ -326,7 +406,12 @@ text = "Atrás"
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Salir" to="." method="_on_boton_salir_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Personalizar_HUD" to="." method="_on_boton_personalizar_hud_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Mapear_Control" to="." method="_on_boton_mapear_control_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Ajustes_Video" to="." method="_on_boton_ajustes_video_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Vibracion" to="." method="_on_boton_vibracion_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_FPS" to="." method="_on_boton_fps_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Modo_Shorts" to="." method="_on_boton_modo_shorts_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Guia_Shorts" to="." method="_on_boton_guia_shorts_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Ocultar_Controles" to="." method="_on_boton_ocultar_controles_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Cerrar_Ajustes_Video" to="." method="_on_boton_cerrar_ajustes_video_pressed"]
 

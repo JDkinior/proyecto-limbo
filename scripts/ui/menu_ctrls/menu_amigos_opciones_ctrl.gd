@@ -30,6 +30,16 @@ func _conectar_senales():
 		menu.btn_vibracion.toggled.connect(_on_btn_vibracion_toggled)
 	if is_instance_valid(menu.btn_mostrar_fps):
 		menu.btn_mostrar_fps.toggled.connect(_on_btn_mostrar_fps_toggled)
+	if is_instance_valid(menu.btn_ajustes_video):
+		menu.btn_ajustes_video.pressed.connect(_on_btn_ajustes_video_pressed)
+	if is_instance_valid(menu.btn_volver_video):
+		menu.btn_volver_video.pressed.connect(_on_btn_volver_video_pressed)
+	if is_instance_valid(menu.btn_modo_shorts):
+		menu.btn_modo_shorts.toggled.connect(_on_btn_modo_shorts_toggled)
+	if is_instance_valid(menu.btn_guia_shorts):
+		menu.btn_guia_shorts.toggled.connect(_on_btn_guia_shorts_toggled)
+	if is_instance_valid(menu.btn_ocultar_controles):
+		menu.btn_ocultar_controles.toggled.connect(_on_btn_ocultar_controles_toggled)
 		
 	var btn_volver_opc = menu.get_node_or_null("PanelOpciones/VBoxContainer/BtnVolver")
 	if is_instance_valid(btn_volver_opc):
@@ -116,6 +126,41 @@ func _on_btn_mostrar_fps_toggled(button_pressed: bool):
 	var fps_node = menu.get_node_or_null("/root/FPSCounter")
 	if is_instance_valid(fps_node):
 		fps_node.establecer_activo(button_pressed)
+
+func _on_btn_modo_shorts_toggled(button_pressed: bool):
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.establecer_modo_shorts(button_pressed)
+		var vm = menu.get_node_or_null("/root/VibrationManager")
+		if is_instance_valid(vm):
+			vm.vibrar_click()
+
+func _on_btn_guia_shorts_toggled(button_pressed: bool):
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.establecer_guia_activa(button_pressed)
+		var vm = menu.get_node_or_null("/root/VibrationManager")
+		if is_instance_valid(vm):
+			vm.vibrar_click()
+
+func _on_btn_ajustes_video_pressed():
+	if is_instance_valid(menu.panel_ajustes_video):
+		menu.mostrar_panel(menu.panel_ajustes_video)
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.vibrar_click()
+
+func _on_btn_volver_video_pressed():
+	if is_instance_valid(menu.panel_opciones):
+		menu.mostrar_panel(menu.panel_opciones)
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.vibrar_click()
+
+func _on_btn_ocultar_controles_toggled(button_pressed: bool):
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.establecer_ocultar_controles(button_pressed)
+		var vm = menu.get_node_or_null("/root/VibrationManager")
+		if is_instance_valid(vm):
+			vm.vibrar_click()
 
 func _on_btn_volver_opciones_pressed():
 	menu.mostrar_panel(menu.panel_principal)
@@ -211,3 +256,11 @@ func _cargar_opciones():
 	var fps_node = menu.get_node_or_null("/root/FPSCounter")
 	if is_instance_valid(menu.btn_mostrar_fps) and is_instance_valid(fps_node):
 		menu.btn_mostrar_fps.set_pressed_no_signal(fps_node.esta_activo())
+		
+	if is_instance_valid(CamaraConfigManager):
+		if is_instance_valid(menu.btn_modo_shorts):
+			menu.btn_modo_shorts.set_pressed_no_signal(CamaraConfigManager.esta_modo_shorts_activo())
+		if is_instance_valid(menu.btn_guia_shorts):
+			menu.btn_guia_shorts.set_pressed_no_signal(CamaraConfigManager.esta_guia_activa())
+		if is_instance_valid(menu.btn_ocultar_controles):
+			menu.btn_ocultar_controles.set_pressed_no_signal(CamaraConfigManager.esta_ocultar_controles_activo())

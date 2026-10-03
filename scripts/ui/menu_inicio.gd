@@ -35,6 +35,12 @@ extends Control
 @onready var btn_fullscreen = $PanelOpciones/VBoxContainer/BtnFullscreen
 @onready var btn_vibracion = $PanelOpciones/VBoxContainer/BtnVibracion
 @onready var btn_mostrar_fps = $PanelOpciones/VBoxContainer/BtnMostrarFPS
+@onready var btn_ajustes_video = $PanelOpciones/VBoxContainer.get_node_or_null("BtnAjustesVideo")
+@onready var panel_ajustes_video = get_node_or_null("PanelAjustesVideo")
+@onready var btn_modo_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnModoShorts")
+@onready var btn_guia_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnGuiaShorts")
+@onready var btn_ocultar_controles = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnOcultarControles")
+@onready var btn_volver_video = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnVolverVideo")
 @onready var btn_ajustar_hud = $PanelOpciones/VBoxContainer/BtnAjustarHUD
 @onready var btn_mapear_control = $PanelOpciones/VBoxContainer/BtnMapearControl
 @onready var slider_tamano_hud = $PanelOpciones/VBoxContainer/SliderTamanoHUD
@@ -181,6 +187,8 @@ func _obtener_panel_activo_actual() -> Panel:
 		return panel_modos
 	if is_instance_valid(panel_amigos) and panel_amigos.visible:
 		return panel_amigos
+	if is_instance_valid(panel_ajustes_video) and panel_ajustes_video.visible:
+		return panel_ajustes_video
 	if is_instance_valid(panel_opciones) and panel_opciones.visible:
 		return panel_opciones
 	if is_instance_valid(panel_principal) and panel_principal.visible:
@@ -222,6 +230,9 @@ func volver_panel_atras() -> bool:
 	if is_instance_valid(panel_amigos) and panel_amigos.visible:
 		if is_instance_valid(amigos_opciones_ctrl):
 			amigos_opciones_ctrl._on_btn_volver_amigos_pressed()
+		return true
+	if is_instance_valid(panel_ajustes_video) and panel_ajustes_video.visible:
+		mostrar_panel(panel_opciones)
 		return true
 	if is_instance_valid(panel_opciones) and panel_opciones.visible:
 		if is_instance_valid(amigos_opciones_ctrl):
