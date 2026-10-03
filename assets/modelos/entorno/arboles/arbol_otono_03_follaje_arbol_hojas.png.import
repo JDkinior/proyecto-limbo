@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bb601qyoaptq4"
-path="res://.godot/imported/arbol_otono_03_follaje_arbol_hojas.png-7246cbf0f6795db147a07c04c93532e2.ctex"
+path.s3tc="res://.godot/imported/arbol_otono_03_follaje_arbol_hojas.png-7246cbf0f6795db147a07c04c93532e2.s3tc.ctex"
+path.etc2="res://.godot/imported/arbol_otono_03_follaje_arbol_hojas.png-7246cbf0f6795db147a07c04c93532e2.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "918a0aeedaad51496ce3fe8ad366869e"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modelos/entorno/arboles/arbol_otono_03_follaje_arbol_hojas.png"
-dest_files=["res://.godot/imported/arbol_otono_03_follaje_arbol_hojas.png-7246cbf0f6795db147a07c04c93532e2.ctex"]
+dest_files=["res://.godot/imported/arbol_otono_03_follaje_arbol_hojas.png-7246cbf0f6795db147a07c04c93532e2.s3tc.ctex", "res://.godot/imported/arbol_otono_03_follaje_arbol_hojas.png-7246cbf0f6795db147a07c04c93532e2.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

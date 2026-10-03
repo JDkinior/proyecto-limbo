@@ -114,8 +114,8 @@ size = Vector3(26, 1, 14)
 [sub_resource type="BoxOccluder3D" id="BoxOccluder3D_shared"]
 size = Vector3(26, 1, 14)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_so3f3"]
-render_priority = 0
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_l6yfi"]
+render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
 shader_parameter/color_punta = Color(0.66, 0.49, 0.07, 1)
@@ -136,7 +136,7 @@ shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_l6yfi"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_eo0eg"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.31500056, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
@@ -149,20 +149,20 @@ _surfaces = [{
 
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
-custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.996422, 8.485627, 57.999203)
-mesh = SubResource("ArrayMesh_l6yfi")
+custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.998896, 8.485627, 57.999653)
+mesh = SubResource("ArrayMesh_eo0eg")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_eo0eg"]
-render_priority = 0
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dkxh6"]
+render_priority = 2
 shader = ExtResource("19_b8igg")
-shader_parameter/color_base = Color(0.1, 0.24, 0.46, 1)
-shader_parameter/color_punta = Color(0.18, 0.36, 0.6, 1)
-shader_parameter/suavizado_gradiente = 0.75
-shader_parameter/curva_gradiente = 1.0
-shader_parameter/saturacion = 0.85
-shader_parameter/brillo_puntas = 0.0
-shader_parameter/translucidencia = 0.06
-shader_parameter/oclusion_base = 0.08
+shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
+shader_parameter/color_punta = Color(0.045, 0.35, 0.65, 1)
+shader_parameter/suavizado_gradiente = 0.8
+shader_parameter/curva_gradiente = 1.25
+shader_parameter/saturacion = 0.9
+shader_parameter/brillo_puntas = 0.03
+shader_parameter/translucidencia = 0.05
+shader_parameter/oclusion_base = 0.38
 shader_parameter/direccion_viento = Vector2(0.8, 0.6)
 shader_parameter/velocidad_viento = 2.0
 shader_parameter/fuerza_viento = 0.18
@@ -245,17 +245,17 @@ shape = SubResource("BoxShape3D_step_vivo")
 occluder = SubResource("BoxOccluder3D_step")
 
 [node name="Torbellino" parent="PistaFisicaVivo" unique_id=284910291 instance=ExtResource("3_b8igg")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5467834, 0.919261, 10.348878)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6992903, 4.116784, 3.382658)
 se_mueve = true
-desplazamiento = Vector3(8, 0, 0)
+desplazamiento = Vector3(10, 0, 0)
 
 [node name="Torbellino2" parent="PistaFisicaVivo" unique_id=117995187 instance=ExtResource("3_b8igg")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.148617, 0.9566555, 10.932262)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.148617, 2.3096895, 10.932262)
 se_mueve = true
 desplazamiento = Vector3(-8, 0, 0)
 
 [node name="Torbellino3" parent="PistaFisicaVivo" unique_id=1421159694 instance=ExtResource("3_b8igg")]
-transform = Transform3D(1, 0, 0, 0, 2.9164808, 0, 0, 0, 1, 4.626083, 4.32148, -4.9394293)
+transform = Transform3D(1, 0, 0, 0, 2.9164808, 0, 0, 0, 1, 4.626083, 4.32148, -5.959622)
 se_mueve = true
 desplazamiento = Vector3(8, 0, 0)
 velocidad_movimiento = 6.0
@@ -285,10 +285,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.285676, 4, -8)
 transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 12, 3, 2)
 
 [node name="PlataformaEspiritual1" parent="PistaEspiritualFantasma" unique_id=1681526785 instance=ExtResource("10_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.6897051, 8)
+transform = Transform3D(1, 0, 0, 0, 0.99984556, 0.017573379, 0, -0.017573379, 0.99984556, 8, 2.6897051, 6.893244)
 
 [node name="PlataformaEspiritual2" parent="PistaEspiritualFantasma" unique_id=1120773619 instance=ExtResource("10_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 5.313714, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 5.313714, -0.9136958)
 
 [node name="PlataformaFantasmaFinal" type="StaticBody3D" parent="PistaEspiritualFantasma" unique_id=1570665521]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.1, -16)
@@ -357,7 +357,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 6.9629736, -2)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.7, -13)
 
 [node name="PuertaFantasma" parent="Mecanismos" unique_id=1237335603 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_puerta")]
-transform = Transform3D(3.4, 0, 0, 0, 3.2200003, 0, 0, 0, 1, 8, 0, -8)
+transform = Transform3D(3.4, 0, 0, 0, 3.2200003, 0, 0, 0, 1, 8, 0, -9.360757)
 distancia_desplazamiento = 10.0
 direccion_desplazamiento = Vector3(1, 0, 0)
 disparador_objetivo = NodePath("../BotonPresion")
@@ -402,10 +402,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.8, -11)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.2, 12)
 
 [node name="MonedaFantasma2" parent="Coleccionables" unique_id=1302292864 instance=ExtResource("9_moneda_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4.2897053, 8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4.2897053, 6.70671)
 
 [node name="MonedaFantasma3" parent="Coleccionables" unique_id=1271059066 instance=ExtResource("9_moneda_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6.9137144, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6.9137144, -0.92764914)
 
 [node name="MonedaFantasma4" parent="Coleccionables" unique_id=2090390890 instance=ExtResource("9_moneda_fantasma")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.8, -13)
@@ -442,14 +442,14 @@ transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 4, 1
 transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 13, 1, 15)
 
 [node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
-material_override = SubResource("ShaderMaterial_so3f3")
-custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.996422, 8.485627, 57.999203)
+material_override = SubResource("ShaderMaterial_l6yfi")
+custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.998896, 8.485627, 57.999653)
 visibility_range_end = 0.0
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
-radio_pincel = 0.6000000000000001
-densidad_pincel = 20
+radio_pincel = 0.7
+densidad_pincel = 45
 forma_pincel = 2
 evitar_repintar = true
 archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1_datos.res"
@@ -458,8 +458,8 @@ cantidad_instancias = 20000
 alto_pasto = 0.30000000000000004
 ancho_pasto = 0.30000000000000004
 briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_so3f3")
-material_espiritual = SubResource("ShaderMaterial_eo0eg")
+material_fisico = SubResource("ShaderMaterial_l6yfi")
+material_espiritual = SubResource("ShaderMaterial_dkxh6")
 
 [node name="Arbol_Otono_012" parent="." unique_id=1351562283 instance=ExtResource("18_f8u8v")]
 transform = Transform3D(0.7387715, 0, 0.67395604, 0, 1, 0, -0.67395604, 0, 0.7387715, -10.629364, 2.3841858e-07, 10.993183)

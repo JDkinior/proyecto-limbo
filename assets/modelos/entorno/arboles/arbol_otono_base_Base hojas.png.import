@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://xgvokrjqxh8s"
-path="res://.godot/imported/arbol_otono_base_Base hojas.png-8120cfedc220d5433679ee6dd998879b.ctex"
+path.s3tc="res://.godot/imported/arbol_otono_base_Base hojas.png-8120cfedc220d5433679ee6dd998879b.s3tc.ctex"
+path.etc2="res://.godot/imported/arbol_otono_base_Base hojas.png-8120cfedc220d5433679ee6dd998879b.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "c8584f525514252f65f89afb5f86fc3b"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modelos/entorno/arboles/arbol_otono_base_Base hojas.png"
-dest_files=["res://.godot/imported/arbol_otono_base_Base hojas.png-8120cfedc220d5433679ee6dd998879b.ctex"]
+dest_files=["res://.godot/imported/arbol_otono_base_Base hojas.png-8120cfedc220d5433679ee6dd998879b.s3tc.ctex", "res://.godot/imported/arbol_otono_base_Base hojas.png-8120cfedc220d5433679ee6dd998879b.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

@@ -148,15 +148,15 @@ func _crear_entorno_fantasma() -> Environment:
 	env.glow_hdr_scale = 1.2
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	
-	# Niebla mística etérea turquesa/cian que se funde suavemente con el horizonte
+	# Niebla mística etérea sincronizada con #1669BA que se funde suavemente con el horizonte
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	env.fog_light_color = Color(0.16, 0.40, 0.58) # Niebla mística cian/turquesa
-	env.fog_light_energy = 1.08
-	env.fog_sun_scatter = 0.15
-	env.fog_density = 0.012 # Densidad atmosférica suave sin empastar las estructuras cercanas
+	env.fog_light_color = Color(0.0863, 0.4118, 0.7294) # Sincronizado a #1669BA
+	env.fog_light_energy = 1.02
+	env.fog_sun_scatter = 0.12
+	env.fog_density = 0.010 # Densidad atmosférica suave sin empastar las estructuras cercanas
 	env.fog_aerial_perspective = 0.45
-	env.fog_sky_affect = 0.70
+	env.fog_sky_affect = 0.35
 	env.fog_height = 0.0
 	env.fog_height_density = 1.0
 	

@@ -35,6 +35,12 @@ uniform float grosor_rim : hint_range(0.005, 0.2) = 0.04;
 uniform float curvatura_domo : hint_range(0.05, 1.0) = 0.38;
 uniform float atenuacion_horizonte : hint_range(0.0, 1.0) = 0.05;
 
+group_uniforms Nubes_Suaves_Volumetricas;
+uniform bool modo_nubes_suaves = false; // Nubes pintadas suaves (sin cortes cel-shaded)
+uniform float suavidad_nubes : hint_range(0.01, 0.5) = 0.18;
+uniform float opacidad_nubes : hint_range(0.0, 1.0) = 0.85;
+uniform float detalle_bordes : hint_range(0.0, 1.0) = 0.35;
+
 group_uniforms Viento_Nubes;
 uniform vec2 direccion_viento = vec2(0.868, 0.496);
 uniform float velocidad_viento : hint_range(0.0, 3.0) = 0.38;
@@ -131,6 +137,42 @@ float generar_nubes_cumulo_textura(vec2 uv, float t_evol) {
 	return clamp(nube + pincel * macro, 0.0, 1.0);
 }
 
+// Cúmulos de nubes estilizadas basados en lóbulos redondeados continuos y luz cenital direccional
+float generar_nubes_cumulo_estilizadas(vec2 uv, float t_evol, out float luz_cenit) {
+	// Deformación pictórica orgánica suave (warp)
+	vec2 uv_warp = uv * 0.12;
+	vec2 warp = (texture(textura_ruido_nubes, uv_warp).rg - vec2(0.5)) * 0.18;
+	vec2 uw = uv + warp;
+
+	// Muestreo multi-escala de textura sin repeticiones visibles
+	vec2 uv_macro = uw * 0.10 + vec2(t_evol * 0.04, t_evol * 0.02);
+	vec2 uv_puffs = uw * 0.24 + vec2(-t_evol * 0.03, t_evol * 0.05);
+	vec2 uv_scallop = uw * 0.48 + vec2(t_evol * 0.06, -t_evol * 0.04);
+
+	float macro = texture(textura_ruido_nubes, uv_macro).r;
+	float w_puffs = texture(textura_ruido_nubes, uv_puffs).g;
+	float w_scallop = texture(textura_ruido_nubes, uv_scallop).g;
+
+	// Perfil abombado de los cúmulos (lóbulos redondeados)
+	float lobulos = pow(clamp(w_puffs * 1.28, 0.0, 1.0), 1.35);
+	float festones = pow(clamp(w_scallop * 1.15, 0.0, 1.0), 1.20);
+	float copos = lobulos * 0.70 + festones * 0.30;
+
+	// Envolvente macro para definir bancos de nubes continuos con cielo abierto entre ellos
+	float macro_gate = smoothstep(0.32, 0.65, macro);
+	float forma = clamp(macro_gate * (0.35 + copos * 0.85), 0.0, 1.0);
+
+	// Estimación de luz cenital mediante diferencial en dirección al cenit (origen en plano UV)
+	vec2 hacia_cenit = -normalize(uv + vec2(0.0001));
+	vec2 uw_up = (uv + hacia_cenit * 0.025) + warp;
+	float macro_up = texture(textura_ruido_nubes, uw_up * 0.10 + vec2(t_evol * 0.04, t_evol * 0.02)).r;
+	float w_up = texture(textura_ruido_nubes, uw_up * 0.24 + vec2(-t_evol * 0.03, t_evol * 0.05)).g;
+	float forma_up = smoothstep(0.32, 0.65, macro_up) * (0.35 + pow(clamp(w_up * 1.28, 0.0, 1.0), 1.35) * 0.70 * 0.85);
+
+	luz_cenit = clamp((forma - forma_up) * 4.5 * 0.5 + 0.5, 0.0, 1.0);
+	return forma;
+}
+
 float generar_nubes_cumulo(vec2 uv, float t_evol) {
 	// Masa base: FBM define DÓNDE existe la nube (regiones continuas)
 	float macro = fbm_suave(uv * 0.38 + vec2(t_evol * 0.10));
@@ -149,9 +191,9 @@ float generar_nubes_cumulo(vec2 uv, float t_evol) {
 	return clamp(nube + pincel * macro, 0.0, 1.0);
 }
 
-// Estrellas en espacio esférico 3D sin distorsión tangencial
+// Estrellas sutiles y pequeñas dispersadas orgánicamente mediante mapa de ruido
 float calcular_estrellas_3d(vec3 dir, float densidad, float brillo, float t) {
-	if (dir.y <= 0.04) return 0.0;
+	if (dir.y <= 0.08) return 0.0;
 	
 	vec3 p = dir * densidad;
 	vec3 id = floor(p);
@@ -163,27 +205,42 @@ float calcular_estrellas_3d(vec3 dir, float densidad, float brillo, float t) {
 				vec3 celda = id + vec3(float(x), float(y), float(z));
 				vec3 h = hash3(celda);
 				
-				// Solo estrellas selectas dispersas (~14% de probabilidad por celda)
-				if (h.x > 0.86 && celda.y > 0.0) {
-					vec3 star_pos = normalize(celda + (h - 0.5) * 0.8);
+				// Filtro 1: Probabilidad base reducida para que sean pocas
+				if (h.x > 0.90 && celda.y > 0.0) {
+					vec3 star_pos = normalize(celda + (h - 0.5) * 0.85);
+					
+					// Filtro 2: Mapa de ruido para dispersión natural (crea variedad y constelaciones orgánicas)
+					vec2 uv_ruido = star_pos.xz * 1.6 + vec2(0.24, 0.68);
+					float ruido_dispersion = texture(textura_ruido_nubes, uv_ruido).r;
+					if (ruido_dispersion < 0.54) {
+						continue; // Se descarta: solo aparecen en regiones selectas del mapa de ruido
+					}
 					
 					// Diferencia vectorial tangencial
 					vec3 diff = dir - star_pos;
 					float dist_3d = length(diff);
 					
-					// Tamaños pequeños y sutiles (delicados, no gigantescos)
-					float radio = mix(0.004, 0.014, h.y * h.y);
+					// Estrellas pequeñas y delicadas (radio fino entre 0.0010 y 0.0030)
+					float factor_variedad = smoothstep(0.54, 0.88, ruido_dispersion);
+					float radio = mix(0.0010, 0.0030, h.y * factor_variedad);
 					
-					if (dist_3d < radio * 2.5) {
+					if (dist_3d < radio * 2.8) {
 						vec3 up = abs(star_pos.y) < 0.99 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
 						vec3 right = normalize(cross(up, star_pos));
 						vec3 forward = cross(star_pos, right);
 						
 						vec2 uv_star = vec2(dot(diff, right), dot(diff, forward));
-						float dist_diamante = abs(uv_star.x) + abs(uv_star.y);
+						float dist_radial = length(uv_star);
 						
-						float twinkle = sin(t * (1.5 + h.z * 2.0) + h.x * 25.0) * 0.35 + 0.65;
-						float forma = smoothstep(radio, 0.001, dist_diamante) * twinkle;
+						// Núcleo estelar suave y destello tenue
+						float nucleo = smoothstep(radio, 0.0002, dist_radial);
+						float destello_cruz = max(
+							smoothstep(radio * 2.2, 0.0, abs(uv_star.x)) * smoothstep(radio * 0.35, 0.0, abs(uv_star.y)),
+							smoothstep(radio * 2.2, 0.0, abs(uv_star.y)) * smoothstep(radio * 0.35, 0.0, abs(uv_star.x))
+						) * 0.35;
+						
+						float twinkle = sin(t * (1.2 + h.z * 1.8) + h.x * 25.0) * 0.25 + 0.75;
+						float forma = (nucleo + destello_cruz) * twinkle * (0.6 + factor_variedad * 0.4);
 						total_estrella += forma;
 					}
 				}
@@ -191,7 +248,8 @@ float calcular_estrellas_3d(vec3 dir, float densidad, float brillo, float t) {
 		}
 	}
 	
-	float desvanecer_horizonte = smoothstep(0.04, 0.22, dir.y);
+	// Desvanecer suavemente hacia el horizonte para no saturar las islas flotantes
+	float desvanecer_horizonte = smoothstep(0.08, 0.30, dir.y);
 	return total_estrella * brillo * desvanecer_horizonte;
 }
 
@@ -266,6 +324,39 @@ void sky() {
 		float desvanecer_horizonte = smoothstep(0.0, atenuacion_horizonte, dir.y);
 
 		float umbral_densidad = 1.0 - cobertura_nubes;
+
+		if (modo_nubes_suaves) {
+			// --- CÚMULOS PINTADOS ESTILIZADOS (Reino Espiritual) ---
+			float luz_cenit = 0.5;
+			float forma = generar_nubes_cumulo_estilizadas(uv_nube, t_evol, luz_cenit);
+
+			float desvanecer_horizonte = smoothstep(0.01, atenuacion_horizonte, dir.y);
+			float mascara = smoothstep(umbral_densidad - nitidez_borde, umbral_densidad + nitidez_borde, forma) * desvanecer_horizonte;
+
+			if (destello_estrellas > 0.001) {
+				color_fondo += color_estrellas.rgb * (destello_estrellas * (1.0 - mascara * 0.95));
+			}
+
+			if (mascara > 0.001) {
+				float vol = clamp((forma - umbral_densidad) / max(0.001, 1.0 - umbral_densidad), 0.0, 1.0);
+				float factor_sombreado = vol * 0.45 + luz_cenit * 0.55;
+
+				// Sombreado pictórico en 3 tonos con transiciones cel-shaded suaves
+				float paso_sombra = smoothstep(corte_sombra - nitidez_cel, corte_sombra + nitidez_cel, factor_sombreado);
+				float paso_luz    = smoothstep(corte_luz - nitidez_cel, corte_luz + nitidez_cel, factor_sombreado);
+				float paso_cresta = smoothstep(corte_cresta - nitidez_cel, corte_cresta + nitidez_cel, factor_sombreado);
+
+				vec3 col = mix(color_nube_sombra.rgb, color_nube_medio.rgb, paso_sombra);
+				col = mix(col, color_nube_luz.rgb, paso_luz);
+				col = mix(col, color_nube_luz.rgb * 1.10, paso_cresta);
+
+				// Ribete iluminado superior
+				float rim = smoothstep(corte_luz, 1.0, luz_cenit) * (1.0 - vol) * fuerza_rim_solar * 0.35;
+				col += color_borde_solar.rgb * rim;
+
+				color_fondo = mix(color_fondo, col, mascara * opacidad_nubes);
+			}
+		} else {
 		float mascara_nube = smoothstep(umbral_densidad - nitidez_borde, umbral_densidad + nitidez_borde, forma_nube) * desvanecer_horizonte;
 
 		// Añadir estrellas en el cielo abierto (ocultas tras nubes densas)
@@ -290,6 +381,7 @@ void sky() {
 			color_cuerpo += color_borde_solar.rgb * (borde_sol * fuerza_rim_solar);
 
 			color_fondo = mix(color_fondo, color_cuerpo, mascara_nube);
+		}
 		}
 	} else if (destello_estrellas > 0.001) {
 		color_fondo += color_estrellas.rgb * destello_estrellas;

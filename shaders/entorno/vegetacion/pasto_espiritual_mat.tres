@@ -5,11 +5,14 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_pasto_shader")
-shader_parameter/color_base = Color(0.12, 0.28, 0.52, 1)
-shader_parameter/color_punta = Color(0.18, 0.36, 0.60, 1)
-shader_parameter/suavizado_gradiente = 0.75
-shader_parameter/curva_gradiente = 1.0
-shader_parameter/brillo_puntas = 0.0
+shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
+shader_parameter/color_punta = Color(0.045, 0.35, 0.65, 1)
+shader_parameter/suavizado_gradiente = 0.8
+shader_parameter/curva_gradiente = 1.25
+shader_parameter/saturacion = 0.9
+shader_parameter/brillo_puntas = 0.03
+shader_parameter/translucidencia = 0.05
+shader_parameter/oclusion_base = 0.38
 shader_parameter/direccion_viento = Vector2(0.8, 0.6)
 shader_parameter/velocidad_viento = 2.0
 shader_parameter/fuerza_viento = 0.18

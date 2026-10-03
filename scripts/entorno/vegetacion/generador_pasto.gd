@@ -264,6 +264,9 @@ func _ready() -> void:
 	else:
 		material_espiritual = load("res://shaders/entorno/vegetacion/pasto_espiritual_mat.tres").duplicate()
 
+	material_fisico.render_priority = 2
+	material_espiritual.render_priority = 2
+
 	# Asegurar colores exactos e inalterables para cada reino
 	if material_fisico is ShaderMaterial:
 		var mat_fisico := material_fisico as ShaderMaterial
@@ -272,8 +275,18 @@ func _ready() -> void:
 
 	if material_espiritual is ShaderMaterial:
 		var mat_espiritual := material_espiritual as ShaderMaterial
-		mat_espiritual.set_shader_parameter("color_base", Color(0.10, 0.24, 0.46, 1.0))
-		mat_espiritual.set_shader_parameter("color_punta", Color(0.18, 0.36, 0.60, 1.0))
+		mat_espiritual.set_shader_parameter("color_base", Color(0.02, 0.16, 0.36, 1.0))
+		mat_espiritual.set_shader_parameter("color_punta", Color(0.045, 0.35, 0.65, 1.0))
+		mat_espiritual.set_shader_parameter("color_base_secundario", Color(0.015, 0.13, 0.30, 1.0))
+		mat_espiritual.set_shader_parameter("color_punta_secundario", Color(0.05, 0.38, 0.68, 1.0))
+		mat_espiritual.set_shader_parameter("variacion_macro_escala", 0.10)
+		mat_espiritual.set_shader_parameter("variacion_brizna_fuerza", 0.45)
+		mat_espiritual.set_shader_parameter("suavizado_gradiente", 0.80)
+		mat_espiritual.set_shader_parameter("curva_gradiente", 1.25)
+		mat_espiritual.set_shader_parameter("saturacion", 0.90)
+		mat_espiritual.set_shader_parameter("brillo_puntas", 0.03)
+		mat_espiritual.set_shader_parameter("translucidencia", 0.05)
+		mat_espiritual.set_shader_parameter("oclusion_base", 0.38)
 
 	# Optimización de renderizado y culling
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -344,6 +357,8 @@ func _actualizar_material_por_reino() -> void:
 		material_fisico = load("res://shaders/entorno/vegetacion/pasto_fisico_mat.tres").duplicate()
 	if material_espiritual == null:
 		material_espiritual = load("res://shaders/entorno/vegetacion/pasto_espiritual_mat.tres").duplicate()
+	material_fisico.render_priority = 2
+	material_espiritual.render_priority = 2
 
 	if modo_reino == 1:
 		material_override = material_fisico
