@@ -38,15 +38,27 @@ signal fantasma_expulsado(fantasma: Node3D)
 @export var velocidad_rotacion_visual: float = 240.0
 @export var oscilacion_altura: float = 0.25
 @export var frecuencia_oscilacion: float = 1.6
+@export var mostrar_hojas: bool = true:
+	set(valor):
+		mostrar_hojas = valor
+		if is_instance_valid(particulas_hojas):
+			particulas_hojas.visible = valor
+			particulas_hojas.emitting = valor
+		if is_instance_valid(particulas_hojas_2):
+			particulas_hojas_2.visible = valor
+			particulas_hojas_2.emitting = valor
 
 @onready var area_influencia: Area3D = get_node_or_null("AreaInfluencia")
 @onready var area_absorcion: Area3D = get_node_or_null("AreaAbsorcion")
 @onready var modelo_visual: Node3D = get_node_or_null("Visual")
+@onready var embudo_vortice: MeshInstance3D = get_node_or_null("Visual/EmbudoVortice")
 @onready var luz_nucleo: OmniLight3D = get_node_or_null("LuzTorbellino")
 @onready var particulas_vortice: CPUParticles3D = get_node_or_null("ParticulasVortice")
 @onready var particulas_atraccion: CPUParticles3D = get_node_or_null("ParticulasZonaAtraccion")
 @onready var particulas_atraccion_2: CPUParticles3D = get_node_or_null("ParticulasZonaAtraccion2")
 @onready var particulas_atraccion_3: CPUParticles3D = get_node_or_null("ParticulasZonaAtraccion3")
+@onready var particulas_hojas: CPUParticles3D = get_node_or_null("ParticulasHojas")
+@onready var particulas_hojas_2: CPUParticles3D = get_node_or_null("ParticulasHojas2")
 
 var _cuerpos_en_influencia: Array[CharacterBody3D] = []
 var _tiempo_acumulado: float = 0.0
@@ -60,13 +72,27 @@ func _ready() -> void:
 	_pos_y_inicial = position.y
 	_pos_inicial_mov = position
 	
-	# Asegurar configuración anti-culling para evitar que las rocas desaparezcan repentinamente
-	for p in [particulas_atraccion, particulas_atraccion_2, particulas_atraccion_3]:
+	# Asegurar configuración anti-culling para evitar que las rocas y hojas desaparezcan repentinamente
+	for p in [particulas_atraccion, particulas_atraccion_2, particulas_atraccion_3, particulas_hojas, particulas_hojas_2]:
 		if is_instance_valid(p):
 			p.local_coords = true
 			p.ignore_occlusion_culling = true
 			p.extra_cull_margin = 4.0
 			p.visibility_aabb = AABB(Vector3(-4.0, -4.0, -4.0), Vector3(8.0, 8.0, 8.0))
+
+	# El embudo es transparente y rota: no debe desaparecer por un AABB de
+	# oclusión opaco ni por una estimación de culling demasiado ajustada.
+	if is_instance_valid(embudo_vortice):
+		embudo_vortice.ignore_occlusion_culling = true
+		embudo_vortice.extra_cull_margin = 4.0
+
+	if not mostrar_hojas:
+		if is_instance_valid(particulas_hojas):
+			particulas_hojas.visible = false
+			particulas_hojas.emitting = false
+		if is_instance_valid(particulas_hojas_2):
+			particulas_hojas_2.visible = false
+			particulas_hojas_2.emitting = false
 
 	if Engine.is_editor_hint():
 		return
@@ -140,16 +166,25 @@ func _animar_visuales(delta: float) -> void:
 		modelo_visual.position.y = offset_y
 
 	var vel_giro_base = -deg_to_rad(velocidad_rotacion_visual * delta)
+	if is_instance_valid(particulas_vortice):
+		particulas_vortice.rotate_y(vel_giro_base * 0.95)
 	if is_instance_valid(particulas_atraccion):
 		particulas_atraccion.rotate_y(vel_giro_base * 0.75)
 	if is_instance_valid(particulas_atraccion_2):
 		particulas_atraccion_2.rotate_y(vel_giro_base * 0.65)
 	if is_instance_valid(particulas_atraccion_3):
 		particulas_atraccion_3.rotate_y(vel_giro_base * 0.85)
+	if is_instance_valid(particulas_hojas):
+		particulas_hojas.rotate_y(vel_giro_base * 1.15)
+	if is_instance_valid(particulas_hojas_2):
+		particulas_hojas_2.rotate_y(vel_giro_base * 0.92)
 
 	if is_instance_valid(luz_nucleo):
-		var pulso = 0.8 + 0.25 * sin(_tiempo_acumulado * 4.0)
-		luz_nucleo.light_energy = 1.6 * pulso
+		if not luz_nucleo.has_meta("energia_base"):
+			luz_nucleo.set_meta("energia_base", luz_nucleo.light_energy)
+		var energia_base: float = luz_nucleo.get_meta("energia_base")
+		var pulso = 0.85 + 0.25 * sin(_tiempo_acumulado * 3.5)
+		luz_nucleo.light_energy = energia_base * pulso
 
 func _procesar_succion_continua(_delta: float) -> void:
 	for i in range(_cuerpos_en_influencia.size() - 1, -1, -1):
@@ -190,8 +225,10 @@ func _procesar_succion_continua(_delta: float) -> void:
 			
 			# Vibración de viento y succión proporcional a la cercanía del jugador activo
 			var es_activo = cuerpo.has_method("es_activo") and cuerpo.es_activo()
-			if es_activo and is_instance_valid(VibrationManager):
-				VibrationManager.actualizar_succion_torbellino(factor_distancia)
+			if es_activo:
+				var vib = _get_vibration_manager()
+				if is_instance_valid(vib):
+					vib.actualizar_succion_torbellino(factor_distancia)
 
 func _on_influencia_body_entered(body: Node3D) -> void:
 	if not _es_candidato_valido(body):
@@ -203,12 +240,19 @@ func _on_influencia_body_exited(body: Node3D) -> void:
 	if body is CharacterBody3D:
 		_cuerpos_en_influencia.erase(body)
 		if body.has_method("es_activo") and body.es_activo():
-			if is_instance_valid(VibrationManager):
-				VibrationManager.detener_succion_torbellino()
+			var vib = _get_vibration_manager()
+			if is_instance_valid(vib):
+				vib.detener_succion_torbellino()
 
 func _exit_tree() -> void:
-	if is_instance_valid(VibrationManager):
-		VibrationManager.detener_succion_torbellino()
+	var vib = _get_vibration_manager()
+	if is_instance_valid(vib):
+		vib.detener_succion_torbellino()
+
+func _get_vibration_manager() -> Node:
+	if Engine.is_editor_hint():
+		return null
+	return get_node_or_null("/root/VibrationManager")
 
 func _on_absorcion_body_entered(body: Node3D) -> void:
 	if not _es_candidato_valido(body):
@@ -246,19 +290,14 @@ func _on_absorcion_body_entered(body: Node3D) -> void:
 		_disparar_efecto_absorcion()
 
 func _disparar_efecto_absorcion() -> void:
-	if not Engine.is_editor_hint():
-		var vib = get_node_or_null("/root/VibrationManager")
-		if is_instance_valid(vib) and vib.has_method("vibrar_dano"):
-			vib.vibrar_dano()
+	var vib = _get_vibration_manager()
+	if is_instance_valid(vib) and vib.has_method("vibrar_dano"):
+		vib.vibrar_dano()
 	if is_instance_valid(luz_nucleo):
 		var tween = create_tween()
 		tween.tween_property(luz_nucleo, "light_energy", 4.0, 0.15)
 		tween.tween_property(luz_nucleo, "light_energy", 1.6, 0.4)
 
-	if is_instance_valid(modelo_visual):
-		var tween_malla = create_tween()
-		tween_malla.tween_property(modelo_visual, "scale", Vector3(1.25, 1.4, 1.25), 0.15)
-		tween_malla.tween_property(modelo_visual, "scale", Vector3.ONE, 0.35)
 
 func _es_candidato_valido(nodo: Node) -> bool:
 	if not (nodo is CharacterBody3D):

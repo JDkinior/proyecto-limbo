@@ -1,18 +1,55 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dmv7g8w3qkx1b"]
 
-[ext_resource type="Shader" path="res://shaders/components/peligros/torbellino_espiritual.gdshader" id="1_shader"]
+[ext_resource type="Shader" uid="uid://dtaoxfbyshqvw" path="res://shaders/components/peligros/torbellino_espiritual.gdshader" id="1_shader"]
 
 [resource]
 render_priority = 0
 shader = ExtResource("1_shader")
-shader_parameter/color_base = Color(0.08, 0.38, 0.88, 0.55)
-shader_parameter/color_nucleo = Color(0.65, 0.92, 1, 0.85)
-shader_parameter/color_borde = Color(0.35, 0.85, 1, 1)
-shader_parameter/velocidad_giro = 4.5
-shader_parameter/escala_espiral = 4.0
-shader_parameter/velocidad_ondulacion = 2.4
-shader_parameter/amplitud_ondulacion = 0.12
-shader_parameter/fuerza_fresnel = 2.4
-shader_parameter/exponente_fresnel = 2.0
-shader_parameter/energia_emision = 2.2
-shader_parameter/transparencia_base = 0.65
+shader_parameter/radio_base = 0.45
+shader_parameter/radio_cima = 3.2
+shader_parameter/altura_cono = 5.7
+shader_parameter/color_profundo = Color(0.12, 0.72, 1, 0.5)
+shader_parameter/color_medio = Color(0.12, 0.72, 1, 0.45)
+shader_parameter/color_cima = Color(0.2, 0.92, 1, 0.4)
+shader_parameter/color_cinta_nucleo = Color(0.2, 0.92, 1, 1)
+shader_parameter/color_cinta_halo = Color(0.12, 0.72, 1, 1)
+shader_parameter/cantidad_cintas = 1.0
+shader_parameter/torsion_espiral = 21.0
+shader_parameter/velocidad_giro = 2.4
+shader_parameter/ancho_cintas = 0.2
+shader_parameter/suavidad_cintas = 0.35
+shader_parameter/ancho_halo_cintas = 0.3
+shader_parameter/difuminado_halo = 0.4
+shader_parameter/color_cinta_secundaria = Color(0.16, 0.82, 1, 1)
+shader_parameter/color_cinta_acento = Color(0.2, 0.92, 1, 1)
+shader_parameter/ancho_cinta_secundaria = 0.13
+shader_parameter/ancho_cinta_acento = 0.075
+shader_parameter/color_zona_clara = Color(0.82, 1, 1, 1)
+shader_parameter/brillo_zonas_claras = 1.5
+shader_parameter/intensidad_zonas_claras = 1.0
+shader_parameter/peso_base_claro = 0.15
+shader_parameter/color_borde_filo = Color(0.82, 1, 1, 1)
+shader_parameter/color_borde_halo = Color(0.12, 0.72, 1, 1)
+shader_parameter/ancho_borde = 0.42
+shader_parameter/nitidez_filo = 0.25
+shader_parameter/intensidad_borde = 1.45
+shader_parameter/brillo_filo = 1.5
+shader_parameter/brillo_glow_borde = 0.0
+shader_parameter/fuerza_fresnel = 1.1
+shader_parameter/exponente_fresnel = 2.6
+shader_parameter/brillo_cintas = 1.3
+shader_parameter/brillo_base = 1.35
+shader_parameter/opacidad_general = 1.0
+shader_parameter/intensidad_glow_cintas = 0.0
+shader_parameter/intensidad_glow_cuerpo = 0.0
+shader_parameter/limite_brillo = 2.0
+shader_parameter/atenuacion_cara_posterior = 0.65
+shader_parameter/amplitud_irregularidad = 0.14
+shader_parameter/velocidad_irregularidad = 1.25
+shader_parameter/curvatura_trompeta = 0.55
+shader_parameter/amplitud_ondulacion = 0.16
+shader_parameter/frecuencia_ondulacion = 8.0
+shader_parameter/velocidad_ondulacion = 1.6
+shader_parameter/difuminado_cima = 0.28
+shader_parameter/difuminado_silueta = 0.6
+shader_parameter/irregularidad_borde = 0.16

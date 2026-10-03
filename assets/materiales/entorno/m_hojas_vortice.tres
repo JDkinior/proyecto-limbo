@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3 uid="uid://bhojasvortice01"]
+
+[ext_resource type="Shader" path="res://shaders/components/peligros/hojas_vortice_espectral.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" uid="uid://7pqappsw3lk8" path="res://assets/texturas/entorno/Hoja.png" id="2_tex"]
+
+[resource]
+render_priority = 2
+shader = ExtResource("1_shader")
+shader_parameter/textura_hoja = ExtResource("2_tex")
+shader_parameter/resplandor = 0.8
