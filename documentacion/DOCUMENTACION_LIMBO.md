@@ -1,6 +1,6 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.6` (Build Code `7`)  
+**Versión Actual:** `1.0.7` (Build Code `8`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
 **Última Actualización:** 3 de Octubre de 2026  
 
@@ -43,6 +43,24 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.7 (3 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Adaptación Dinámica a la Escala en Torbellinos Espirituales (`torbellino.gd`, `torbellino_espiritual.gdshader`, `tests/test_torbellino.gd`)**:
+    *   **Compensación de escala de partículas**: Neutralización de la escala local del padre en los emisores `CPUParticles3D` para evitar que las partículas de hojas o rocas se estiren o deformen de forma no uniforme al escalar la instancia en el escenario.
+    *   **Expansión volumétrica y densidad de partículas**: Cálculo automático del radio y altura del anillo emisor, incrementando proporcionalmente la cantidad de partículas (`amount`) para mantener la densidad visual al agrandar el tornado.
+    *   **Escalado de colisiones**: Sincronización automática de radio y altura en `CylinderShape3D` (`AreaInfluencia` y `AreaAbsorcion`).
+    *   **Shader adaptativo (`torbellino_espiritual.gdshader`)**: Paso de uniformes `escala_y` y `escala_xz` para ajustar dinámicamente la torsión de las cintas, el número de espirales y el ancho de las corrientes sin deformar la silueta ni estirar las texturas.
+    *   **Pruebas unitarias**: Añadidos tests `test_adaptacion_escala_horizontal` y `test_adaptacion_escala_vertical` en `tests/test_torbellino.gd`.
+*   **Ajustes de Video y Rendimiento 3D en `CamaraConfigManager`**:
+    *   **Selector de Escala de Renderizado 3D**: Opciones de resolución de render 3D dinámico (50%, 75%, 100%, 125%, 150%, 200%) integradas directamente en el viewport (`scaling_3d_scale`).
+    *   **Selector de Límite de FPS**: Opciones de tasa de cuadros (30, 60, 90, 120 FPS) vinculadas con `Engine.max_fps`.
+    *   **Controles en UI**: Botones interactivos con soporte táctil y gamepad en el menú de pausa/opciones del HUD (`controles_tactiles.gd` / `.tscn`), panel de opciones (`menu_amigos_opciones_ctrl.gd`) y menú principal (`menu_inicio.tscn`).
+*   **Oclusión y Stencil en Pasto Estilizado (`pasto_estilizado.gdshader`)**:
+    *   Configuración `stencil_mode write, compare_always, 1` para que las briznas de pasto marquen el stencil de profundidad, eliminando la aparición indeseada del shader X-Ray/silueta de los personajes a través del suelo de pasto.
+*   **Ajustes de Gameplay en Nivel 1**:
+    *   Reubicación y ajuste de rango de patrulla en los torbellinos del Nivel 1 ("El Despertar Separado") para mayor fluidez plataformera.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.6 (3 de Octubre de 2026)
 
@@ -1421,6 +1439,25 @@ Responsabilidades:
   - Emisor `CPUParticles3D` con hojas translúcidas que giran en espiral ascendente/descendente reflejando el arrastre físico del viento vórtice.
 - **Limitador de Brillo Fotométrico**:
   - Función analítica en fragment shader que acota el vector de salida `ALBEDO + EMISSION` antes de que el tonemapping y bloom sature los tonos cian a blanco puro.
+
+### 10. Adaptabilidad Escalar Dinámica en Torbellinos (`scripts/components/peligros/torbellino.gd`)
+- **Compensación de Deformación de Partículas**:
+  - Al escalar una instancia del nodo `Torbellino` en el árbol de escena, `_actualizar_adaptacion_escala()` calcula la escala inversa local para cada emisor `CPUParticles3D`, garantizando que la escala global de las partículas de rocas y hojas sea siempre `Vector3(1, 1, 1)` (sin estiramientos indeseados).
+- **Escala de Emisión y Densidad Proporcional**:
+  - El radio y la altura del cono/anillo de emisión se expanden en función de `scale.xz` y `scale.y`.
+  - La cantidad de partículas (`amount`) aumenta proporcionalmente al volumen para evitar vacíos visuales en tornados de gran escala.
+- **Shader Parametrizado (`torbellino_espiritual.gdshader`)**:
+  - Los uniformes `escala_y` y `escala_xz` reajustan la torsión angular y el número de cintas activas evitando que una escala alta diluya el detalle helicoidal.
+
+### 11. Rendimiento y Escala 3D en `CamaraConfigManager`
+- **Escalado Dinámico de Resolución 3D (`scaling_3d_scale`)**:
+  - Soporta valores de 50% (máximo rendimiento en móviles de gama baja) hasta 200% (supermuestreo 4K en PC de gama alta).
+- **Límite de Tasa de Refresco (`Engine.max_fps`)**:
+  - Modos de 30, 60, 90 y 120 FPS persistidos en `user://opciones.cfg` (clave `limite_fps`).
+
+### 12. Oclusión Stencil en Pasto Estilizado (`pasto_estilizado.gdshader`)
+- **Control de Siluetas X-Ray**:
+  - Gracias a `stencil_mode write, compare_always, 1;`, el renderizador de pasto escribe en el buffer de stencil impidiendo que la silueta espectral o física de los personajes se dibuje erróneamente sobre el pasto a sus pies, restringiendo el efecto únicamente a muros y oclusores reales.
 
 ## 22. Archivos Que Una IA Deberia Leer Primero
 
