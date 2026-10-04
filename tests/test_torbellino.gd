@@ -319,5 +319,67 @@ func test_orbita_dentro_del_cono_vortice() -> void:
 		assert_true(r_orbita < r_cono_max, "El radio en progreso %0.2f (%0.2f) debe ser menor al radio del cono (%0.2f)" % [progreso, r_orbita, r_cono_max])
 		assert_true(r_orbita >= 0.15, "El radio no debe colapsar a cero")
 
+func test_adaptacion_escala_horizontal() -> void:
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
+	var instance = track(scene.instantiate()) as Torbellino
+	var tree = (Engine.get_main_loop() as SceneTree)
+	tree.root.add_child(instance)
+	
+	var p_hojas = instance.get_node("ParticulasHojas") as CPUParticles3D
+	var base_amount = p_hojas.amount
+	var base_radius = p_hojas.emission_ring_radius
+	
+	# Escalar horizontalmente x2.0
+	instance.scale = Vector3(2.0, 1.0, 2.0)
+	instance._actualizar_adaptacion_escala()
+	
+	# 1. Las partículas no deben deformarse: su escala local debe neutralizar la del padre
+	assert_true(is_equal_approx(p_hojas.scale.x, 0.5), "Escala local X de partículas debe compensar escala del padre")
+	assert_true(is_equal_approx(p_hojas.scale.z, 0.5), "Escala local Z de partículas debe compensar escala del padre")
+	var global_scale_p = p_hojas.global_basis.get_scale()
+	assert_true(is_equal_approx(global_scale_p.x, 1.0), "La escala global X de las partículas debe ser 1.0 (sin estirarse)")
+	assert_true(is_equal_approx(global_scale_p.y, 1.0), "La escala global Y de las partículas debe ser 1.0 (sin estirarse)")
+	assert_true(is_equal_approx(global_scale_p.z, 1.0), "La escala global Z de las partículas debe ser 1.0 (sin estirarse)")
+	
+	# 2. El área de emisión debe expandirse hacia la escala
+	assert_gt(p_hojas.emission_ring_radius, base_radius * 1.8, "El radio del anillo de emisión debe expandirse al doble")
+	
+	# 3. Deben crearse más partículas para poblar la nueva área ("crearse más")
+	assert_gt(p_hojas.amount, base_amount, "Debe aumentar la cantidad de partículas para llenar el espacio ampliado")
+	
+	# 4. El colisionador de influencia debe adaptarse
+	var area_inf = instance.get_node("AreaInfluencia/CollisionShape3D") as CollisionShape3D
+	var shape = area_inf.shape as CylinderShape3D
+	assert_gt(shape.radius, 4.2 * 1.8, "El radio de colisión debe escalar con el tornado")
+	
+	tree.root.remove_child(instance)
+
+func test_adaptacion_escala_vertical() -> void:
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
+	var instance = track(scene.instantiate()) as Torbellino
+	var tree = (Engine.get_main_loop() as SceneTree)
+	tree.root.add_child(instance)
+	
+	var p_vortice = instance.get_node("ParticulasVortice") as CPUParticles3D
+	var base_height = p_vortice.emission_ring_height
+	var base_amount = p_vortice.amount
+	
+	# Escalar verticalmente x2.5
+	instance.scale = Vector3(1.0, 2.5, 1.0)
+	instance._actualizar_adaptacion_escala()
+	
+	# 1. Escala global de partículas debe ser 1.0
+	var global_scale_p = p_vortice.global_basis.get_scale()
+	assert_true(is_equal_approx(global_scale_p.y, 1.0), "La escala vertical global de partículas debe ser 1.0 (no alargadas)")
+	
+	# 2. La altura de emisión del anillo debe expandirse
+	assert_gt(p_vortice.emission_ring_height, base_height * 2.2, "La altura de emisión debe expandirse x2.5")
+	
+	# 3. La cantidad de partículas debe aumentar
+	assert_gt(p_vortice.amount, base_amount, "Deben generarse más partículas a lo largo de la altura")
+	
+	tree.root.remove_child(instance)
+
+
 
 

@@ -68,17 +68,41 @@ var _progreso_patrulla: float = 0.0
 var _direccion_patrulla: float = 1.0
 var _timer_espera: float = 0.0
 
+# --- Variables de Adaptación a Escala ---
+var _datos_base_guardados: bool = false
+var _escala_previa: Vector3 = Vector3.ONE
+var _particulas_todas: Array[CPUParticles3D] = []
+var _datos_base_particulas: Dictionary = {}
+var _angulos_particulas: Dictionary = {}
+var _base_visual_pos_y: float = 0.2
+var _base_luz_range: float = 4.5
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if is_inside_tree():
+			if typeof(_datos_base_guardados) != TYPE_BOOL or not _datos_base_guardados:
+				_guardar_datos_base()
+			if typeof(_escala_previa) != TYPE_VECTOR3:
+				_escala_previa = scale
+				_actualizar_adaptacion_escala()
+			elif not scale.is_equal_approx(_escala_previa):
+				_actualizar_adaptacion_escala()
+				_escala_previa = scale
+
 func _ready() -> void:
 	_pos_y_inicial = position.y
 	_pos_inicial_mov = position
+	set_notify_transform(true)
 	
+	_guardar_datos_base()
+	_actualizar_adaptacion_escala(true)
+	_escala_previa = scale
+
 	# Asegurar configuración anti-culling para evitar que las rocas y hojas desaparezcan repentinamente
 	for p in [particulas_atraccion, particulas_atraccion_2, particulas_atraccion_3, particulas_hojas, particulas_hojas_2]:
 		if is_instance_valid(p):
 			p.local_coords = true
 			p.ignore_occlusion_culling = true
-			p.extra_cull_margin = 4.0
-			p.visibility_aabb = AABB(Vector3(-4.0, -4.0, -4.0), Vector3(8.0, 8.0, 8.0))
 
 	# El embudo es transparente y rota: no debe desaparecer por un AABB de
 	# oclusión opaco ni por una estimación de culling demasiado ajustada.
@@ -97,6 +121,124 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	_configurar_areas()
+
+func _guardar_datos_base() -> void:
+	if _datos_base_guardados:
+		return
+	_datos_base_guardados = true
+
+	_particulas_todas = [
+		particulas_vortice,
+		particulas_atraccion,
+		particulas_atraccion_2,
+		particulas_atraccion_3,
+		particulas_hojas,
+		particulas_hojas_2
+	]
+
+	for p in _particulas_todas:
+		if is_instance_valid(p):
+			_angulos_particulas[p] = p.rotation.y
+			_datos_base_particulas[p] = {
+				"amount": p.amount,
+				"emission_ring_height": p.emission_ring_height,
+				"emission_ring_radius": p.emission_ring_radius,
+				"emission_ring_inner_radius": p.emission_ring_inner_radius,
+				"gravity": p.gravity,
+				"initial_velocity_min": p.initial_velocity_min,
+				"initial_velocity_max": p.initial_velocity_max,
+				"tangential_accel_min": p.tangential_accel_min,
+				"tangential_accel_max": p.tangential_accel_max,
+				"lifetime": p.lifetime,
+			}
+
+	if is_instance_valid(luz_nucleo):
+		_base_luz_range = luz_nucleo.omni_range
+	if is_instance_valid(modelo_visual):
+		_base_visual_pos_y = modelo_visual.position.y
+
+func _actualizar_adaptacion_escala(_forzar: bool = false) -> void:
+	if not _datos_base_guardados:
+		_guardar_datos_base()
+
+	var sx = maxf(0.01, absf(scale.x))
+	var sy = maxf(0.01, absf(scale.y))
+	var sz = maxf(0.01, absf(scale.z))
+	var s_horiz = (sx + sz) * 0.5
+
+	# 1. Adaptar Visual y Embudo para mantener simetría circular perfecta en X y Z
+	if is_instance_valid(modelo_visual):
+		modelo_visual.scale = Vector3(s_horiz / sx, 1.0, s_horiz / sz)
+
+	if is_instance_valid(embudo_vortice):
+		embudo_vortice.set_instance_shader_parameter("escala_y", sy)
+		embudo_vortice.set_instance_shader_parameter("escala_xz", s_horiz)
+		embudo_vortice.extra_cull_margin = 4.0 * maxf(s_horiz, sy)
+
+	# 2. Factor de creación de partículas proporcional a la superficie del vórtice
+	var factor_creacion = maxf(0.35, s_horiz * clampf(sy, 0.5, 4.0))
+	var factor_v = clampf(sqrt(sy), 0.5, 3.0)
+
+	# 3. Adaptar cada sistema de partículas
+	var p_scale = Vector3(1.0 / sx, 1.0 / sy, 1.0 / sz)
+	for p in _particulas_todas:
+		if not is_instance_valid(p) or not _datos_base_particulas.has(p):
+			continue
+		var base_data: Dictionary = _datos_base_particulas[p]
+
+		# Neutralizar escala para que las mallas/hojas/rocas mantengan su tamaño y aspecto original
+		p.scale = p_scale
+
+		# Expandir la forma de emisión hacia donde se está escalando
+		p.emission_ring_height = base_data["emission_ring_height"] * sy
+		p.emission_ring_radius = base_data["emission_ring_radius"] * s_horiz
+		p.emission_ring_inner_radius = base_data["emission_ring_inner_radius"] * s_horiz
+
+		# Generar más partículas ("crearse más hacia donde está escalándose")
+		var nuevo_amount = clampi(roundi(float(base_data["amount"]) * factor_creacion), 1, 100)
+		if p.amount != nuevo_amount:
+			p.amount = nuevo_amount
+
+		# Dinámica: velocidad y tiempo de vida para que alcancen la cima y giren adecuadamente
+		p.lifetime = float(base_data["lifetime"]) * factor_v
+		var grav: Vector3 = base_data["gravity"]
+		p.gravity = Vector3(grav.x, grav.y * factor_v, grav.z)
+		p.initial_velocity_min = float(base_data["initial_velocity_min"]) * factor_v
+		p.initial_velocity_max = float(base_data["initial_velocity_max"]) * factor_v
+		p.tangential_accel_min = float(base_data["tangential_accel_min"]) * clampf(s_horiz, 0.5, 4.0)
+		p.tangential_accel_max = float(base_data["tangential_accel_max"]) * clampf(s_horiz, 0.5, 4.0)
+
+		# AABB de visibilidad ampliada
+		var ext_r = p.emission_ring_radius + 4.0
+		var ext_h = p.emission_ring_height + 4.0
+		p.visibility_aabb = AABB(Vector3(-ext_r, -2.0, -ext_r), Vector3(ext_r * 2.0, ext_h + 4.0, ext_r * 2.0))
+		p.extra_cull_margin = 4.0 * maxf(s_horiz, sy)
+
+	# 4. Adaptar áreas físicas de colisión
+	if is_instance_valid(area_influencia):
+		area_influencia.scale = p_scale
+		var col = area_influencia.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if is_instance_valid(col) and col.shape is CylinderShape3D:
+			if not col.shape.has_meta("es_copia_escala"):
+				col.shape = col.shape.duplicate()
+				col.shape.set_meta("es_copia_escala", true)
+			col.shape.radius = radio_influencia * s_horiz
+			col.shape.height = maxf(altura_tornado * sy * 1.5, 8.0 * sy)
+
+	if is_instance_valid(area_absorcion):
+		area_absorcion.scale = p_scale
+		var col = area_absorcion.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if is_instance_valid(col) and col.shape is CylinderShape3D:
+			if not col.shape.has_meta("es_copia_escala"):
+				col.shape = col.shape.duplicate()
+				col.shape.set_meta("es_copia_escala", true)
+			col.shape.radius = radio_nucleo * s_horiz
+			col.shape.height = maxf(altura_tornado * sy * 0.9, 4.8 * sy)
+
+	# 5. Adaptar luz omnidireccional
+	if is_instance_valid(luz_nucleo):
+		luz_nucleo.scale = p_scale
+		luz_nucleo.omni_range = _base_luz_range * maxf(s_horiz, sy * 0.7)
 
 func _configurar_areas() -> void:
 	# Máscara de detección: Capa 3 (Fantasma = bit 2), Capa 2 (Vivo = bit 1)
@@ -156,28 +298,33 @@ func _procesar_movimiento_patrulla(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_tiempo_acumulado += delta
+	if typeof(_escala_previa) != TYPE_VECTOR3:
+		_escala_previa = scale
+		_actualizar_adaptacion_escala()
+	elif not scale.is_equal_approx(_escala_previa):
+		_actualizar_adaptacion_escala()
+		_escala_previa = scale
 	_animar_visuales(delta)
 
 func _animar_visuales(delta: float) -> void:
+	var sx = maxf(0.01, absf(scale.x))
+	var sy = maxf(0.01, absf(scale.y))
+	var sz = maxf(0.01, absf(scale.z))
+
 	if is_instance_valid(modelo_visual):
 		modelo_visual.rotate_y(-deg_to_rad(velocidad_rotacion_visual * delta))
 		# Flotación suave vertical del torbellino
 		var offset_y = sin(_tiempo_acumulado * frecuencia_oscilacion) * oscilacion_altura
-		modelo_visual.position.y = offset_y
+		modelo_visual.position.y = _base_visual_pos_y + offset_y
 
 	var vel_giro_base = -deg_to_rad(velocidad_rotacion_visual * delta)
-	if is_instance_valid(particulas_vortice):
-		particulas_vortice.rotate_y(vel_giro_base * 0.95)
-	if is_instance_valid(particulas_atraccion):
-		particulas_atraccion.rotate_y(vel_giro_base * 0.75)
-	if is_instance_valid(particulas_atraccion_2):
-		particulas_atraccion_2.rotate_y(vel_giro_base * 0.65)
-	if is_instance_valid(particulas_atraccion_3):
-		particulas_atraccion_3.rotate_y(vel_giro_base * 0.85)
-	if is_instance_valid(particulas_hojas):
-		particulas_hojas.rotate_y(vel_giro_base * 1.15)
-	if is_instance_valid(particulas_hojas_2):
-		particulas_hojas_2.rotate_y(vel_giro_base * 0.92)
+	var p_scale = Vector3(1.0 / sx, 1.0 / sy, 1.0 / sz)
+	_rotar_sistema_particulas(particulas_vortice, vel_giro_base * 0.95, p_scale)
+	_rotar_sistema_particulas(particulas_atraccion, vel_giro_base * 0.75, p_scale)
+	_rotar_sistema_particulas(particulas_atraccion_2, vel_giro_base * 0.65, p_scale)
+	_rotar_sistema_particulas(particulas_atraccion_3, vel_giro_base * 0.85, p_scale)
+	_rotar_sistema_particulas(particulas_hojas, vel_giro_base * 1.15, p_scale)
+	_rotar_sistema_particulas(particulas_hojas_2, vel_giro_base * 0.92, p_scale)
 
 	if is_instance_valid(luz_nucleo):
 		if not luz_nucleo.has_meta("energia_base"):
@@ -185,6 +332,13 @@ func _animar_visuales(delta: float) -> void:
 		var energia_base: float = luz_nucleo.get_meta("energia_base")
 		var pulso = 0.85 + 0.25 * sin(_tiempo_acumulado * 3.5)
 		luz_nucleo.light_energy = energia_base * pulso
+
+func _rotar_sistema_particulas(p: CPUParticles3D, delta_rad: float, p_scale: Vector3) -> void:
+	if not is_instance_valid(p):
+		return
+	var angulo = _angulos_particulas.get(p, p.rotation.y) + delta_rad
+	_angulos_particulas[p] = angulo
+	p.transform.basis = Basis(Vector3.UP, angulo).scaled(p_scale)
 
 func _procesar_succion_continua(_delta: float) -> void:
 	for i in range(_cuerpos_en_influencia.size() - 1, -1, -1):
@@ -204,7 +358,9 @@ func _procesar_succion_continua(_delta: float) -> void:
 		if dist_horizontal <= 0.01:
 			continue
 
-		var factor_distancia = 1.0 - clampf(dist_horizontal / radio_influencia, 0.0, 1.0)
+		var s_horiz = (absf(scale.x) + absf(scale.z)) * 0.5
+		var radio_efectivo = radio_influencia * s_horiz
+		var factor_distancia = 1.0 - clampf(dist_horizontal / radio_efectivo, 0.0, 1.0)
 		# Suavizar curva de atracción garantizando una fuerza base efectiva en todo el radio de influencia
 		var factor_succion = lerpf(0.35, 1.0, factor_distancia)
 

@@ -14,6 +14,10 @@ render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
 // - Transparente para ver el interior (fantasma, cristales, hojas).
 // ===================================================================
 
+group_uniforms Adaptacion_Escala;
+instance uniform float escala_y = 1.0;
+instance uniform float escala_xz = 1.0;
+
 group_uniforms Dimensiones_Embudo;
 uniform float radio_base = 0.45;
 uniform float radio_cima = 3.2;
@@ -79,6 +83,9 @@ varying float v_height;
 varying vec2 v_uv;
 
 void vertex() {
+	float s_y_efectiva = max(0.01, escala_y <= 0.0001 ? 1.0 : escala_y);
+	float s_xz_efectiva = max(0.01, escala_xz <= 0.0001 ? 1.0 : escala_xz);
+
 	// Normalizar altura de 0.0 (base) a 1.0 (cima)
 	v_height = clamp((VERTEX.y + (altura_cono * 0.5)) / altura_cono, 0.0, 1.0);
 	v_uv = UV;
@@ -93,23 +100,26 @@ void vertex() {
 	// 2. Ondulaciones de volumen helicoidales (capas/anillos de viento en relieve):
 	float angulo = atan(VERTEX.z, VERTEX.x);
 	float peso_efecto = smoothstep(0.06, 0.35, v_height);
-	float fase_espiral = (v_height * frecuencia_ondulacion) - (TIME * velocidad_ondulacion * 2.0) + (angulo * 2.0);
+	float fase_espiral = (v_height * frecuencia_ondulacion * s_y_efectiva) - (TIME * velocidad_ondulacion * 2.0) + (angulo * 2.0);
 	float onda_relieve = (sin(fase_espiral) * 0.7 + sin(fase_espiral * 2.2 + 1.2) * 0.3) * amplitud_ondulacion * peso_efecto;
 	VERTEX.xz *= (1.0 + onda_relieve);
 
 	// 3. Meceo orgánico global de la columna de viento:
 	float peso_irregularidad = smoothstep(0.08, 0.95, v_height);
-	float onda_a = sin(TIME * velocidad_irregularidad + v_height * 7.0);
-	float onda_b = cos(TIME * (velocidad_irregularidad * 1.37) - v_height * 11.0);
-	VERTEX.x += onda_a * amplitud_irregularidad * peso_irregularidad;
-	VERTEX.z += onda_b * amplitud_irregularidad * 0.72 * peso_irregularidad;
+	float onda_a = sin(TIME * velocidad_irregularidad + v_height * 7.0 * s_y_efectiva);
+	float onda_b = cos(TIME * (velocidad_irregularidad * 1.37) - v_height * 11.0 * s_y_efectiva);
+	VERTEX.x += (onda_a * amplitud_irregularidad * peso_irregularidad) / s_xz_efectiva;
+	VERTEX.z += (onda_b * amplitud_irregularidad * 0.72 * peso_irregularidad) / s_xz_efectiva;
 
 	// 4. Ondulación suave de altura en la cima (la boca superior no es plana ni cortada en horizontal):
 	float onda_cima_v = sin(angulo * 3.0 + TIME * velocidad_ondulacion) * 0.12 * smoothstep(0.7, 1.0, v_height);
-	VERTEX.y += onda_cima_v;
+	VERTEX.y += onda_cima_v / s_y_efectiva;
 }
 
 void fragment() {
+	float s_y_efectiva = max(0.01, escala_y <= 0.0001 ? 1.0 : escala_y);
+	float s_xz_efectiva = max(0.01, escala_xz <= 0.0001 ? 1.0 : escala_xz);
+
 	// La parte posterior se atenúa para no saturar el volumen ni sobreexponer a blanco
 	float intensidad_cara = FRONT_FACING ? 1.0 : atenuacion_cara_posterior;
 
@@ -122,24 +132,29 @@ void fragment() {
 	vec3 col_cuerpo = mix(color_profundo.rgb, color_medio.rgb, smoothstep(0.05, 0.55, v_height));
 	col_cuerpo = mix(col_cuerpo, color_cima.rgb, smoothstep(0.48, 0.95, v_height));
 
-	// 2. Cintas espirales de viento ascendente
-	float espiral_1 = sin((v_uv.x * 6.28318 * cantidad_cintas) + (v_height * torsion_espiral) - (TIME * velocidad_giro * 2.2));
-	float umbral_1 = 1.0 - ancho_cintas;
-	float nucleo_1 = smoothstep(umbral_1 - suavidad_cintas, umbral_1, espiral_1);
-	float halo_1 = smoothstep((umbral_1 - ancho_halo_cintas) - difuminado_halo, umbral_1 - ancho_halo_cintas, espiral_1);
+	// 2. Cintas espirales de viento ascendente adaptadas a la escala
+	float torsion_efectiva = torsion_espiral * s_y_efectiva;
+	float factor_cintas = clamp(sqrt(s_xz_efectiva), 1.0, 3.0);
+	float cintas_efectivas = cantidad_cintas * factor_cintas;
+	float factor_ancho = 1.0 / factor_cintas;
+
+	float espiral_1 = sin((v_uv.x * 6.28318 * cintas_efectivas) + (v_height * torsion_efectiva) - (TIME * velocidad_giro * 2.2));
+	float umbral_1 = 1.0 - (ancho_cintas * factor_ancho);
+	float nucleo_1 = smoothstep(umbral_1 - (suavidad_cintas * factor_ancho), umbral_1, espiral_1);
+	float halo_1 = smoothstep((umbral_1 - (ancho_halo_cintas * factor_ancho)) - (difuminado_halo * factor_ancho), umbral_1 - (ancho_halo_cintas * factor_ancho), espiral_1);
 
 	// Corrientes adicionales periódicas en UV.x para cerrar sin costura
-	float fase_secundaria = (v_uv.x * 6.28318 * cantidad_cintas * 2.0) + (v_height * torsion_espiral * 0.76) - (TIME * velocidad_giro * 1.45);
+	float fase_secundaria = (v_uv.x * 6.28318 * cintas_efectivas * 2.0) + (v_height * torsion_efectiva * 0.76) - (TIME * velocidad_giro * 1.45);
 	float espiral_secundaria = sin(fase_secundaria + 1.8);
-	float umbral_secundaria = 1.0 - ancho_cinta_secundaria;
-	float nucleo_secundario = smoothstep(umbral_secundaria - 0.13, umbral_secundaria, espiral_secundaria);
-	float halo_secundario = smoothstep((umbral_secundaria - 0.24) - 0.20, umbral_secundaria - 0.24, espiral_secundaria);
+	float umbral_secundaria = 1.0 - (ancho_cinta_secundaria * factor_ancho);
+	float nucleo_secundario = smoothstep(umbral_secundaria - (0.13 * factor_ancho), umbral_secundaria, espiral_secundaria);
+	float halo_secundario = smoothstep((umbral_secundaria - (0.24 * factor_ancho)) - (0.20 * factor_ancho), umbral_secundaria - (0.24 * factor_ancho), espiral_secundaria);
 
-	float fase_acento = (v_uv.x * 6.28318 * cantidad_cintas * 3.0) + (v_height * torsion_espiral * 0.56) - (TIME * velocidad_giro * 0.82);
+	float fase_acento = (v_uv.x * 6.28318 * cintas_efectivas * 3.0) + (v_height * torsion_efectiva * 0.56) - (TIME * velocidad_giro * 0.82);
 	float espiral_acento = sin(fase_acento - 0.65);
-	float umbral_acento = 1.0 - ancho_cinta_acento;
-	float nucleo_acento = smoothstep(umbral_acento - 0.09, umbral_acento, espiral_acento);
-	float halo_acento = smoothstep((umbral_acento - 0.16) - 0.16, umbral_acento - 0.16, espiral_acento);
+	float umbral_acento = 1.0 - (ancho_cinta_acento * factor_ancho);
+	float nucleo_acento = smoothstep(umbral_acento - (0.09 * factor_ancho), umbral_acento, espiral_acento);
+	float halo_acento = smoothstep((umbral_acento - (0.16 * factor_ancho)) - (0.16 * factor_ancho), umbral_acento - (0.16 * factor_ancho), espiral_acento);
 
 	vec3 col_nucleo = color_cinta_nucleo.rgb * brillo_cintas;
 	vec3 col_halo = color_cinta_halo.rgb;
@@ -152,7 +167,7 @@ void fragment() {
 	float peso_altura = mix(peso_base_claro, 1.0, smoothstep(0.08, 0.7, v_height));
 
 	// Irregularidad orgánica en el borde para que no sea una línea rígida de vector:
-	float ruido_borde = sin((v_height * 14.0) - (TIME * velocidad_giro * 2.5) + (v_uv.x * 18.0)) * irregularidad_borde;
+	float ruido_borde = sin((v_height * 14.0 * s_y_efectiva) - (TIME * velocidad_giro * 2.5) + (v_uv.x * 18.0 * cintas_efectivas)) * irregularidad_borde;
 	float borde_organico = clamp(borde_vista + (ruido_borde * peso_altura), 0.0, 1.0);
 
 	float fresnel = pow(borde_organico, exponente_fresnel) * fuerza_fresnel * intensidad_cara;

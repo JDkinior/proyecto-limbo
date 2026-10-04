@@ -245,14 +245,14 @@ shape = SubResource("BoxShape3D_step_vivo")
 occluder = SubResource("BoxOccluder3D_step")
 
 [node name="Torbellino" parent="PistaFisicaVivo" unique_id=284910291 instance=ExtResource("3_b8igg")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6992903, 4.116784, 3.382658)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6015902, 4.116784, 3.382658)
 se_mueve = true
-desplazamiento = Vector3(10, 0, 0)
+desplazamiento = Vector3(9, 0, 0)
 
 [node name="Torbellino2" parent="PistaFisicaVivo" unique_id=117995187 instance=ExtResource("3_b8igg")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.148617, 2.3096895, 10.932262)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.645044, 2.3096895, 10.932262)
 se_mueve = true
-desplazamiento = Vector3(-8, 0, 0)
+desplazamiento = Vector3(-9, 0, 0)
 
 [node name="Torbellino3" parent="PistaFisicaVivo" unique_id=1421159694 instance=ExtResource("3_b8igg")]
 transform = Transform3D(1, 0, 0, 0, 2.9164808, 0, 0, 0, 1, 4.626083, 4.32148, -5.959622)
