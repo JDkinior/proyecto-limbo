@@ -40,6 +40,10 @@ func _conectar_senales():
 		menu.btn_guia_shorts.toggled.connect(_on_btn_guia_shorts_toggled)
 	if is_instance_valid(menu.btn_ocultar_controles):
 		menu.btn_ocultar_controles.toggled.connect(_on_btn_ocultar_controles_toggled)
+	if is_instance_valid(menu.btn_escala_render):
+		menu.btn_escala_render.pressed.connect(_on_btn_escala_render_pressed)
+	if is_instance_valid(menu.btn_limite_fps):
+		menu.btn_limite_fps.pressed.connect(_on_btn_limite_fps_pressed)
 		
 	var btn_volver_opc = menu.get_node_or_null("PanelOpciones/VBoxContainer/BtnVolver")
 	if is_instance_valid(btn_volver_opc):
@@ -144,6 +148,7 @@ func _on_btn_guia_shorts_toggled(button_pressed: bool):
 func _on_btn_ajustes_video_pressed():
 	if is_instance_valid(menu.panel_ajustes_video):
 		menu.mostrar_panel(menu.panel_ajustes_video)
+	_actualizar_textos_video()
 	var vm = menu.get_node_or_null("/root/VibrationManager")
 	if is_instance_valid(vm):
 		vm.vibrar_click()
@@ -161,6 +166,29 @@ func _on_btn_ocultar_controles_toggled(button_pressed: bool):
 		var vm = menu.get_node_or_null("/root/VibrationManager")
 		if is_instance_valid(vm):
 			vm.vibrar_click()
+
+func _on_btn_escala_render_pressed():
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.alternar_escala_render()
+		_actualizar_textos_video()
+		var vm = menu.get_node_or_null("/root/VibrationManager")
+		if is_instance_valid(vm):
+			vm.vibrar_click()
+
+func _on_btn_limite_fps_pressed():
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.alternar_limite_fps()
+		_actualizar_textos_video()
+		var vm = menu.get_node_or_null("/root/VibrationManager")
+		if is_instance_valid(vm):
+			vm.vibrar_click()
+
+func _actualizar_textos_video():
+	if is_instance_valid(CamaraConfigManager):
+		if is_instance_valid(menu.btn_escala_render):
+			menu.btn_escala_render.text = CamaraConfigManager.obtener_texto_escala_render()
+		if is_instance_valid(menu.btn_limite_fps):
+			menu.btn_limite_fps.text = CamaraConfigManager.obtener_texto_limite_fps()
 
 func _on_btn_volver_opciones_pressed():
 	menu.mostrar_panel(menu.panel_principal)
@@ -264,3 +292,4 @@ func _cargar_opciones():
 			menu.btn_guia_shorts.set_pressed_no_signal(CamaraConfigManager.esta_guia_activa())
 		if is_instance_valid(menu.btn_ocultar_controles):
 			menu.btn_ocultar_controles.set_pressed_no_signal(CamaraConfigManager.esta_ocultar_controles_activo())
+		_actualizar_textos_video()

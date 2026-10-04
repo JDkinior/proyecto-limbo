@@ -40,6 +40,8 @@ extends Control
 @onready var btn_modo_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnModoShorts")
 @onready var btn_guia_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnGuiaShorts")
 @onready var btn_ocultar_controles = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnOcultarControles")
+@onready var btn_escala_render = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnEscalaRender")
+@onready var btn_limite_fps = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnLimiteFPS")
 @onready var btn_volver_video = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnVolverVideo")
 @onready var btn_ajustar_hud = $PanelOpciones/VBoxContainer/BtnAjustarHUD
 @onready var btn_mapear_control = $PanelOpciones/VBoxContainer/BtnMapearControl

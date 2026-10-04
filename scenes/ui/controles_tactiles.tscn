@@ -333,9 +333,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -280.0
-offset_top = -260.0
+offset_top = -310.0
 offset_right = 280.0
-offset_bottom = 260.0
+offset_bottom = 310.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -380,6 +380,18 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "👁️ Ocultar Controles (Excepto Pausa): Desactivado"
 
+[node name="Boton_Escala_Render" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390913]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🔍 Escala 3D: 100% (Nativa)"
+
+[node name="Boton_Limite_FPS" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390914]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "⚡ Límite de FPS: 60 FPS"
+
 [node name="Label_Info" type="Label" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=774955637]
 layout_mode = 2
 text = "💡 Al activar 'Ocultar Controles', se ocultan los botones y joystick táctiles para grabar partidas limpias. El botón de Pausa permanece visible para que siempre puedas acceder a las opciones."
@@ -413,5 +425,7 @@ text = "Atrás"
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Modo_Shorts" to="." method="_on_boton_modo_shorts_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Guia_Shorts" to="." method="_on_boton_guia_shorts_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Ocultar_Controles" to="." method="_on_boton_ocultar_controles_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Escala_Render" to="." method="_on_boton_escala_render_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Limite_FPS" to="." method="_on_boton_limite_fps_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Cerrar_Ajustes_Video" to="." method="_on_boton_cerrar_ajustes_video_pressed"]
 

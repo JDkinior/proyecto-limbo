@@ -54,6 +54,10 @@ func _ready():
 	if is_instance_valid(CamaraConfigManager):
 		if not CamaraConfigManager.ocultar_controles_cambiado.is_connected(_on_ocultar_controles_cambiado):
 			CamaraConfigManager.ocultar_controles_cambiado.connect(_on_ocultar_controles_cambiado)
+		if not CamaraConfigManager.escala_render_cambiada.is_connected(func(_v): _actualizar_texto_boton_escala_render()):
+			CamaraConfigManager.escala_render_cambiada.connect(func(_v): _actualizar_texto_boton_escala_render())
+		if not CamaraConfigManager.limite_fps_cambiado.is_connected(func(_v): _actualizar_texto_boton_limite_fps()):
+			CamaraConfigManager.limite_fps_cambiado.connect(func(_v): _actualizar_texto_boton_limite_fps())
 	
 	var gm = _obtener_gamepad_manager()
 	if is_instance_valid(gm):
@@ -1323,6 +1327,8 @@ func _inicializar_controles_opciones_hud() -> void:
 	_actualizar_texto_boton_modo_shorts()
 	_actualizar_texto_boton_guia_shorts()
 	_actualizar_texto_boton_ocultar_controles()
+	_actualizar_texto_boton_escala_render()
+	_actualizar_texto_boton_limite_fps()
 
 func _on_boton_ajustes_video_pressed() -> void:
 	var panel_o = get_node_or_null("Panel_Opciones")
@@ -1335,6 +1341,8 @@ func _on_boton_ajustes_video_pressed() -> void:
 		_actualizar_texto_boton_modo_shorts()
 		_actualizar_texto_boton_guia_shorts()
 		_actualizar_texto_boton_ocultar_controles()
+		_actualizar_texto_boton_escala_render()
+		_actualizar_texto_boton_limite_fps()
 		var gm = _obtener_gamepad_manager()
 		if is_instance_valid(gm) and gm.hay_control_conectado():
 			var btn_shorts = panel_v.get_node_or_null("VBoxContainer/Boton_Modo_Shorts")
@@ -1434,6 +1442,34 @@ func _actualizar_texto_boton_ocultar_controles() -> void:
 	if is_instance_valid(btn_ocultar) and is_instance_valid(CamaraConfigManager):
 		var activo = CamaraConfigManager.esta_ocultar_controles_activo()
 		btn_ocultar.text = "👁️ Ocultar Controles (Excepto Pausa): Activado" if activo else "👁️ Ocultar Controles (Excepto Pausa): Desactivado"
+
+func _on_boton_escala_render_pressed() -> void:
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.alternar_escala_render()
+		_actualizar_texto_boton_escala_render()
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_click()
+
+func _actualizar_texto_boton_escala_render() -> void:
+	var btn_escala = get_node_or_null("Panel_Ajustes_Video/VBoxContainer/Boton_Escala_Render")
+	if not is_instance_valid(btn_escala):
+		btn_escala = find_child("Boton_Escala_Render", true, false)
+	if is_instance_valid(btn_escala) and is_instance_valid(CamaraConfigManager):
+		btn_escala.text = CamaraConfigManager.obtener_texto_escala_render()
+
+func _on_boton_limite_fps_pressed() -> void:
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.alternar_limite_fps()
+		_actualizar_texto_boton_limite_fps()
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_click()
+
+func _actualizar_texto_boton_limite_fps() -> void:
+	var btn_fps = get_node_or_null("Panel_Ajustes_Video/VBoxContainer/Boton_Limite_FPS")
+	if not is_instance_valid(btn_fps):
+		btn_fps = find_child("Boton_Limite_FPS", true, false)
+	if is_instance_valid(btn_fps) and is_instance_valid(CamaraConfigManager):
+		btn_fps.text = CamaraConfigManager.obtener_texto_limite_fps()
 
 func _on_slider_escala_botones_changed(val: float) -> void:
 	var cfg = HudConfigManager.cargar_config()

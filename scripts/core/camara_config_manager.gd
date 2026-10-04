@@ -12,12 +12,19 @@ extends Node
 signal modo_shorts_cambiado(activo: bool)
 signal guia_shorts_cambiada(activa: bool)
 signal ocultar_controles_cambiado(activo: bool)
+signal escala_render_cambiada(escala: float)
+signal limite_fps_cambiado(fps: int)
 
 const CONFIG_PATH = "user://opciones.cfg"
 const SECTION_CAMARA = "camara"
 const KEY_MODO_SHORTS = "modo_shorts"
 const KEY_MOSTRAR_GUIA = "mostrar_guia_shorts"
 const KEY_OCULTAR_CONTROLES = "ocultar_controles_grabacion"
+const KEY_ESCALA_RENDER = "escala_render"
+const KEY_LIMITE_FPS = "limite_fps"
+
+const OPCIONES_ESCALA: Array[float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+const OPCIONES_FPS: Array[int] = [30, 60, 90, 120]
 
 # Parámetros Modo Normal (Por Defecto - Mantiene la cámara original intacta)
 const ALTURA_SPRING_ARM_NORMAL: float = 1.35
@@ -42,6 +49,8 @@ const LIMITE_PITCH_MAX_SHORTS: float = 0.25
 var _modo_shorts: bool = false
 var _mostrar_guia: bool = false
 var _ocultar_controles: bool = false
+var _escala_render: float = 1.0
+var _limite_fps: int = 60
 
 # Nodos de la guía visual 9:16
 var _capa_guia: CanvasLayer = null
@@ -106,6 +115,86 @@ func alternar_ocultar_controles() -> bool:
 	return _ocultar_controles
 
 # -----------------------------------------------------------------------------
+# CONSULTAS Y CONTROL DE ESCALA DE RENDERIZADO 3D
+# -----------------------------------------------------------------------------
+func obtener_escala_render() -> float:
+	return _escala_render
+
+func aplicar_escala_render(nueva_escala: float) -> void:
+	_escala_render = nueva_escala
+	var vp = get_viewport()
+	if vp:
+		vp.scaling_3d_scale = _escala_render
+	var tree = get_tree()
+	if tree and tree.root and tree.root != vp:
+		tree.root.scaling_3d_scale = _escala_render
+	escala_render_cambiada.emit(_escala_render)
+	print("[CamaraConfigManager] Escala de renderizado 3D aplicada: ", _escala_render)
+
+func establecer_escala_render(valor: float) -> void:
+	_escala_render = valor
+	aplicar_escala_render(_escala_render)
+	guardar_config()
+
+func alternar_escala_render() -> float:
+	var idx = -1
+	for i in range(OPCIONES_ESCALA.size()):
+		if is_equal_approx(OPCIONES_ESCALA[i], _escala_render):
+			idx = i
+			break
+	if idx == -1:
+		idx = 2 # Por defecto 1.0 (Nativa)
+	idx = (idx + 1) % OPCIONES_ESCALA.size()
+	establecer_escala_render(OPCIONES_ESCALA[idx])
+	return _escala_render
+
+func obtener_texto_escala_render() -> String:
+	if is_equal_approx(_escala_render, 0.5):
+		return "🔍 Escala 3D: 50% (Rendimiento)"
+	elif is_equal_approx(_escala_render, 0.75):
+		return "🔍 Escala 3D: 75% (Equilibrado)"
+	elif is_equal_approx(_escala_render, 1.0):
+		return "🔍 Escala 3D: 100% (Nativa)"
+	elif is_equal_approx(_escala_render, 1.25):
+		return "🔍 Escala 3D: 125% (Alta)"
+	elif is_equal_approx(_escala_render, 1.5):
+		return "🔍 Escala 3D: 150% (2K / Calidad)"
+	elif is_equal_approx(_escala_render, 2.0):
+		return "🔍 Escala 3D: 200% (4K / Supermuestreo)"
+	else:
+		return "🔍 Escala 3D: %d%%" % int(_escala_render * 100.0)
+
+# -----------------------------------------------------------------------------
+# CONSULTAS Y CONTROL DE LÍMITE DE FPS
+# -----------------------------------------------------------------------------
+func obtener_limite_fps() -> int:
+	return _limite_fps
+
+func aplicar_limite_fps(nuevo_fps: int) -> void:
+	_limite_fps = nuevo_fps
+	Engine.max_fps = _limite_fps
+	limite_fps_cambiado.emit(_limite_fps)
+	print("[CamaraConfigManager] Límite de FPS aplicado: ", _limite_fps)
+
+func establecer_limite_fps(valor: int) -> void:
+	_limite_fps = valor
+	aplicar_limite_fps(_limite_fps)
+	guardar_config()
+
+func alternar_limite_fps() -> int:
+	var idx = OPCIONES_FPS.find(_limite_fps)
+	if idx == -1:
+		idx = 1 # Por defecto 60 FPS
+	idx = (idx + 1) % OPCIONES_FPS.size()
+	establecer_limite_fps(OPCIONES_FPS[idx])
+	return _limite_fps
+
+func obtener_texto_limite_fps() -> String:
+	if _limite_fps <= 0:
+		return "⚡ Límite de FPS: Ilimitado"
+	return "⚡ Límite de FPS: %d FPS" % _limite_fps
+
+# -----------------------------------------------------------------------------
 # PARÁMETROS DINÁMICOS DE CÁMARA
 # -----------------------------------------------------------------------------
 func obtener_altura_spring_arm() -> float:
@@ -141,10 +230,16 @@ func cargar_config() -> void:
 			_modo_shorts = cfg.get_value("video", KEY_MODO_SHORTS, false)
 			_mostrar_guia = cfg.get_value("video", KEY_MOSTRAR_GUIA, false)
 			_ocultar_controles = cfg.get_value("video", KEY_OCULTAR_CONTROLES, false)
+		_escala_render = cfg.get_value("video", KEY_ESCALA_RENDER, 1.0)
+		_limite_fps = cfg.get_value("video", KEY_LIMITE_FPS, 60)
 	else:
 		_modo_shorts = false
 		_mostrar_guia = false
 		_ocultar_controles = false
+		_escala_render = 1.0
+		_limite_fps = 60
+	aplicar_escala_render(_escala_render)
+	aplicar_limite_fps(_limite_fps)
 	_actualizar_visibilidad_guia()
 
 func guardar_config() -> void:
@@ -156,9 +251,11 @@ func guardar_config() -> void:
 	# Guardar también en sección video para consistencia con menus de video
 	cfg.set_value("video", KEY_MODO_SHORTS, _modo_shorts)
 	cfg.set_value("video", KEY_OCULTAR_CONTROLES, _ocultar_controles)
+	cfg.set_value("video", KEY_ESCALA_RENDER, _escala_render)
+	cfg.set_value("video", KEY_LIMITE_FPS, _limite_fps)
 	var save_err = cfg.save(CONFIG_PATH)
 	if save_err == OK:
-		print("[CamaraConfigManager] Configuración de cámara guardada en: ", CONFIG_PATH)
+		print("[CamaraConfigManager] Configuración de video guardada en: ", CONFIG_PATH)
 
 # -----------------------------------------------------------------------------
 # GUÍA VISUAL EN PANTALLA (OVERLAY 9:16)

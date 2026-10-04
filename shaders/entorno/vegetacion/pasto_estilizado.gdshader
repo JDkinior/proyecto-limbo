@@ -1,5 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, diffuse_lambert, specular_disabled, skip_vertex_transform;
+// Marca el stencil (ref 1) para que el X-Ray de los personajes NO se dibuje a través del pasto.
+stencil_mode write, compare_always, 1;
 
 // ==========================================
 // SHADER DE PASTO ESTILIZADO 3D (GODOT 4)
