@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="Proyecto Limbo-Video"
-config/version="1.0.6"
+config/name="Proyecto Limbo"
+config/version="1.0.7"
 run/main_scene="res://scenes/ui/menu_inicio.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 run/max_fps=60
