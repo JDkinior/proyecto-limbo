@@ -12,6 +12,8 @@ signal radio_actualizado(radio: float)
 @export var altura_aura : float = -0.08
 ## Duración en segundos de la animación de expansión/aparición inicial.
 @export var duracion_aparicion : float = 0.32
+## Duración en segundos de la animación de retracción rápida al cancelar manualmente la habilidad.
+@export var duracion_retraccion_cancelacion : float = 0.28
 
 var activa : bool = false
 var radio_actual : float = 0.0
@@ -19,6 +21,9 @@ var cooldown_actual : float = 0.0
 
 var _en_fase_aparicion : bool = false
 var _tiempo_aparicion : float = 0.0
+var _en_fase_retraccion_rapida : bool = false
+var _tiempo_retraccion : float = 0.0
+var _radio_inicio_retraccion : float = 0.0
 var _mat_aura : Material = null
 var _mat_halo : ShaderMaterial = null
 
@@ -96,10 +101,27 @@ func _aplicar_opacidad(factor: float):
 	if is_instance_valid(luz_aura):
 		luz_aura.light_energy = 1.15 * factor
 
+func _obtener_vibration_manager() -> Node:
+	if Engine.is_editor_hint():
+		return null
+	var vm = get_node_or_null("/root/VibrationManager")
+	return vm if is_instance_valid(vm) else null
+
+func _es_multijugador_en_linea() -> bool:
+	if not is_inside_tree() or multiplayer == null:
+		return false
+	if not multiplayer.has_multiplayer_peer():
+		return false
+	if multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
+		return false
+	var red_mgr = get_node_or_null("/root/RedManager")
+	if is_instance_valid(red_mgr) and red_mgr.get("es_un_jugador") == true:
+		return false
+	return true
+
 func _process(delta: float):
-	var es_offline = (multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
-	var es_local = es_offline or (is_instance_valid(RedManager) and RedManager.es_un_jugador)
-	var es_autoridad = es_local or is_multiplayer_authority()
+	var es_online = _es_multijugador_en_linea()
+	var es_autoridad = not es_online or (is_inside_tree() and is_multiplayer_authority())
 
 	# El cooldown se gestiona en la autoridad
 	if es_autoridad and cooldown_actual > 0.0:
@@ -112,7 +134,32 @@ func _process(delta: float):
 	if not activa:
 		return
 
-	# 1. FASE DE APARICIÓN (Expansión suave y dinámica estilo onda de choque)
+	# 1. FASE DE RETRACCIÓN RÁPIDA (Cancelación manual del aura anticipada)
+	if _en_fase_retraccion_rapida:
+		_tiempo_retraccion += delta
+		var dur_efectiva = clampf((_radio_inicio_retraccion / maxf(radio_maximo, 1.0)) * duracion_retraccion_cancelacion, 0.10, duracion_retraccion_cancelacion)
+		var t = clampf(_tiempo_retraccion / dur_efectiva, 0.0, 1.0)
+		# Curva Ease-In Cubic para contracción con ímpetu hacia el centro
+		var factor = pow(t, 2.5)
+		radio_actual = maxf(_radio_inicio_retraccion * (1.0 - factor), 0.0)
+
+		# Desvanecimiento progresivo y limpio de opacidad
+		var factor_opac = 1.0 - t
+		if radio_actual < 1.2:
+			var factor_fade = clampf(radio_actual / 1.2, 0.0, 1.0)
+			factor_opac = minf(factor_opac, factor_fade * factor_fade * (3.0 - 2.0 * factor_fade))
+
+		_aplicar_opacidad(factor_opac)
+		_actualizar_visual(factor_opac)
+		radio_actualizado.emit(radio_actual)
+
+		if t >= 1.0 or radio_actual <= 0.0:
+			_en_fase_retraccion_rapida = false
+			if es_autoridad:
+				desactivar()
+		return
+
+	# 2. FASE DE APARICIÓN (Expansión suave y dinámica estilo onda de choque)
 	if _en_fase_aparicion:
 		_tiempo_aparicion += delta
 		var t = clampf(_tiempo_aparicion / maxf(duracion_aparicion, 0.05), 0.0, 1.0)
@@ -132,20 +179,22 @@ func _process(delta: float):
 			_aplicar_opacidad(1.0)
 			_actualizar_visual(1.0)
 			
-		if is_instance_valid(VibrationManager):
+		var vm_exp = _obtener_vibration_manager()
+		if vm_exp:
 			var p = get_parent()
 			if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
-				VibrationManager.actualizar_intensidad_aura(0.6 + factor_expansion * 0.4)
+				vm_exp.actualizar_intensidad_aura(0.6 + factor_expansion * 0.4)
 		return
 
-	# 2. FASE DE ENCOGIMIENTO Y DISOLUCIÓN
+	# 3. FASE DE ENCOGIMIENTO Y DISOLUCIÓN NORMAL
 	radio_actual = maxf(radio_actual - velocidad_encogimiento * delta, 0.0)
 
-	if is_instance_valid(VibrationManager):
+	var vm = _obtener_vibration_manager()
+	if vm:
 		var p = get_parent()
 		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
 			var ratio_radio = clampf(radio_actual / maxf(radio_maximo, 0.1), 0.20, 1.0)
-			VibrationManager.actualizar_intensidad_aura(ratio_radio)
+			vm.actualizar_intensidad_aura(ratio_radio)
 
 	# Zona de disolución final (últimos 1.2 metros):
 	# Se desvanece la opacidad con smoothstep y se aplana la altura para evitar que
@@ -165,18 +214,55 @@ func _process(delta: float):
 			desactivar()
 
 func intentar_activar():
-	if activa or cooldown_actual > 0.0:
+	if activa:
+		# Si ya está activa y no está ya retrayéndose, retraer de inmediato al presionar de nuevo
+		if not _en_fase_retraccion_rapida:
+			retraer_inmediatamente()
 		return
 
-	if multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer) and not (is_instance_valid(RedManager) and RedManager.es_un_jugador):
+	if cooldown_actual > 0.0:
+		return
+
+	if _es_multijugador_en_linea():
 		rpc("rpc_activar_aura")
 	else:
 		rpc_activar_aura()
+
+func retraer_inmediatamente():
+	if not activa or _en_fase_retraccion_rapida:
+		return
+
+	if _es_multijugador_en_linea():
+		rpc("rpc_retraer_aura")
+	else:
+		rpc_retraer_aura()
+
+@rpc("call_local", "reliable")
+func rpc_retraer_aura():
+	_iniciar_retraccion_rapida()
+
+func _iniciar_retraccion_rapida():
+	if not activa or _en_fase_retraccion_rapida:
+		return
+	_en_fase_aparicion = false
+	_en_fase_retraccion_rapida = true
+	_tiempo_retraccion = 0.0
+	_radio_inicio_retraccion = maxf(radio_actual, 0.1)
+
+	if is_instance_valid(particulas_aura):
+		particulas_aura.emitting = false
+
+	var vm_ret = _obtener_vibration_manager()
+	if vm_ret:
+		var p = get_parent()
+		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
+			vm_ret.detener_vibracion_aura(true)
 
 @rpc("call_local", "reliable")
 func rpc_activar_aura():
 	activa = true
 	_en_fase_aparicion = true
+	_en_fase_retraccion_rapida = false
 	_tiempo_aparicion = 0.0
 	radio_actual = 0.001
 
@@ -199,13 +285,14 @@ func rpc_activar_aura():
 	estado_cambiado.emit(true, 0.0)
 	radio_actualizado.emit(0.0)
 
-	if is_instance_valid(VibrationManager):
+	var vm_act = _obtener_vibration_manager()
+	if vm_act:
 		var p = get_parent()
 		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
-			VibrationManager.iniciar_vibracion_aura(1.0)
+			vm_act.iniciar_vibracion_aura(1.0)
 
 func desactivar():
-	if multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer) and not (is_instance_valid(RedManager) and RedManager.es_un_jugador):
+	if _es_multijugador_en_linea():
 		rpc("rpc_desactivar_aura")
 	else:
 		rpc_desactivar_aura()
@@ -214,13 +301,15 @@ func desactivar():
 func rpc_desactivar_aura():
 	activa = false
 	_en_fase_aparicion = false
+	_en_fase_retraccion_rapida = false
 	radio_actual = 0.0
 	cooldown_actual = tiempo_recarga
 
-	if is_instance_valid(VibrationManager):
+	var vm_des = _obtener_vibration_manager()
+	if vm_des:
 		var p = get_parent()
 		if not is_instance_valid(p) or not p.has_method("es_activo") or p.es_activo():
-			VibrationManager.detener_vibracion_aura(true)
+			vm_des.detener_vibracion_aura(true)
 
 	_aplicar_opacidad(0.0)
 
@@ -259,5 +348,6 @@ func obtener_radio() -> float:
 	return radio_actual
 
 func _exit_tree() -> void:
-	if is_instance_valid(VibrationManager):
-		VibrationManager.detener_vibracion_aura(false)
+	var vm = _obtener_vibration_manager()
+	if vm:
+		vm.detener_vibracion_aura(false)
