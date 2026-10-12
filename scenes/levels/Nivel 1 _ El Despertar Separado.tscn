@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="22_qh0qo"]
 [ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="23_btu23"]
 [ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="24_33yto"]
+[ext_resource type="PackedScene" path="res://scenes/components/plataformas/plataforma_colapso.tscn" id="25_btu23"]
 
 [sub_resource type="Sky" id="Sky_limbo"]
 sky_material = ExtResource("18_cielo_mat")
@@ -89,7 +90,7 @@ size = Vector3(26, 1, 14)
 [sub_resource type="BoxOccluder3D" id="BoxOccluder3D_shared"]
 size = Vector3(26, 1, 14)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_qh0qo"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_33yto"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
@@ -111,23 +112,23 @@ shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_btu23"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_h141t"]
 _surfaces = [{
-"aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.31500056, 0.29917035),
+"aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.26250046, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
 "format": 34359738391,
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
 "vertex_count": 9,
-"vertex_data": PackedByteArray("YKU2vAAAAADbLBm+YKU2PAAAAADbLBk+jTxJPYdoMT40vMA9YKU2vAAAAADbLBm+jTxJPYdoMT40vMA9Z+ANPYdoMT46hc29Z+ANPYdoMT46hc29jTxJPYdoMT40vMA9GXLWPcFHoT5xtP+75bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT")
+"vertex_data": PackedByteArray("YKU2vAAAAADbLBm+YKU2PAAAAADbLBk+jTxJPRvXEz40vMA9YKU2vAAAAADbLBm+jTxJPRvXEz40vMA9Z+ANPRvXEz46hc29Z+ANPRvXEz46hc29jTxJPRvXEz40vMA9GXLWPXZmhj5xtP+75bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT")
 }]
 
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
-custom_aabb = AABB(-26.407606, -3.0103598, -10.188831, 22.915743, 9.613386, 58.166412)
-mesh = SubResource("ArrayMesh_btu23")
+custom_aabb = AABB(-25.986645, -2.8952034, -10.155627, 36.93711, 9.395384, 57.376926)
+mesh = SubResource("ArrayMesh_h141t")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_33yto"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vdlxj"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
@@ -323,13 +324,13 @@ transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 4, 1
 transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 13, 1, 15)
 
 [node name="Arbol_Otono_012" parent="." unique_id=1351562283 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(0.7387715, 0, 0.67395604, 0, 1, 0, -0.67395604, 0, 0.7387715, -10.070206, 2.3841858e-07, 24.668468)
+transform = Transform3D(0.7387715, 0, 0.67395604, 0, 1, 0, -0.67395604, 0, 0.7387715, -7.576876, 2.3841858e-07, 23.996744)
 
 [node name="Arbol_Otono_022" parent="." unique_id=1544037306 instance=ExtResource("20_l6yfi")]
 transform = Transform3D(1.1970356, 0, 0.5070562, 0, 1.3, 0, -0.5070562, 0, 1.1970356, -11.313765, 4.677419, -3.4504228)
 
 [node name="Arbol_Otono_013" parent="." unique_id=780048475 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(0.7606279, 0, 0.64918816, 0, 1, 0, -0.64918816, 0, 0.7606279, -18.768465, -0.015048742, 34.99108)
+transform = Transform3D(0.7606279, 0, 0.64918816, 0, 1, 0, -0.64918816, 0, 0.7606279, -17.994564, -0.015048742, 34.99108)
 
 [node name="Arbol_Otono_023" parent="." unique_id=762732136 instance=ExtResource("20_l6yfi")]
 transform = Transform3D(0.8316468, 0, 0.55530506, 0, 1, 0, -0.55530506, 0, 0.8316468, -18.32655, 0, 20.176563)
@@ -338,7 +339,7 @@ transform = Transform3D(0.8316468, 0, 0.55530506, 0, 1, 0, -0.55530506, 0, 0.831
 transform = Transform3D(1.2053837, 0, -0.48687786, 0, 1.3, 0, 0.48687786, 0, 1.2053837, -9.954235, 0, 14.454281)
 
 [node name="Arbol_Otono_014" parent="." unique_id=962204028 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(1.0823392, 0, -0.1963211, 0, 1.1, 0, 0.1963211, 0, 1.0823392, -6.84248, 0.09794569, 38.374138)
+transform = Transform3D(1.0823392, 0, -0.1963211, 0, 1.1, 0, 0.1963211, 0, 1.0823392, -9.051935, 0.09794569, 33.290108)
 
 [node name="Arbol_Otono_042" parent="." unique_id=250460251 instance=ExtResource("21_l6yfi")]
 transform = Transform3D(0.68684417, 0, 0.98399454, 0, 1.2, 0, -0.98399454, 0, 0.68684417, -17.055035, 0, 10.591643)
@@ -359,13 +360,6 @@ semilla = 53086525
 facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
-habilitar_mesetas_superficie = null
-estilo_mesetas_superficie = null
-cantidad_niveles_meseta = null
-altura_desnivel_mesetas = null
-nitidez_escalon_mesetas = null
-angulo_mesetas = null
-escala_mesetas = null
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
@@ -379,29 +373,21 @@ collision_mask = 0
 preset = 0
 ancho = 7.0
 largo = 7.0
-profundidad_roca = 4.5
+profundidad_roca = 4.0
 irregularidad_contorno = 0.28
 segmentos_perimetro = 18
 anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 1077774039
-dispersion_picos = 0.4
+dispersion_picos = 0.65
 facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 0.54
-habilitar_mesetas_superficie = null
-estilo_mesetas_superficie = null
-cantidad_niveles_meseta = null
-altura_desnivel_mesetas = null
-nitidez_escalon_mesetas = null
-angulo_mesetas = null
-escala_mesetas = null
 generar_faldon_pasto = false
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
-generar_rocas_satelite = false
-cantidad_rocas_satelite = 2
+cantidad_rocas_satelite = 5
 margen_borde = 1.0
 radio_despeje_centro = 0.8
 material_hierba = ExtResource("23_btu23")
@@ -424,13 +410,6 @@ dispersion_picos = 0.8
 facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
-habilitar_mesetas_superficie = null
-estilo_mesetas_superficie = null
-cantidad_niveles_meseta = null
-altura_desnivel_mesetas = null
-nitidez_escalon_mesetas = null
-angulo_mesetas = null
-escala_mesetas = null
 generar_faldon_pasto = false
 longitud_faldon_pasto = 0.8
 vuelo_faldon_pasto = 0.48
@@ -534,6 +513,55 @@ deformaciones_escultura = Array[Dictionary]([{
 "modo": 0,
 "pos": Vector2(5.6972847, 1.9800415),
 "radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-5.4944096, 15.921062),
+"radio": 4.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-5.5590477, 15.801044),
+"radio": 4.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-4.4932537, 13.101883),
+"radio": 4.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-2.9791985, 15.740471),
+"radio": 4.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-6.8104286, 11.68656),
+"radio": 4.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-9.150211, 7.1099415),
+"radio": 4.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(1.8203087, 12.072668),
+"radio": 4.3
 }])
 cantidad_rocas_satelite = 8
 incluir_arboles = false
@@ -545,23 +573,24 @@ material_roca = ExtResource("24_33yto")
 
 [node name="PastoArea" parent="IslaFlotante3" unique_id=1863511703 instance=ExtResource("17_pasto_area")]
 transform = Transform3D(0.82831293, 0, -0.5602657, 0, 1, 0, 0.5602657, 0, 0.82831293, 27.757828, 0, -15.705488)
-material_override = SubResource("ShaderMaterial_qh0qo")
-custom_aabb = AABB(-26.407606, -3.0103598, -10.188831, 22.915743, 9.613386, 58.166412)
+material_override = SubResource("ShaderMaterial_33yto")
+custom_aabb = AABB(-25.986645, -2.8952034, -10.155627, 36.93711, 9.395384, 57.376926)
 visibility_range_end = 0.0
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
-radio_pincel = 3.0
-densidad_pincel = 176
+radio_pincel = 7.9
+densidad_pincel = 349
+pendiente_maxima = 43.0
 evitar_repintar = true
-archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1_datos.res"
+archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1___el_despertar_separado_datos.res"
 solo_pintar_en_objetos = Array[NodePath]([NodePath("../IslaFlotante2"), NodePath("../IslaFlotante3"), NodePath("../IslaFlotante"), NodePath("../PistaEspiritualFantasma/SueloFantasmaBase"), NodePath("../ZonaReunionFinal/SueloFinal"), NodePath("../PistaEspiritualFantasma/PlataformaFantasmaFinal"), NodePath("../IslaFlotante4")])
 cantidad_instancias = 20000
-alto_pasto = 0.30000000000000004
+alto_pasto = 0.25
 ancho_pasto = 0.30000000000000004
 briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_qh0qo")
-material_espiritual = SubResource("ShaderMaterial_33yto")
+material_fisico = SubResource("ShaderMaterial_33yto")
+material_espiritual = SubResource("ShaderMaterial_vdlxj")
 
 [node name="IslaFlotante4" parent="." unique_id=1519213400 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, -7.8753605, 1.5246236, -11.132851)
@@ -579,16 +608,16 @@ semilla = 214170899
 facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
-habilitar_mesetas_superficie = null
-estilo_mesetas_superficie = null
-cantidad_niveles_meseta = null
-altura_desnivel_mesetas = null
-nitidez_escalon_mesetas = null
-angulo_mesetas = null
-escala_mesetas = null
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
 material_hierba = ExtResource("23_btu23")
 material_roca = ExtResource("24_33yto")
+
+[node name="PlataformaColapso" parent="." unique_id=352224896 instance=ExtResource("25_btu23")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.028292, 1.8112636, 24.100475)
+
+[node name="PlataformaEspiritualBase" parent="." unique_id=570642690 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("10_plat_esp")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.86682, 2.7242205, 19.53601)
+disparador_objetivo = NodePath("../Mecanismos/InterruptorAura")
