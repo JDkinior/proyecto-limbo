@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.8` (Build Code `9`)  
+**Versión Actual:** `1.0.9` (Build Code `10`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 11 de Octubre de 2026  
+**Última Actualización:** 12 de Octubre de 2026  
 
 # Documentación Central - Proyecto Limbo
 
@@ -43,6 +43,25 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.9 (12 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Sincronización Bidireccional Isla-Pasto en Tiempo Real (`isla_flotante.gd`, `generador_pasto.gd`)**:
+    *   **Adaptación Reactiva de Vegetación**: Método `adaptar_a_superficie_isla()` en `GeneradorPasto` y `_notificar_generadores_pasto()` en `IslaFlotante`. Cada vez que el usuario esculpe o altera la topografía de una isla, las briznas de hierba se proyectan dinámicamente y se anclan a la nueva cota de altura y normal del terreno sin flotar ni penetrar la roca.
+    *   **Proyección y Azimut Estable**: Mantenimiento estricto del azimut horizontal y escala original de cada brizna durante la adaptación de altura, limitando la inclinación máxima según `pendiente_maxima` para evitar artefactos o briznas acostadas.
+    *   **Ajuste Dinámico de Enterramiento de Raíz**: Función `_ajustar_profundidad_raiz()` y enterramiento configurable para fijar las raíces al nivel del suelo en pendientes pronunciadas.
+*   **Optimizaciones y Nuevos Modos del Plugin Escultor de Islas (`addons/escultor-islas/`)**:
+    *   **Modo Reducir a Base / Retorno Suave (Modo 4)**: Nueva funcionalidad de pincel que restituye progresivamente el relieve alterado a la superficie original del terreno sin cavar hoyos ni generar cráteres bajo el nivel base (`limitar_a_cero`).
+    *   **Suspensión de Malla de Colisión durante Esculpido Continuo**: Evita regenerar pesadas mallas `ConcavePolygonShape3D` en cada frame del trazo; la colisión física final se reconstruye al soltar el clic (`finalizar_arrastre_escultura()`), garantizando fluidez a 60 FPS en el editor.
+    *   **Mayor Muestreo de Anillos de Superficie**: Aumento de subdivisión a un mínimo de 22 anillos de superficie cuando hay montañas o esculpido activo para mayor fidelidad visual.
+*   **Pincel de Pasto y Chunks de Runtime (`addons/pincel-pasto/`, `generador_pasto.gd`, `optimizador_culling.gd`)**:
+    *   **Culling Automático de Chunks Locales**: Reestructuración de `_construir_chunks_runtime()` utilizando centros de chunk locales y `aabb_local`, permitiendo que el frustum culling del motor descarte bloques de hierba fuera de cámara de forma óptima sin desfasar las coordenadas del mundo.
+    *   **Compatibilidad y Exclusión en Culling Global**: Registro del grupo `islas` en `optimizador_culling.gd` para evitar que mallas monolíticas procedimentales sean afectadas erróneamente por reglas de culling no deseadas.
+    *   **Actualización de Nivel 1 ("El Despertar Separado")**:
+        *   Incorporación de `PlataformaColapso` y `PlataformaEspiritualBase` vinculada a `InterruptorAura`.
+        *   Migración de datos de vegetación en el nivel a `scenes/levels/pasto_nivel_1___el_despertar_separado_datos.res`.
+        *   Reajuste de árboles de otoño y radios de pincel sobre islas secundarias.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.8 (11 de Octubre de 2026)
 
