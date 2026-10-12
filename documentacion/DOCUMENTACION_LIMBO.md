@@ -1,6 +1,6 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.9` (Build Code `10`)  
+**Versión Actual:** `1.0.10` (Build Code `11`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
 **Última Actualización:** 12 de Octubre de 2026  
 
@@ -43,6 +43,23 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.10 (12 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Unificación y Polimorfismo de Plataformas en Mallas Procedurales (`isla_flotante.gd`, `plataforma_colapso.gd`, `plataforma_espiritual_base.gd`)**:
+    *   **Arquitectura Polimórfica en Islas**: Integración del enumerador `TipoComportamiento` (`ESTANDAR`, `COLAPSO`, `ESPIRITUAL`) directamente en `IslaFlotante`, permitiendo que cualquier isla procedimental actúe como elemento de gameplay sin necesidad de modelos fijos o rígidos.
+    *   **Refactorización de `PlataformaColapso`**: Ahora hereda de `IslaFlotante` con preconfiguración procedural `COLAPSO`, dotada de ciclo de estremecimiento (`delay_antes_caida`), caída hacia el abismo (`distancia_caida`, `duracion_caida`) y regeneración temporizada (`tiempo_respawn`).
+    *   **Refactorización de `PlataformaEspiritualBase`**: Hereda de `IslaFlotante` con comportamiento `ESPIRITUAL`, conectándose nativamente a disparadores interactivos (`InterruptorAura`, botones, etc.), asignación de Capas físicas (Capa 3 espiritual / Capas 2 y 3 activa) y transición suave de opacidad.
+    *   **Material y Shader Espiritual Procedural (`m_isla_espiritual.tres`, `plataforma_espiritual.gdshader`)**: Shader adaptativo con soporte para desfase vertical (`desfase_y`) y escalado armónico de ondas místicas según la profundidad de la roca.
+*   **Optimizaciones de Alto Rendimiento en el Pincel y Generador de Pasto (`addons/pincel-pasto/`, `generador_pasto.gd`)**:
+    *   **Aceleración Espacial por Grilla Local**: Sistema de hashing espacial con grilla localizada (`_asegurar_grid_local()`), reduciendo drásticamente la búsqueda de briznas cercanas de \(O(N)\) a \(O(1)\) relativo al radio del pincel.
+    *   **Sistema de Snapshots Undo/Redo en Memoria**: Métodos `guardar_snapshot_undo()` y `restaurar_snapshot_undo()` que gestionan arrays ligeros sin clonar o serializar masivamente millones de matrices Transform3D en el histórico de Godot.
+    *   **Interpolación de Trazos y Densidad Adaptativa**: Suavizado de pasos de pincel en movimientos rápidos del ratón (`dist_paso`) y sincronización bidireccional inmediata con los controles visuales.
+*   **Actualizaciones del Nivel 1 ("El Despertar Separado") y Build Android**:
+    *   **Expansión del Escenario**: Nombres canónicos de hitos de nivel (`Isla Inicio`, `Isla Boton`, `Isla Salto 1`, `Isla Previa Salto`, `IslaFlotante5` espiritual), integración de desafíos de plataformeo y ajuste de spawns.
+    *   **Densidad de Vegetación en Alta Fidelidad**: Ampliación del recurso binario `pasto_nivel_1___el_despertar_separado_datos.res` (de 6.09 MB a 14.89 MB) para una cobertura completa y sin fisuras de todas las islas.
+    *   **Exportación Limpia de APK**: Compilación y sincronización del binario actualizado `Proyecto Limbo.apk` (115 MB).
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.9 (12 de Octubre de 2026)
 
