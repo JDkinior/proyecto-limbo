@@ -55,6 +55,8 @@ enum TipoComportamiento {
 signal plataforma_colapsando
 signal plataforma_restaurada
 signal estado_espiritual_cambiado(activo: bool)
+signal aviso_desactivacion_iniciado
+signal aviso_desactivacion_cancelado
 
 @export_group("Tipo de Plataforma y Comportamiento")
 ## Selecciona el comportamiento funcional de la isla:
@@ -122,6 +124,24 @@ signal estado_espiritual_cambiado(activo: bool)
 		_mat_espiritual_instancia = null
 		if tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
 			_actualizar_materiales()
+
+## Si está activo, la plataforma parpadeará antes de desactivarse en lugar de desaparecer de inmediato.
+@export var parpadear_al_desactivar: bool = true
+
+## Cantidad de parpadeos lentos al iniciar el aviso de desactivación.
+@export_range(1, 8, 1) var ciclos_parpadeo_lento: int = 3
+
+## Duración de cada ciclo de parpadeo lento (segundos).
+@export_range(0.2, 2.0, 0.05) var duracion_pulso_lento: float = 0.6
+
+## Cantidad de parpadeos rápidos previos a la desaparición.
+@export_range(2, 12, 1) var ciclos_parpadeo_rapido: int = 5
+
+## Duración de cada ciclo de parpadeo rápido (segundos).
+@export_range(0.08, 0.6, 0.02) var duracion_pulso_rapido: float = 0.2
+
+## Opacidad mínima que alcanza la plataforma durante el parpadeo de aviso.
+@export_range(0.05, 0.8, 0.05) var opacidad_minima_parpadeo: float = 0.2
 
 @export_group("Presets de Tamaño")
 ## Selecciona un preset predefinido o personaliza los parámetros individualmente.
@@ -442,16 +462,34 @@ signal estado_espiritual_cambiado(activo: bool)
 			_solicitar_regeneracion()
 
 @export_group("Materiales")
-## Material estilizado para la superficie superior de hierba dorada.
+## Material estilizado para la superficie superior de hierba dorada (Reino Vivo).
 @export var material_hierba: Material = null:
 	set(valor):
 		material_hierba = valor
 		_actualizar_materiales()
 
-## Material estilizado para el cuerpo rocoso inferior y fragmentos flotantes.
+## Material estilizado para el cuerpo rocoso inferior y fragmentos flotantes (Reino Vivo).
 @export var material_roca: Material = null:
 	set(valor):
 		material_roca = valor
+		_actualizar_materiales()
+
+## Material estilizado para la superficie superior en el Reino Fantasma (azul oscuro grisáceo).
+@export var material_hierba_fantasma: Material = null:
+	set(valor):
+		material_hierba_fantasma = valor
+		_actualizar_materiales()
+
+## Material estilizado para el cuerpo rocoso inferior en el Reino Fantasma (azul oscuro grisáceo).
+@export var material_roca_fantasma: Material = null:
+	set(valor):
+		material_roca_fantasma = valor
+		_actualizar_materiales()
+
+## Permite previsualizar los materiales del Reino Fantasma directamente en el editor 3D.
+@export var vista_fantasma_en_editor: bool = false:
+	set(valor):
+		vista_fantasma_en_editor = valor
 		_actualizar_materiales()
 
 @export_group("Acciones de Edición")
@@ -489,6 +527,8 @@ var _global_transform_anterior: Transform3D = Transform3D.IDENTITY
 const MAT_HIERBA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba.tres")
 const MAT_ROCA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_roca.tres")
 const MAT_ESPIRITUAL_DEFAULT = preload("res://assets/materiales/entorno/m_isla_espiritual.tres")
+const MAT_HIERBA_FANTASMA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba_fantasma.tres")
+const MAT_ROCA_FANTASMA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_roca_fantasma.tres")
 
 # Variables internas para modo Colapso
 var _estado_colapso: String = "normal"   # "normal", "temblando", "caida", "oculta"
@@ -502,8 +542,15 @@ var esta_activo: bool = false
 var _estados_disparadores: Dictionary = {}
 var _mat_espiritual_instancia: ShaderMaterial = null
 var _tween_opacidad: Tween = null
+var _tween_aviso: Tween = null
+var _fase_aviso_activa: bool = false
 var _opacidad_actual: float = 1.0
 var _materiales_cacheados: Dictionary = {}
+
+## Retorna true si la plataforma se encuentra en la secuencia de parpadeo previo a desactivarse.
+var esta_en_aviso_desactivacion: bool:
+	get:
+		return _fase_aviso_activa
 
 # Paleta cromática oficial de Proyecto Limbo
 # Pasto / Césped dorado: calibrado para integrarse con pasto_fisico_mat.tres y pasto_estilizado.gdshader
@@ -559,6 +606,15 @@ func _ready() -> void:
 	_global_transform_anterior = global_transform
 
 	if not Engine.is_editor_hint():
+		var red_mgr = get_node_or_null("/root/RedManager")
+		if is_instance_valid(red_mgr):
+			if red_mgr.has_signal("reino_cambiado") and not red_mgr.reino_cambiado.is_connected(_on_reino_cambiado):
+				red_mgr.reino_cambiado.connect(_on_reino_cambiado)
+			if red_mgr.has_signal("personaje_solo_cambiado") and not red_mgr.personaje_solo_cambiado.is_connected(_on_personaje_cambiado):
+				red_mgr.personaje_solo_cambiado.connect(_on_personaje_cambiado)
+		_actualizar_materiales()
+		_actualizar_materiales.call_deferred()
+
 		match tipo_comportamiento:
 			TipoComportamiento.COLAPSO:
 				_asegurar_area_colapso()
@@ -570,12 +626,51 @@ func _ready() -> void:
 				collision_layer = 1
 				collision_mask = 0
 	else:
+		_actualizar_materiales()
 		if tipo_comportamiento == TipoComportamiento.COLAPSO:
 			_asegurar_area_colapso()
 		elif tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
 			collision_layer = 1 << 2
 			collision_mask = 1 << 2
-			_actualizar_materiales()
+
+
+func _on_reino_cambiado(_es_fantasma: bool) -> void:
+	_actualizar_materiales()
+
+
+func _on_personaje_cambiado(_nuevo_pj: String) -> void:
+	_actualizar_materiales()
+
+
+func _detectar_es_fantasma() -> bool:
+	if Engine.is_editor_hint():
+		return vista_fantasma_en_editor
+
+	var red_mgr = get_node_or_null("/root/RedManager")
+	if is_instance_valid(red_mgr):
+		if red_mgr.has_method("es_reino_espiritual_activo"):
+			return red_mgr.es_reino_espiritual_activo()
+		if "es_un_jugador" in red_mgr and red_mgr.es_un_jugador and "personaje_activo_solo" in red_mgr:
+			return red_mgr.personaje_activo_solo == "fantasma"
+		if "peer_personajes" in red_mgr and red_mgr.has_method("get_mi_peer_id"):
+			var mi_id = red_mgr.get_mi_peer_id()
+			if red_mgr.peer_personajes.has(mi_id):
+				return red_mgr.peer_personajes[mi_id] == "fantasma"
+
+	var cam = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if is_instance_valid(cam):
+		if cam.name.contains("Transicion"):
+			if is_instance_valid(red_mgr) and "transicion_en_progreso" in red_mgr and red_mgr.transicion_en_progreso:
+				return (cam.cull_mask & (1 << 2)) != 0
+		var nodo = cam.get_parent()
+		while is_instance_valid(nodo):
+			if nodo.is_in_group("fantasmas") or nodo.name.to_lower().contains("fantasma"):
+				return true
+			if nodo.is_in_group("vivos") or nodo.name.to_lower().contains("jugador") or nodo.name.to_lower().contains("vivo"):
+				return false
+			nodo = nodo.get_parent()
+
+	return false
 
 
 func _notification(what: int) -> void:
@@ -1232,9 +1327,19 @@ func _actualizar_materiales() -> void:
 			_mesh_instance.set_surface_override_material(1, _mat_espiritual_instancia)
 		return
 
-	var mat_roca = material_roca if material_roca != null else MAT_ROCA_DEFAULT
+	var es_fant := _detectar_es_fantasma()
+
+	var mat_roca: Material
+	var mat_pasto: Material
+
+	if es_fant:
+		mat_roca = material_roca_fantasma if material_roca_fantasma != null else MAT_ROCA_FANTASMA_DEFAULT
+		mat_pasto = material_hierba_fantasma if material_hierba_fantasma != null else MAT_HIERBA_FANTASMA_DEFAULT
+	else:
+		mat_roca = material_roca if material_roca != null else MAT_ROCA_DEFAULT
+		mat_pasto = material_hierba if material_hierba != null else MAT_HIERBA_DEFAULT
+
 	if generar_pasto:
-		var mat_pasto = material_hierba if material_hierba != null else MAT_HIERBA_DEFAULT
 		_mesh_instance.set_surface_override_material(0, mat_pasto)
 		_mesh_instance.set_surface_override_material(1, mat_roca)
 	else:
@@ -1935,24 +2040,97 @@ func actualizar_comportamiento(activo: bool) -> void:
 	if tipo_comportamiento != TipoComportamiento.ESPIRITUAL:
 		return
 
+	if not activo and esta_congelada:
+		return
+
+	var era_tangible_vivo = esta_activo or _fase_aviso_activa
 	esta_activo = activo
+
 	if activo:
+		_cancelar_aviso_desactivacion()
 		# Activa: sólida para el Vivo (Capa 2) y el Fantasma (Capa 3)
 		collision_layer = (1 << 1) | (1 << 2)
 		collision_mask = (1 << 1) | (1 << 2)
 		_transicionar_opacidad_espiritual(opacidad_activa)
+		estado_espiritual_cambiado.emit(true)
 	else:
-		# Inactiva: intangible para el Vivo, pero sólida para el Fantasma (Capa 3)
-		collision_layer = 1 << 2
-		collision_mask = 1 << 2
-		_transicionar_opacidad_espiritual(opacidad_inactiva)
+		if _fase_aviso_activa:
+			return # Ya está en progreso la secuencia de aviso
+		if era_tangible_vivo and parpadear_al_desactivar and is_inside_tree() and not Engine.is_editor_hint():
+			_iniciar_aviso_desactivacion()
+		else:
+			_cancelar_aviso_desactivacion()
+			# Inactiva: intangible para el Vivo, pero sólida para el Fantasma (Capa 3)
+			collision_layer = 1 << 2
+			collision_mask = 1 << 2
+			_transicionar_opacidad_espiritual(opacidad_inactiva)
+			estado_espiritual_cambiado.emit(false)
 
-	estado_espiritual_cambiado.emit(activo)
+
+func _iniciar_aviso_desactivacion() -> void:
+	_cancelar_aviso_desactivacion()
+	_fase_aviso_activa = true
+	aviso_desactivacion_iniciado.emit()
+
+	# Asegurar solidez física para ambos personajes durante todo el aviso
+	collision_layer = (1 << 1) | (1 << 2)
+	collision_mask = (1 << 1) | (1 << 2)
+
+	_tween_aviso = create_tween()
+	_tween_aviso.set_trans(Tween.TRANS_SINE)
+	_tween_aviso.set_ease(Tween.EASE_IN_OUT)
+
+	var opac_alta = opacidad_activa
+	var opac_baja = clampf(opacidad_minima_parpadeo, 0.0, opac_alta * 0.85)
+
+	# 1. PARPADEO LENTO (Aviso inicial espaciado con fade suave)
+	var medio_lento = maxf(0.06, duracion_pulso_lento * 0.5)
+	for i in range(ciclos_parpadeo_lento):
+		_tween_aviso.tween_method(_aplicar_opacidad_espiritual, opac_alta, opac_baja, medio_lento)
+		_tween_aviso.tween_method(_aplicar_opacidad_espiritual, opac_baja, opac_alta, medio_lento)
+
+	# 2. PARPADEO RÁPIDO (Aviso urgente acelerado con fade rápido)
+	var medio_rapido = maxf(0.03, duracion_pulso_rapido * 0.5)
+	for i in range(ciclos_parpadeo_rapido):
+		_tween_aviso.tween_method(_aplicar_opacidad_espiritual, opac_alta, opac_baja, medio_rapido)
+		_tween_aviso.tween_method(_aplicar_opacidad_espiritual, opac_baja, opac_alta, medio_rapido)
+
+	# 3. FADE FINAL A ESTADO INACTIVO Y DESACTIVACIÓN DEFINITIVA
+	_tween_aviso.tween_method(_aplicar_opacidad_espiritual, opac_alta, opacidad_inactiva, 0.4)
+	_tween_aviso.tween_callback(_finalizar_desactivacion_espiritual)
+
+
+func _finalizar_desactivacion_espiritual() -> void:
+	_fase_aviso_activa = false
+	# Ahora sí se vuelve intangible para el Vivo, pero permanece sólida para el Fantasma (Capa 3)
+	collision_layer = 1 << 2
+	collision_mask = 1 << 2
+	_aplicar_opacidad_espiritual(opacidad_inactiva)
+	estado_espiritual_cambiado.emit(false)
+
+
+func _cancelar_aviso_desactivacion() -> void:
+	if _tween_aviso and _tween_aviso.is_valid():
+		_tween_aviso.kill()
+	_tween_aviso = null
+	if _fase_aviso_activa:
+		_fase_aviso_activa = false
+		aviso_desactivacion_cancelado.emit()
+
+
+## Retorna si la plataforma es actualmente tangible para el jugador Vivo (activa o en fase de aviso)
+func esta_tangible_para_vivo() -> bool:
+	return (collision_layer & (1 << 1)) != 0
 
 
 func _transicionar_opacidad_espiritual(opacidad_meta: float) -> void:
+	if _tween_aviso and _tween_aviso.is_valid():
+		_tween_aviso.kill()
+		_tween_aviso = null
+
 	if _tween_opacidad and _tween_opacidad.is_valid():
 		_tween_opacidad.kill()
+		_tween_opacidad = null
 
 	if not is_inside_tree() or Engine.is_editor_hint():
 		_aplicar_opacidad_espiritual(opacidad_meta)
@@ -1973,7 +2151,6 @@ func _aplicar_opacidad_espiritual(opacidad: float) -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func rpc_sincronizar_estado(activo: bool) -> void:
-	esta_activo = activo
 	actualizar_comportamiento(activo)
 	print("[%s] Sincronización P2P: Estado general actualizado a -> %s" % [name, "ACTIVO" if activo else "INACTIVO"])
 
@@ -1994,7 +2171,7 @@ func _on_disparador_estado_cambiado(disp: Node3D, activo: bool) -> void:
 				condicion_cumplida = false
 				break
 
-	if condicion_cumplida != esta_activo:
+	if condicion_cumplida != esta_activo or (condicion_cumplida and _fase_aviso_activa):
 		if multiplayer and multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
 			rpc_sincronizar_estado.rpc(condicion_cumplida)
 		else:
@@ -2149,10 +2326,18 @@ func _restaurar_colapso() -> void:
 
 func congelar_estasis(_duracion: float = 0.0) -> void:
 	esta_congelada = true
+	if _tween_aviso and _tween_aviso.is_valid():
+		_tween_aviso.pause()
+	if _tween_opacidad and _tween_opacidad.is_valid():
+		_tween_opacidad.pause()
 
 
 func descongelar_estasis() -> void:
 	esta_congelada = false
+	if _tween_aviso and _tween_aviso.is_valid():
+		_tween_aviso.play()
+	if _tween_opacidad and _tween_opacidad.is_valid():
+		_tween_opacidad.play()
 
 
 func _procesar_fisica_colapso(delta: float) -> void:

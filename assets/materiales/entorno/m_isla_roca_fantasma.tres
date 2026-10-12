@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://shaders/entorno/isla_fantasma.gdshader" id="1_isla_shader"]
+
+[resource]
+resource_name = "m_isla_roca_fantasma"
+render_priority = 0
+shader = ExtResource("1_isla_shader")
+shader_parameter/color_base = Color(0.065, 0.11, 0.18, 1)
+shader_parameter/color_resalte = Color(0.13, 0.19, 0.29, 1)
+shader_parameter/rugosidad = 0.88
+shader_parameter/fuerza_variacion = 1.0
+shader_parameter/color_emision = Color(0, 0, 0, 1)
+shader_parameter/energia_emision = 0.0
