@@ -21,6 +21,9 @@
 [ext_resource type="PackedScene" uid="uid://dxnm72i57ht5d" path="res://scenes/entorno/arboles/arbol_2.tscn" id="20_l6yfi"]
 [ext_resource type="PackedScene" uid="uid://bsprnrvdshlv1" path="res://scenes/entorno/arboles/arbol_3.tscn" id="21_eo0eg"]
 [ext_resource type="PackedScene" uid="uid://c7v4m1arbol04" path="res://scenes/entorno/arboles/arbol_4.tscn" id="21_l6yfi"]
+[ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="22_qh0qo"]
+[ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="23_btu23"]
+[ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="24_33yto"]
 
 [sub_resource type="Sky" id="Sky_limbo"]
 sky_material = ExtResource("18_cielo_mat")
@@ -44,30 +47,6 @@ fog_density = 0.008
 fog_sky_affect = 0.35
 fog_height_density = 1.0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_vivo"]
-albedo_color = Color(0.55, 0.44, 0.32, 1)
-roughness = 0.88
-
-[sub_resource type="BoxMesh" id="BoxMesh_floor_vivo_main"]
-material = SubResource("StandardMaterial3D_floor_vivo")
-size = Vector3(10, 1, 12)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor_vivo_main"]
-size = Vector3(10, 1, 12)
-
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_floor_vivo"]
-size = Vector3(10, 1, 12)
-
-[sub_resource type="BoxMesh" id="BoxMesh_step_vivo"]
-material = SubResource("StandardMaterial3D_floor_vivo")
-size = Vector3(6, 1.2, 6)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_step_vivo"]
-size = Vector3(6, 1.2, 6)
-
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_step"]
-size = Vector3(6, 1.2, 6)
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_fantasma"]
 albedo_color = Color(0.1, 0.15, 0.32, 1)
 roughness = 0.88
@@ -82,23 +61,19 @@ size = Vector3(10, 1, 10)
 [sub_resource type="BoxOccluder3D" id="BoxOccluder3D_floor_fantasma"]
 size = Vector3(10, 1, 10)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wall"]
-albedo_color = Color(0.38, 0.34, 0.3, 1)
-roughness = 0.9
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_vivo"]
+albedo_color = Color(0.54901963, 0.4392157, 0.32156864, 1)
+roughness = 0.88
 
-[sub_resource type="BoxMesh" id="BoxMesh_outer_wall"]
-material = SubResource("StandardMaterial3D_wall")
-size = Vector3(1, 10, 58)
+[sub_resource type="BoxMesh" id="BoxMesh_step_vivo"]
+material = SubResource("StandardMaterial3D_floor_vivo")
+size = Vector3(6, 1.2, 6)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_outer_wall"]
-size = Vector3(1, 10, 58)
+[sub_resource type="BoxShape3D" id="BoxShape3D_step_vivo"]
+size = Vector3(6, 1.2, 6)
 
-[sub_resource type="BoxMesh" id="BoxMesh_back_wall"]
-material = SubResource("StandardMaterial3D_wall")
-size = Vector3(28, 10, 1)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_back_wall"]
-size = Vector3(28, 10, 1)
+[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_step"]
+size = Vector3(6, 1.2, 6)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shared"]
 albedo_color = Color(0.35, 0.42, 0.48, 1)
@@ -114,7 +89,7 @@ size = Vector3(26, 1, 14)
 [sub_resource type="BoxOccluder3D" id="BoxOccluder3D_shared"]
 size = Vector3(26, 1, 14)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_l6yfi"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qh0qo"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
@@ -136,7 +111,7 @@ shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_eo0eg"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_btu23"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.31500056, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
@@ -149,10 +124,10 @@ _surfaces = [{
 
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
-custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.998896, 8.485627, 57.999653)
-mesh = SubResource("ArrayMesh_eo0eg")
+custom_aabb = AABB(-26.407606, -3.0103598, -10.188831, 22.915743, 9.613386, 58.166412)
+mesh = SubResource("ArrayMesh_btu23")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dkxh6"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_33yto"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
@@ -187,62 +162,11 @@ transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545
 light_color = Color(1, 0.94, 0.82, 1)
 light_energy = 1.25
 shadow_enabled = true
-shadow_bias = 0.04
-shadow_blur = 1.2
+shadow_bias = 0.02
+shadow_blur = 0.8
 directional_shadow_max_distance = 60.0
 
 [node name="PistaFisicaVivo" type="StaticBody3D" parent="." unique_id=1663221025]
-
-[node name="SueloVivoBase" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1469584942]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, -0.5, 0)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/SueloVivoBase" unique_id=1504869772]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
-mesh = SubResource("BoxMesh_floor_vivo_main")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/SueloVivoBase" unique_id=1428321066]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
-shape = SubResource("BoxShape3D_floor_vivo_main")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PistaFisicaVivo/SueloVivoBase" unique_id=1025723326]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 16)
-occluder = SubResource("BoxOccluder3D_floor_vivo")
-
-[node name="EscalonDobleSalto1" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1919712292]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.1, 6)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/EscalonDobleSalto1" unique_id=1892513955]
-mesh = SubResource("BoxMesh_step_vivo")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/EscalonDobleSalto1" unique_id=1012115861]
-shape = SubResource("BoxShape3D_step_vivo")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PistaFisicaVivo/EscalonDobleSalto1" unique_id=2022895864]
-occluder = SubResource("BoxOccluder3D_step")
-
-[node name="PlataformaBotonVivo" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=1129236415]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 5.785627, -2)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/PlataformaBotonVivo" unique_id=579618033]
-mesh = SubResource("BoxMesh_step_vivo")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/PlataformaBotonVivo" unique_id=1579110407]
-shape = SubResource("BoxShape3D_step_vivo")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PistaFisicaVivo/PlataformaBotonVivo" unique_id=1555122434]
-occluder = SubResource("BoxOccluder3D_step")
-
-[node name="PlataformaVivoFinal" type="StaticBody3D" parent="PistaFisicaVivo" unique_id=2061316670]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.1, -11)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaFisicaVivo/PlataformaVivoFinal" unique_id=1606157527]
-mesh = SubResource("BoxMesh_step_vivo")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaFisicaVivo/PlataformaVivoFinal" unique_id=1806954634]
-shape = SubResource("BoxShape3D_step_vivo")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PistaFisicaVivo/PlataformaVivoFinal" unique_id=729895638]
-occluder = SubResource("BoxOccluder3D_step")
 
 [node name="Torbellino" parent="PistaFisicaVivo" unique_id=284910291 instance=ExtResource("3_b8igg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6015902, 4.116784, 3.382658)
@@ -305,53 +229,10 @@ shape = SubResource("BoxShape3D_step_vivo")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
 occluder = SubResource("BoxOccluder3D_step")
 
-[node name="ParedesYLimites" type="Node3D" parent="." unique_id=1378627366]
-visible = false
-
-[node name="ParedIzquierda" type="StaticBody3D" parent="ParedesYLimites" unique_id=137759377]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 4.5, -5)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedIzquierda" unique_id=1738791409]
-transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
-mesh = SubResource("BoxMesh_outer_wall")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedIzquierda" unique_id=614017027]
-shape = SubResource("BoxShape3D_outer_wall")
-
-[node name="ParedDerecha" type="StaticBody3D" parent="ParedesYLimites" unique_id=1088908097]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 4.5, -5)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedDerecha" unique_id=289903042]
-transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
-mesh = SubResource("BoxMesh_outer_wall")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedDerecha" unique_id=511177217]
-shape = SubResource("BoxShape3D_outer_wall")
-
-[node name="ParedTrasera" type="StaticBody3D" parent="ParedesYLimites" unique_id=402997194]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 22.5)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedTrasera" unique_id=1957488163]
-transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
-mesh = SubResource("BoxMesh_back_wall")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedTrasera" unique_id=931043360]
-shape = SubResource("BoxShape3D_back_wall")
-
-[node name="ParedFondoMeta" type="StaticBody3D" parent="ParedesYLimites" unique_id=1373201544]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -34.5)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="ParedesYLimites/ParedFondoMeta" unique_id=62389753]
-transform = Transform3D(1, 0, 0, 0, 1.7, 0, 0, 0, 1, 0, 0, 0)
-mesh = SubResource("BoxMesh_back_wall")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="ParedesYLimites/ParedFondoMeta" unique_id=1165157373]
-shape = SubResource("BoxShape3D_back_wall")
-
 [node name="Mecanismos" type="Node3D" parent="." unique_id=262988224]
 
 [node name="BotonPresion" parent="Mecanismos" unique_id=2060207190 instance=ExtResource("5_boton")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 6.9629736, -2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.656605, 5.384995, -1.8988495)
 
 [node name="InterruptorAura" parent="Mecanismos" unique_id=491294744 instance=ExtResource("6_interruptor")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.7, -13)
@@ -387,13 +268,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -28)
 [node name="Coleccionables" type="Node3D" parent="." unique_id=720165543]
 
 [node name="MonedaVivo1" parent="Coleccionables" unique_id=935568042 instance=ExtResource("8_moneda_vivo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.2, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.568068, 1.2, 29.973156)
 
 [node name="MonedaVivo2" parent="Coleccionables" unique_id=148956923 instance=ExtResource("8_moneda_vivo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3.8, 6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.196907, 2.7633646, 7.0112953)
 
 [node name="MonedaVivo3" parent="Coleccionables" unique_id=1064851329 instance=ExtResource("8_moneda_vivo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 8.485627, -2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.6279335, 6.9076486, -2)
 
 [node name="MonedaVivo4" parent="Coleccionables" unique_id=2137979987 instance=ExtResource("8_moneda_vivo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.8, -11)
@@ -411,7 +292,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6.9137144, -0.92764914)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 2.8, -13)
 
 [node name="Jugador" parent="." unique_id=1660849217 instance=ExtResource("2_jugador")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1, 18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.629795, 1, 34.943245)
 LIMITE_CAIDA_Y = -8.0
 
 [node name="Fantasma" parent="." unique_id=880578793 instance=ExtResource("3_fantasma")]
@@ -421,19 +302,19 @@ LIMITE_CAIDA_Y = -8.0
 [node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]
 
 [node name="Farol" parent="." unique_id=1573612018 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -9.917905, 0.5, 12.594692)
+transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -17.486172, 0.5, 13.906996)
 
 [node name="Farol2" parent="." unique_id=467421392 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.99841785, 0, 0.05623123, 0, 1, 0, -0.05623123, 0, 0.99841785, -6.1084905, 0.5, 12.880135)
+transform = Transform3D(0.99841785, 0, 0.05623123, 0, 1, 0, -0.05623123, 0, 0.99841785, -10.485453, 0.5, 17.159838)
 
 [node name="Farol5" parent="." unique_id=193381668 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.89095795, 0, -0.4540859, 0, 1, 0, 0.4540859, 0, 0.89095795, -10.146921, 0.5600474, 17.470222)
+transform = Transform3D(0.89095795, 0, -0.4540859, 0, 1, 0, 0.4540859, 0, 0.89095795, -10.146921, 0.5600474, 13.419472)
 
 [node name="Farol4" parent="." unique_id=535821072 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, -5.529167, 0.5, 17.451921)
+transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, -18.952553, 0.5, 30.494598)
 
 [node name="Farol3" parent="." unique_id=967621521 instance=ExtResource("16_0m24d")]
-transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -5.6000004, 3.1999998, 5.383259)
+transform = Transform3D(0.9659258, 0, -0.25881904, 0, 1, 0, 0.25881904, 0, 0.9659258, -10.824155, 1.934897, 6.3183093)
 
 [node name="Cristales" parent="." unique_id=1793408612 instance=ExtResource("16_r2ia1")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 4, 1, 14)
@@ -441,43 +322,273 @@ transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 4, 1
 [node name="Cristales2" parent="." unique_id=2084611063 instance=ExtResource("16_r2ia1")]
 transform = Transform3D(0.8660254, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660254, 13, 1, 15)
 
-[node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
-material_override = SubResource("ShaderMaterial_l6yfi")
-custom_aabb = AABB(-13.999345, -0.5000001, -34.99979, 27.998896, 8.485627, 57.999653)
+[node name="Arbol_Otono_012" parent="." unique_id=1351562283 instance=ExtResource("18_f8u8v")]
+transform = Transform3D(0.7387715, 0, 0.67395604, 0, 1, 0, -0.67395604, 0, 0.7387715, -10.070206, 2.3841858e-07, 24.668468)
+
+[node name="Arbol_Otono_022" parent="." unique_id=1544037306 instance=ExtResource("20_l6yfi")]
+transform = Transform3D(1.1970356, 0, 0.5070562, 0, 1.3, 0, -0.5070562, 0, 1.1970356, -11.313765, 4.677419, -3.4504228)
+
+[node name="Arbol_Otono_013" parent="." unique_id=780048475 instance=ExtResource("18_f8u8v")]
+transform = Transform3D(0.7606279, 0, 0.64918816, 0, 1, 0, -0.64918816, 0, 0.7606279, -18.768465, -0.015048742, 34.99108)
+
+[node name="Arbol_Otono_023" parent="." unique_id=762732136 instance=ExtResource("20_l6yfi")]
+transform = Transform3D(0.8316468, 0, 0.55530506, 0, 1, 0, -0.55530506, 0, 0.8316468, -18.32655, 0, 20.176563)
+
+[node name="Arbol_Otono_032" parent="." unique_id=2081343474 instance=ExtResource("21_eo0eg")]
+transform = Transform3D(1.2053837, 0, -0.48687786, 0, 1.3, 0, 0.48687786, 0, 1.2053837, -9.954235, 0, 14.454281)
+
+[node name="Arbol_Otono_014" parent="." unique_id=962204028 instance=ExtResource("18_f8u8v")]
+transform = Transform3D(1.0823392, 0, -0.1963211, 0, 1.1, 0, 0.1963211, 0, 1.0823392, -6.84248, 0.09794569, 38.374138)
+
+[node name="Arbol_Otono_042" parent="." unique_id=250460251 instance=ExtResource("21_l6yfi")]
+transform = Transform3D(0.68684417, 0, 0.98399454, 0, 1.2, 0, -0.98399454, 0, 0.68684417, -17.055035, 0, 10.591643)
+
+[node name="IslaFlotante2" parent="." unique_id=1212818058 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(-0.88400203, 0, -0.4674831, 0, 1, 0, 0.4674831, 0, -0.88400203, -9.03509, 1.5046937, 6.650133)
+collision_mask = 0
+preset = 0
+ancho = 5.0
+largo = 5.0
+profundidad_roca = 2.0
+irregularidad_contorno = 0.28
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.35
+semilla = 53086525
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 1.0
+habilitar_mesetas_superficie = null
+estilo_mesetas_superficie = null
+cantidad_niveles_meseta = null
+altura_desnivel_mesetas = null
+nitidez_escalon_mesetas = null
+angulo_mesetas = null
+escala_mesetas = null
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="IslaFlotante" parent="." unique_id=737052312 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.96617234, 0, 0.25789732, 0, 1, 0, -0.25789732, 0, 0.96617234, -9.757652, 4.831658, -2.1963902)
+collision_mask = 0
+preset = 0
+ancho = 7.0
+largo = 7.0
+profundidad_roca = 4.5
+irregularidad_contorno = 0.28
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.35
+semilla = 1077774039
+dispersion_picos = 0.4
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 0.54
+habilitar_mesetas_superficie = null
+estilo_mesetas_superficie = null
+cantidad_niveles_meseta = null
+altura_desnivel_mesetas = null
+nitidez_escalon_mesetas = null
+angulo_mesetas = null
+escala_mesetas = null
+generar_faldon_pasto = false
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+generar_rocas_satelite = false
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="IslaFlotante3" parent="." unique_id=995727014 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.96127975, 0, 0.27557448, 0, 1, 0, -0.27557448, 0, 0.96127975, -13.215503, 0, 24.35235)
+collision_mask = 0
+preset = 0
+ancho = 22.0
+largo = 26.0
+profundidad_roca = 8.0
+irregularidad_contorno = 0.2
+segmentos_perimetro = 30
+anillos_superficie = 8
+intensidad_variacion = 0.22
+semilla = 2871983090
+cantidad_picos_rocosos = 4
+dispersion_picos = 0.8
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 1.0
+habilitar_mesetas_superficie = null
+estilo_mesetas_superficie = null
+cantidad_niveles_meseta = null
+altura_desnivel_mesetas = null
+nitidez_escalon_mesetas = null
+angulo_mesetas = null
+escala_mesetas = null
+generar_faldon_pasto = false
+longitud_faldon_pasto = 0.8
+vuelo_faldon_pasto = 0.48
+activar_pincel_terreno = true
+forma_pincel_terreno = 2
+radio_pincel_terreno = 4.3
+fuerza_pincel_terreno = 0.7
+deformaciones_escultura = Array[Dictionary]([{
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(8.769962, -4.276539),
+"radio": 8.1
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 1,
+"pos": Vector2(11.674133, 3.0653992),
+"radio": 8.1
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(6.362215, 4.374649),
+"radio": 8.1
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-7.749851, 14.53027),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-6.2597733, 15.841137),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-5.749199, 16.48315),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-2.2582893, 16.159752),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-6.4057693, -8.892803),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-4.342428, -8.574461),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-2.6576004, -8.505989),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-10.241268, -4.5241604),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-10.394848, -3.4086266),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(-4.3366528, -2.724638),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(8.3645735, -5.79401),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(7.798092, -0.82042503),
+"radio": 5.3
+}, {
+"forma": 2,
+"fuerza": 0.7,
+"modo": 0,
+"pos": Vector2(5.6972847, 1.9800415),
+"radio": 5.3
+}])
+cantidad_rocas_satelite = 8
+incluir_arboles = false
+incluir_cristales = false
+margen_borde = 2.0
+radio_despeje_centro = 1.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="PastoArea" parent="IslaFlotante3" unique_id=1863511703 instance=ExtResource("17_pasto_area")]
+transform = Transform3D(0.82831293, 0, -0.5602657, 0, 1, 0, 0.5602657, 0, 0.82831293, 27.757828, 0, -15.705488)
+material_override = SubResource("ShaderMaterial_qh0qo")
+custom_aabb = AABB(-26.407606, -3.0103598, -10.188831, 22.915743, 9.613386, 58.166412)
 visibility_range_end = 0.0
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
-radio_pincel = 0.7
-densidad_pincel = 45
-forma_pincel = 2
+radio_pincel = 3.0
+densidad_pincel = 176
 evitar_repintar = true
 archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1_datos.res"
-solo_pintar_en_objetos = Array[NodePath]([NodePath("../PistaFisicaVivo/EscalonDobleSalto1"), NodePath("../PistaFisicaVivo/SueloVivoBase"), NodePath("../PistaFisicaVivo/PlataformaBotonVivo"), NodePath("../PistaEspiritualFantasma/SueloFantasmaBase"), NodePath("../ZonaReunionFinal/SueloFinal"), NodePath("../PistaEspiritualFantasma/PlataformaFantasmaFinal"), NodePath("../PistaFisicaVivo/PlataformaVivoFinal")])
+solo_pintar_en_objetos = Array[NodePath]([NodePath("../IslaFlotante2"), NodePath("../IslaFlotante3"), NodePath("../IslaFlotante"), NodePath("../PistaEspiritualFantasma/SueloFantasmaBase"), NodePath("../ZonaReunionFinal/SueloFinal"), NodePath("../PistaEspiritualFantasma/PlataformaFantasmaFinal"), NodePath("../IslaFlotante4")])
 cantidad_instancias = 20000
 alto_pasto = 0.30000000000000004
 ancho_pasto = 0.30000000000000004
 briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_l6yfi")
-material_espiritual = SubResource("ShaderMaterial_dkxh6")
+material_fisico = SubResource("ShaderMaterial_qh0qo")
+material_espiritual = SubResource("ShaderMaterial_33yto")
 
-[node name="Arbol_Otono_012" parent="." unique_id=1351562283 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(0.7387715, 0, 0.67395604, 0, 1, 0, -0.67395604, 0, 0.7387715, -10.629364, 2.3841858e-07, 10.993183)
-
-[node name="Arbol_Otono_022" parent="." unique_id=1544037306 instance=ExtResource("20_l6yfi")]
-transform = Transform3D(1.1970356, 0, 0.5070562, 0, 1.3, 0, -0.5070562, 0, 1.1970356, -9.885283, 6.598034, -3.8451467)
-
-[node name="Arbol_Otono_013" parent="." unique_id=780048475 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(0.7606279, 0, 0.64918816, 0, 1, 0, -0.64918816, 0, 0.7606279, -11.431809, -0.015048742, 18.339758)
-
-[node name="Arbol_Otono_023" parent="." unique_id=762732136 instance=ExtResource("20_l6yfi")]
-transform = Transform3D(0.8316468, 0, 0.55530506, 0, 1, 0, -0.55530506, 0, 0.8316468, -4.6521053, 0, 15.021712)
-
-[node name="Arbol_Otono_032" parent="." unique_id=2081343474 instance=ExtResource("21_eo0eg")]
-transform = Transform3D(1.2053837, 0, -0.48687786, 0, 1.3, 0, 0.48687786, 0, 1.2053837, -5.212906, 0, 10.924573)
-
-[node name="Arbol_Otono_014" parent="." unique_id=962204028 instance=ExtResource("18_f8u8v")]
-transform = Transform3D(1.0823392, 0, -0.1963211, 0, 1.1, 0, 0.1963211, 0, 1.0823392, -4.0964713, 0.09794569, 18.3605)
-
-[node name="Arbol_Otono_042" parent="." unique_id=250460251 instance=ExtResource("21_l6yfi")]
-transform = Transform3D(0.68684417, 0, 0.98399454, 0, 1.2, 0, -0.98399454, 0, 0.68684417, -11.413217, 0, 14.642394)
+[node name="IslaFlotante4" parent="." unique_id=1519213400 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, -7.8753605, 1.5246236, -11.132851)
+collision_mask = 0
+preset = 0
+ancho = 5.0
+largo = 5.0
+profundidad_roca = 2.0
+irregularidad_contorno = 0.28
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.35
+semilla = 214170899
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 1.0
+habilitar_mesetas_superficie = null
+estilo_mesetas_superficie = null
+cantidad_niveles_meseta = null
+altura_desnivel_mesetas = null
+nitidez_escalon_mesetas = null
+angulo_mesetas = null
+escala_mesetas = null
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
