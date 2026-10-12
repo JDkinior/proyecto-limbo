@@ -82,6 +82,11 @@ static func _optimizar_multimesh(mm: MultiMeshInstance3D) -> void:
 	# El pasto no necesita proyectar sombras sobre sí mismo ni sobre el mundo
 	mm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	
+	# Si es un GeneradorPasto en modo chunks (modo_distribucion == 0), no restringir el contenedor raíz
+	# porque sus chunks hijos ya gestionan individualmente su propia distancia de dibujado.
+	if mm is GeneradorPasto and mm.modo_distribucion == 0:
+		return
+
 	# Si no tiene configurado un rango de visibilidad, asignarle uno de alto rendimiento con corte limpio
 	if mm.visibility_range_end == 0.0:
 		mm.visibility_range_end = RANGO_VISIBILIDAD_PASTO

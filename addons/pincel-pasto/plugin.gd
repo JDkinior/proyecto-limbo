@@ -54,6 +54,9 @@ var _chk_no_repintar: CheckBox = null
 var _btn_guardar_pincel: Button = null
 var _btn_borrar_pincel: Button = null
 var _btn_limpiar: Button = null
+var _spin_pendiente: SpinBox = null
+var _slider_pendiente: HSlider = null
+var _btn_limpiar_paredes: Button = null
 
 # Diálogo para guardar nuevo preset
 var _dialog_guardar_pincel: ConfirmationDialog = null
@@ -174,6 +177,7 @@ func _finalizar_trazo() -> void:
 	var cambio_modo: bool = (modo_actual != _modo_antes_del_trazo)
 
 	if cambio_datos or cambio_modo:
+		var archivo_actual = _nodo_pasto.archivo_datos_pasto if "archivo_datos_pasto" in _nodo_pasto else ""
 		var ur = get_undo_redo()
 		if ur != null:
 			var accion_nombre = "Borrar Pasto" if _era_borrado else "Pintar Pasto"
@@ -181,10 +185,8 @@ func _finalizar_trazo() -> void:
 			if cambio_modo:
 				ur.add_do_property(_nodo_pasto, "modo_distribucion", modo_actual)
 				ur.add_undo_property(_nodo_pasto, "modo_distribucion", _modo_antes_del_trazo)
-			ur.add_do_property(_nodo_pasto, "datos_pasto_pintado", datos_actuales.duplicate())
-			ur.add_undo_property(_nodo_pasto, "datos_pasto_pintado", _datos_antes_del_trazo.duplicate())
-			ur.add_do_method(_nodo_pasto, "_actualizar_multimesh_pintado")
-			ur.add_undo_method(_nodo_pasto, "_actualizar_multimesh_pintado")
+			ur.add_do_method(_nodo_pasto, "asignar_datos_pintados", datos_actuales.duplicate(), archivo_actual)
+			ur.add_undo_method(_nodo_pasto, "asignar_datos_pintados", _datos_antes_del_trazo.duplicate(), archivo_actual)
 			ur.commit_action(false)
 
 	_datos_antes_del_trazo = []
@@ -408,6 +410,13 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 	if "capas_colision_permitidas" in _nodo_pasto and _nodo_pasto.capas_colision_permitidas > 0:
 		collision_mask = _nodo_pasto.capas_colision_permitidas
 
+	var pendiente_max: float = 40.0
+	if is_instance_valid(_spin_pendiente):
+		pendiente_max = _spin_pendiente.value
+	elif "pendiente_maxima" in _nodo_pasto:
+		pendiente_max = _nodo_pasto.pendiente_maxima
+	var cos_max_pendiente: float = cos(deg_to_rad(pendiente_max))
+
 	var no_repintar: bool = false
 	var dist_min: float = 0.0
 	if is_instance_valid(_chk_no_repintar):
@@ -487,9 +496,11 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 
 		var pos_candidata = center_pos + tangent * offset_2d.x + bitangent * offset_2d.y
 
-		# Comprobar con raycast vertical si hay suelo real bajo esta brizna
-		var ray_from = pos_candidata + up_vec * 0.8
-		var ray_to = pos_candidata - up_vec * 1.5
+		# Proyectar rayo vertical para encontrar la superficie real del terreno bajo esta muestra
+		# con margen vertical generoso para cubrir elevaciones, mesetas, colinas y montañas
+		var margen_v = maxf(15.0, radio * 3.0)
+		var ray_from = Vector3(pos_candidata.x, center_pos.y + margen_v, pos_candidata.z)
+		var ray_to = Vector3(pos_candidata.x, center_pos.y - margen_v, pos_candidata.z)
 		var query = PhysicsRayQueryParameters3D.create(ray_from, ray_to)
 		query.collide_with_areas = true
 		query.collide_with_bodies = true
@@ -508,6 +519,34 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 		if not solo_nodos.is_empty() and not _pertenece_a_nodos_permitidos(col, solo_nodos):
 			# Cayó fuera de los objetos autorizados -> DESCARTAR
 			continue
+
+		# 1. Filtro de pendiente máxima: descartar paredes verticales, riscos y caras inferiores
+		if probe_hit.normal.dot(Vector3.UP) < cos_max_pendiente:
+			continue
+
+		# 2. Comprobar que esté dentro del contorno del pincel en el plano horizontal
+		var dist_h = Vector2(probe_hit.position.x - center_pos.x, probe_hit.position.z - center_pos.z).length()
+		if dist_h > radio * 1.05:
+			continue
+
+		# 3. Filtro específico si se pinta sobre IslaFlotante: asegurar que esté sobre la superficie superior transitable
+		# (descarta si el rayo cayó en el cono rocoso inferior o acantilado por fuera del faldón)
+		var nodo_isla = col
+		while nodo_isla != null and not nodo_isla.has_method("calcular_altura_en") and nodo_isla != nodo_isla.get_tree().root:
+			nodo_isla = nodo_isla.get_parent()
+
+		if is_instance_valid(nodo_isla) and nodo_isla.has_method("calcular_altura_en"):
+			var pos_loc_isla = nodo_isla.to_local(probe_hit.position)
+			var h_isla = nodo_isla.calcular_altura_en(Vector2(pos_loc_isla.x, pos_loc_isla.z))
+			if pos_loc_isla.y < h_isla - 0.35:
+				continue
+		else:
+			# Si es otro objeto/terreno genérico: descartar caídas bruscas hacia abajo por acantilados
+			var caida_hacia_abajo = center_pos.y - probe_hit.position.y
+			var pend_max = _nodo_pasto.pendiente_maxima if "pendiente_maxima" in _nodo_pasto else 55.0
+			var max_caida = tan(deg_to_rad(pend_max)) * radio + 0.6
+			if caida_hacia_abajo > max_caida:
+				continue
 
 		# Comprobar si ya existe pasto cerca (opción No Repintar)
 		if no_repintar:
@@ -930,6 +969,33 @@ func _crear_popup_ajustes() -> void:
 	vbox_den.add_child(_slider_densidad)
 	vbox.add_child(vbox_den)
 
+	# --- Pendiente Máxima (Límite en Paredes y Riscos) ---
+	var vbox_pend = VBoxContainer.new()
+	var hbox_pend_lbl = HBoxContainer.new()
+	var lbl_pend = Label.new()
+	lbl_pend.text = "Pendiente Máxima:"
+	lbl_pend.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox_pend_lbl.add_child(lbl_pend)
+
+	_spin_pendiente = SpinBox.new()
+	_spin_pendiente.min_value = 10.0
+	_spin_pendiente.max_value = 85.0
+	_spin_pendiente.step = 1.0
+	_spin_pendiente.value = 55.0
+	_spin_pendiente.suffix = "°"
+	_spin_pendiente.value_changed.connect(_on_pendiente_changed)
+	hbox_pend_lbl.add_child(_spin_pendiente)
+	vbox_pend.add_child(hbox_pend_lbl)
+
+	_slider_pendiente = HSlider.new()
+	_slider_pendiente.min_value = 10.0
+	_slider_pendiente.max_value = 85.0
+	_slider_pendiente.step = 1.0
+	_slider_pendiente.value = 55.0
+	_slider_pendiente.value_changed.connect(func(v): _on_pendiente_changed(v))
+	vbox_pend.add_child(_slider_pendiente)
+	vbox.add_child(vbox_pend)
+
 	# --- Opción No Repintar ---
 	_chk_no_repintar = CheckBox.new()
 	_chk_no_repintar.text = "🔒 No repintar sobre zonas ya pintadas"
@@ -957,6 +1023,13 @@ func _crear_popup_ajustes() -> void:
 
 	var sep_act = HSeparator.new()
 	vbox.add_child(sep_act)
+
+	# --- Botón Limpiar Pasto en Paredes y Riscos ---
+	_btn_limpiar_paredes = Button.new()
+	_btn_limpiar_paredes.text = "🧹 Limpiar Pasto en Paredes y Riscos"
+	_btn_limpiar_paredes.tooltip_text = "Elimina automáticamente las briznas pintadas en paredes verticales o riscos que sobresalen de los bordes."
+	_btn_limpiar_paredes.pressed.connect(_on_limpiar_paredes_pressed)
+	vbox.add_child(_btn_limpiar_paredes)
 
 	# --- Botón Limpiar Todo ---
 	_btn_limpiar = Button.new()
@@ -999,7 +1072,7 @@ func _on_ajustes_pressed() -> void:
 		return
 	var rect = _btn_ajustes.get_global_rect()
 	var pos = Vector2i(int(rect.position.x), int(rect.position.y + rect.size.y + 4))
-	_popup_ajustes.popup(Rect2i(pos, Vector2i(320, 360)))
+	_popup_ajustes.popup(Rect2i(pos, Vector2i(320, 420)))
 
 func _actualizar_texto_boton_ajustes() -> void:
 	if not is_instance_valid(_btn_ajustes):
@@ -1028,6 +1101,12 @@ func _sincronizar_toolbar_con_nodo() -> void:
 			_spin_densidad.set_value_no_signal(d)
 		if is_instance_valid(_slider_densidad):
 			_slider_densidad.set_value_no_signal(d)
+	if "pendiente_maxima" in _nodo_pasto:
+		var p = _nodo_pasto.pendiente_maxima
+		if is_instance_valid(_spin_pendiente):
+			_spin_pendiente.set_value_no_signal(p)
+		if is_instance_valid(_slider_pendiente):
+			_slider_pendiente.set_value_no_signal(p)
 	if "evitar_repintar" in _nodo_pasto and is_instance_valid(_chk_no_repintar):
 		_chk_no_repintar.set_pressed_no_signal(_nodo_pasto.evitar_repintar)
 	_actualizar_texto_boton_ajustes()
@@ -1062,9 +1141,44 @@ func _on_densidad_changed(val: float) -> void:
 		_nodo_pasto.densidad_pincel = d
 	_actualizar_texto_boton_ajustes()
 
+func _on_pendiente_changed(val: float) -> void:
+	if is_instance_valid(_slider_pendiente) and abs(_slider_pendiente.value - val) > 0.5:
+		_slider_pendiente.set_value_no_signal(val)
+	if is_instance_valid(_spin_pendiente) and abs(_spin_pendiente.value - val) > 0.1:
+		_spin_pendiente.set_value_no_signal(val)
+	if is_instance_valid(_nodo_pasto) and "pendiente_maxima" in _nodo_pasto:
+		_nodo_pasto.pendiente_maxima = val
+
 func _on_no_repintar_toggled(activo: bool) -> void:
 	if is_instance_valid(_nodo_pasto) and "evitar_repintar" in _nodo_pasto:
 		_nodo_pasto.evitar_repintar = activo
+
+func _on_limpiar_paredes_pressed() -> void:
+	if not is_instance_valid(_nodo_pasto) or not _nodo_pasto.has_method("limpiar_pasto_en_pendientes"):
+		return
+	var datos_previos: Array[Transform3D] = []
+	if _nodo_pasto.has_method("obtener_datos_pintados"):
+		datos_previos = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
+	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
+		datos_previos = _nodo_pasto.datos_pasto_pintado.duplicate()
+	if datos_previos.is_empty():
+		return
+
+	var archivo_actual = _nodo_pasto.archivo_datos_pasto if "archivo_datos_pasto" in _nodo_pasto else ""
+	var eliminadas = _nodo_pasto.limpiar_pasto_en_pendientes()
+	if eliminadas > 0:
+		var datos_nuevos: Array[Transform3D] = []
+		if _nodo_pasto.has_method("obtener_datos_pintados"):
+			datos_nuevos = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
+		elif "datos_pasto_pintado" in _nodo_pasto:
+			datos_nuevos = _nodo_pasto.datos_pasto_pintado.duplicate()
+
+		var ur = get_undo_redo()
+		if ur != null:
+			ur.create_action("Limpiar Pasto en Paredes")
+			ur.add_do_method(_nodo_pasto, "asignar_datos_pintados", datos_nuevos, archivo_actual)
+			ur.add_undo_method(_nodo_pasto, "asignar_datos_pintados", datos_previos, archivo_actual)
+			ur.commit_action(false)
 
 func _on_limpiar_pressed() -> void:
 	if not is_instance_valid(_nodo_pasto) or not _nodo_pasto.has_method("limpiar_pasto_pintado"):
@@ -1077,13 +1191,13 @@ func _on_limpiar_pressed() -> void:
 	if datos_previos.is_empty():
 		return
 
+	var archivo_previo = _nodo_pasto.archivo_datos_pasto if "archivo_datos_pasto" in _nodo_pasto else ""
+
 	var ur = get_undo_redo()
 	if ur != null:
 		ur.create_action("Limpiar Pasto")
-		ur.add_do_property(_nodo_pasto, "datos_pasto_pintado", [] as Array[Transform3D])
-		ur.add_undo_property(_nodo_pasto, "datos_pasto_pintado", datos_previos)
-		ur.add_do_method(_nodo_pasto, "_actualizar_multimesh_pintado")
-		ur.add_undo_method(_nodo_pasto, "_actualizar_multimesh_pintado")
+		ur.add_do_method(_nodo_pasto, "limpiar_pasto_pintado")
+		ur.add_undo_method(_nodo_pasto, "asignar_datos_pintados", datos_previos, archivo_previo)
 		ur.commit_action(true)
 	else:
 		_nodo_pasto.limpiar_pasto_pintado()
