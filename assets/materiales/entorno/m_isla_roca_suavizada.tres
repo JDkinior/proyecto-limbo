@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://b361ttqe5yvds"]
+
+[ext_resource type="Shader" uid="uid://belmkmh6v7xw0" path="res://shaders/entorno/roca_suavizada.gdshader" id="1_roca_shader"]
+
+[resource]
+resource_name = "m_isla_roca_suavizada"
+render_priority = 0
+shader = ExtResource("1_roca_shader")
+shader_parameter/smooth_strength = 0.55
+shader_parameter/facet_preservation = 0.25
+shader_parameter/roughness = 0.9
+shader_parameter/facet_contrast = 1.05
+shader_parameter/edge_shadow = 0.35

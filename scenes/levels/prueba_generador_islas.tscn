@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="3_isla_escena"]
 [ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="4_25t8b"]
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="4_jugador"]
-[ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="5_t1ey7"]
+[ext_resource type="Material" path="res://assets/materiales/entorno/m_isla_roca_suavizada.tres" id="5_25t8b"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="5_ui"]
 
 [sub_resource type="Sky" id="Sky_limbo_test"]
@@ -63,7 +63,7 @@ variacion_superficie = 0.12
 generar_decoracion = true
 incluir_faroles = true
 material_hierba = ExtResource("4_25t8b")
-material_roca = ExtResource("5_t1ey7")
+material_roca = ExtResource("5_25t8b")
 
 [node name="IslaPequena1" parent="." unique_id=763744222 instance=ExtResource("3_isla_escena")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 11.5, -7)
@@ -90,7 +90,7 @@ incluir_faroles = true
 margen_borde = 0.8
 radio_despeje_centro = 0.6
 material_hierba = ExtResource("4_25t8b")
-material_roca = ExtResource("5_t1ey7")
+material_roca = ExtResource("5_25t8b")
 
 [node name="IslaPequena2" parent="." unique_id=1183362403 instance=ExtResource("3_isla_escena")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 12, -7)
@@ -117,7 +117,7 @@ incluir_arboles = false
 margen_borde = 0.8
 radio_despeje_centro = 0.6
 material_hierba = ExtResource("4_25t8b")
-material_roca = ExtResource("5_t1ey7")
+material_roca = ExtResource("5_25t8b")
 
 [node name="IslaGrande" parent="." unique_id=1558979790 instance=ExtResource("3_isla_escena")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16, -36)
@@ -149,7 +149,7 @@ incluir_faroles = true
 margen_borde = 1.8
 radio_despeje_centro = 1.5
 material_hierba = ExtResource("4_25t8b")
-material_roca = ExtResource("5_t1ey7")
+material_roca = ExtResource("5_25t8b")
 
 [node name="Jugador" parent="." unique_id=705899808 instance=ExtResource("4_jugador")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.2, 0)
@@ -163,4 +163,4 @@ collision_mask = 0
 generar_pasto = false
 generar_faldon_pasto = false
 material_hierba = ExtResource("4_25t8b")
-material_roca = ExtResource("5_t1ey7")
+material_roca = ExtResource("5_25t8b")

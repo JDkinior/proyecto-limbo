@@ -220,9 +220,28 @@ signal aviso_desactivacion_cancelado
 		_marcar_cambio_manual()
 
 ## Subdivide los quads en centroides 3D para romper caras cuadradas en triángulos irregulares facetados.
-@export var facetado_triangular_irregular: bool = true:
+@export var facetado_triangular_irregular: bool = false:
 	set(valor):
 		facetado_triangular_irregular = valor
+		_solicitar_regeneracion()
+
+## Activa el suavizado automático por secciones (estilo Shade Auto Smooth de Blender) en las rocas.
+## Agrupa caras adyacentes según el ángulo umbral para dar volumen suave por sección conservando las aristas de roca.
+@export var suavizado_automatico_roca: bool = true:
+	set(valor):
+		suavizado_automatico_roca = valor
+		_solicitar_regeneracion()
+
+## Ángulo umbral en grados para el suavizado automático por secciones (caras con ángulo menor se suavizan juntas; mayor mantiene arista marcada).
+@export_range(15.0, 75.0, 0.5) var angulo_suavizado_roca: float = 54.5:
+	set(valor):
+		angulo_suavizado_roca = clampf(valor, 15.0, 75.0)
+		_solicitar_regeneracion()
+
+## Intensidad del volumen suave dentro de cada sección de roca (0.0 = facetas planas por sección, 1.0 = volumen curvo máximo por sección).
+@export_range(0.0, 1.0, 0.05) var intensidad_suavizado_roca: float = 0.85:
+	set(valor):
+		intensidad_suavizado_roca = clampf(valor, 0.0, 1.0)
 		_solicitar_regeneracion()
 
 @export_group("Superficie y Pasto")
@@ -522,6 +541,7 @@ var _necesita_notificar_pasto_completo: bool = false
 var _col_caras_cache: PackedVector3Array = PackedVector3Array()
 var _perimetro_pts_cache: Array[Vector3] = []
 var _global_transform_anterior: Transform3D = Transform3D.IDENTITY
+var _tris_roca_buffer: Array = []
 
 # Preload de materiales y decoración por defecto
 const MAT_HIERBA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba.tres")
@@ -894,6 +914,7 @@ func regenerar() -> void:
 	if generar_pasto:
 		st_pasto.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st_roca.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_tris_roca_buffer.clear()
 
 	var st_sup = st_pasto if generar_pasto else st_roca
 
@@ -1270,7 +1291,9 @@ func regenerar() -> void:
 			)
 			_generar_roca_satelite_mesh(st_roca, rng, centro_sat, tam_sat)
 
-	# 4. Finalizar mallas con materiales asignados y normales facetadas puras
+	# 4. Finalizar mallas con materiales asignados y suavizado automático por secciones (Auto Smooth)
+	if suavizado_automatico_roca and not _tris_roca_buffer.is_empty():
+		_procesar_suavizado_automatico_roca(st_roca)
 	st_roca.index()
 	var mat_roca = material_roca if material_roca != null else MAT_ROCA_DEFAULT
 	st_roca.set_material(mat_roca)
@@ -1443,10 +1466,17 @@ func _generar_roca_satelite_mesh(st: SurfaceTool, rng: RandomNumberGenerator, ce
 
 
 ## Añade un triángulo facetado a la malla de roca calculando su sombreado low-poly
-## (AO hemisférico por normal, gradiente de profundidad vertical y variación tonal por faceta)
+## (o almacenándolo en el buffer de secciones cuando suavizado_automatico_roca está activo)
 func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator, factor_extra: float = 1.0) -> void:
 	var normal = (b - a).cross(c - a).normalized()
 	if normal.length_squared() < 0.0001:
+		return
+
+	# Consumir siempre la muestra del RNG para mantener determinismo exacto en toda la isla
+	var jitter_tri = (rng.randf() - 0.5) * 0.28
+
+	if suavizado_automatico_roca:
+		_tris_roca_buffer.append([a, b, c, normal, factor_extra, jitter_tri])
 		return
 
 	# 1. Gradiente de profundidad vertical (la roca es más oscura y profunda en la base/puntas)
@@ -1455,12 +1485,9 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 	var f_prof = lerpf(1.05, 0.68, pow(t_prof, 0.85))
 
 	# 2. Oclusión ambiental hemisférica y contraste de dirección según la normal
-	# Facetas orientadas hacia arriba o hacia afuera reciben más luz ambiental difusa (0.95 - 1.18)
-	# Facetas hacia abajo o hacia el abismo reciben oclusión natural (0.62 - 0.85)
 	var f_hemi = clampf(0.86 + normal.y * 0.22 + normal.x * 0.08 - normal.z * 0.06, 0.62, 1.18)
 
 	# 3. Variación low-poly facetada nítida por triángulo (contraste visible entre facetas adyacentes)
-	var jitter_tri = (rng.randf() - 0.5) * 0.28 # ±14% de variación entre triángulos vecinos
 	var mult = f_prof * f_hemi * (1.0 + jitter_tri) * factor_extra
 
 	# 4. Modulación tonal cálida (terracota / caramelo idéntico a StandardMaterial3D_floor_vivo)
@@ -1485,6 +1512,418 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 	st.set_normal(normal)
 	st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
 	st.add_vertex(b)
+
+
+## Procesa el buffer de triángulos de roca aplicando suavizado automático por secciones
+## (equivalente a Shade Auto Smooth / Smooth by Angle de Blender):
+## - Agrupa triángulos adyacentes cuyo ángulo diedro sea menor o igual a angulo_suavizado_roca
+##   en secciones continuas sin costuras internas.
+## - Conserva aristas duras (split normals) entre secciones distintas para mantener la forma rocosa.
+## - Interpola normales ponderadas por ángulo dentro de cada sección con un sutil acolchado
+##   volumétrico 3D para dar volumen suave sin perder la estructura facetada de roca.
+func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
+	var num_tris := _tris_roca_buffer.size()
+	if num_tris == 0:
+		return
+
+	var cos_umbral := cos(deg_to_rad(angulo_suavizado_roca))
+	var cos_max_par := cos(deg_to_rad(minf(angulo_suavizado_roca * 1.03, 56.0)))
+	var k_smooth := clampf(intensidad_suavizado_roca, 0.0, 1.0)
+
+	# 1. Soldar vértices por posición espacial cuantizada (precisión de 1 mm)
+	var pos_to_vid := {}
+	var vert_pos: Array[Vector3] = []
+	var vert_tris: Array = [] # Array de Array[[tri_idx, corner_weight]]
+
+	var tri_vids: Array = []
+	var tri_normals: Array[Vector3] = []
+	var tri_areas: Array[float] = []
+	var tri_factors: Array[float] = []
+	var tri_es_tapa: Array[bool] = []
+	var edge_to_tris := {}
+
+	for t in range(num_tris):
+		var item: Array = _tris_roca_buffer[t]
+		var a: Vector3 = item[0]
+		var b: Vector3 = item[1]
+		var c: Vector3 = item[2]
+		var n: Vector3 = item[3]
+		var f_extra: float = item[4]
+
+		var pts := [a, b, c]
+		var vids := [0, 0, 0]
+		for corner in range(3):
+			var p: Vector3 = pts[corner]
+			var key_v := Vector3i(roundi(p.x * 1000.0), roundi(p.y * 1000.0), roundi(p.z * 1000.0))
+			var vid: int
+			if pos_to_vid.has(key_v):
+				vid = pos_to_vid[key_v]
+			else:
+				vid = vert_pos.size()
+				pos_to_vid[key_v] = vid
+				vert_pos.append(p)
+				vert_tris.append([])
+			vids[corner] = vid
+
+		var ab := (b - a)
+		var ac := (c - a)
+		var bc := (c - b)
+		var area := maxf(ab.cross(ac).length() * 0.5, 0.0001)
+
+		var d_ab := ab.normalized()
+		var d_ac := ac.normalized()
+		var d_bc := bc.normalized()
+		var ang_a := acos(clampf(d_ab.dot(d_ac), -1.0, 1.0))
+		var ang_b := acos(clampf((-d_ab).dot(d_bc), -1.0, 1.0))
+		var ang_c := maxf(PI - ang_a - ang_b, 0.05)
+		var w_corners := [maxf(ang_a, 0.05), maxf(ang_b, 0.05), maxf(ang_c, 0.05)]
+
+		for corner in range(3):
+			vert_tris[vids[corner]].append([t, w_corners[corner]])
+
+		var y_mid := (a.y + b.y + c.y) / 3.0
+		var es_tapa := (not generar_pasto) and (n.y > 0.82) and (y_mid > altura_superficie - 0.45)
+
+		tri_vids.append(vids)
+		tri_normals.append(n)
+		tri_areas.append(area)
+		tri_factors.append(f_extra)
+		tri_es_tapa.append(es_tapa)
+
+		for e in range(3):
+			var v1: int = vids[e]
+			var v2: int = vids[(e + 1) % 3]
+			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
+			if not edge_to_tris.has(e_key):
+				edge_to_tris[e_key] = []
+			edge_to_tris[e_key].append(t)
+
+	# 1.5. Regularizar pliegues en Z (triángulos invertidos en Y por stagger_y entre anillos inferiores)
+	#      Cuando un triángulo profundo (bajo el anillo superior) tiene n.y > -0.05 pero al menos 2
+	#      de sus vecinos por arista apuntan hacia abajo (n.y < -0.20), se alinea con la pendiente
+	#      envolvente para evitar facetas invertidas aisladas a mitad del acantilado o en rocas satélite.
+	var reg_normals: Array[Vector3] = []
+	reg_normals.resize(num_tris)
+	for t in range(num_tris):
+		reg_normals[t] = tri_normals[t]
+		if tri_es_tapa[t] or tri_normals[t].y <= -0.05:
+			continue
+		var vids_t: Array = tri_vids[t]
+		var y_tri := (vert_pos[vids_t[0]].y + vert_pos[vids_t[1]].y + vert_pos[vids_t[2]].y) / 3.0
+		if y_tri > altura_superficie - 0.38:
+			continue
+		var down_cnt := 0
+		var down_sum := Vector3.ZERO
+		for e in range(3):
+			var v1: int = vids_t[e]
+			var v2: int = vids_t[(e + 1) % 3]
+			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
+			for t_nb in edge_to_tris[e_key]:
+				if t_nb != t and not tri_es_tapa[t_nb] and tri_normals[t_nb].y < -0.20:
+					down_cnt += 1
+					down_sum += tri_normals[t_nb] * tri_areas[t_nb]
+		if down_cnt >= 2 and down_sum.length_squared() > 0.0001:
+			reg_normals[t] = (tri_normals[t] * 0.10 + down_sum.normalized() * 0.90).normalized()
+	for t in range(num_tris):
+		tri_normals[t] = reg_normals[t]
+
+	# 2. Clasificar aristas entre triángulos adyacentes y agrupar por Complete-Linkage
+	#    (de menor ángulo diedro a mayor, garantizando que ningún par de caras en una misma
+	#    sección supere el ángulo umbral ni cruce una arista dura).
+	var smooth_edges: Array = []
+	var sharp_adj: Array = []
+	for t in range(num_tris):
+		sharp_adj.append({})
+
+	for e_key in edge_to_tris:
+		var t_list: Array = edge_to_tris[e_key]
+		var n_list := t_list.size()
+		for i in range(n_list):
+			var t0: int = t_list[i]
+			for j in range(i + 1, n_list):
+				var t1: int = t_list[j]
+				if tri_es_tapa[t0] != tri_es_tapa[t1]:
+					sharp_adj[t0][t1] = true
+					sharp_adj[t1][t0] = true
+					continue
+				var dot_n := tri_normals[t0].dot(tri_normals[t1])
+				if dot_n >= cos_umbral:
+					smooth_edges.append([dot_n, t0, t1])
+				else:
+					sharp_adj[t0][t1] = true
+					sharp_adj[t1][t0] = true
+
+	smooth_edges.sort_custom(func(a: Array, b: Array) -> bool:
+		return a[0] > b[0]
+	)
+
+	var parent: Array[int] = []
+	var sec_members: Array = []
+	var sec_norm_sum: Array[Vector3] = []
+	for t in range(num_tris):
+		parent.append(t)
+		sec_members.append([t])
+		sec_norm_sum.append(tri_normals[t] * tri_areas[t])
+
+	for edge in smooth_edges:
+		var t0: int = edge[1]
+		var t1: int = edge[2]
+		var r0 := t0
+		while parent[r0] != r0:
+			r0 = parent[r0]
+		var r1 := t1
+		while parent[r1] != r1:
+			r1 = parent[r1]
+		if r0 == r1:
+			continue
+
+		var mem0: Array = sec_members[r0]
+		var mem1: Array = sec_members[r1]
+		var compatible := true
+		for m0 in mem0:
+			var s_map: Dictionary = sharp_adj[m0]
+			var n0: Vector3 = tri_normals[m0]
+			for m1 in mem1:
+				if s_map.has(m1) or n0.dot(tri_normals[m1]) < cos_max_par:
+					compatible = false
+					break
+			if not compatible:
+				break
+		if not compatible:
+			continue
+
+		if mem0.size() < mem1.size():
+			var tmp := r0
+			r0 = r1
+			r1 = tmp
+			mem0 = sec_members[r0]
+			mem1 = sec_members[r1]
+		parent[r1] = r0
+		sec_norm_sum[r0] += sec_norm_sum[r1]
+		for m1 in mem1:
+			mem0.append(m1)
+		sec_members[r1] = []
+
+	# 3. Absorber triángulos huérfanos aislados (secciones de 1 solo triángulo producto de
+	#    diagonales o transiciones) en la sección vecina más compatible para evitar facetas sueltas
+	var tri_sec: Array[int] = []
+	tri_sec.resize(num_tris)
+	for t in range(num_tris):
+		var r := t
+		while parent[r] != r:
+			r = parent[r]
+		tri_sec[t] = r
+
+	var cos_orphan_min := cos(deg_to_rad(minf(angulo_suavizado_roca + 24.0, 78.0)))
+	for t in range(num_tris):
+		var r_curr: int = tri_sec[t]
+		while parent[r_curr] != r_curr:
+			r_curr = parent[r_curr]
+		if sec_members[r_curr].size() != 1:
+			continue
+		var best_sec := -1
+		var best_dot := cos_orphan_min
+		var vids_t: Array = tri_vids[t]
+		for e in range(3):
+			var v1: int = vids_t[e]
+			var v2: int = vids_t[(e + 1) % 3]
+			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
+			var n_tris: Array = edge_to_tris[e_key]
+			for t_nb in n_tris:
+				if t_nb == t or tri_es_tapa[t_nb] != tri_es_tapa[t]:
+					continue
+				var r_nb: int = tri_sec[t_nb]
+				while parent[r_nb] != r_nb:
+					r_nb = parent[r_nb]
+				var n_nb_sec := sec_norm_sum[r_nb].normalized()
+				var d_nb := tri_normals[t].dot(n_nb_sec)
+				if d_nb > best_dot:
+					best_dot = d_nb
+					best_sec = r_nb
+		if best_sec != -1 and best_sec != r_curr:
+			parent[r_curr] = best_sec
+			sec_norm_sum[best_sec] += sec_norm_sum[r_curr]
+			sec_members[best_sec].append(t)
+			sec_members[r_curr] = []
+			tri_sec[t] = best_sec
+
+	# 4. Calcular propiedades geométricas de cada sección (normal media, centroide, radio, factor)
+	var sec_mean_normal := {}
+	var sec_centroid := {}
+	var sec_radius := {}
+	var sec_factor := {}
+
+	for t in range(num_tris):
+		var r := tri_sec[t]
+		while parent[r] != r:
+			r = parent[r]
+		tri_sec[t] = r
+
+	for r in range(num_tris):
+		var mem: Array = sec_members[r]
+		if mem.is_empty():
+			continue
+		var n_mean := sec_norm_sum[r].normalized()
+		if n_mean.length_squared() < 0.0001:
+			n_mean = tri_normals[mem[0]]
+		sec_mean_normal[r] = n_mean
+
+		var c_sum := Vector3.ZERO
+		var a_sum := 0.0
+		var f_sum := 0.0
+		for tm in mem:
+			var area_m: float = tri_areas[tm]
+			var vids_m: Array = tri_vids[tm]
+			var c_tri: Vector3 = (vert_pos[vids_m[0]] + vert_pos[vids_m[1]] + vert_pos[vids_m[2]]) / 3.0
+			c_sum += c_tri * area_m
+			a_sum += area_m
+			f_sum += tri_factors[tm] * area_m
+		var c_sec: Vector3 = c_sum / maxf(a_sum, 0.0001)
+		sec_centroid[r] = c_sec
+		sec_factor[r] = f_sum / maxf(a_sum, 0.0001)
+
+		var r_max := 0.25
+		for tm in mem:
+			var vids_m: Array = tri_vids[tm]
+			for vid_c in vids_m:
+				var d_c := vert_pos[vid_c].distance_to(c_sec)
+				if d_c > r_max:
+					r_max = d_c
+		sec_radius[r] = r_max
+
+	# 4.5. Calcular normales de vértice ponderadas por ángulo interior de esquina (algoritmo exacto
+	#      de Blender Auto Smooth: invariante a la diagonalización de quads, eliminando el sesgo 2:1)
+	var sv_angle_norm := {}
+	var sv_neighbors := {}
+	for t in range(num_tris):
+		var sec_id: int = tri_sec[t]
+		var vids: Array = tri_vids[t]
+		var n_t: Vector3 = tri_normals[t]
+		var p0: Vector3 = vert_pos[vids[0]]
+		var p1: Vector3 = vert_pos[vids[1]]
+		var p2: Vector3 = vert_pos[vids[2]]
+		var e01 := (p1 - p0).normalized()
+		var e02 := (p2 - p0).normalized()
+		var e10 := -e01
+		var e12 := (p2 - p1).normalized()
+		var e20 := -e02
+		var e21 := -e12
+		var w_angles := [
+			acos(clampf(e01.dot(e02), -1.0, 1.0)),
+			acos(clampf(e10.dot(e12), -1.0, 1.0)),
+			acos(clampf(e20.dot(e21), -1.0, 1.0))
+		]
+		for c_i in range(3):
+			var vid: int = vids[c_i]
+			var sv_key: int = (sec_id << 20) | vid
+			var w_a: float = maxf(w_angles[c_i], 0.05)
+			if sv_angle_norm.has(sv_key):
+				sv_angle_norm[sv_key] += n_t * w_a
+			else:
+				sv_angle_norm[sv_key] = n_t * w_a
+				sv_neighbors[sv_key] = []
+		for c_i in range(3):
+			var sv_a: int = (sec_id << 20) | int(vids[c_i])
+			var sv_b: int = (sec_id << 20) | int(vids[(c_i + 1) % 3])
+			var nb_a: Array = sv_neighbors[sv_a]
+			if not nb_a.has(sv_b):
+				nb_a.append(sv_b)
+			var nb_b: Array = sv_neighbors[sv_b]
+			if not nb_b.has(sv_a):
+				nb_b.append(sv_a)
+
+	for sv_key in sv_angle_norm.keys():
+		var n_a: Vector3 = sv_angle_norm[sv_key].normalized()
+		if n_a.length_squared() < 0.0001:
+			n_a = sec_mean_normal[sv_key >> 20]
+		sv_angle_norm[sv_key] = n_a
+
+	# Suavizado Laplaciano ligero dentro de cada sección para continuidad C1 perfecta
+	var sv_smooth_norm := {}
+	for sv_key in sv_angle_norm.keys():
+		var n_center: Vector3 = sv_angle_norm[sv_key]
+		var n_nb_sum := Vector3.ZERO
+		var nbs: Array = sv_neighbors[sv_key]
+		for nb_key in nbs:
+			n_nb_sum += sv_angle_norm[nb_key]
+		if nbs.size() > 0:
+			var n_avg := (n_center * 0.68 + (n_nb_sum / float(nbs.size())) * 0.32).normalized()
+			sv_smooth_norm[sv_key] = n_avg
+		else:
+			sv_smooth_norm[sv_key] = n_center
+
+	# 5. Evaluar normales y sombreado volumétrico por cada par (sec_id, vid)
+	var cache_sec_vert := {}
+	var prof_max := maxf(profundidad_roca, 0.1)
+	var base_piedra := Color(0.312, 0.358, 0.735, 1.0)
+	var base_roca := COLOR_ROCA_BASE.lerp(base_piedra, 0.94 * k_smooth)
+	var dir_luz_vol := Vector3(0.38, 0.62, 0.68).normalized()
+	var dir_rim := Vector3(-0.78, 0.36, 0.51).normalized()
+
+	var order := [0, 2, 1]
+	for t in range(num_tris):
+		var sec_id: int = tri_sec[t]
+		var vids: Array = tri_vids[t]
+		var n_sec: Vector3 = sec_mean_normal[sec_id]
+		var c_sec: Vector3 = sec_centroid[sec_id]
+		var r_sec: float = sec_radius[sec_id]
+		var f_sec: float = sec_factor[sec_id]
+
+		for idx_corner in order:
+			var vid: int = vids[idx_corner]
+			var sv_key: int = (sec_id << 20) | vid
+			var sv_data: Array
+			if cache_sec_vert.has(sv_key):
+				sv_data = cache_sec_vert[sv_key]
+			else:
+				var v_p: Vector3 = vert_pos[vid]
+				var n_angle: Vector3 = sv_smooth_norm[sv_key]
+
+				var rel_p := (v_p - c_sec) / r_sec
+				var n_final := Vector3(
+					n_sec.x,
+					lerpf(n_sec.y, n_angle.y, 0.45 * k_smooth) + rel_p.y * (0.08 * k_smooth),
+					n_sec.z
+				).normalized()
+
+				# Sombreado volumétrico 3D entre secciones (n_sec) y dentro de cada sección (n_angle - n_sec)
+				var y_eval := lerpf(c_sec.y, v_p.y, 0.48)
+				var t_prof := clampf(-y_eval / prof_max, 0.0, 1.0)
+				var f_prof := lerpf(0.95, 0.64, pow(t_prof, 0.85))
+				var dot_sec := n_sec.dot(dir_luz_vol)
+				var dn_sec := n_angle - n_sec
+				var dot_intra := dn_sec.dot(dir_rim) * 0.62 + rel_p.dot(dir_rim) * 0.14
+				var f_hemi := clampf(0.82 + dot_sec * 0.26 + n_sec.y * 0.12 + dot_intra * k_smooth, 0.50, 1.16)
+
+				# Oclusión bajo el dosel de la isla para caras profundas orientadas hacia arriba (rocas satélite)
+				var f_dosel := 1.0
+				var b_sun_comp := 1.0
+				if n_sec.x * 0.56 + n_sec.z * 0.83 > 0.72 and n_sec.y > -0.55:
+					b_sun_comp = 0.86
+				if y_eval < -0.35 and n_final.y > 0.0:
+					var t_d := clampf((-y_eval - 0.35) / 0.65, 0.0, 1.0) * clampf(n_final.y / 0.65, 0.0, 1.0)
+					f_dosel = lerpf(1.0, 0.48, t_d)
+					b_sun_comp = lerpf(b_sun_comp, 0.74, t_d)
+
+				var mult := f_prof * f_hemi * f_dosel * f_sec
+
+				var col_v := Color(
+					clampf(base_roca.r * mult, 0.12, 0.92),
+					clampf(base_roca.g * mult, 0.13, 0.92),
+					clampf(base_roca.b * mult * b_sun_comp, 0.15, 0.96),
+					1.0
+				)
+
+				sv_data = [n_final, col_v]
+				cache_sec_vert[sv_key] = sv_data
+
+			var p_vert: Vector3 = vert_pos[vid]
+			st.set_color(sv_data[1])
+			st.set_normal(sv_data[0])
+			st.set_uv(Vector2(p_vert.x * 0.1, p_vert.z * 0.1))
+			st.add_vertex(p_vert)
+
+
 
 
 ## ==============================================================================
