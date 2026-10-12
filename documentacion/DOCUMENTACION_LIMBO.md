@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.7` (Build Code `8`)  
+**Versión Actual:** `1.0.8` (Build Code `9`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 3 de Octubre de 2026  
+**Última Actualización:** 11 de Octubre de 2026  
 
 # Documentación Central - Proyecto Limbo
 
@@ -43,6 +43,21 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.8 (11 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Generador Procedural de Islas Flotantes Low-Poly (`isla_flotante.gd`, `isla_flotante.tscn`)**:
+    *   **Geometría Procedural Estilizada**: Generación procedural en tiempo de diseño y ejecución de islas flotantes completas con presets de tamaño (`PEQUENA`, `MEDIANA`, `GRANDE`, `PERSONALIZADA`).
+    *   **Estilos de Montaña y Terrazas**: Soporte para perfiles topográficos variados (`COLINA_SUAVE`, `PICO_ROCOSO`, `MESETA_TERRAZA`, `CORDILLERA_CRESTA`, `CRATER_VALLE`) y estilos de mesetas transitables (`TERRAZAS_CONCENTRICAS`, `ESCALONADO_DIRECCIONAL`, `PLATAFORMAS_ORGANICAS`, `MESETA_CENTRAL_ELEVADA`).
+    *   **Doble Material y Faldón de Pasto**: Generación automática de faldones perimetrales de pasto colgante con material de hierba dorada (`m_isla_hierba.tres`) y cuerpo rocoso facetado inferior con múltiples picos y rocas satélite flotantes (`m_isla_roca.tres`).
+    *   **Herramienta de Esculpido en Editor (`addons/escultor-islas/`)**: Plugin interactivo de pincel 3D con modos (`ELEVAR`, `HUNDIR`, `APLANAR_TERRAZA`, `SUAVIZAR`) y formas (`CONICA_LOWPOLY`, `MESETA_PLANA`, `CUPULA_SUAVE`) con recálculo automático de colisiones `ConcavePolygonShape3D`.
+    *   **Escena de Pruebas**: Incorporación de `scenes/levels/prueba_generador_islas.tscn`.
+*   **Reestructuración y Expansión del Nivel 1 ("El Despertar Separado")**:
+    *   Integración masiva de islas flotantes procedimentales, faroles, cristales decorativos y caminos escénicos.
+    *   **Densidad de Pasto Enriquecida**: Ampliación de `scenes/levels/pasto_nivel_1_datos.res` (de 2.49 MB a 3.40 MB) para poblar densamente las nuevas superficies transitables y terrazas elevadas.
+*   **Actualizaciones del Plugin Godot AI y Runtime MCP**:
+    *   Soporte expandido de estrategias de cliente (VS Code, Zed, Roo Code, Kilo Code, Cline, Zoo Code), locks de mutación de cliente, diagnóstico robusto de transporte Unix/Windows y mejoras en `node_handler` y `filesystem_mutation`.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.7 (3 de Octubre de 2026)
 
@@ -1458,6 +1473,16 @@ Responsabilidades:
 ### 12. Oclusión Stencil en Pasto Estilizado (`pasto_estilizado.gdshader`)
 - **Control de Siluetas X-Ray**:
   - Gracias a `stencil_mode write, compare_always, 1;`, el renderizador de pasto escribe en el buffer de stencil impidiendo que la silueta espectral o física de los personajes se dibuje erróneamente sobre el pasto a sus pies, restringiendo el efecto únicamente a muros y oclusores reales.
+
+### 13. Generador Procedural de Islas Flotantes y Addon Escultor (`scripts/entorno/isla_flotante.gd` / `addons/escultor-islas/`)
+- **Arquitectura de Geometría Procedural Low-Poly**:
+  - `IslaFlotante` genera en tiempo de diseño o ejecución geometría 3D facetada estilizada optimizada para móviles.
+  - **Superficie Transitable y Faldón**: Genera la cima con material de hierba dorada (`m_isla_hierba.tres`) y un faldón perimetral de pasto colgante natural.
+  - **Cuerpo Rocoso Inferior**: Cono invertido orgánico facetado con picos rocosos aleatorios y rocas satélite flotantes en órbita estática (`m_isla_roca.tres`).
+  - **Presets y Personalización**: Presets de escala (`PEQUENA`, `MEDIANA`, `GRANDE`), estilos topográficos (`COLINA_SUAVE`, `PICO_ROCOSO`, `MESETA_TERRAZA`, `CORDILLERA_CRESTA`, `CRATER_VALLE`) y estilos de terrazas transitables (`TERRAZAS_CONCENTRICAS`, `ESCALONADO_DIRECCIONAL`, `PLATAFORMAS_ORGANICAS`, `MESETA_CENTRAL_ELEVADA`).
+- **Addon Escultor de Islas (`addons/escultor-islas/`)**:
+  - Plugin de editor para Godot 4 que agrega un pincel 3D interactivo en el viewport.
+  - Permite esculpir la superficie de la isla seleccionada con modos de elevación, hundimiento, aplanado de terrazas y suavizado, regenerando instantáneamente la malla visual y su `ConcavePolygonShape3D` para colisiones físicas precisas.
 
 ## 22. Archivos Que Una IA Deberia Leer Primero
 
