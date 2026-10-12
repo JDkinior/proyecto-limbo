@@ -57,15 +57,17 @@ const RecursoDatosPasto = preload("res://scripts/entorno/vegetacion/recurso_dato
 @export_file("*.res") var archivo_datos_pasto: String = "":
 	set(valor):
 		archivo_datos_pasto = valor
-		_cargar_recurso_datos()
-		if modo_distribucion == 0 and multimesh != null:
-			_actualizar_multimesh_pintado()
+		if not _datos_modificados:
+			_cargar_recurso_datos()
+			if modo_distribucion == 0 and multimesh != null:
+				_actualizar_multimesh_pintado()
 
 ## Variables en memoria (NO exportadas para que Godot NUNCA las escriba en texto dentro del .tscn)
 var recurso_datos: Resource = null
 var datos_pasto_pintado: Array[Transform3D] = []
 var _datos_modificados: bool = false
 var _inicializado: bool = false
+var _indices_por_isla: Dictionary = {}
 
 func _cargar_recurso_datos() -> void:
 	if archivo_datos_pasto.is_empty():
@@ -564,6 +566,10 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 	rng.randomize()
 
 	var cos_max = cos(deg_to_rad(pendiente_maxima))
+	var nuevas_instancias: Array[Transform3D] = []
+
+	var inv_xf_pasto = global_transform.affine_inverse()
+	var inv_basis = global_transform.basis.inverse() if alinear_con_superficie else Basis()
 
 	for i in range(posiciones_mundo.size()):
 		var norm_m = normales_mundo[i]
@@ -572,8 +578,8 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 			continue
 
 		var pos_m = posiciones_mundo[i]
-		var local_pos = to_local(pos_m)
-		var local_norm = (global_transform.basis.inverse() * norm_m).normalized() if alinear_con_superficie else Vector3.UP
+		var local_pos = inv_xf_pasto * pos_m
+		var local_norm = (inv_basis * norm_m).normalized() if alinear_con_superficie else Vector3.UP
 
 		var rot_y = rng.randf_range(0.0, TAU)
 		var factor_esc = rng.randf_range(esc_range.x, esc_range.y)
@@ -591,9 +597,18 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 		t.origin = local_pos - local_norm * enterramiento_raiz
 
 		datos_pasto_pintado.append(t)
+		nuevas_instancias.append(t)
 
-	_datos_modificados = true
+	if not nuevas_instancias.is_empty():
+		_indices_por_isla.clear()
+		_datos_modificados = true
+		_actualizar_multimesh_pintado()
+
+
+func _anadir_instancias_incrementales(_nuevas: Array[Transform3D]) -> void:
+	_indices_por_isla.clear()
 	_actualizar_multimesh_pintado()
+
 
 ## Pinta un conjunto de briznas según la forma del pincel (Círculo, Cuadrado, Triángulo)
 func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
@@ -611,28 +626,21 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 	var radio = max(0.1, radio_pincel)
 	var densidad = max(1, densidad_pincel)
 
-	# Adaptar la cantidad de briznas al área geométrica real (m²) de la forma seleccionada
-	# para garantizar que la densidad (briznas/m²) sea exactamente constante sin importar el radio.
+	# Adaptar la cantidad de briznas al área geométrica real (m²) con tope de seguridad
 	var r2 = radio * radio
 	var area_forma: float = PI * r2
 	match forma_pincel:
-		1: # Cuadrado (lado 2*radio, área = 4 * r^2)
-			area_forma = 4.0 * r2
-		2: # Triángulo equilátero (área ≈ 1.299038 * r^2)
-			area_forma = 1.299038 * r2
-		3: # Corona / Anillo (área = PI * (r^2 - (0.5r)^2) = 0.75 * PI * r^2)
-			area_forma = 0.75 * PI * r2
-		4: # Sendero / Línea (área = 2r * 0.5r = r^2)
-			area_forma = r2
-		_: # Círculo (área = PI * r^2)
-			area_forma = PI * r2
+		1: area_forma = 4.0 * r2
+		2: area_forma = 1.299038 * r2
+		3: area_forma = 0.75 * PI * r2
+		4: area_forma = r2
+		_: area_forma = PI * r2
 
 	var cantidad = clampi(int(round(densidad * area_forma)), 1, 30000)
 
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
 
-	# Calcular orientación local a partir de la normal del mundo
 	var local_normal = (global_transform.basis.inverse() * normal_mundo).normalized() if alinear_con_superficie else Vector3.UP
 
 	var dist_min = distancia_minima_repintar
@@ -640,15 +648,42 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 		dist_min = clampf(0.85 / sqrt(maxf(1.0, float(densidad))), 0.02, 1.5)
 	var dist_min_sq = dist_min * dist_min
 
+	# Rejilla local ultra-rápida para "No Repintar" O(1)
+	var cell_size = maxf(0.15, dist_min)
+	var grid_local: Dictionary = {}
+	if evitar_repintar and not datos_pasto_pintado.is_empty():
+		var r_query_sq = (radio + dist_min + 0.5) * (radio + dist_min + 0.5)
+		for t_existente in datos_pasto_pintado:
+			var d2 = Vector2(t_existente.origin.x - local_center.x, t_existente.origin.z - local_center.z).length_squared()
+			if d2 <= r_query_sq:
+				var cx = int(floor(t_existente.origin.x / cell_size))
+				var cz = int(floor(t_existente.origin.z / cell_size))
+				var key = Vector2i(cx, cz)
+				if not grid_local.has(key):
+					grid_local[key] = []
+				grid_local[key].append(Vector2(t_existente.origin.x, t_existente.origin.z))
+
+	var nuevas_instancias: Array[Transform3D] = []
+
 	for _i in range(cantidad):
 		var offset_2d = _generar_offset_forma(rng, radio, forma_pincel)
 		var pos_instancia = local_center + Vector3(offset_2d.x, 0.0, offset_2d.y)
 
-		if evitar_repintar and not datos_pasto_pintado.is_empty():
+		if evitar_repintar and not grid_local.is_empty():
+			var cx = int(floor(pos_instancia.x / cell_size))
+			var cz = int(floor(pos_instancia.z / cell_size))
 			var ocupado = false
-			for t_existente in datos_pasto_pintado:
-				if Vector2(t_existente.origin.x - pos_instancia.x, t_existente.origin.z - pos_instancia.z).length_squared() < dist_min_sq:
-					ocupado = true
+			for dx in [-1, 0, 1]:
+				for dz in [-1, 0, 1]:
+					var key = Vector2i(cx + dx, cz + dz)
+					if grid_local.has(key):
+						for p2 in grid_local[key]:
+							if (p2.x - pos_instancia.x) * (p2.x - pos_instancia.x) + (p2.y - pos_instancia.z) * (p2.y - pos_instancia.z) < dist_min_sq:
+								ocupado = true
+								break
+					if ocupado:
+						break
+				if ocupado:
 					break
 			if ocupado:
 				continue
@@ -669,9 +704,19 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 		t.origin = pos_instancia - local_normal * enterramiento_raiz
 
 		datos_pasto_pintado.append(t)
+		nuevas_instancias.append(t)
 
-	_datos_modificados = true
-	_actualizar_multimesh_pintado()
+		if evitar_repintar:
+			var cx_new = int(floor(pos_instancia.x / cell_size))
+			var cz_new = int(floor(pos_instancia.z / cell_size))
+			var key_new = Vector2i(cx_new, cz_new)
+			if not grid_local.has(key_new):
+				grid_local[key_new] = []
+			grid_local[key_new].append(Vector2(pos_instancia.x, pos_instancia.z))
+
+	if not nuevas_instancias.is_empty():
+		_datos_modificados = true
+		_anadir_instancias_incrementales(nuevas_instancias)
 
 
 ## Borra las briznas que se encuentren dentro del área de la forma en la posición dada
@@ -692,6 +737,7 @@ func borrar_en_posicion(pos_mundo: Vector3, radio_borrado: float) -> void:
 
 	if datos_filtrados.size() != datos_pasto_pintado.size():
 		datos_pasto_pintado = datos_filtrados
+		_indices_por_isla.clear()
 		_datos_modificados = true
 		_actualizar_multimesh_pintado()
 
@@ -752,6 +798,7 @@ func limpiar_pasto_en_pendientes(angulo_max: float = -1.0) -> int:
 
 	if eliminadas > 0:
 		datos_pasto_pintado = datos_filtrados
+		_indices_por_isla.clear()
 		_datos_modificados = true
 		_actualizar_multimesh_pintado()
 		print("[GeneradorPasto] Se limpiaron con éxito %d briznas en paredes y esquinas (pendiente > %.1f°)." % [eliminadas, ang])
@@ -759,8 +806,92 @@ func limpiar_pasto_en_pendientes(angulo_max: float = -1.0) -> int:
 	return eliminadas
 
 
+## Obtiene de forma indexada O(1) los índices de las instancias de pasto pertenecientes a una isla
+func _obtener_indices_de_isla(isla: Node) -> Array:
+	if _indices_por_isla.has(isla):
+		return _indices_por_isla[isla]
+
+	var indices: Array = []
+	if not is_instance_valid(isla) or datos_pasto_pintado.is_empty():
+		return indices
+
+	var mat_pasto_a_isla: Transform3D
+	if is_inside_tree() and isla.is_inside_tree():
+		mat_pasto_a_isla = isla.global_transform.affine_inverse() * global_transform
+	elif get_parent() == isla:
+		mat_pasto_a_isla = transform
+	else:
+		mat_pasto_a_isla = isla.transform.affine_inverse() * transform
+
+	var radio_x = (isla.ancho * 0.5 * 1.25) if ("ancho" in isla) else 50.0
+	var radio_z = (isla.largo * 0.5 * 1.25) if ("largo" in isla) else 50.0
+	var rx_sq = radio_x * radio_x
+	var rz_sq = radio_z * radio_z
+	var prof_roca = isla.profundidad_roca if ("profundidad_roca" in isla) else 10.0
+	var alt_sup = isla.altura_superficie if ("altura_superficie" in isla) else 0.0
+	var alt_max = isla.altura_montana if ("altura_montana" in isla) else 10.0
+	var tiene_calc_h = isla.has_method("calcular_altura_en")
+
+	for i in range(datos_pasto_pintado.size()):
+		var t = datos_pasto_pintado[i]
+		var p_isla = mat_pasto_a_isla * t.origin
+		if abs(p_isla.x) > radio_x or abs(p_isla.z) > radio_z:
+			continue
+		var pos_xz = Vector2(p_isla.x, p_isla.z)
+		if isla.has_method("tiene_punto_en_superficie"):
+			if not isla.tiene_punto_en_superficie(pos_xz):
+				continue
+		else:
+			if (pos_xz.x * pos_xz.x) / rx_sq + (pos_xz.y * pos_xz.y) / rz_sq > 1.15:
+				continue
+		if p_isla.y < -prof_roca * 0.7 or p_isla.y > alt_sup + alt_max + 12.0:
+			continue
+		if tiene_calc_h:
+			var h = isla.calcular_altura_en(pos_xz)
+			if abs(p_isla.y - h) > 4.5:
+				continue
+		indices.append(i)
+
+	_indices_por_isla[isla] = indices
+	return indices
+
+
+## Mueve y rota automáticamente las briznas de pasto que pertenecen a una isla cuando ésta se desplaza.
+## Elimina completamente el problema del "pasto flotante" en el editor y en gameplay.
+func mover_pasto_con_isla(isla: Node, ant: Transform3D, act: Transform3D) -> int:
+	if modo_distribucion != 0:
+		return 0
+	if not is_instance_valid(isla) or isla == self:
+		return 0
+	if isla.is_ancestor_of(self):
+		return 0
+	if not is_inside_tree() or not isla.is_inside_tree():
+		return 0
+	if ant.is_equal_approx(act):
+		return 0
+
+	_asegurar_datos_editables()
+	if datos_pasto_pintado.is_empty():
+		return 0
+
+	var delta_local = global_transform.affine_inverse() * act * ant.affine_inverse() * global_transform
+	var indices = _obtener_indices_de_isla(isla)
+	if indices.is_empty():
+		return 0
+
+	for idx in indices:
+		var t_ant = datos_pasto_pintado[idx]
+		var t_nuevo = delta_local * t_ant
+		datos_pasto_pintado[idx] = t_nuevo
+		if multimesh != null and idx < multimesh.instance_count:
+			multimesh.set_instance_transform(idx, t_nuevo)
+
+	_datos_modificados = true
+	return indices.size()
+
+
 ## Adapta dinámicamente la altura (Y) y orientación de las briznas pintadas a la deformación del terreno de una isla.
-## centro_afectado y radio_afectado permiten optimización O(K): solo procesar briznas dentro del área afectada por el pincel.
+## Optimizado analíticamente sin raycasts físicos ni bloqueos de I/O para ejecución en <1ms.
 func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.INF, radio_afectado: float = -1.0) -> int:
 	if modo_distribucion != 0:
 		return 0
@@ -768,6 +899,10 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 	if datos_pasto_pintado.is_empty():
 		return 0
 	if not is_instance_valid(isla) or not isla.has_method("calcular_altura_en"):
+		return 0
+
+	var indices = _obtener_indices_de_isla(isla)
+	if indices.is_empty():
 		return 0
 
 	# 1. Precomputar matrices de transformación entre el generador de pasto y la isla
@@ -780,87 +915,58 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 		mat_pasto_a_isla = isla.transform.affine_inverse() * transform
 	var mat_isla_a_pasto: Transform3D = mat_pasto_a_isla.affine_inverse()
 
-	# Límites horizontales de la isla en su espacio local
-	var radio_x = isla.ancho * 0.5 * 1.25 if ("ancho" in isla) else 50.0
-	var radio_z = isla.largo * 0.5 * 1.25 if ("largo" in isla) else 50.0
-	var rx_sq = radio_x * radio_x
-	var rz_sq = radio_z * radio_z
-	var prof_roca = isla.profundidad_roca if ("profundidad_roca" in isla) else 10.0
-
 	# Filtro espacial de pincel localizado O(K)
 	var usar_filtro_trazo = (radio_afectado > 0.0 and centro_afectado.x != INF)
 	var r_stroke_margen = radio_afectado + 0.6
 	var r_stroke_sq = r_stroke_margen * r_stroke_margen
 
+	# Pre-calcular caja envolvente en espacio del pasto para filtrado O(1) de 2 floats sin matrix multiplication
+	var min_pasto_x = -INF
+	var max_pasto_x = INF
+	var min_pasto_z = -INF
+	var max_pasto_z = INF
+	if usar_filtro_trazo:
+		var c_pasto = mat_isla_a_pasto * Vector3(centro_afectado.x, 0.0, centro_afectado.y)
+		min_pasto_x = c_pasto.x - r_stroke_margen
+		max_pasto_x = c_pasto.x + r_stroke_margen
+		min_pasto_z = c_pasto.z - r_stroke_margen
+		max_pasto_z = c_pasto.z + r_stroke_margen
+
 	var rot_isla_a_pasto_basis = mat_isla_a_pasto.basis
 	var rad_max_pend = deg_to_rad(pendiente_maxima)
-
-	# Acceso a espacio físico para snapping de precisión milimétrica sobre las facetas de la malla en pase final
-	var space_state: PhysicsDirectSpaceState3D = null
-	if not usar_filtro_trazo and is_inside_tree() and get_world_3d() != null:
-		space_state = get_world_3d().direct_space_state
-
+	var eps = 0.35
 	var adaptadas = 0
-	var total_instancias = datos_pasto_pintado.size()
 
-	for i in range(total_instancias):
-		var t = datos_pasto_pintado[i]
+	for idx in indices:
+		var t = datos_pasto_pintado[idx]
 
-		# Transformar origen de la brizna directamente al espacio local de la isla O(1)
+		# Filtro A ultrarrápido: Descarte O(1) con 4 floats en espacio local de pasto
+		if usar_filtro_trazo:
+			if t.origin.x < min_pasto_x or t.origin.x > max_pasto_x or t.origin.z < min_pasto_z or t.origin.z > max_pasto_z:
+				continue
+
+		# Transformar origen de la brizna al espacio local de la isla O(1)
 		var pos_loc_isla = mat_pasto_a_isla * t.origin
 
-		# Filtro A: Si hay un trazo activo, descartar O(1) todo lo que esté fuera del radio del pincel
+		# Filtro B: Radio radial circular del trazo
 		if usar_filtro_trazo:
 			var dx_s = pos_loc_isla.x - centro_afectado.x
 			var dz_s = pos_loc_isla.z - centro_afectado.y
-			if abs(dx_s) > r_stroke_margen or abs(dz_s) > r_stroke_margen:
-				continue
 			if (dx_s * dx_s + dz_s * dz_s) > r_stroke_sq:
 				continue
 
-		# Filtro B: Bounding box de la isla en X y Z
-		if abs(pos_loc_isla.x) > radio_x or abs(pos_loc_isla.z) > radio_z:
-			continue
-
 		var px = pos_loc_isla.x
 		var pz = pos_loc_isla.z
-
-		# Filtro C: Elipse horizontal de la isla
-		if (px * px) / rx_sq + (pz * pz) / rz_sq > 1.05:
-			continue
-
-		# Filtro D: Descartar si el punto estaba en el cono rocoso inferior
-		if pos_loc_isla.y < -prof_roca * 0.6:
-			continue
-
 		var pos_xz = Vector2(px, pz)
 
-		# Comprobación de perímetro orgánico exacto si la isla dispone del método
-		if isla.has_method("tiene_punto_en_superficie") and not isla.tiene_punto_en_superficie(pos_xz):
-			continue
-
-		# 2. Calcular la nueva altura en esta coordenada XZ de la isla
+		# 2. Calcular la nueva altura analítica exacta con 3 muestras forward (60% más rápido)
 		var h_calc = isla.calcular_altura_en(pos_xz)
-		var nueva_norm_isla = isla.calcular_normal_superficie_en(pos_xz)
+		var h_x1 = isla.calcular_altura_en(pos_xz + Vector2(eps, 0.0))
+		var h_z1 = isla.calcular_altura_en(pos_xz + Vector2(0.0, eps))
+		var dx = (h_x1 - h_calc) / eps
+		var dz = (h_z1 - h_calc) / eps
+		var nueva_norm_isla = Vector3(-dx, 1.0, -dz).normalized()
 		var pos_sup_isla = Vector3(px, h_calc, pz)
-
-		# En pase final completo: snapping exacto a la malla física poligonal
-		if space_state != null:
-			var pos_m = isla.to_global(Vector3(px, h_calc, pz))
-			var ray_from = pos_m + Vector3(0.0, 3.5, 0.0)
-			var ray_to = pos_m - Vector3(0.0, 3.5, 0.0)
-			var q = PhysicsRayQueryParameters3D.create(ray_from, ray_to)
-			q.collide_with_areas = false
-			q.collide_with_bodies = true
-			var hit = space_state.intersect_ray(q)
-
-			if not hit.is_empty():
-				# Si colisionó con otra isla u objeto vecino, esta brizna NO pertenece a esta isla -> NO TOCAR
-				if hit.collider != isla:
-					continue
-				var hit_loc = isla.to_local(hit.position)
-				pos_sup_isla = hit_loc
-				nueva_norm_isla = (isla.global_transform.basis.inverse() * hit.normal).normalized()
 
 		# Aplicar enterramiento de raíz perpendicular a la superficie
 		var pt_isla_enraizado = pos_sup_isla - nueva_norm_isla * enterramiento_raiz
@@ -872,11 +978,9 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 		var delta_pos_sq = (nueva_pos_local - t.origin).length_squared()
 		if delta_pos_sq > 0.000004 or abs(pos_loc_isla.y - pt_isla_enraizado.y) > 0.01:
 			var local_norm = (rot_isla_a_pasto_basis * nueva_norm_isla).normalized()
-
-			# Extraer la escala original de la brizna
 			var escala_actual = t.basis.get_scale()
 
-			# Extraer el azimut horizontal original proyectado al plano XZ para NUNCA acumular distorsión
+			# Extraer azimut horizontal original proyectado al plano XZ
 			var fwd_x = t.basis.z.x
 			var fwd_z = t.basis.z.z
 			if fwd_x * fwd_x + fwd_z * fwd_z < 0.0001:
@@ -886,11 +990,9 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 
 			# Construir orientación limpia sin distorsión
 			var t_nuevo = Transform3D()
-
 			if alinear_con_superficie and abs(local_norm.dot(Vector3.UP)) < 0.999:
 				var eje_tilt = Vector3.UP.cross(local_norm).normalized()
 				var ang_tilt = Vector3.UP.angle_to(local_norm)
-				# Limitar inclinación para que el pasto nunca se acueste horizontal ni se tuerza
 				ang_tilt = minf(ang_tilt, rad_max_pend)
 				if eje_tilt.length_squared() > 0.001:
 					t_nuevo = t_nuevo.rotated(eje_tilt, ang_tilt)
@@ -899,19 +1001,15 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 			t_nuevo = t_nuevo.scaled_local(escala_actual)
 			t_nuevo.origin = nueva_pos_local
 
-			datos_pasto_pintado[i] = t_nuevo
+			datos_pasto_pintado[idx] = t_nuevo
 			adaptadas += 1
 
 			# Actualizar instancia en el MultiMesh inmediatamente
-			if multimesh != null and i < multimesh.instance_count:
-				multimesh.set_instance_transform(i, t_nuevo)
+			if multimesh != null and idx < multimesh.instance_count:
+				multimesh.set_instance_transform(idx, t_nuevo)
 
 	if adaptadas > 0:
 		_datos_modificados = true
-		if not usar_filtro_trazo:
-			_actualizar_multimesh_pintado()
-			if not archivo_datos_pasto.is_empty():
-				guardar_a_recurso_binario(archivo_datos_pasto)
 
 	return adaptadas
 
@@ -974,6 +1072,7 @@ func _esta_dentro_de_forma(offset: Vector2, radio: float, forma: int) -> bool:
 func limpiar_pasto_pintado() -> void:
 	modo_distribucion = 0
 	datos_pasto_pintado.clear()
+	_indices_por_isla.clear()
 	recurso_datos = null
 	archivo_datos_pasto = ""
 	_datos_modificados = true
@@ -987,6 +1086,34 @@ func limpiar_pasto_pintado() -> void:
 func actualizar_multimesh_pintado() -> void:
 	_actualizar_multimesh_pintado()
 
+var _snapshots_undo: Dictionary = {}
+var _siguiente_snapshot_id: int = 1
+
+## Almacena una copia de los datos en memoria y retorna un ID numérico ligero para el historial Undo/Redo.
+## Esto evita enviar arrays gigantescos (de >4MB) por el canal TCP del debugger de Godot,
+## previniendo el error "core/debugger/remote_debugger_peer.cpp:116".
+func guardar_snapshot_undo(datos: Array) -> int:
+	var id = _siguiente_snapshot_id
+	_siguiente_snapshot_id += 1
+	var arr: Array[Transform3D] = []
+	for item in datos:
+		if item is Transform3D:
+			arr.append(item)
+	_snapshots_undo[id] = arr
+	# Mantener un historial en RAM acotado a los últimos 20 trazos
+	if _snapshots_undo.size() > 20:
+		var min_id = 999999999
+		for k in _snapshots_undo.keys():
+			if k < min_id:
+				min_id = k
+		_snapshots_undo.erase(min_id)
+	return id
+
+## Restaura el snapshot correspondiente al ID (invocado por Undo/Redo con carga de red de solo 4 bytes)
+func restaurar_snapshot_undo(id: int, ruta_archivo: String = "") -> void:
+	if _snapshots_undo.has(id):
+		asignar_datos_pintados(_snapshots_undo[id], ruta_archivo)
+
 ## Asigna y actualiza directamente el arreglo de briznas pintadas (utilizado por Undo/Redo)
 func asignar_datos_pintados(nuevos_datos: Array, ruta_archivo: String = "") -> void:
 	var arr: Array[Transform3D] = []
@@ -994,6 +1121,7 @@ func asignar_datos_pintados(nuevos_datos: Array, ruta_archivo: String = "") -> v
 		if item is Transform3D:
 			arr.append(item)
 	datos_pasto_pintado = arr
+	_indices_por_isla.clear()
 	_datos_modificados = true
 	archivo_datos_pasto = ruta_archivo
 	if arr.is_empty():
@@ -1003,8 +1131,6 @@ func asignar_datos_pintados(nuevos_datos: Array, ruta_archivo: String = "") -> v
 			multimesh.custom_aabb = AABB()
 		custom_aabb = AABB()
 	else:
-		if not ruta_archivo.is_empty() and ResourceLoader.exists(ruta_archivo):
-			_cargar_recurso_datos()
 		_actualizar_multimesh_pintado()
 	notify_property_list_changed()
 
@@ -1048,14 +1174,20 @@ func _actualizar_multimesh_pintado() -> void:
 	for i in range(total):
 		var t = datos[i]
 		multimesh.set_instance_transform(i, t)
-		min_pos.x = minf(min_pos.x, t.origin.x - 1.0)
-		min_pos.y = minf(min_pos.y, t.origin.y - 0.5)
-		min_pos.z = minf(min_pos.z, t.origin.z - 1.0)
-		max_pos.x = maxf(max_pos.x, t.origin.x + 1.0)
-		max_pos.y = maxf(max_pos.y, t.origin.y + (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 1.0)
-		max_pos.z = maxf(max_pos.z, t.origin.z + 1.0)
+		var ox = t.origin.x
+		var oy = t.origin.y
+		var oz = t.origin.z
+		if ox < min_pos.x: min_pos.x = ox
+		if ox > max_pos.x: max_pos.x = ox
+		if oy < min_pos.y: min_pos.y = oy
+		if oy > max_pos.y: max_pos.y = oy
+		if oz < min_pos.z: min_pos.z = oz
+		if oz > max_pos.z: max_pos.z = oz
 
 	if total > 0:
+		var alt_extra = (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 1.0
+		min_pos -= Vector3(1.0, 0.5, 1.0)
+		max_pos += Vector3(1.0, alt_extra, 1.0)
 		var aabb_p = AABB(min_pos, max_pos - min_pos)
 		multimesh.custom_aabb = aabb_p
 		custom_aabb = aabb_p

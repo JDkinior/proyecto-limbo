@@ -144,7 +144,9 @@ func _iniciar_trazo(es_borrado: bool) -> void:
 
 		if dist_m <= 0.0:
 			var dens = 25
-			if "densidad_pincel" in _nodo_pasto:
+			if is_instance_valid(_spin_densidad):
+				dens = int(_spin_densidad.value)
+			elif "densidad_pincel" in _nodo_pasto:
 				dens = _nodo_pasto.densidad_pincel
 			dist_m = clampf(0.85 / sqrt(maxf(1.0, float(dens))), 0.02, 1.5)
 
@@ -168,11 +170,11 @@ func _finalizar_trazo() -> void:
 
 	var datos_actuales: Array[Transform3D] = []
 	if _nodo_pasto.has_method("obtener_datos_pintados"):
-		datos_actuales = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
+		datos_actuales = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D])
 	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
 		datos_actuales = _nodo_pasto.datos_pasto_pintado
 
-	var cambio_datos: bool = (datos_actuales.size() != _datos_antes_del_trazo.size()) or (datos_actuales != _datos_antes_del_trazo)
+	var cambio_datos: bool = (datos_actuales.size() != _datos_antes_del_trazo.size())
 	var modo_actual: int = _nodo_pasto.modo_distribucion if "modo_distribucion" in _nodo_pasto else 0
 	var cambio_modo: bool = (modo_actual != _modo_antes_del_trazo)
 
@@ -185,8 +187,14 @@ func _finalizar_trazo() -> void:
 			if cambio_modo:
 				ur.add_do_property(_nodo_pasto, "modo_distribucion", modo_actual)
 				ur.add_undo_property(_nodo_pasto, "modo_distribucion", _modo_antes_del_trazo)
-			ur.add_do_method(_nodo_pasto, "asignar_datos_pintados", datos_actuales.duplicate(), archivo_actual)
-			ur.add_undo_method(_nodo_pasto, "asignar_datos_pintados", _datos_antes_del_trazo.duplicate(), archivo_actual)
+			if _nodo_pasto.has_method("guardar_snapshot_undo") and _nodo_pasto.has_method("restaurar_snapshot_undo"):
+				var id_do = _nodo_pasto.guardar_snapshot_undo(datos_actuales)
+				var id_undo = _nodo_pasto.guardar_snapshot_undo(_datos_antes_del_trazo)
+				ur.add_do_method(_nodo_pasto, "restaurar_snapshot_undo", id_do, archivo_actual)
+				ur.add_undo_method(_nodo_pasto, "restaurar_snapshot_undo", id_undo, archivo_actual)
+			else:
+				ur.add_do_method(_nodo_pasto, "asignar_datos_pintados", datos_actuales.duplicate(), archivo_actual)
+				ur.add_undo_method(_nodo_pasto, "asignar_datos_pintados", _datos_antes_del_trazo.duplicate(), archivo_actual)
 			ur.commit_action(false)
 
 	_datos_antes_del_trazo = []
@@ -234,12 +242,12 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 
 			if _pintando:
 				var dist = _ultima_pos_pintada.distance_to(hit.position)
-				var dist_paso = clampf(radio * 0.25, 0.10, 0.60)
+				var dist_paso = clampf(radio * 0.30, 0.15, 0.75)
 				if dist >= dist_paso:
-					var num_pasos = clampi(int(dist / dist_paso), 1, 10)
+					var num_pasos = clampi(int(dist / dist_paso), 1, 3)
 					for s in range(1, num_pasos + 1):
 						var sub_pos = _ultima_pos_pintada.lerp(hit.position, float(s) / float(num_pasos))
-						var sub_hit = {"position": sub_pos, "normal": hit.normal}
+						var sub_hit = {"position": sub_pos, "normal": hit.normal, "collider": hit.get("collider", null)}
 						_ejecutar_pintado_con_proyeccion(camera, sub_hit, true, dist_paso)
 					_ultima_pos_pintada = hit.position
 				return AFTER_GUI_INPUT_STOP
@@ -322,9 +330,24 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 # REJILLA ESPACIAL (SPATIAL GRID) PARA "NO REPINTAR" O(1)
 # ==============================================================================
 
+var _grid_centro_cargado: Vector3 = Vector3.INF
+var _grid_radio_cargado: float = 0.0
+
 func _iniciar_grid_espacial(cell_size: float) -> void:
 	_grid_espacial.clear()
-	_grid_cell_size = max(0.05, cell_size)
+	_grid_cell_size = clampf(cell_size, 0.05, 0.5)
+	_grid_centro_cargado = Vector3.INF
+	_grid_radio_cargado = 0.0
+
+func _asegurar_grid_local(centro_local: Vector3, radio_mundo: float) -> void:
+	if _grid_centro_cargado.x != INF and centro_local.distance_squared_to(_grid_centro_cargado) < (_grid_radio_cargado * 0.4) * (_grid_radio_cargado * 0.4):
+		return
+
+	_grid_centro_cargado = centro_local
+	_grid_radio_cargado = maxf(radio_mundo * 2.5, 6.0)
+	var r_margen = _grid_radio_cargado
+	var r_margen_sq = r_margen * r_margen
+
 	if not is_instance_valid(_nodo_pasto):
 		return
 	var datos: Array = []
@@ -334,9 +357,14 @@ func _iniciar_grid_espacial(cell_size: float) -> void:
 		datos = _nodo_pasto.datos_pasto_pintado
 	if datos.is_empty():
 		return
+
 	for t in datos:
 		if t is Transform3D:
-			_agregar_a_grid(t.origin)
+			var dx = t.origin.x - centro_local.x
+			var dz = t.origin.z - centro_local.z
+			if abs(dx) <= r_margen and abs(dz) <= r_margen:
+				if (dx * dx + dz * dz) <= r_margen_sq:
+					_agregar_a_grid(t.origin)
 
 func _agregar_a_grid(pos_local: Vector3) -> void:
 	var cx = int(floor(pos_local.x / _grid_cell_size))
@@ -397,9 +425,14 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 	var ignorar_interactivos: bool = true
 	var collision_mask: int = 0xFFFFFFFF
 
-	if "radio_pincel" in _nodo_pasto:
+	if is_instance_valid(_spin_radio):
+		radio = _spin_radio.value
+	elif "radio_pincel" in _nodo_pasto:
 		radio = _nodo_pasto.radio_pincel
-	if "densidad_pincel" in _nodo_pasto:
+
+	if is_instance_valid(_spin_densidad):
+		densidad = int(_spin_densidad.value)
+	elif "densidad_pincel" in _nodo_pasto:
 		densidad = _nodo_pasto.densidad_pincel
 	if "forma_pincel" in _nodo_pasto:
 		forma = _nodo_pasto.forma_pincel
@@ -435,17 +468,20 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
 
-	# Construir base tangencial sobre la superficie
-	var up_vec = center_norm.normalized()
-	var tangent = Vector3.RIGHT
-	if abs(up_vec.dot(Vector3.UP)) < 0.99:
-		tangent = up_vec.cross(Vector3.UP).normalized()
-	else:
-		tangent = up_vec.cross(Vector3.FORWARD).normalized()
-	var bitangent = up_vec.cross(tangent).normalized()
-
 	var posiciones_validas: Array[Vector3] = []
 	var normales_validas: Array[Vector3] = []
+
+	if no_repintar:
+		var center_loc = _nodo_pasto.to_local(center_pos)
+		_asegurar_grid_local(center_loc, radio)
+
+	var query = PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3.ZERO)
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
+	query.collision_mask = collision_mask
+
+	var margen_v = maxf(15.0, radio * 3.0)
+	var r_max_sq = radio * radio * 1.05 * 1.05
 
 	var cantidad_muestras: int = 1
 	if not es_arrastre:
@@ -454,16 +490,15 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 		cantidad_muestras = clampi(int(round(densidad * area_total)), 1, 30000)
 	else:
 		# Arrastre continuo: cada paso añade únicamente la cantidad de briznas correspondiente
-		# al área nueva barrida por el pincel (largo del paso * ancho efectivo de la forma),
-		# garantizando que la densidad visual sea 100% homogénea e idéntica a la del clic simple.
+		# al área nueva barrida por el pincel (largo del paso * ancho efectivo de la forma)
 		var ancho_efectivo = radio * 2.0
 		match forma:
-			0: ancho_efectivo = radio * 1.5708 # Ancho promedio del disco circular
+			0: ancho_efectivo = radio * 1.5708
 			2: ancho_efectivo = radio * 1.30
 			3: ancho_efectivo = radio * 1.50
 			4: ancho_efectivo = radio * 0.50
 		var area_paso = dist_paso * ancho_efectivo
-		cantidad_muestras = clampi(int(round(densidad * area_paso)), 1, 5000)
+		cantidad_muestras = clampi(int(round(densidad * area_paso)), 1, 4000)
 
 	for _i in range(cantidad_muestras):
 		var offset_2d = Vector2.ZERO
@@ -494,43 +529,35 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 				var theta = rng.randf_range(0.0, TAU)
 				offset_2d = Vector2(cos(theta) * r, sin(theta) * r)
 
-		var pos_candidata = center_pos + tangent * offset_2d.x + bitangent * offset_2d.y
+		# Muestra horizontal 2D centrada geométricamente en center_pos (elimina cualquier desfase)
+		var cand_x = center_pos.x + offset_2d.x
+		var cand_z = center_pos.z + offset_2d.y
 
-		# Proyectar rayo vertical para encontrar la superficie real del terreno bajo esta muestra
-		# con margen vertical generoso para cubrir elevaciones, mesetas, colinas y montañas
-		var margen_v = maxf(15.0, radio * 3.0)
-		var ray_from = Vector3(pos_candidata.x, center_pos.y + margen_v, pos_candidata.z)
-		var ray_to = Vector3(pos_candidata.x, center_pos.y - margen_v, pos_candidata.z)
-		var query = PhysicsRayQueryParameters3D.create(ray_from, ray_to)
-		query.collide_with_areas = true
-		query.collide_with_bodies = true
-		query.collision_mask = collision_mask
+		query.from = Vector3(cand_x, center_pos.y + margen_v, cand_z)
+		query.to = Vector3(cand_x, center_pos.y - margen_v, cand_z)
 
 		var probe_hit = space_state.intersect_ray(query)
 		if probe_hit.is_empty():
-			# No hay superficie física sólida debajo (está en el vacío fuera del borde) -> DESCARTAR
+			# Cayó en el vacío fuera del borde real de la isla
 			continue
 
 		var col = probe_hit.collider
 		if ignorar_interactivos and _es_objeto_ignorado(col):
-			# Cayó encima de un farol, árbol o personaje -> DESCARTAR
 			continue
 
 		if not solo_nodos.is_empty() and not _pertenece_a_nodos_permitidos(col, solo_nodos):
-			# Cayó fuera de los objetos autorizados -> DESCARTAR
 			continue
 
-		# 1. Filtro de pendiente máxima: descartar paredes verticales, riscos y caras inferiores
+		# 1. Filtro de pendiente máxima: descartar paredes verticales, acantilados y caras inferiores
 		if probe_hit.normal.dot(Vector3.UP) < cos_max_pendiente:
 			continue
 
 		# 2. Comprobar que esté dentro del contorno del pincel en el plano horizontal
-		var dist_h = Vector2(probe_hit.position.x - center_pos.x, probe_hit.position.z - center_pos.z).length()
-		if dist_h > radio * 1.05:
+		var dist_h_sq = (probe_hit.position.x - center_pos.x) * (probe_hit.position.x - center_pos.x) + (probe_hit.position.z - center_pos.z) * (probe_hit.position.z - center_pos.z)
+		if dist_h_sq > r_max_sq:
 			continue
 
 		# 3. Filtro específico si se pinta sobre IslaFlotante: asegurar que esté sobre la superficie superior transitable
-		# (descarta si el rayo cayó en el cono rocoso inferior o acantilado por fuera del faldón)
 		var nodo_isla = col
 		while nodo_isla != null and not nodo_isla.has_method("calcular_altura_en") and nodo_isla != nodo_isla.get_tree().root:
 			nodo_isla = nodo_isla.get_parent()
@@ -541,7 +568,6 @@ func _ejecutar_pintado_con_proyeccion(camera: Camera3D, hit_center: Dictionary, 
 			if pos_loc_isla.y < h_isla - 0.35:
 				continue
 		else:
-			# Si es otro objeto/terreno genérico: descartar caídas bruscas hacia abajo por acantilados
 			var caida_hacia_abajo = center_pos.y - probe_hit.position.y
 			var pend_max = _nodo_pasto.pendiente_maxima if "pendiente_maxima" in _nodo_pasto else 55.0
 			var max_caida = tan(deg_to_rad(pend_max)) * radio + 0.6
