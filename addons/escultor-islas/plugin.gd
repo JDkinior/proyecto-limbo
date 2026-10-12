@@ -12,6 +12,8 @@ var _esculpiendo: bool = false
 var _ultima_pos_trazo: Vector3 = Vector3.INF
 var _trazo_en_curso: bool = false
 var _deformaciones_antes_del_trazo: Array[Dictionary] = []
+var _modo_trazo_activo: int = 0
+var _limitar_a_cero_activo: bool = false
 
 # Barra de herramientas superior del visor 3D (ultra-compacta)
 var _toolbar: HBoxContainer = null
@@ -127,7 +129,7 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 			if _esculpiendo and _trazo_en_curso:
 				var dist_min_paso = maxf(radio * 0.35, 0.4)
 				if _ultima_pos_trazo.distance_to(hit_pos) >= dist_min_paso:
-					_aplicar_estampa(hit_pos, radio, fuerza, modo, forma)
+					_aplicar_estampa(hit_pos, radio, fuerza, _modo_trazo_activo, forma, _limitar_a_cero_activo)
 					_ultima_pos_trazo = hit_pos
 				return AFTER_GUI_INPUT_STOP
 		else:
@@ -158,11 +160,34 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 			if mb.pressed:
 				_iniciar_trazo()
 				_esculpiendo = true
+				var modo_sel = modo
+				var modo_final = modo_sel
+				var limitar = false
+
+				if modo_sel == 0: # ELEVAR
+					if mb.shift_pressed or mb.ctrl_pressed:
+						# Invertir elevación: REDUCIR pero limitado a la superficie original (sin extruir hacia adentro)
+						modo_final = 4 # REDUCIR_A_BASE
+						limitar = true
+					else:
+						modo_final = 0
+						limitar = false
+				elif modo_sel == 1: # HUNDIR (seleccionado explícitamente desde la barra de herramientas)
+					if mb.shift_pressed or mb.ctrl_pressed:
+						modo_final = 0 # Invertir a elevar
+						limitar = false
+					else:
+						modo_final = 1 # Hundir: extruye hacia adentro del cuerpo rocoso
+						limitar = false
+				elif modo_sel == 4: # REDUCIR A BASE
+					modo_final = 4
+					limitar = true
+
+				_modo_trazo_activo = modo_final
+				_limitar_a_cero_activo = limitar
+
 				if not hit.is_empty():
-					var modo_final = modo
-					if mb.shift_pressed:
-						modo_final = 1 if modo == 0 else 0 # Invertir (Elevar <-> Hundir)
-					_aplicar_estampa(hit.position, radio, fuerza, modo_final, forma)
+					_aplicar_estampa(hit.position, radio, fuerza, _modo_trazo_activo, forma, _limitar_a_cero_activo)
 					_ultima_pos_trazo = hit.position
 				return AFTER_GUI_INPUT_STOP
 			else:
@@ -173,10 +198,15 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 				return AFTER_GUI_INPUT_STOP
 
 		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			# Clic derecho: Hundir rápido
+			# Clic derecho:
+			# Si está en modo ELEVAR o REDUCIR, reduce a la base original (sin hacer pozos ni extruir hacia dentro)
+			# Si está explícitamente en modo HUNDIR, hunde hacia adentro libremente
 			if not hit.is_empty():
+				var modo_sel = modo
+				var modo_r = 4 if modo_sel != 1 else 1
+				var lim_r = (modo_sel != 1)
 				_iniciar_trazo()
-				_aplicar_estampa(hit.position, radio, fuerza, 1, forma)
+				_aplicar_estampa(hit.position, radio, fuerza, modo_r, forma, lim_r)
 				_finalizar_trazo()
 				return AFTER_GUI_INPUT_STOP
 
@@ -215,10 +245,10 @@ func _hacer_raycast(camera: Camera3D, mouse_pos: Vector2) -> Dictionary:
 	return {}
 
 
-func _aplicar_estampa(pos_mundo: Vector3, radio: float, fuerza: float, modo: int, forma: int) -> void:
+func _aplicar_estampa(pos_mundo: Vector3, radio: float, fuerza: float, modo: int, forma: int, limitar_a_cero: bool = false) -> void:
 	if not is_instance_valid(_isla):
 		return
-	_isla.aplicar_trazo_esculpido(pos_mundo, radio, fuerza, modo, forma)
+	_isla.aplicar_trazo_esculpido(pos_mundo, radio, fuerza, modo, forma, limitar_a_cero)
 
 
 # ==============================================================================
@@ -229,6 +259,7 @@ func _iniciar_trazo() -> void:
 	if not is_instance_valid(_isla):
 		return
 	_trazo_en_curso = true
+	_isla._esculpiendo_activo = true
 	_deformaciones_antes_del_trazo = _isla.deformaciones_escultura.duplicate(true)
 
 
@@ -237,11 +268,17 @@ func _finalizar_trazo() -> void:
 		_trazo_en_curso = false
 		_esculpiendo = false
 		_ultima_pos_trazo = Vector3.INF
+		if is_instance_valid(_isla):
+			_isla._esculpiendo_activo = false
 		return
 
 	_trazo_en_curso = false
 	_esculpiendo = false
 	_ultima_pos_trazo = Vector3.INF
+
+	# Finalizar arrastre: reconstruye colisión sólida y sincroniza pasto completo de forma definitiva
+	if is_instance_valid(_isla):
+		_isla.finalizar_arrastre_escultura()
 
 	var antes = _deformaciones_antes_del_trazo
 	var despues = _isla.deformaciones_escultura.duplicate(true)
@@ -278,7 +315,7 @@ func _crear_toolbar() -> void:
 	_btn_activar = Button.new()
 	_btn_activar.text = "⛰️ Esculpir Isla"
 	_btn_activar.toggle_mode = true
-	_btn_activar.tooltip_text = "Activar / Desactivar herramienta de escultura 3D\n(Clic izq. = Esculpir, Shift+Clic o Clic der. = Hundir)"
+	_btn_activar.tooltip_text = "Activar / Desactivar herramienta de escultura 3D\n(Clic izq. = Esculpir, Shift+Clic = Reducir a base original, Hundir en barra = Extruir hacia dentro)"
 	_btn_activar.toggled.connect(_on_activar_toggled)
 	_toolbar.add_child(_btn_activar)
 
@@ -288,9 +325,10 @@ func _crear_toolbar() -> void:
 	_opt_modo.fit_to_longest_item = false
 	_opt_modo.tooltip_text = "Modo de esculpido"
 	_opt_modo.add_item("⬆️ Elevar", 0)
-	_opt_modo.add_item("⬇️ Hundir", 1)
+	_opt_modo.add_item("⬇️ Hundir (Extruir)", 1)
 	_opt_modo.add_item("🔲 Meseta / Terraza", 2)
 	_opt_modo.add_item("〰️ Suavizar", 3)
+	_opt_modo.add_item("📉 Reducir a Base", 4)
 	_opt_modo.item_selected.connect(_on_modo_selected)
 	_toolbar.add_child(_opt_modo)
 

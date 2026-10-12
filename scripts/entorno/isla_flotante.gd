@@ -28,7 +28,8 @@ enum ModoPincelTerreno {
 	ELEVAR,
 	HUNDIR,
 	APLANAR_TERRAZA,
-	SUAVIZAR
+	SUAVIZAR,
+	REDUCIR_A_BASE
 }
 
 enum FormaPincelTerreno {
@@ -398,6 +399,10 @@ var _decoracion_nodo: Node3D = null
 # Control de regeneración diferida
 var _regeneracion_pendiente: bool = false
 var _aplicando_preset: bool = false
+var _esculpiendo_activo: bool = false
+var _ultimo_trazo_pos: Vector2 = Vector2.INF
+var _ultimo_trazo_radio: float = -1.0
+var _perimetro_pts_cache: Array[Vector3] = []
 
 # Preload de materiales y decoración por defecto
 const MAT_HIERBA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba.tres")
@@ -427,7 +432,14 @@ func _init() -> void:
 	collision_mask = 0
 
 
+func _enter_tree() -> void:
+	if not is_in_group("islas"):
+		add_to_group("islas")
+
+
 func _ready() -> void:
+	if not is_in_group("islas"):
+		add_to_group("islas")
 	_asegurar_nodos_hijos()
 	if material_hierba == null:
 		material_hierba = MAT_HIERBA_DEFAULT
@@ -594,10 +606,12 @@ func regenerar() -> void:
 
 		var px = cos(ang) * radio_x_base * factor_radio
 		var pz = sin(ang) * radio_z_base * factor_radio
-		var py = altura_superficie + (rng.randf() - 0.5) * variacion_superficie * 0.3
+		var py = _calcular_altura_superficie_interna(Vector2(px, pz))
 
 		perimetro_pts.append(Vector3(px, py, pz))
 		perimetro_radios.append(Vector2(px, pz).length())
+
+	_perimetro_pts_cache = perimetro_pts
 
 	# 3. Construir la malla con dos superficies (Pasto / Hierba y Roca) si generar_pasto es true,
 	# o una única superficie monolítica de roca si generar_pasto es false.
@@ -618,7 +632,7 @@ func regenerar() -> void:
 	# ==========================================================================
 	var num_anillos_sup = anillos_superficie
 	if habilitar_montanas or not deformaciones_escultura.is_empty() or habilitar_mesetas_superficie:
-		num_anillos_sup = maxi(anillos_superficie, 10)
+		num_anillos_sup = maxi(anillos_superficie, 22)
 
 	var y_centro = _calcular_altura_superficie_interna(Vector2.ZERO)
 	var vertice_centro = Vector3(0.0, y_centro, 0.0)
@@ -1007,11 +1021,19 @@ func regenerar() -> void:
 	var bbox_mesh = mesh.get_aabb()
 	_mesh_instance.custom_aabb = bbox_mesh.grow(4.0)
 
-	# 5. Generar colisión sólida e impenetrable
-	_actualizar_colision(col_caras)
+	# 5. Generar colisión sólida e impenetrable (solo cuando no se está arrastrando activamente el pincel)
+	if not _esculpiendo_activo:
+		_actualizar_colision(col_caras)
 
 	# 6. Generar decoración procedural si está habilitada
-	_actualizar_decoracion(rng, perimetro_pts, perimetro_radios)
+	if not _esculpiendo_activo:
+		_actualizar_decoracion(rng, perimetro_pts, perimetro_radios)
+
+	# 7. Sincronizar y adaptar generadores de pasto sobre esta isla
+	if _esculpiendo_activo and _ultimo_trazo_radio > 0.0:
+		_notificar_generadores_pasto(_ultimo_trazo_pos, _ultimo_trazo_radio)
+	else:
+		_notificar_generadores_pasto()
 
 
 func _actualizar_materiales() -> void:
@@ -1204,16 +1226,19 @@ func _calcular_altura_superficie_interna(pos_xz: Vector2) -> float:
 	y += ond_armonica * (variacion_superficie * 0.35 * t_radio)
 
 	# 2. Mesetas y Terrazas de Superficie
+	var h_relieve = 0.0
 	if habilitar_mesetas_superficie:
-		y += _evaluar_mesetas_superficie(pos_xz)
+		h_relieve += _evaluar_mesetas_superficie(pos_xz)
 
 	# 3. Montañas y Relieve Procedural
 	if habilitar_montanas:
-		y += _evaluar_relieve_procedural(pos_xz)
+		h_relieve += _evaluar_relieve_procedural(pos_xz)
+
+	y += h_relieve
 
 	# 4. Deformaciones manuales esculpidas con pincel
 	if not deformaciones_escultura.is_empty():
-		y += _evaluar_deformaciones_escultura(pos_xz)
+		y += _evaluar_deformaciones_escultura(pos_xz, h_relieve)
 
 	return y
 
@@ -1345,7 +1370,7 @@ func _evaluar_relieve_procedural(pos_xz: Vector2) -> float:
 	return delta_h
 
 
-func _evaluar_deformaciones_escultura(pos_xz: Vector2) -> float:
+func _evaluar_deformaciones_escultura(pos_xz: Vector2, h_relieve_base: float = 0.0) -> float:
 	var delta_total = 0.0
 	for d in deformaciones_escultura:
 		var pos_c = d.get("pos", Vector2.ZERO)
@@ -1353,6 +1378,7 @@ func _evaluar_deformaciones_escultura(pos_xz: Vector2) -> float:
 		var f = d.get("fuerza", 1.0)
 		var modo = d.get("modo", 0)
 		var forma = d.get("forma", 0)
+		var limitar_a_cero = d.get("limitar_a_cero", false) or (modo == 4)
 
 		var dist = pos_xz.distance_to(pos_c)
 		if dist >= r:
@@ -1369,20 +1395,33 @@ func _evaluar_deformaciones_escultura(pos_xz: Vector2) -> float:
 			2: # Cúpula Suave
 				falloff = (1.0 - t * t) * (1.0 - t * t)
 
+		var paso = f * falloff
+
 		match modo:
 			0: # Elevar
-				delta_total += f * falloff
-			1: # Hundir
-				delta_total -= f * falloff
+				delta_total += paso
+			1: # Hundir (extrusión hacia adentro del terreno)
+				if limitar_a_cero:
+					var target_delta = -h_relieve_base if (h_relieve_base > 0.0) else 0.0
+					if delta_total > target_delta:
+						var blend = clampf(paso * 1.5, 0.0, 1.0)
+						delta_total = maxf(target_delta, lerpf(delta_total, target_delta, blend))
+				else:
+					delta_total -= paso
 			2: # Aplanar / Terraza
-				delta_total += f * falloff * 0.5
+				delta_total += paso * 0.5
 			3: # Suavizar
-				delta_total += f * falloff * 0.25
+				delta_total = lerpf(delta_total, 0.0, clampf(paso * 0.5, 0.0, 0.8))
+			4: # Reducir a Base (vuelve a la superficie original suavemente sin crear hoyos, pozos ni bordes)
+				var target_delta = -h_relieve_base if (h_relieve_base > 0.0) else 0.0
+				if delta_total > target_delta:
+					var blend = clampf(paso * 1.5, 0.0, 1.0)
+					delta_total = maxf(target_delta, lerpf(delta_total, target_delta, blend))
 
 	return delta_total
 
 
-func aplicar_trazo_esculpido(pos_mundo: Vector3, radio: float, fuerza: float, modo: int, forma: int = 0) -> void:
+func aplicar_trazo_esculpido(pos_mundo: Vector3, radio: float, fuerza: float, modo: int, forma: int = 0, limitar_a_cero: bool = false) -> void:
 	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
 	var pos_xz = Vector2(pos_local.x, pos_local.z)
 
@@ -1391,10 +1430,21 @@ func aplicar_trazo_esculpido(pos_mundo: Vector3, radio: float, fuerza: float, mo
 		"radio": maxf(radio, 0.3),
 		"fuerza": fuerza,
 		"modo": modo,
-		"forma": forma
+		"forma": forma,
+		"limitar_a_cero": limitar_a_cero or (modo == 4)
 	}
 	deformaciones_escultura.append(nuevo_trazo)
+	_ultimo_trazo_pos = pos_xz
+	_ultimo_trazo_radio = maxf(radio, 0.3)
 	_solicitar_regeneracion()
+
+
+## Finaliza el trazo continuo del pincel, reconstruyendo la colisión física y sincronizando todo el pasto
+func finalizar_arrastre_escultura() -> void:
+	_esculpiendo_activo = false
+	_ultimo_trazo_pos = Vector2.INF
+	_ultimo_trazo_radio = -1.0
+	regenerar()
 
 
 func limpiar_esculpido() -> void:
@@ -1541,3 +1591,48 @@ func _estimar_radio_en_angulo(ang: float, perimetro_pts: Array[Vector3]) -> floa
 	var r1 = Vector2(perimetro_pts[idx].x, perimetro_pts[idx].z).length()
 	var r2 = Vector2(perimetro_pts[next_idx].x, perimetro_pts[next_idx].z).length()
 	return lerpf(r1, r2, t)
+
+
+## Comprueba si una coordenada local XZ se encuentra sobre la superficie superior de la isla
+func tiene_punto_en_superficie(pos_xz: Vector2) -> bool:
+	if _perimetro_pts_cache.is_empty():
+		var rx = ancho * 0.5 * 1.15
+		var rz = largo * 0.5 * 1.15
+		return (pos_xz.x * pos_xz.x) / (rx * rx) + (pos_xz.y * pos_xz.y) / (rz * rz) <= 1.05
+
+	var ang = atan2(pos_xz.y, pos_xz.x)
+	var r_max = _estimar_radio_en_angulo(ang, _perimetro_pts_cache) + 0.15
+	return pos_xz.length() <= r_max
+
+
+## Notifica y adapta automáticamente todos los nodos GeneradorPasto en la escena para que su briznas sigan el relieve
+func _notificar_generadores_pasto(centro: Vector2 = Vector2.INF, radio: float = -1.0) -> void:
+	if not is_inside_tree() or get_tree() == null:
+		return
+
+	var visitados: Dictionary = {}
+	var lista: Array[Node] = []
+
+	# 1. Nodos registrados en el grupo oficial
+	for n in get_tree().get_nodes_in_group("generador_pasto"):
+		if is_instance_valid(n) and not visitados.has(n):
+			visitados[n] = true
+			lista.append(n)
+
+	# 2. Hijos de esta isla
+	for c in get_children():
+		if is_instance_valid(c) and not visitados.has(c) and c.has_method("adaptar_a_superficie_isla"):
+			visitados[c] = true
+			lista.append(c)
+
+	# 3. Hermanos en el mismo nivel de jerarquía
+	if get_parent() != null:
+		for s in get_parent().get_children():
+			if is_instance_valid(s) and not visitados.has(s) and s.has_method("adaptar_a_superficie_isla"):
+				visitados[s] = true
+				lista.append(s)
+
+	for gen in lista:
+		if is_instance_valid(gen) and gen.has_method("adaptar_a_superficie_isla"):
+			gen.adaptar_a_superficie_isla(self, centro, radio)
+
