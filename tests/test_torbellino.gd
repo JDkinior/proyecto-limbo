@@ -379,7 +379,3 @@ func test_adaptacion_escala_vertical() -> void:
 	assert_gt(p_vortice.amount, base_amount, "Deben generarse más partículas a lo largo de la altura")
 	
 	tree.root.remove_child(instance)
-
-
-
-

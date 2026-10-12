@@ -9,7 +9,6 @@
 [ext_resource type="PackedScene" uid="uid://cs88ggghqgeta" path="res://scenes/components/mecanismos/puerta_interactiva.tscn" id="7_puerta"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges5" path="res://scenes/components/coleccionables/moneda_vivo.tscn" id="8_moneda_vivo"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges6" path="res://scenes/components/coleccionables/moneda_fantasma.tscn" id="9_moneda_fantasma"]
-[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataformas/plataforma_espiritual_base.tscn" id="10_plat_esp"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/metas/goal.tscn" id="11_goal"]
 [ext_resource type="PackedScene" uid="uid://b2w7sve5fbqiy" path="res://scenes/entorno/iluminacion/farol.tscn" id="16_0m24d"]
 [ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="16_nivel_base"]
@@ -24,7 +23,6 @@
 [ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="22_qh0qo"]
 [ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="23_btu23"]
 [ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="24_33yto"]
-[ext_resource type="PackedScene" path="res://scenes/components/plataformas/plataforma_colapso.tscn" id="25_btu23"]
 
 [sub_resource type="Sky" id="Sky_limbo"]
 sky_material = ExtResource("18_cielo_mat")
@@ -48,49 +46,7 @@ fog_density = 0.008
 fog_sky_affect = 0.35
 fog_height_density = 1.0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_fantasma"]
-albedo_color = Color(0.1, 0.15, 0.32, 1)
-roughness = 0.88
-
-[sub_resource type="BoxMesh" id="BoxMesh_floor_fantasma_main"]
-material = SubResource("StandardMaterial3D_floor_fantasma")
-size = Vector3(10, 1, 10)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_floor_fantasma_main"]
-size = Vector3(10, 1, 10)
-
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_floor_fantasma"]
-size = Vector3(10, 1, 10)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor_vivo"]
-albedo_color = Color(0.54901963, 0.4392157, 0.32156864, 1)
-roughness = 0.88
-
-[sub_resource type="BoxMesh" id="BoxMesh_step_vivo"]
-material = SubResource("StandardMaterial3D_floor_vivo")
-size = Vector3(6, 1.2, 6)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_step_vivo"]
-size = Vector3(6, 1.2, 6)
-
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_step"]
-size = Vector3(6, 1.2, 6)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_shared"]
-albedo_color = Color(0.35, 0.42, 0.48, 1)
-roughness = 0.65
-
-[sub_resource type="BoxMesh" id="BoxMesh_shared"]
-material = SubResource("StandardMaterial3D_shared")
-size = Vector3(26, 1, 14)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_shared"]
-size = Vector3(26, 1, 14)
-
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_shared"]
-size = Vector3(26, 1, 14)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_33yto"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dkxh6"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
@@ -112,7 +68,7 @@ shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_h141t"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_qh0qo"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.26250046, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
@@ -125,10 +81,10 @@ _surfaces = [{
 
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
-custom_aabb = AABB(-25.986645, -2.8952034, -10.155627, 36.93711, 9.395384, 57.376926)
-mesh = SubResource("ArrayMesh_h141t")
+custom_aabb = AABB(-43.39925, -0.7279607, -61.455227, 54.82432, 7.230644, 108.675156)
+mesh = SubResource("ArrayMesh_qh0qo")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vdlxj"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_btu23"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
@@ -188,48 +144,6 @@ tiempo_espera_extremos = 0.1
 
 [node name="PistaEspiritualFantasma" type="Node3D" parent="." unique_id=896449448]
 
-[node name="SueloFantasmaBase" type="StaticBody3D" parent="PistaEspiritualFantasma" unique_id=1779624950]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -0.5, 0)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaEspiritualFantasma/SueloFantasmaBase" unique_id=655589021]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 17)
-mesh = SubResource("BoxMesh_floor_fantasma_main")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaEspiritualFantasma/SueloFantasmaBase" unique_id=304281781]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 17)
-shape = SubResource("BoxShape3D_floor_fantasma_main")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PistaEspiritualFantasma/SueloFantasmaBase" unique_id=1018195622]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 17)
-occluder = SubResource("BoxOccluder3D_floor_fantasma")
-
-[node name="CristalMonolith1" parent="PistaEspiritualFantasma" unique_id=637223720 instance=ExtResource("16_r2ia1")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.285676, 4, -8)
-
-[node name="CristalMonolith2" parent="PistaEspiritualFantasma" unique_id=352651187 instance=ExtResource("16_r2ia1")]
-transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 12, 3, 2)
-
-[node name="PlataformaEspiritual1" parent="PistaEspiritualFantasma" unique_id=1681526785 instance=ExtResource("10_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 0.99984556, 0.017573379, 0, -0.017573379, 0.99984556, 8, 2.6897051, 6.893244)
-
-[node name="PlataformaEspiritual2" parent="PistaEspiritualFantasma" unique_id=1120773619 instance=ExtResource("10_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 5.313714, -0.9136958)
-
-[node name="PlataformaFantasmaFinal" type="StaticBody3D" parent="PistaEspiritualFantasma" unique_id=1570665521]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.1, -16)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PistaEspiritualFantasma/PlataformaFantasmaFinal" unique_id=155475729]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
-mesh = SubResource("BoxMesh_step_vivo")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PistaEspiritualFantasma/PlataformaFantasmaFinal" unique_id=1392764166]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
-shape = SubResource("BoxShape3D_step_vivo")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PistaEspiritualFantasma/PlataformaFantasmaFinal" unique_id=546373515]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
-occluder = SubResource("BoxOccluder3D_step")
-
 [node name="Mecanismos" type="Node3D" parent="." unique_id=262988224]
 
 [node name="BotonPresion" parent="Mecanismos" unique_id=2060207190 instance=ExtResource("5_boton")]
@@ -251,18 +165,6 @@ disparador_objetivo = NodePath("../InterruptorAura")
 
 [node name="ZonaReunionFinal" type="Node3D" parent="." unique_id=822277863]
 
-[node name="SueloFinal" type="StaticBody3D" parent="ZonaReunionFinal" unique_id=854515418]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, -27)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="ZonaReunionFinal/SueloFinal" unique_id=1548522746]
-mesh = SubResource("BoxMesh_shared")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="ZonaReunionFinal/SueloFinal" unique_id=1886893464]
-shape = SubResource("BoxShape3D_shared")
-
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="ZonaReunionFinal/SueloFinal" unique_id=1385104414]
-occluder = SubResource("BoxOccluder3D_shared")
-
 [node name="Goal" parent="ZonaReunionFinal" unique_id=1234241907 instance=ExtResource("11_goal")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -28)
 
@@ -281,7 +183,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.6279335, 6.9076486, -2)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.8, -11)
 
 [node name="MonedaFantasma1" parent="Coleccionables" unique_id=418483056 instance=ExtResource("9_moneda_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.2, 12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.2, 14.622826)
 
 [node name="MonedaFantasma2" parent="Coleccionables" unique_id=1302292864 instance=ExtResource("9_moneda_fantasma")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4.2897053, 6.70671)
@@ -297,7 +199,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.629795, 1, 34.943245)
 LIMITE_CAIDA_Y = -8.0
 
 [node name="Fantasma" parent="." unique_id=880578793 instance=ExtResource("3_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1, 18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.91899, 1, 25.156752)
 LIMITE_CAIDA_Y = -8.0
 
 [node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]
@@ -344,7 +246,7 @@ transform = Transform3D(1.0823392, 0, -0.1963211, 0, 1.1, 0, 0.1963211, 0, 1.082
 [node name="Arbol_Otono_042" parent="." unique_id=250460251 instance=ExtResource("21_l6yfi")]
 transform = Transform3D(0.68684417, 0, 0.98399454, 0, 1.2, 0, -0.98399454, 0, 0.68684417, -17.055035, 0, 10.591643)
 
-[node name="IslaFlotante2" parent="." unique_id=1212818058 instance=ExtResource("22_qh0qo")]
+[node name="Isla Salto 1" parent="." unique_id=1212818058 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.88400203, 0, -0.4674831, 0, 1, 0, 0.4674831, 0, -0.88400203, -9.03509, 1.5046937, 6.650133)
 collision_mask = 0
 preset = 0
@@ -367,7 +269,7 @@ radio_despeje_centro = 0.8
 material_hierba = ExtResource("23_btu23")
 material_roca = ExtResource("24_33yto")
 
-[node name="IslaFlotante" parent="." unique_id=737052312 instance=ExtResource("22_qh0qo")]
+[node name="Isla Boton" parent="." unique_id=737052312 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.96617234, 0, 0.25789732, 0, 1, 0, -0.25789732, 0, 0.96617234, -9.757652, 4.831658, -2.1963902)
 collision_mask = 0
 preset = 0
@@ -393,7 +295,7 @@ radio_despeje_centro = 0.8
 material_hierba = ExtResource("23_btu23")
 material_roca = ExtResource("24_33yto")
 
-[node name="IslaFlotante3" parent="." unique_id=995727014 instance=ExtResource("22_qh0qo")]
+[node name="Isla Inicio" parent="." unique_id=995727014 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.96127975, 0, 0.27557448, 0, 1, 0, -0.27557448, 0, 0.96127975, -13.215503, 0, 24.35235)
 collision_mask = 0
 preset = 0
@@ -571,28 +473,7 @@ radio_despeje_centro = 1.8
 material_hierba = ExtResource("23_btu23")
 material_roca = ExtResource("24_33yto")
 
-[node name="PastoArea" parent="IslaFlotante3" unique_id=1863511703 instance=ExtResource("17_pasto_area")]
-transform = Transform3D(0.82831293, 0, -0.5602657, 0, 1, 0, 0.5602657, 0, 0.82831293, 27.757828, 0, -15.705488)
-material_override = SubResource("ShaderMaterial_33yto")
-custom_aabb = AABB(-25.986645, -2.8952034, -10.155627, 36.93711, 9.395384, 57.376926)
-visibility_range_end = 0.0
-multimesh = SubResource("MultiMesh_qh0qo")
-modo_distribucion = 0
-activar_pincel = true
-radio_pincel = 7.9
-densidad_pincel = 349
-pendiente_maxima = 43.0
-evitar_repintar = true
-archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1___el_despertar_separado_datos.res"
-solo_pintar_en_objetos = Array[NodePath]([NodePath("../IslaFlotante2"), NodePath("../IslaFlotante3"), NodePath("../IslaFlotante"), NodePath("../PistaEspiritualFantasma/SueloFantasmaBase"), NodePath("../ZonaReunionFinal/SueloFinal"), NodePath("../PistaEspiritualFantasma/PlataformaFantasmaFinal"), NodePath("../IslaFlotante4")])
-cantidad_instancias = 20000
-alto_pasto = 0.25
-ancho_pasto = 0.30000000000000004
-briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_33yto")
-material_espiritual = SubResource("ShaderMaterial_vdlxj")
-
-[node name="IslaFlotante4" parent="." unique_id=1519213400 instance=ExtResource("22_qh0qo")]
+[node name="Isla Previa Salto" parent="." unique_id=1519213400 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, -7.8753605, 1.5246236, -11.132851)
 collision_mask = 0
 preset = 0
@@ -615,9 +496,737 @@ radio_despeje_centro = 0.8
 material_hierba = ExtResource("23_btu23")
 material_roca = ExtResource("24_33yto")
 
-[node name="PlataformaColapso" parent="." unique_id=352224896 instance=ExtResource("25_btu23")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.028292, 1.8112636, 24.100475)
-
-[node name="PlataformaEspiritualBase" parent="." unique_id=570642690 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("10_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.86682, 2.7242205, 19.53601)
+[node name="IslaFlotante5" parent="." unique_id=1921573475 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.65059483, 0, -0.75942504, 0, 1, 0, 0.75942504, 0, 0.65059483, 8.057156, 2.980894, 6.7860317)
+collision_layer = 4
+collision_mask = 4
+tipo_comportamiento = 2
 disparador_objetivo = NodePath("../Mecanismos/InterruptorAura")
+opacidad_inactiva = 0.6
+preset = 0
+ancho = 4.0
+largo = 4.0
+profundidad_roca = 3.5
+irregularidad_contorno = 0.18
+segmentos_perimetro = 14
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.52
+dispersion_picos = 0.30000000000000004
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 0.7
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+estilo_montana = 0
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="IslaFlotante6" parent="." unique_id=1108238957 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.65059483, 0, -0.75942504, 0, 1, 0, 0.75942504, 0, 0.65059483, 8.057156, 6.006706, -0.92137754)
+collision_layer = 4
+collision_mask = 4
+tipo_comportamiento = 2
+disparador_objetivo = NodePath("../Mecanismos/InterruptorAura")
+opacidad_inactiva = 0.25
+preset = 0
+ancho = 4.0
+largo = 4.0
+profundidad_roca = 3.5
+irregularidad_contorno = 0.18
+segmentos_perimetro = 14
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.52
+semilla = 919417849
+dispersion_picos = 0.30000000000000004
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 0.7
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+estilo_montana = 0
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="Isla_F_Llegada" parent="." unique_id=1230567480 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, 7.580636, 1.7193696, -13.125851)
+collision_mask = 0
+preset = 0
+ancho = 5.5
+largo = 5.5
+profundidad_roca = 2.0
+irregularidad_contorno = 0.08
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.64
+semilla = 2368923981
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 1.0
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="Montaña" parent="." unique_id=272243538 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.14227903, 0, 0.98982656, 0, 1, 0, -0.98982656, 0, 0.14227903, -1.4596939, 0, -41.35112)
+collision_mask = 0
+preset = 0
+ancho = 47.0
+largo = 38.5
+profundidad_roca = 14.5
+irregularidad_contorno = 0.1
+segmentos_perimetro = 32
+anillos_roca = 8
+anillos_superficie = 4
+intensidad_variacion = 0.32
+semilla = 2305389168
+cantidad_picos_rocosos = 4
+dispersion_picos = 0.42
+facetado_triangular_irregular = false
+generar_pasto = false
+variacion_superficie = 1.0
+habilitar_mesetas_superficie = true
+longitud_faldon_pasto = 0.8
+vuelo_faldon_pasto = 0.48
+estilo_montana = 2
+altura_montana = 19.5
+cantidad_picos_montana = 4
+niveles_terraza = 7
+rugosidad_montana = 0.9
+angulo_corte_roca = 75.0
+activar_pincel_terreno = true
+forma_pincel_terreno = 2
+radio_pincel_terreno = 10.5
+fuerza_pincel_terreno = 1.1
+deformaciones_escultura = Array[Dictionary]([{
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(1.9188919, 0.78421116),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(6.4973793, -2.5666037),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(9.135151, -1.7075195),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(11.006828, -1.2772198),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(12.051407, -11.337297),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(10.916096, -14.09355),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(8.557522, -15.293875),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-4.1421013, -8.912134),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-4.321556, -11.64036),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-4.800232, -12.133211),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-4.800232, -12.133211),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-8.873819, -12.324072),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-9.8933525, -12.710278),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-12.581974, -6.655593),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-11.828394, -0.7303295),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-10.397142, 8.212115),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-9.036322, 12.36349),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-4.4432526, 14.572639),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(0.23218536, 15.278099),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(5.185852, 12.4956455),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(7.915718, 7.7264943),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(8.932465, 0.57384396),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(11.591789, -3.4951801),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(13.014397, -1.2657099),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(7.490345, 8.326595),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(2.2324944, 9.284504),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(0.8854599, 2.7593412),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(3.191906, -8.149766),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(5.1470375, -10.2269),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(7.671879, -10.741011),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-0.0020828247, -1.3865175),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-0.60637665, 12.568838),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.5875778, 14.816471),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-5.4976463, 13.248439),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-9.898779, 4.809665),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-12.182491, -2.8528137),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-10.510834, -15.687149),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-6.753746, -14.223108),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-3.2574806, 0.17584181),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.6803741, 2.2108703),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-0.95314026, 2.2879772),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.6419258, -13.601042),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(14.716896, -8.063523),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(11.433315, -9.152946),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(2.8331757, -11.810617),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(1.3927422, -12.39818),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.3487282, -12.383211),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-3.1596603, 3.672244),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.2834969, 7.297364),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(14.696369, 5.575533),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(17.278687, 2.8522854),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(16.380161, -6.704376),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.5040474, 5.079697),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-2.5227814, 6.0798388),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(6.091625, 10.663824),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(4.2664337, 20.08291),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(4.257313, 15.320673),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(3.6198196, 10.662889),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(4.002861, 8.226484),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(6.866497, 6.078354),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(9.06921, 6.291115),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(9.649357, 6.437803),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(6.847233, 11.239933),
+"radio": 10.5
+}, {
+"forma": 1,
+"fuerza": 20.1,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(5.4022293, 11.621868),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-6.4872475, 12.185805),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(6.603531, -14.003256),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(12.4673, -9.148006),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(17.599419, -2.4670868),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(20.053715, 3.4199376),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-9.319557, -13.249533),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(10.924088, 5.6558175),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(17.651161, -10.527943),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(23.170444, -2.234376),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(19.852612, 6.3085337),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-11.272816, -0.29607344),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-16.209631, -15.404802),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-5.55249, 22.867697),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-12.972357, -29.880922),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-10.238686, -27.772211),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-7.107136, -24.355688),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(-9.418175, 10.014343),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(7.4389954, 1.6187897),
+"radio": 10.5
+}, {
+"forma": 2,
+"fuerza": 1.1,
+"limitar_a_cero": false,
+"modo": 0,
+"pos": Vector2(4.7450676, -3.7058935),
+"radio": 10.5
+}])
+cantidad_rocas_satelite = 6
+margen_borde = 2.0
+radio_despeje_centro = 1.8
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="Isla Fantasma" parent="." unique_id=28966886 instance=ExtResource("22_qh0qo")]
+transform = Transform3D(0.91710246, 0, 0.39865232, 0, 1, 0, -0.39865232, 0, 0.91710246, 6.6033564, 0, 19.018848)
+collision_mask = 0
+preset = 0
+ancho = 15.5
+largo = 14.5
+irregularidad_contorno = 0.14
+intensidad_variacion = 0.38
+semilla = 3210152467
+dispersion_picos = 0.8
+generar_pasto = false
+variacion_superficie = 0.64
+material_hierba = ExtResource("23_btu23")
+material_roca = ExtResource("24_33yto")
+
+[node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
+transform = Transform3D(0.9506353, 0, -0.31031018, 0, 1, 0, 0.31031018, 0, 0.9506353, 9.139502, 0, 1.6056328)
+material_override = SubResource("ShaderMaterial_dkxh6")
+custom_aabb = AABB(-43.39925, -0.7279607, -61.455227, 54.82432, 7.230644, 108.675156)
+visibility_range_end = 0.0
+multimesh = SubResource("MultiMesh_qh0qo")
+modo_distribucion = 0
+activar_pincel = true
+radio_pincel = 15.0
+densidad_pincel = 357
+pendiente_maxima = 43.0
+evitar_repintar = true
+archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1___el_despertar_separado_datos.res"
+solo_pintar_en_objetos = Array[NodePath]([NodePath("../Isla Inicio"), NodePath("../Isla Salto 1"), NodePath("../Isla Boton"), NodePath("../Isla Previa Salto"), NodePath("../Isla_F_Llegada"), NodePath("../Montaña"), NodePath("../Isla Fantasma")])
+cantidad_instancias = 20000
+alto_pasto = 0.25
+ancho_pasto = 0.30000000000000004
+briznas_por_manojo = 1
+material_fisico = SubResource("ShaderMaterial_dkxh6")
+material_espiritual = SubResource("ShaderMaterial_btu23")

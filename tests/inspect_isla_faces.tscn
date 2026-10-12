@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://c3m35w3bt12fe"]
+
+[ext_resource type="Script" path="res://tests/inspect_isla_faces.gd" id="1_test"]
+
+[node name="InspectIsla" type="Node" unique_id=1944164317]
+script = ExtResource("1_test")
