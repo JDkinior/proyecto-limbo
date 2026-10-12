@@ -1,0 +1,166 @@
+[gd_scene format=3 uid="uid://djsfm08r4vsu5"]
+
+[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="1_nivel_base"]
+[ext_resource type="Material" uid="uid://c7b63irvr06f4" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="2_cielo_mat"]
+[ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="3_isla_escena"]
+[ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="4_25t8b"]
+[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="4_jugador"]
+[ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="5_t1ey7"]
+[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="5_ui"]
+
+[sub_resource type="Sky" id="Sky_limbo_test"]
+sky_material = ExtResource("2_cielo_mat")
+
+[sub_resource type="Environment" id="Environment_test"]
+background_mode = 2
+sky = SubResource("Sky_limbo_test")
+ambient_light_source = 2
+ambient_light_color = Color(0.96, 0.82, 0.52, 1)
+ambient_light_energy = 1.15
+tonemap_mode = 2
+tonemap_exposure = 1.04
+tonemap_white = 1.12
+glow_enabled = true
+glow_intensity = 0.65
+glow_strength = 0.85
+glow_bloom = 0.12
+fog_enabled = true
+fog_light_color = Color(0.96, 0.8, 0.48, 1)
+fog_density = 0.005
+fog_sky_affect = 0.35
+fog_height_density = 1.0
+
+[node name="PruebaGeneradorIslas" type="Node3D" unique_id=18329788]
+script = ExtResource("1_nivel_base")
+mostrar_intro_capitulo = false
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1214827561]
+environment = SubResource("Environment_test")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=6545494]
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75, -0.433013, 0, 25, 0)
+light_color = Color(1, 0.94, 0.82, 1)
+light_energy = 1.25
+shadow_enabled = true
+shadow_bias = 0.02
+shadow_blur = 0.0
+directional_shadow_max_distance = 120.0
+
+[node name="IslaInicioMediana" parent="." unique_id=7888265 instance=ExtResource("3_isla_escena")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+collision_mask = 0
+preset = 0
+ancho = 11.0
+largo = 11.0
+profundidad_roca = 7.0
+irregularidad_contorno = 0.35
+segmentos_perimetro = 16
+anillos_superficie = 2
+intensidad_variacion = 0.35
+semilla = 10101
+dispersion_picos = 0.45
+variacion_superficie = 0.12
+generar_decoracion = true
+incluir_faroles = true
+material_hierba = ExtResource("4_25t8b")
+material_roca = ExtResource("5_t1ey7")
+
+[node name="IslaPequena1" parent="." unique_id=763744222 instance=ExtResource("3_isla_escena")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 11.5, -7)
+collision_mask = 0
+preset = 0
+ancho = 5.5
+largo = 5.5
+profundidad_roca = 4.0
+irregularidad_contorno = 0.22
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.28
+semilla = 20202
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+longitud_faldon_pasto = 0.45
+vuelo_faldon_pasto = 0.28
+cantidad_rocas_satelite = 2
+generar_decoracion = true
+densidad_decoracion = 0.3
+incluir_arboles = false
+incluir_faroles = true
+margen_borde = 0.8
+radio_despeje_centro = 0.6
+material_hierba = ExtResource("4_25t8b")
+material_roca = ExtResource("5_t1ey7")
+
+[node name="IslaPequena2" parent="." unique_id=1183362403 instance=ExtResource("3_isla_escena")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 12, -7)
+collision_mask = 0
+preset = 0
+ancho = 5.5
+largo = 5.5
+profundidad_roca = 4.0
+irregularidad_contorno = 0.22
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.28
+semilla = 30303
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+generar_pasto = false
+longitud_faldon_pasto = 0.45
+vuelo_faldon_pasto = 0.28
+cantidad_rocas_satelite = 2
+generar_decoracion = true
+densidad_decoracion = 0.3
+incluir_arboles = false
+margen_borde = 0.8
+radio_despeje_centro = 0.6
+material_hierba = ExtResource("4_25t8b")
+material_roca = ExtResource("5_t1ey7")
+
+[node name="IslaGrande" parent="." unique_id=1558979790 instance=ExtResource("3_isla_escena")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16, -36)
+collision_mask = 0
+preset = 0
+ancho = 18.0
+largo = 20.0
+profundidad_roca = 11.0
+irregularidad_contorno = 0.42
+segmentos_perimetro = 30
+anillos_roca = 8
+intensidad_variacion = 0.4
+semilla = 40404
+cantidad_picos_rocosos = 4
+dispersion_picos = 0.1
+variacion_superficie = 0.22
+longitud_faldon_pasto = 0.7
+vuelo_faldon_pasto = 0.42
+habilitar_montanas = true
+estilo_montana = 2
+radio_montana = 7.0
+posicion_montana = Vector2(0.2, -0.2)
+rugosidad_montana = 0.25
+angulo_corte_roca = 40.0
+generar_rocas_satelite = false
+generar_decoracion = true
+densidad_decoracion = 0.5
+incluir_faroles = true
+margen_borde = 1.8
+radio_despeje_centro = 1.5
+material_hierba = ExtResource("4_25t8b")
+material_roca = ExtResource("5_t1ey7")
+
+[node name="Jugador" parent="." unique_id=705899808 instance=ExtResource("4_jugador")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.2, 0)
+LIMITE_CAIDA_Y = -15.0
+
+[node name="Controles_Tactiles" parent="." unique_id=80346386 instance=ExtResource("5_ui")]
+
+[node name="IslaFlotante" parent="." unique_id=1505556467 instance=ExtResource("3_isla_escena")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.7146683, 27.933218, -34.382717)
+collision_mask = 0
+generar_pasto = false
+generar_faldon_pasto = false
+material_hierba = ExtResource("4_25t8b")
+material_roca = ExtResource("5_t1ey7")

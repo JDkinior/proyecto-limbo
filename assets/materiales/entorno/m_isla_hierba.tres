@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dk780hfk8i84w"]
+
+[resource]
+resource_name = "m_isla_hierba"
+cull_mode = 2
+diffuse_mode = 1
+specular_mode = 2
+vertex_color_use_as_albedo = true
+roughness = 0.95

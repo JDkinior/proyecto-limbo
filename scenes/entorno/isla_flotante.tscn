@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://b5isla_flotante_base"]
+
+[ext_resource type="Script" path="res://scripts/entorno/isla_flotante.gd" id="1_script_isla"]
+
+[node name="IslaFlotante" type="StaticBody3D"]
+script = ExtResource("1_script_isla")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+cast_shadow = 2
+extra_cull_margin = 8.0
+ignore_occlusion_culling = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="Decoracion" type="Node3D" parent="."]
