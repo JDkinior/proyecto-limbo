@@ -1,6 +1,6 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.11` (Build Code `12`)  
+**Versión Actual:** `1.0.12` (Build Code `13`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
 **Última Actualización:** 12 de Octubre de 2026  
 
@@ -43,6 +43,20 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.12 (12 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Suavizado Automático por Secciones en Rocas de Islas Flotantes (`isla_flotante.gd`)**:
+    *   **Algoritmo Auto Smooth Estilo Blender**: Integración del sistema `suavizado_automatico_roca` en la generación de mallas procedurales rocosas. Agrupa caras adyacentes conectadas por aristas compartidas cuyo ángulo diedro sea inferior al umbral configurable (`angulo_suavizado_roca`, por defecto \(54.5^\circ\)).
+    *   **Volumen Curvo y Aristas Silueteadas**: Interpola normales de vértices internos en cada sección conservando normales facetadas independientes en aristas vivas, crestas y fisuras (`intensidad_suavizado_roca`), eliminando el aspecto facetado excesivamente plano sin perder la definición rocosa.
+    *   **Determinismo y Eficiencia**: Uso de buffer de triángulos (`_tris_roca_buffer`) y grafo de adyacencia de aristas, garantizando generación determinista con el generador pseudoaleatorio (`rng`) del nivel.
+*   **Shader y Material Alternativo de Roca Suavizada (`m_isla_roca_suavizada.tres`, `roca_suavizada.gdshader`)**:
+    *   **Interpolación de Normales en Screen-Space**: Shader espacial optimizado para Forward Mobile que combina normales planas con derivadas de posición (`dFdx`/`dFdy`), proporcionando atenuación y sombreado suave de contacto en grietas (`edge_shadow`, `facet_contrast`) sin alterar el consumo de vértices.
+    *   **Ajuste Tonal de Roca Base**: Actualización sutil de balance en [`m_isla_roca.tres`](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/assets/materiales/entorno/m_isla_roca.tres) para mayor armonía cromática con la iluminación ambiental.
+*   **Ajustes de Configuración y Escena de Pruebas**:
+    *   **Modo de Ventana en `project.godot`**: Configuración de `window/size/mode=3` para arranque maximizado en pruebas de escritorio.
+    *   **Actualización de `prueba_generador_islas.tscn`**: Integración de parámetros de suavizado automático para validación visual de islas en tiempo de desarrollo.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.11 (12 de Octubre de 2026)
 
