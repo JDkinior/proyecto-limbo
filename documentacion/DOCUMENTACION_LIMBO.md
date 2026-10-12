@@ -1,6 +1,6 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.10` (Build Code `11`)  
+**Versión Actual:** `1.0.11` (Build Code `12`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
 **Última Actualización:** 12 de Octubre de 2026  
 
@@ -43,6 +43,21 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.11 (12 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Cancelación Manual y Retracción Rápida del Aura (`habilidad_aura.gd`, `test_habilidad_aura_retraccion.gd`)**:
+    *   **Mecánica de Retracción Inmediata**: Al volver a presionar el botón de interactuar mientras el aura está activa, el radio colapsa aceleradamente hacia el origen con una curva cúbica *Ease-In* (`duracion_retraccion_cancelacion = 0.28s`), eliminando el tiempo de espera forzado y ofreciendo control preciso al jugador.
+    *   **Desvanecimiento Visual y Háptico Limpio**: Transición fluida de opacidad en el halo y cese inmediato de emisión de partículas y vibración háptica (`VibrationManager.detener_vibracion_aura`).
+    *   **Sincronización P2P Robusta**: Nuevos métodos RPC `rpc_retraer_aura` y comprobación segura `_es_multijugador_en_linea()` para evitar llamadas RPC inválidas en modo solitario o local.
+*   **Aviso de Desactivación con Parpadeo Progresivo y Materiales Espectrales en Islas (`isla_flotante.gd`, `isla_fantasma.gdshader`)**:
+    *   **Aviso Preventivo de Plataformas Espirituales**: Secuencia de advertencia de desvanecimiento con fases de parpadeo suave (`ciclos_parpadeo_lento`) y parpadeo rápido urgente (`ciclos_parpadeo_rapido`) antes de que la plataforma vuelva a ser intangible para el Vivo, evitando caídas inesperadas.
+    *   **Tangibilidad Preservada durante el Aviso**: La colisión física con el jugador Vivo (`Capa 2`) se mantiene firme e ininterrumpida durante toda la animación de advertencia y solo se deshabilita en el fade-out final.
+    *   **Materiales Espectrales Duales en Tiempo Real**: Incorporación de `m_isla_hierba_fantasma.tres`, `m_isla_roca_fantasma.tres` y `isla_fantasma.gdshader`. Las islas detectan automáticamente la perspectiva activa (`_detectar_es_fantasma()`) y conmutan al estilo translúcido espiritual con resplandor cian y fresnel personalizado para el Fantasma.
+*   **Enriquecimiento del Nivel 1 y Vegetación**:
+    *   **Ampliación de Cobertura de Pasto**: Incremento de `scenes/levels/pasto_nivel_1___el_despertar_separado_datos.res` de 14.89 MB a 16.86 MB para tapizar las plataformas recién integradas.
+    *   **Nuevas Baterías de Pruebas Automatizadas**: Incorporación de `tests/test_habilidad_aura_retraccion.gd` y `tests/test_isla_flotante_materiales_fantasma.gd`.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.10 (12 de Octubre de 2026)
 
