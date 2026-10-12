@@ -290,9 +290,8 @@ func _finalizar_trazo() -> void:
 	if ur != null:
 		ur.create_action("Esculpir Isla 3D")
 		ur.add_do_property(_isla, "deformaciones_escultura", despues)
-		ur.add_undo_property(_isla, "deformaciones_escultura", antes)
-		ur.add_do_method(_isla, "_solicitar_regeneracion")
-		ur.add_undo_method(_isla, "_solicitar_regeneracion")
+		ur.add_do_method(_isla, "regenerar_completo_con_pasto")
+		ur.add_undo_method(_isla, "regenerar_completo_con_pasto")
 		ur.commit_action(false)
 
 

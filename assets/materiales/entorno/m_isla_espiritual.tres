@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://c8m_isla_espiritual_tres"]
+
+[ext_resource type="Shader" uid="uid://bo1xk4peijsxn" path="res://shaders/components/plataformas/plataforma_espiritual.gdshader" id="1_plat_shader"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_plat_shader")
+shader_parameter/color_superior = Color(0.35, 0.78, 1, 0.85)
+shader_parameter/color_inferior = Color(0.12, 0.38, 0.72, 0.45)
+shader_parameter/color_borde_fresnel = Color(0.55, 0.92, 1, 1)
+shader_parameter/altura_caja = 6.0
+shader_parameter/desfase_y = 2.5
+shader_parameter/curva_desvanecimiento = 1.0
+shader_parameter/fuerza_fresnel = 2.0
+shader_parameter/fuerza_emision = 0.85
+shader_parameter/velocidad_onda = 1.2
+shader_parameter/opacidad_global = 1.0

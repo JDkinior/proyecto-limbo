@@ -13,6 +13,7 @@ uniform vec4 color_borde_fresnel : source_color = vec4(0.50, 0.88, 1.0, 1.0);
 
 group_uniforms Desvanecimiento;
 uniform float altura_caja = 0.4;
+uniform float desfase_y = 0.0;
 uniform float curva_desvanecimiento : hint_range(0.2, 4.0) = 1.0;
 uniform float fuerza_fresnel : hint_range(0.0, 5.0) = 1.8;
 uniform float fuerza_emision : hint_range(0.0, 3.0) = 0.65;
@@ -29,7 +30,7 @@ void vertex() {
 
 void fragment() {
 	// Factor vertical de 0.0 (abajo) a 1.0 (arriba)
-	float factor_vertical = clamp((pos_y_local + altura_caja * 0.5) / max(0.001, altura_caja), 0.0, 1.0);
+	float factor_vertical = clamp((pos_y_local + desfase_y + altura_caja * 0.5) / max(0.001, altura_caja), 0.0, 1.0);
 	float t_gradiente = pow(factor_vertical, curva_desvanecimiento);
 
 	// Detección de caras superior e inferior para conservar el volumen 3D
@@ -39,8 +40,9 @@ void fragment() {
 	// Resplandor Fresnel en los bordes
 	float fresnel = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5) * fuerza_fresnel;
 
-	// Onda mística sutil
-	float onda = sin(TIME * velocidad_onda + (pos_y_local * 4.0 + UV.x * 5.0)) * 0.5 + 0.5;
+	// Onda mística sutil escalada con la altura
+	float escala_y_onda = 4.0 / max(1.0, altura_caja * 0.2);
+	float onda = sin(TIME * velocidad_onda + (pos_y_local * escala_y_onda + UV.x * 5.0)) * 0.5 + 0.5;
 
 	// Mezcla armoniosa de color y alpha de arriba a abajo sin hacer desaparecer la base
 	vec3 color_albedo = mix(color_inferior.rgb, color_superior.rgb, t_gradiente);

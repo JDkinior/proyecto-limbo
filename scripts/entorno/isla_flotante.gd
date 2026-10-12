@@ -45,6 +45,84 @@ enum EstiloMeseta {
 	MESETA_CENTRAL_ELEVADA  ## Meseta principal prominente en el centro rodeada de niveles inferiores
 }
 
+enum TipoComportamiento {
+	ESTANDAR,   ## Isla flotante fija normal (Estructura Global).
+	COLAPSO,    ## Se estremece y cae al abismo al ser pisada, luego reaparece.
+	ESPIRITUAL  ## Conectada a mecanismos espirituales (Aura/Presión), intangible para el Vivo hasta activarse.
+}
+
+# Señales de eventos funcionales de plataforma
+signal plataforma_colapsando
+signal plataforma_restaurada
+signal estado_espiritual_cambiado(activo: bool)
+
+@export_group("Tipo de Plataforma y Comportamiento")
+## Selecciona el comportamiento funcional de la isla:
+## - ESTANDAR: Terreno flotante firme normal (Capa 1 Estructura Global).
+## - COLAPSO: Se desmorona y cae temporalmente al ser pisada por el jugador.
+## - ESPIRITUAL: Isla translúcida del plano espiritual que se activa con mecanismos.
+@export var tipo_comportamiento: TipoComportamiento = TipoComportamiento.ESTANDAR:
+	set(valor):
+		tipo_comportamiento = valor
+		if is_inside_tree():
+			_al_cambiar_tipo_comportamiento()
+
+@export_subgroup("Mecánica Colapso")
+## Segundos de vibración y advertencia antes de que la isla caiga.
+@export_range(0.1, 5.0, 0.1) var delay_antes_caida: float = 0.6
+
+## Cuánto tarda en caer y desaparecer en el abismo (segundos).
+@export_range(0.2, 5.0, 0.1) var duracion_caida: float = 1.0
+
+## Distancia vertical en metros que desciende durante la caída.
+@export_range(1.0, 25.0, 0.5) var distancia_caida: float = 5.0
+
+## Tiempo que permanece oculta antes de reaparecer (segundos).
+@export_range(1.0, 30.0, 0.5) var tiempo_respawn: float = 8.0
+
+## Material opcional de alerta o emisión durante el temblor previo.
+@export var material_alerta: Material = null
+
+## Material opcional normal (para compatibilidad con escenas de colapso existentes).
+@export var material_normal: Material = null:
+	set(valor):
+		material_normal = valor
+		if valor != null:
+			material_roca = valor
+			material_hierba = valor
+
+@export_subgroup("Mecánica Espiritual")
+## Disparador principal (InterruptorAura, BotonPresion, Palanca, etc.)
+@export var disparador_objetivo: Node3D = null
+
+## Lista opcional de disparadores adicionales para activar la plataforma.
+@export var disparadores_objetivo: Array[Node3D] = []
+
+## Lógica de combinación: OR (cualquiera activa) o AND (todos requeridos).
+@export var condicion_combinacion: ElementoInteractivoBase.CondicionCombinacion = ElementoInteractivoBase.CondicionCombinacion.CONDICION_O
+
+## Opacidad cuando la plataforma está activada por el mecanismo (sólida para el Vivo y Fantasma).
+@export_range(0.0, 1.0, 0.05) var opacidad_activa: float = 1.0:
+	set(valor):
+		opacidad_activa = clampf(valor, 0.0, 1.0)
+		if tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+			_actualizar_materiales()
+
+## Opacidad cuando la plataforma está inactiva (sólida solo para el Fantasma).
+@export_range(0.0, 1.0, 0.05) var opacidad_inactiva: float = 0.45:
+	set(valor):
+		opacidad_inactiva = clampf(valor, 0.0, 1.0)
+		if tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+			_actualizar_materiales()
+
+## Material con shader espiritual personalizado (por defecto usa m_isla_espiritual.tres).
+@export var material_espiritual: Material = null:
+	set(valor):
+		material_espiritual = valor
+		_mat_espiritual_instancia = null
+		if tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+			_actualizar_materiales()
+
 @export_group("Presets de Tamaño")
 ## Selecciona un preset predefinido o personaliza los parámetros individualmente.
 @export var preset: PresetTamano = PresetTamano.MEDIANA:
@@ -402,11 +480,30 @@ var _aplicando_preset: bool = false
 var _esculpiendo_activo: bool = false
 var _ultimo_trazo_pos: Vector2 = Vector2.INF
 var _ultimo_trazo_radio: float = -1.0
+var _necesita_notificar_pasto_completo: bool = false
+var _col_caras_cache: PackedVector3Array = PackedVector3Array()
 var _perimetro_pts_cache: Array[Vector3] = []
+var _global_transform_anterior: Transform3D = Transform3D.IDENTITY
 
 # Preload de materiales y decoración por defecto
 const MAT_HIERBA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba.tres")
 const MAT_ROCA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_roca.tres")
+const MAT_ESPIRITUAL_DEFAULT = preload("res://assets/materiales/entorno/m_isla_espiritual.tres")
+
+# Variables internas para modo Colapso
+var _estado_colapso: String = "normal"   # "normal", "temblando", "caida", "oculta"
+var _posicion_inicial_colapso: Vector3 = Vector3.ZERO
+var _timer_colapso: float = 0.0
+var _area_colapso: Area3D = null
+var esta_congelada: bool = false
+
+# Variables internas para modo Espiritual
+var esta_activo: bool = false
+var _estados_disparadores: Dictionary = {}
+var _mat_espiritual_instancia: ShaderMaterial = null
+var _tween_opacidad: Tween = null
+var _opacidad_actual: float = 1.0
+var _materiales_cacheados: Dictionary = {}
 
 # Paleta cromática oficial de Proyecto Limbo
 # Pasto / Césped dorado: calibrado para integrarse con pasto_fisico_mat.tres y pasto_estilizado.gdshader
@@ -428,13 +525,23 @@ const ESCENA_FAROL = preload("res://scenes/entorno/iluminacion/farol.tscn")
 
 
 func _init() -> void:
-	collision_layer = 1
-	collision_mask = 0
+	match tipo_comportamiento:
+		TipoComportamiento.COLAPSO:
+			collision_layer = 1
+			collision_mask = 1
+		TipoComportamiento.ESPIRITUAL:
+			collision_layer = 1 << 2
+			collision_mask = 1 << 2
+		TipoComportamiento.ESTANDAR:
+			collision_layer = 1
+			collision_mask = 0
 
 
 func _enter_tree() -> void:
 	if not is_in_group("islas"):
 		add_to_group("islas")
+	set_notify_transform(true)
+	_global_transform_anterior = global_transform
 
 
 func _ready() -> void:
@@ -447,6 +554,72 @@ func _ready() -> void:
 		material_roca = MAT_ROCA_DEFAULT
 	regenerar()
 
+	_posicion_inicial_colapso = global_position
+	set_notify_transform(true)
+	_global_transform_anterior = global_transform
+
+	if not Engine.is_editor_hint():
+		match tipo_comportamiento:
+			TipoComportamiento.COLAPSO:
+				_asegurar_area_colapso()
+				collision_layer = 1
+				collision_mask = 1
+			TipoComportamiento.ESPIRITUAL:
+				_inicializar_modo_espiritual()
+			TipoComportamiento.ESTANDAR:
+				collision_layer = 1
+				collision_mask = 0
+	else:
+		if tipo_comportamiento == TipoComportamiento.COLAPSO:
+			_asegurar_area_colapso()
+		elif tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+			collision_layer = 1 << 2
+			collision_mask = 1 << 2
+			_actualizar_materiales()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		if _global_transform_anterior.basis.determinant() != 0.0:
+			var delta_pos = global_position - _global_transform_anterior.origin
+			var rot_diff = global_transform.basis * _global_transform_anterior.basis.inverse()
+			if delta_pos.length_squared() > 0.00001 or not rot_diff.is_equal_approx(Basis()):
+				_notificar_movimiento_pasto(_global_transform_anterior, global_transform)
+		_global_transform_anterior = global_transform
+
+
+## Notifica a los generadores de pasto que esta isla se ha movido o rotado en el espacio
+func _notificar_movimiento_pasto(ant: Transform3D, act: Transform3D) -> void:
+	if not is_inside_tree() or get_tree() == null:
+		return
+	var visitados: Dictionary = {}
+	for n in get_tree().get_nodes_in_group("generador_pasto"):
+		if is_instance_valid(n) and not visitados.has(n):
+			visitados[n] = true
+			if n.has_method("mover_pasto_con_isla"):
+				n.mover_pasto_con_isla(self, ant, act)
+	for c in get_children():
+		if is_instance_valid(c) and not visitados.has(c) and c.has_method("mover_pasto_con_isla"):
+			visitados[c] = true
+			c.mover_pasto_con_isla(self, ant, act)
+	if get_parent() != null:
+		for s in get_parent().get_children():
+			if is_instance_valid(s) and not visitados.has(s) and s.has_method("mover_pasto_con_isla"):
+				visitados[s] = true
+				s.mover_pasto_con_isla(self, ant, act)
+	if owner != null:
+		for o in owner.find_children("*", "MultiMeshInstance3D", true, false):
+			if is_instance_valid(o) and not visitados.has(o) and o.has_method("mover_pasto_con_isla"):
+				visitados[o] = true
+				o.mover_pasto_con_isla(self, ant, act)
+
+
+func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	if tipo_comportamiento == TipoComportamiento.COLAPSO:
+		_procesar_fisica_colapso(delta)
+
 
 func _marcar_cambio_manual() -> void:
 	if not _aplicando_preset and preset != PresetTamano.PERSONALIZADA:
@@ -454,7 +627,9 @@ func _marcar_cambio_manual() -> void:
 	_solicitar_regeneracion()
 
 
-func _solicitar_regeneracion() -> void:
+func _solicitar_regeneracion(notificar_todo_el_pasto: bool = false) -> void:
+	if notificar_todo_el_pasto:
+		_necesita_notificar_pasto_completo = true
 	if not is_inside_tree():
 		return
 	if _regeneracion_pendiente:
@@ -1021,18 +1196,28 @@ func regenerar() -> void:
 	var bbox_mesh = mesh.get_aabb()
 	_mesh_instance.custom_aabb = bbox_mesh.grow(4.0)
 
-	# 5. Generar colisión sólida e impenetrable (solo cuando no se está arrastrando activamente el pincel)
+	# 5. Generar colisión sólida e impenetrable
+	_col_caras_cache = col_caras
 	if not _esculpiendo_activo:
 		_actualizar_colision(col_caras)
 
-	# 6. Generar decoración procedural si está habilitada
+	# 6. Sincronizar área de colapso o material espiritual si corresponde
+	if tipo_comportamiento == TipoComportamiento.COLAPSO:
+		_asegurar_area_colapso()
+	elif tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+		_asegurar_material_espiritual()
+
+	# 7. Generar decoración procedural si está habilitada
 	if not _esculpiendo_activo:
 		_actualizar_decoracion(rng, perimetro_pts, perimetro_radios)
 
-	# 7. Sincronizar y adaptar generadores de pasto sobre esta isla
-	if _esculpiendo_activo and _ultimo_trazo_radio > 0.0:
+	# 8. Sincronizar y adaptar generadores de pasto sobre esta isla
+	if _ultimo_trazo_radio > 0.0 and _ultimo_trazo_pos.x != INF:
 		_notificar_generadores_pasto(_ultimo_trazo_pos, _ultimo_trazo_radio)
-	else:
+		_ultimo_trazo_radio = -1.0
+		_ultimo_trazo_pos = Vector2.INF
+	elif _necesita_notificar_pasto_completo:
+		_necesita_notificar_pasto_completo = false
 		_notificar_generadores_pasto()
 
 
@@ -1040,6 +1225,13 @@ func _actualizar_materiales() -> void:
 	if _mesh_instance == null or _mesh_instance.mesh == null:
 		return
 	
+	if tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+		_asegurar_material_espiritual()
+		_mesh_instance.set_surface_override_material(0, _mat_espiritual_instancia)
+		if _mesh_instance.mesh.get_surface_count() > 1:
+			_mesh_instance.set_surface_override_material(1, _mat_espiritual_instancia)
+		return
+
 	var mat_roca = material_roca if material_roca != null else MAT_ROCA_DEFAULT
 	if generar_pasto:
 		var mat_pasto = material_hierba if material_hierba != null else MAT_HIERBA_DEFAULT
@@ -1077,13 +1269,13 @@ func _anadir_triangulo_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vecto
 
 	st.set_color(color)
 	st.set_normal(normal)
-	st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
-	st.add_vertex(b)
+	st.set_uv(Vector2(c.x * 0.1, c.z * 0.1))
+	st.add_vertex(c)
 
 	st.set_color(color)
 	st.set_normal(normal)
-	st.set_uv(Vector2(c.x * 0.1, c.z * 0.1))
-	st.add_vertex(c)
+	st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
+	st.add_vertex(b)
 
 
 ## Añade un cuadrilátero dividido en dos triángulos con facetas planas hacia afuera
@@ -1181,13 +1373,13 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 
 	st.set_color(col)
 	st.set_normal(normal)
-	st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
-	st.add_vertex(b)
+	st.set_uv(Vector2(c.x * 0.1, c.z * 0.1))
+	st.add_vertex(c)
 
 	st.set_color(col)
 	st.set_normal(normal)
-	st.set_uv(Vector2(c.x * 0.1, c.z * 0.1))
-	st.add_vertex(c)
+	st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
+	st.add_vertex(b)
 
 
 ## ==============================================================================
@@ -1373,19 +1565,22 @@ func _evaluar_relieve_procedural(pos_xz: Vector2) -> float:
 func _evaluar_deformaciones_escultura(pos_xz: Vector2, h_relieve_base: float = 0.0) -> float:
 	var delta_total = 0.0
 	for d in deformaciones_escultura:
-		var pos_c = d.get("pos", Vector2.ZERO)
-		var r = d.get("radio", 3.0)
-		var f = d.get("fuerza", 1.0)
-		var modo = d.get("modo", 0)
-		var forma = d.get("forma", 0)
-		var limitar_a_cero = d.get("limitar_a_cero", false) or (modo == 4)
-
-		var dist = pos_xz.distance_to(pos_c)
-		if dist >= r:
+		var pos_c: Vector2 = d.get("pos", Vector2.ZERO)
+		var r: float = d.get("radio", 3.0)
+		var dx = pos_xz.x - pos_c.x
+		if abs(dx) >= r:
+			continue
+		var dz = pos_xz.y - pos_c.y
+		if abs(dz) >= r:
+			continue
+		var d2 = dx * dx + dz * dz
+		if d2 >= r * r:
 			continue
 
+		var dist = sqrt(d2)
 		var t = dist / r
 		var falloff = 0.0
+		var forma: int = d.get("forma", 0)
 
 		match forma:
 			0: # Cónica Low-Poly
@@ -1395,7 +1590,10 @@ func _evaluar_deformaciones_escultura(pos_xz: Vector2, h_relieve_base: float = 0
 			2: # Cúpula Suave
 				falloff = (1.0 - t * t) * (1.0 - t * t)
 
+		var f: float = d.get("fuerza", 1.0)
 		var paso = f * falloff
+		var modo: int = d.get("modo", 0)
+		var limitar_a_cero: bool = d.get("limitar_a_cero", false) or (modo == 4)
 
 		match modo:
 			0: # Elevar
@@ -1439,23 +1637,30 @@ func aplicar_trazo_esculpido(pos_mundo: Vector3, radio: float, fuerza: float, mo
 	_solicitar_regeneracion()
 
 
-## Finaliza el trazo continuo del pincel, reconstruyendo la colisión física y sincronizando todo el pasto
+## Finaliza el trazo continuo del pincel, reconstruyendo la colisión física sin congelar el editor
 func finalizar_arrastre_escultura() -> void:
 	_esculpiendo_activo = false
-	_ultimo_trazo_pos = Vector2.INF
-	_ultimo_trazo_radio = -1.0
+	if not _col_caras_cache.is_empty():
+		_actualizar_colision(_col_caras_cache)
+	elif not _regeneracion_pendiente:
+		_solicitar_regeneracion()
+
+
+## Fuerza la regeneración completa de la geometría y sincroniza todo el pasto (utilizado en Deshacer/Rehacer)
+func regenerar_completo_con_pasto() -> void:
+	_necesita_notificar_pasto_completo = true
 	regenerar()
 
 
 func limpiar_esculpido() -> void:
 	deformaciones_escultura.clear()
-	_solicitar_regeneracion()
+	_solicitar_regeneracion(true)
 
 
 func deshacer_ultimo_trazo() -> void:
 	if not deformaciones_escultura.is_empty():
 		deformaciones_escultura.pop_back()
-		_solicitar_regeneracion()
+		_solicitar_regeneracion(true)
 
 
 ## Genera variaciones sutiles de color ámbar-dorado para las facetas de pasto estilizado.
@@ -1635,4 +1840,343 @@ func _notificar_generadores_pasto(centro: Vector2 = Vector2.INF, radio: float = 
 	for gen in lista:
 		if is_instance_valid(gen) and gen.has_method("adaptar_a_superficie_isla"):
 			gen.adaptar_a_superficie_isla(self, centro, radio)
+
+
+## ==============================================================================
+## COMPORTAMIENTO FUNCIONAL DE PLATAFORMA (COLAPSO Y ESPIRITUAL)
+## ==============================================================================
+
+func _al_cambiar_tipo_comportamiento() -> void:
+	match tipo_comportamiento:
+		TipoComportamiento.COLAPSO:
+			collision_layer = 1
+			collision_mask = 1
+			_asegurar_area_colapso()
+		TipoComportamiento.ESPIRITUAL:
+			collision_layer = 1 << 2
+			collision_mask = 1 << 2
+			if is_instance_valid(_area_colapso):
+				_area_colapso.queue_free()
+				_area_colapso = null
+		TipoComportamiento.ESTANDAR:
+			collision_layer = 1
+			collision_mask = 0
+			if is_instance_valid(_area_colapso):
+				_area_colapso.queue_free()
+				_area_colapso = null
+	_actualizar_materiales()
+	notify_property_list_changed()
+
+
+## -----------------------------------------------------------------------------
+## MECÁNICAS DE PLATAFORMA ESPIRITUAL
+## -----------------------------------------------------------------------------
+
+func _asegurar_material_espiritual() -> void:
+	if _mat_espiritual_instancia == null:
+		var mat_base = material_espiritual if material_espiritual != null else MAT_ESPIRITUAL_DEFAULT
+		if mat_base is ShaderMaterial:
+			_mat_espiritual_instancia = mat_base.duplicate() as ShaderMaterial
+		else:
+			_mat_espiritual_instancia = MAT_ESPIRITUAL_DEFAULT.duplicate() as ShaderMaterial
+
+	var span_y = profundidad_roca + maxf(0.0, altura_superficie + (altura_montana if habilitar_montanas else 0.0))
+	_mat_espiritual_instancia.set_shader_parameter("altura_caja", span_y)
+	_mat_espiritual_instancia.set_shader_parameter("desfase_y", (profundidad_roca - maxf(0.0, altura_superficie)) * 0.5)
+	var opac = opacidad_activa if (esta_activo or Engine.is_editor_hint()) else opacidad_inactiva
+	_mat_espiritual_instancia.set_shader_parameter("opacidad_global", opac)
+
+
+func _inicializar_modo_espiritual() -> void:
+	collision_layer = 1 << 2  # Capa 3: Plano_Espiritual
+	collision_mask = 1 << 2
+	_opacidad_actual = opacidad_inactiva
+	_cachear_materiales(self)
+
+	var nodos_disparadores: Array[Node3D] = []
+	var disp_unido = _resolver_nodo(disparador_objetivo)
+	if disp_unido and not disp_unido in nodos_disparadores:
+		nodos_disparadores.append(disp_unido)
+	for item in disparadores_objetivo:
+		var n = _resolver_nodo(item)
+		if n and not n in nodos_disparadores:
+			nodos_disparadores.append(n)
+
+	_actualizar_materiales()
+
+	if nodos_disparadores.is_empty():
+		actualizar_comportamiento(esta_activo)
+		return
+
+	for disp in nodos_disparadores:
+		_estados_disparadores[disp] = false
+		var conectado = false
+		var callable_activado = Callable(self, "_on_disparador_estado_cambiado").bind(disp, true)
+		var callable_desactivado = Callable(self, "_on_disparador_estado_cambiado").bind(disp, false)
+
+		if disp.has_signal("signal_activado"):
+			if not disp.is_connected("signal_activado", callable_activado):
+				disp.connect("signal_activado", callable_activado)
+			conectado = true
+		else:
+			push_error("[%s] ERROR: El disparador '%s' no tiene la señal 'signal_activado'." % [name, disp.name])
+
+		if disp.has_signal("signal_desactivado"):
+			if not disp.is_connected("signal_desactivado", callable_desactivado):
+				disp.connect("signal_desactivado", callable_desactivado)
+
+		if conectado:
+			print("[%s] Isla Espiritual conectada dinámicamente al disparador: %s" % [name, disp.name])
+
+	actualizar_comportamiento(false)
+
+
+func actualizar_comportamiento(activo: bool) -> void:
+	if tipo_comportamiento != TipoComportamiento.ESPIRITUAL:
+		return
+
+	esta_activo = activo
+	if activo:
+		# Activa: sólida para el Vivo (Capa 2) y el Fantasma (Capa 3)
+		collision_layer = (1 << 1) | (1 << 2)
+		collision_mask = (1 << 1) | (1 << 2)
+		_transicionar_opacidad_espiritual(opacidad_activa)
+	else:
+		# Inactiva: intangible para el Vivo, pero sólida para el Fantasma (Capa 3)
+		collision_layer = 1 << 2
+		collision_mask = 1 << 2
+		_transicionar_opacidad_espiritual(opacidad_inactiva)
+
+	estado_espiritual_cambiado.emit(activo)
+
+
+func _transicionar_opacidad_espiritual(opacidad_meta: float) -> void:
+	if _tween_opacidad and _tween_opacidad.is_valid():
+		_tween_opacidad.kill()
+
+	if not is_inside_tree() or Engine.is_editor_hint():
+		_aplicar_opacidad_espiritual(opacidad_meta)
+		return
+
+	_tween_opacidad = create_tween()
+	_tween_opacidad.set_trans(Tween.TRANS_SINE)
+	_tween_opacidad.set_ease(Tween.EASE_OUT)
+	_tween_opacidad.tween_method(_aplicar_opacidad_espiritual, _opacidad_actual, opacidad_meta, 0.4)
+
+
+func _aplicar_opacidad_espiritual(opacidad: float) -> void:
+	_opacidad_actual = clampf(opacidad, 0.0, 1.0)
+	if _mat_espiritual_instancia:
+		_mat_espiritual_instancia.set_shader_parameter("opacidad_global", _opacidad_actual)
+	_cambiar_opacidad_recursivo(self, _opacidad_actual)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func rpc_sincronizar_estado(activo: bool) -> void:
+	esta_activo = activo
+	actualizar_comportamiento(activo)
+	print("[%s] Sincronización P2P: Estado general actualizado a -> %s" % [name, "ACTIVO" if activo else "INACTIVO"])
+
+
+func _on_disparador_estado_cambiado(disp: Node3D, activo: bool) -> void:
+	_estados_disparadores[disp] = activo
+
+	var condicion_cumplida = false
+	if condicion_combinacion == ElementoInteractivoBase.CondicionCombinacion.CONDICION_O:
+		for estado in _estados_disparadores.values():
+			if estado:
+				condicion_cumplida = true
+				break
+	else:
+		condicion_cumplida = true
+		for estado in _estados_disparadores.values():
+			if not estado:
+				condicion_cumplida = false
+				break
+
+	if condicion_cumplida != esta_activo:
+		if multiplayer and multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+			rpc_sincronizar_estado.rpc(condicion_cumplida)
+		else:
+			rpc_sincronizar_estado(condicion_cumplida)
+
+
+func _resolver_nodo(target: Variant) -> Node3D:
+	if target is Node3D:
+		return target
+	elif target is NodePath and not (target as NodePath).is_empty():
+		var n = get_node_or_null(target)
+		if n is Node3D:
+			return n
+	return null
+
+
+func _cachear_materiales(nodo: Node) -> void:
+	if nodo is MeshInstance3D and nodo != _mesh_instance:
+		var cache_entry = {"override": null, "surfaces": []}
+		if nodo.material_override:
+			cache_entry["override"] = nodo.material_override.duplicate()
+			nodo.material_override = cache_entry["override"]
+		if nodo.get_mesh():
+			for i in range(nodo.get_mesh().get_surface_count()):
+				var material = nodo.get_active_material(i)
+				if not material:
+					material = nodo.get_mesh().surface_get_material(i)
+				if material:
+					var mat_dup = material.duplicate()
+					nodo.set_surface_override_material(i, mat_dup)
+					cache_entry["surfaces"].append(mat_dup)
+				else:
+					cache_entry["surfaces"].append(null)
+		_materiales_cacheados[nodo] = cache_entry
+	for hijo in nodo.get_children():
+		_cachear_materiales(hijo)
+
+
+func _cambiar_opacidad_recursivo(nodo: Node, opacidad: float) -> void:
+	if nodo is MeshInstance3D and nodo != _mesh_instance:
+		nodo.visible = (opacidad > 0.001)
+		if _materiales_cacheados.has(nodo):
+			var cache = _materiales_cacheados[nodo]
+			if cache["override"]:
+				_aplicar_opacidad_a_material(cache["override"], opacidad)
+			for mat in cache["surfaces"]:
+				if mat:
+					_aplicar_opacidad_a_material(mat, opacidad)
+		else:
+			if nodo.material_override:
+				_aplicar_opacidad_a_material(nodo.material_override, opacidad)
+	for hijo in nodo.get_children():
+		_cambiar_opacidad_recursivo(hijo, opacidad)
+
+
+func _aplicar_opacidad_a_material(mat: Material, opacidad: float) -> void:
+	if mat is ShaderMaterial:
+		mat.set_shader_parameter("opacidad_global", opacidad)
+	elif mat is BaseMaterial3D:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		var color = mat.albedo_color
+		color.a = opacidad
+		mat.albedo_color = color
+
+
+## -----------------------------------------------------------------------------
+## MECÁNICAS DE PLATAFORMA COLAPSO
+## -----------------------------------------------------------------------------
+
+func _asegurar_area_colapso() -> void:
+	if not is_inside_tree():
+		return
+
+	if tipo_comportamiento != TipoComportamiento.COLAPSO:
+		if is_instance_valid(_area_colapso):
+			_area_colapso.queue_free()
+			_area_colapso = null
+		return
+
+	if _area_colapso == null:
+		_area_colapso = get_node_or_null("AreaDeteccionColapso") as Area3D
+		if _area_colapso == null:
+			_area_colapso = get_node_or_null("Area3D") as Area3D
+		if _area_colapso == null:
+			_area_colapso = Area3D.new()
+			_area_colapso.name = "AreaDeteccionColapso"
+			add_child(_area_colapso)
+
+	_area_colapso.collision_layer = 0
+	_area_colapso.collision_mask = 7 # Detecta capas 1 (Global), 2 (Vivo) y 3 (Fantasma)
+	_area_colapso.monitoring = true
+	_area_colapso.visible = true
+
+	var col_shape = _area_colapso.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if col_shape == null:
+		col_shape = CollisionShape3D.new()
+		col_shape.name = "CollisionShape3D"
+		_area_colapso.add_child(col_shape)
+
+	var cylinder = col_shape.shape as CylinderShape3D
+	if cylinder == null:
+		cylinder = CylinderShape3D.new()
+		col_shape.shape = cylinder
+
+	cylinder.radius = maxf(1.0, minf(ancho, largo) * 0.48)
+	cylinder.height = 1.2
+	col_shape.position = Vector3(0.0, altura_superficie + 0.6, 0.0)
+
+	if not _area_colapso.body_entered.is_connected(_on_area_colapso_body_entered):
+		_area_colapso.body_entered.connect(_on_area_colapso_body_entered)
+
+
+func _on_area_colapso_body_entered(body: Node) -> void:
+	if _estado_colapso != "normal" or esta_congelada:
+		return
+	if body is Fantasma or body is Jugador or body.name == "Fantasma" or body.name == "Jugador":
+		_iniciar_temblor_colapso()
+
+
+func _iniciar_temblor_colapso() -> void:
+	_estado_colapso = "temblando"
+	_timer_colapso = 0.0
+	plataforma_colapsando.emit()
+	if material_alerta and is_instance_valid(_mesh_instance):
+		_mesh_instance.set_surface_override_material(0, material_alerta)
+		if _mesh_instance.mesh and _mesh_instance.mesh.get_surface_count() > 1:
+			_mesh_instance.set_surface_override_material(1, material_alerta)
+
+
+func _iniciar_caida_colapso() -> void:
+	_estado_colapso = "caida"
+	_timer_colapso = 0.0
+	if is_instance_valid(_collision_shape):
+		_collision_shape.set_deferred("disabled", true)
+
+
+func _ocultar_colapso() -> void:
+	_estado_colapso = "oculta"
+	_timer_colapso = 0.0
+	visible = false
+
+
+func _restaurar_colapso() -> void:
+	_estado_colapso = "normal"
+	visible = true
+	global_position = _posicion_inicial_colapso
+	if is_instance_valid(_collision_shape):
+		_collision_shape.set_deferred("disabled", false)
+	_actualizar_materiales()
+	plataforma_restaurada.emit()
+
+
+func congelar_estasis(_duracion: float = 0.0) -> void:
+	esta_congelada = true
+
+
+func descongelar_estasis() -> void:
+	esta_congelada = false
+
+
+func _procesar_fisica_colapso(delta: float) -> void:
+	if esta_congelada:
+		return
+
+	match _estado_colapso:
+		"temblando":
+			_timer_colapso += delta
+			global_position.x = _posicion_inicial_colapso.x + sin(_timer_colapso * 42.0) * 0.06
+			global_position.z = _posicion_inicial_colapso.z + cos(_timer_colapso * 36.0) * 0.04
+			if _timer_colapso >= delay_antes_caida:
+				_iniciar_caida_colapso()
+
+		"caida":
+			_timer_colapso += delta
+			var progreso = _timer_colapso / maxf(0.01, duracion_caida)
+			global_position.y = _posicion_inicial_colapso.y - (progreso * progreso * distancia_caida)
+			if progreso >= 1.0:
+				_ocultar_colapso()
+
+		"oculta":
+			_timer_colapso += delta
+			if _timer_colapso >= tiempo_respawn:
+				_restaurar_colapso()
+
 
