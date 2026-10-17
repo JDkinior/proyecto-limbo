@@ -20,9 +20,7 @@
 [ext_resource type="PackedScene" uid="uid://dxnm72i57ht5d" path="res://scenes/entorno/arboles/arbol_2.tscn" id="20_l6yfi"]
 [ext_resource type="PackedScene" uid="uid://bsprnrvdshlv1" path="res://scenes/entorno/arboles/arbol_3.tscn" id="21_eo0eg"]
 [ext_resource type="PackedScene" uid="uid://c7v4m1arbol04" path="res://scenes/entorno/arboles/arbol_4.tscn" id="21_l6yfi"]
-[ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="22_qh0qo"]
-[ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="23_btu23"]
-[ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="24_33yto"]
+[ext_resource type="PackedScene" uid="uid://cnayqvhumf4io" path="res://scenes/entorno/isla_flotante.tscn" id="22_qh0qo"]
 
 [sub_resource type="Sky" id="Sky_limbo"]
 sky_material = ExtResource("18_cielo_mat")
@@ -46,7 +44,7 @@ fog_density = 0.008
 fog_sky_affect = 0.35
 fog_height_density = 1.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dkxh6"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_l6yfi"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
@@ -67,8 +65,11 @@ shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
 shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_qh0qo"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_eo0eg"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.26250046, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
@@ -82,9 +83,9 @@ _surfaces = [{
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
 custom_aabb = AABB(-50.078632, -0.7129595, -81.97557, 62.711426, 7.215643, 129.17989)
-mesh = SubResource("ArrayMesh_qh0qo")
+mesh = SubResource("ArrayMesh_eo0eg")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_btu23"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dkxh6"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
@@ -105,6 +106,9 @@ shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
 shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0
 
 [node name="Nivel1ElDespertarSeparado" type="Node3D" unique_id=2020589322]
 script = ExtResource("16_nivel_base")
@@ -121,7 +125,9 @@ light_energy = 1.25
 shadow_enabled = true
 shadow_bias = 0.02
 shadow_blur = 0.8
-directional_shadow_max_distance = 60.0
+directional_shadow_mode = 1
+directional_shadow_blend_splits = true
+directional_shadow_max_distance = 45.0
 
 [node name="PistaFisicaVivo" type="StaticBody3D" parent="." unique_id=1663221025]
 
@@ -249,13 +255,6 @@ transform = Transform3D(0.68684417, 0, 0.98399454, 0, 1.2, 0, -0.98399454, 0, 0.
 
 [node name="Isla Salto 1" parent="." unique_id=1212818058 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.88400203, 0, -0.4674831, 0, 1, 0, 0.4674831, 0, -0.88400203, -9.03509, 1.5046937, 6.650133)
-collision_mask = 0
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 5.0
 largo = 5.0
@@ -266,26 +265,15 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 53086525
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Boton" parent="." unique_id=737052312 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.96617234, 0, 0.25789732, 0, 1, 0, -0.25789732, 0, 0.96617234, -9.757652, 4.831658, -2.1963902)
-collision_mask = 0
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 7.0
 largo = 7.0
@@ -297,7 +285,6 @@ anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 1077774039
 dispersion_picos = 0.65
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 0.54
 generar_faldon_pasto = false
@@ -306,19 +293,9 @@ vuelo_faldon_pasto = 0.3
 cantidad_rocas_satelite = 5
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Inicio" parent="." unique_id=995727014 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.96127975, 0, 0.27557448, 0, 1, 0, -0.27557448, 0, 0.96127975, -13.215503, 0, 24.35235)
-collision_mask = 0
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 22.0
 largo = 26.0
@@ -330,7 +307,6 @@ intensidad_variacion = 0.22
 semilla = 2871983090
 cantidad_picos_rocosos = 4
 dispersion_picos = 0.8
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 generar_faldon_pasto = false
@@ -490,9 +466,6 @@ incluir_arboles = false
 incluir_cristales = false
 margen_borde = 2.0
 radio_despeje_centro = 1.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Previa Salto" parent="." unique_id=1519213400 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, -7.8753605, 3.168763, -11.132851)
@@ -501,12 +474,6 @@ collision_mask = 4
 tipo_comportamiento = 2
 disparador_objetivo = NodePath("../Mecanismos/InterruptorAura")
 opacidad_inactiva = 0.5
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 5.0
 largo = 5.0
@@ -517,16 +484,12 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 214170899
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="IslaFlotante5" parent="." unique_id=1921573475 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.65059483, 0, -0.75942504, 0, 1, 0, 0.75942504, 0, 0.65059483, 8.057156, 2.221201, 6.7860317)
@@ -535,12 +498,6 @@ collision_mask = 4
 tipo_comportamiento = 2
 disparador_objetivo = NodePath("../Mecanismos/InterruptorAura")
 opacidad_inactiva = 0.6
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 4.0
 largo = 4.0
@@ -551,7 +508,6 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.52
 dispersion_picos = 0.30000000000000004
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 0.7
 longitud_faldon_pasto = 0.5
@@ -559,9 +515,6 @@ vuelo_faldon_pasto = 0.3
 estilo_montana = 0
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="IslaFlotante6" parent="." unique_id=1108238957 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.65059483, 0, -0.75942504, 0, 1, 0, 0.75942504, 0, 0.65059483, 8.057156, 5.2362347, -0.92137754)
@@ -570,12 +523,6 @@ collision_mask = 4
 tipo_comportamiento = 2
 disparador_objetivo = NodePath("../Mecanismos/InterruptorAura")
 opacidad_inactiva = 0.5
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 4.0
 largo = 4.0
@@ -587,7 +534,6 @@ anillos_superficie = 2
 intensidad_variacion = 0.52
 semilla = 919417849
 dispersion_picos = 0.30000000000000004
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 0.7
 longitud_faldon_pasto = 0.5
@@ -595,19 +541,9 @@ vuelo_faldon_pasto = 0.3
 estilo_montana = 0
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla_F_Llegada" parent="." unique_id=1230567480 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, 7.580636, 1.7193696, -13.125851)
-collision_mask = 0
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 5.5
 largo = 5.5
@@ -618,26 +554,15 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.64
 semilla = 2368923981
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Montaña" parent="." unique_id=272243538 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.14227903, 0, 0.98982656, 0, 1, 0, -0.98982656, 0, 0.14227903, -1.4596939, 0, -62.880287)
-collision_mask = 0
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 47.0
 largo = 38.5
@@ -650,7 +575,6 @@ intensidad_variacion = 0.32
 semilla = 2305389168
 cantidad_picos_rocosos = 4
 dispersion_picos = 0.42
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 habilitar_mesetas_superficie = true
@@ -1251,19 +1175,9 @@ cantidad_rocas_satelite = 6
 generar_decoracion = true
 margen_borde = 2.0
 radio_despeje_centro = 1.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Fantasma" parent="." unique_id=28966886 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.91710246, 0, 0.39865232, 0, 1, 0, -0.39865232, 0, 0.91710246, 6.6033564, 0, 22.797836)
-collision_mask = 0
-parpadear_al_desactivar = null
-ciclos_parpadeo_lento = null
-duracion_pulso_lento = null
-ciclos_parpadeo_rapido = null
-duracion_pulso_rapido = null
-opacidad_minima_parpadeo = null
 preset = 0
 ancho = 15.5
 largo = 14.5
@@ -1389,15 +1303,11 @@ deformaciones_escultura = Array[Dictionary]([{
 "pos": Vector2(-3.650671, 7.367195),
 "radio": 3.5
 }])
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
 transform = Transform3D(0.9506353, 0, -0.31031018, 0, 1, 0, 0.31031018, 0, 0.9506353, 9.139502, 0, 1.6056328)
-material_override = SubResource("ShaderMaterial_dkxh6")
+material_override = SubResource("ShaderMaterial_l6yfi")
 custom_aabb = AABB(-50.078632, -0.7129595, -81.97557, 62.711426, 7.215643, 129.17989)
-visibility_range_end = 0.0
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
@@ -1411,12 +1321,11 @@ cantidad_instancias = 20000
 alto_pasto = 0.25
 ancho_pasto = 0.30000000000000004
 briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_dkxh6")
-material_espiritual = SubResource("ShaderMaterial_btu23")
+material_fisico = SubResource("ShaderMaterial_l6yfi")
+material_espiritual = SubResource("ShaderMaterial_dkxh6")
 
 [node name="Isla Previa Salto2" parent="." unique_id=762570022 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.9985479, 0, 0.053871363, 0, 1, 0, -0.053871363, 0, -0.9985479, -32.794174, 2.6227148, 15.541754)
-collision_mask = 0
 preset = 0
 ancho = 5.0
 largo = 5.0
@@ -1427,20 +1336,15 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 270991677
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Previa Salto3" parent="." unique_id=1504499532 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.6150719, 0, 0.7884711, 0, 1, 0, -0.7884711, 0, -0.6150719, -26.603168, 1.3012636, 23.333431)
-collision_mask = 0
 preset = 0
 ancho = 2.0
 largo = 2.0
@@ -1453,7 +1357,6 @@ intensidad_variacion = 0.35
 semilla = 270991677
 cantidad_picos_rocosos = 2
 dispersion_picos = 0.15000000000000002
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
@@ -1461,13 +1364,9 @@ vuelo_faldon_pasto = 0.3
 cantidad_rocas_satelite = 2
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Previa Salto4" parent="." unique_id=1438573486 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, -13.073839, 3.0152333, -19.561415)
-collision_mask = 0
 preset = 0
 ancho = 5.0
 largo = 5.0
@@ -1478,16 +1377,12 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 2788537717
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Previa Salto5" parent="." unique_id=609649029 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.18806663, -0.0002267308, 0.9821563, 0.00038252972, 0.9999999, 0.00030409204, -0.98215616, 0.00043289037, -0.18806651, -7.798962, 1.8002627, -27.763247)
@@ -1506,16 +1401,12 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 430931341
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla Previa Salto6" parent="." unique_id=700861603 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.18806663, -0.0002267308, 0.9821563, 0.00038252972, 0.9999999, 0.00030409204, -0.98215616, 0.00043289037, -0.18806651, -16.0822, 1.8002627, -37.30623)
@@ -1534,16 +1425,12 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.35
 semilla = 2518550108
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla_F_Llegada2" parent="." unique_id=1972329482 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, 12.589271, -1.4540732, -23.078794)
@@ -1560,20 +1447,15 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.64
 semilla = 1893683893
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="Isla_F_Llegada3" parent="." unique_id=575622633 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.56291914, 0, 0.826512, 0, 1, 0, -0.826512, 0, 0.56291914, 4.6757393, 3.4638996, -30.615028)
-collision_mask = 0
 preset = 0
 ancho = 5.5
 largo = 5.5
@@ -1584,16 +1466,12 @@ anillos_roca = 5
 anillos_superficie = 2
 intensidad_variacion = 0.64
 semilla = 1618639260
-facetado_triangular_irregular = false
 generar_pasto = false
 variacion_superficie = 1.0
 longitud_faldon_pasto = 0.5
 vuelo_faldon_pasto = 0.3
 margen_borde = 1.0
 radio_despeje_centro = 0.8
-material_hierba = ExtResource("23_btu23")
-material_roca = ExtResource("24_33yto")
-vista_fantasma_en_editor = null
 
 [node name="InterruptorAura" parent="." unique_id=1386668463 instance=ExtResource("6_interruptor")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5059676, 3.2243621, -30.614365)

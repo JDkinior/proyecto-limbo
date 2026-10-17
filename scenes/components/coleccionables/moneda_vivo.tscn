@@ -31,7 +31,8 @@ shape = SubResource("SphereShape3D_g0mv7")
 [node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=987654323]
 light_color = Color(1, 0.8, 0.2, 1)
 light_energy = 2.0
-omni_range = 3.5
+omni_range = 1.8
+omni_attenuation = 1.4
 
 [node name="ParticulasRecoleccion" type="CPUParticles3D" parent="." unique_id=1982736411]
 emitting = false
