@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.12` (Build Code `13`)  
+**Versión Actual:** `1.0.13` (Build Code `14`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 12 de Octubre de 2026  
+**Última Actualización:** 17 de Octubre de 2026  
 
 # Documentación Central - Proyecto Limbo
 
@@ -43,6 +43,24 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.13 (17 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Animación Procedural de Squash & Stretch y Game-Feel en Personajes (`jugador.gd`, `fantasma.gd`, `character_base.gd`)**:
+    *   **Anticipación, Despegue y Aterrizaje**: Implementación de sistema elástico de deformación no destructiva con conservación de volumen (\(X Z = 1/\sqrt{Y}\)). Incluye agazapado enérgico al saltar, estiramiento aerodinámico según velocidad vertical (\(vel_y\)) e impacto de aplastamiento con rebote elástico (*overshoot*) anclado a los pies al tocar el suelo.
+    *   **Giro Dinámico y Flotación del Fantasma**: Ajuste procedural de balanceo espectral continuo, respuesta a caídas y saltos sin romper la sensación incorpórea.
+    *   **Desacople Seguro en Desactivación de Plataformas**: Señal `al_desactivarse_plataforma_soporte()` que detecta cuando una plataforma espiritual o de colapso se desvanece bajo el jugador para reanudar la gravedad de inmediato sin estados suspendidos.
+*   **Levitación de Rocas Satélite y Shaders de Entorno (`isla_flotante.gd`, `roca_suavizada.gdshader`, `isla_fantasma.gdshader`)**:
+    *   **Animación por Vértice de Rocas Satélite**: Empaquetado de coordenadas locales y fases pseudoaleatorias en `UV`, `UV2` y canal alfa de color de vértice (`COLOR.a`). Los shaders ejecutan rotación 3D (pitch, roll, yaw) y traslación ondulante directamente en la GPU sin costo de CPU.
+    *   **Materiales de Roca y Hierba Estilizados**: Nuevos presets `m_isla_roca_pura.tres`, `m_isla_roca_fantasma_pura.tres`, shader de perspectiva física (`isla_vivo.gdshader`) y armonización tonal de la vegetación dorada y espectral.
+*   **Fade Out Continuo de Pasto y Optimización de Chunks (`generador_pasto.gd`, `pasto_estilizado.gdshader`, `optimizador_culling.gd`)**:
+    *   **Desvanecimiento Suave por Brizna**: Reducción progresiva de altura y grosor de cada brizna hacia el suelo en función de la distancia a la cámara (rango 40m a 60m), eliminando bordes de corte abruptos o *popping*.
+    *   **Subdivisión Óptima de Chunks**: Chunks redimensionados a \(8.0\text{ m}\) con `custom_aabb` local y vaciado de instancias fuera de pantalla para un *frustum culling* agresivo y ligero.
+    *   **Optimización de Culling en Nivel**: Descarte de oclusión selectivo para vegetación (`ignore_occlusion_culling = true`) evitando saturar el rasterizador de oclusión de Godot.
+*   **Suite de Pruebas Automatizadas y Calibración del Nivel 1**:
+    *   Nuevos tests unitarios: `test_camara_plataforma_espiritual.gd`, `test_isla_flotante_satelites.gd` y `test_isla_salud_malla.gd`.
+    *   Optimización y compactación del recurso binario `pasto_nivel_1___el_despertar_separado_datos.res` de 16.86 MB a 8.20 MB sin pérdida de densidad visual.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.12 (12 de Octubre de 2026)
 
