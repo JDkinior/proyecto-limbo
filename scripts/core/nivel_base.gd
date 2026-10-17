@@ -26,6 +26,12 @@ const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
 ## Nombres por defecto para cada capítulo (delegado a CatalogoNiveles).
 const NOMBRES_CAPITULOS := CatalogoNiveles.NOMBRES_CAPITULOS
 
+const MAT_HIERBA_FANTASMA = preload("res://assets/materiales/entorno/m_isla_hierba_fantasma.tres")
+const MAT_ROCA_FANTASMA = preload("res://assets/materiales/entorno/m_isla_roca_fantasma.tres")
+const MAT_ESPIRITUAL = preload("res://assets/materiales/entorno/m_isla_espiritual.tres")
+const MAT_PASTO_ESPIRITUAL = preload("res://shaders/entorno/vegetacion/pasto_espiritual_mat.tres")
+const MAT_PASTO_FISICO = preload("res://shaders/entorno/vegetacion/pasto_fisico_mat.tres")
+
 signal intro_capitulo_finalizada
 
 var intro_en_curso: bool = false
@@ -57,37 +63,114 @@ func _ocultar_hud_inicial() -> void:
 			ui.ocultar_para_intro_nivel()
 
 func _precalentar_pipelines_graficos() -> void:
-	# Pre-inicializar y compilar silenciosamente en GPU todos los recursos, entornos y shaders
+	# Pre-inicializar y compilar en GPU todos los recursos, entornos y shaders
 	# de ambos reinos (Vivo y Fantasma / Capa 3) durante el arranque del nivel,
 	# eliminando al 100% el micro-congelamiento en el primer cambio de personaje.
 	var red_mgr = get_node_or_null("/root/RedManager")
-	if is_instance_valid(red_mgr):
-		red_mgr.buscar_personajes_en_escena()
-		if is_instance_valid(red_mgr.jugador_vivo) and red_mgr.jugador_vivo.has_method("obtener_entorno_personaje"):
-			red_mgr.jugador_vivo.obtener_entorno_personaje()
-		if is_instance_valid(red_mgr.fantasma) and red_mgr.fantasma.has_method("obtener_entorno_personaje"):
-			var env_fant = red_mgr.fantasma.obtener_entorno_personaje()
-			var cam_fant = red_mgr.fantasma.obtener_camara()
-			if is_instance_valid(cam_fant) and env_fant:
-				cam_fant.environment = env_fant
-				cam_fant.cull_mask = red_mgr.fantasma.obtener_cull_mask_personaje()
+	if not is_instance_valid(red_mgr):
+		return
+	red_mgr.buscar_personajes_en_escena()
+	
+	var env_fant: Environment = null
+	var env_vivo: Environment = null
+	if is_instance_valid(red_mgr.fantasma) and red_mgr.fantasma.has_method("obtener_entorno_personaje"):
+		env_fant = red_mgr.fantasma.obtener_entorno_personaje()
+	if is_instance_valid(red_mgr.jugador_vivo) and red_mgr.jugador_vivo.has_method("obtener_entorno_personaje"):
+		env_vivo = red_mgr.jugador_vivo.obtener_entorno_personaje()
 
-	# Disparar 1 frame de pre-compilación oculta para compilar pipelines de la Capa 3 (Plano Espiritual)
-	var viewport_prewarm := SubViewport.new()
-	viewport_prewarm.size = Vector2i(16, 16)
-	viewport_prewarm.render_target_update_mode = SubViewport.UPDATE_ONCE
-	var cam_prewarm := Camera3D.new()
-	cam_prewarm.cull_mask = 1048575 # Abarca todas las capas (1, 2, 3, 4)
-	if is_instance_valid(red_mgr) and is_instance_valid(red_mgr.fantasma):
-		cam_prewarm.environment = red_mgr.fantasma.obtener_entorno_personaje()
-		cam_prewarm.global_transform = red_mgr.fantasma.global_transform
-	viewport_prewarm.add_child(cam_prewarm)
-	add_child(viewport_prewarm)
+	# Obtener o esperar la cámara activa
+	var cam_activa: Camera3D = get_viewport().get_camera_3d()
+	if not is_instance_valid(cam_activa) and is_instance_valid(red_mgr.jugador_vivo):
+		cam_activa = red_mgr.jugador_vivo.obtener_camara()
+	if not is_instance_valid(cam_activa):
+		await get_tree().process_frame
+		cam_activa = get_viewport().get_camera_3d()
 
-	get_tree().process_frame.connect(func():
-		if is_instance_valid(viewport_prewarm):
-			viewport_prewarm.queue_free()
-	, CONNECT_ONE_SHOT)
+	if not is_instance_valid(cam_activa):
+		return
+
+	# Telón negro temporal (Capa 128) para que el pre-calentamiento sea 100% invisible al jugador
+	var canvas_telon := CanvasLayer.new()
+	canvas_telon.layer = 128
+	var rect_negro := ColorRect.new()
+	rect_negro.color = Color(0.04, 0.05, 0.07, 1.0)
+	rect_negro.set_anchors_preset(Control.PRESET_FULL_RECT)
+	canvas_telon.add_child(rect_negro)
+	add_child(canvas_telon)
+
+	# Crear contenedor con proxies miniatura de todos los materiales espirituales frente al lente
+	var prewarm_holder := Node3D.new()
+	prewarm_holder.name = "PrewarmShadersHolder"
+	cam_activa.add_child(prewarm_holder)
+	prewarm_holder.position = Vector3(0.0, 0.0, -0.35)
+
+	var mats_to_warm: Array[Material] = [
+		MAT_HIERBA_FANTASMA,
+		MAT_ROCA_FANTASMA,
+		MAT_ESPIRITUAL,
+		MAT_PASTO_ESPIRITUAL,
+		MAT_PASTO_FISICO
+	]
+
+	if is_instance_valid(red_mgr.fantasma):
+		for mesh_hijo in red_mgr.fantasma.find_children("*", "MeshInstance3D", true, false):
+			if mesh_hijo.material_override and not mats_to_warm.has(mesh_hijo.material_override):
+				mats_to_warm.append(mesh_hijo.material_override)
+			if mesh_hijo.mesh:
+				for s in range(mesh_hijo.mesh.get_surface_count()):
+					var s_mat = mesh_hijo.get_active_material(s)
+					if s_mat and not mats_to_warm.has(s_mat):
+						mats_to_warm.append(s_mat)
+
+	for i in range(mats_to_warm.size()):
+		var mat = mats_to_warm[i]
+		if mat == null: continue
+		var mi := MeshInstance3D.new()
+		var q := QuadMesh.new()
+		q.size = Vector2(0.02, 0.02)
+		q.material = mat
+		mi.mesh = q
+		mi.position = Vector3((i - float(mats_to_warm.size()) * 0.5) * 0.03, 0.0, 0.0)
+		mi.layers = 1048575 # Visible en todas las capas
+		prewarm_holder.add_child(mi)
+
+	# Proxy MultiMesh para compilar en GPU el pipeline instanciado de la vegetación
+	for mat_pasto in [MAT_PASTO_ESPIRITUAL, MAT_PASTO_FISICO]:
+		if mat_pasto != null:
+			var mm_inst := MultiMeshInstance3D.new()
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.instance_count = 1
+			var qm := QuadMesh.new()
+			qm.size = Vector2(0.01, 0.01)
+			mm.mesh = qm
+			mm.set_instance_transform(0, Transform3D(Basis(), Vector3(0, 0, 0)))
+			mm_inst.multimesh = mm
+			mm_inst.material_override = mat_pasto
+			mm_inst.layers = 1048575
+			prewarm_holder.add_child(mm_inst)
+
+	var env_original = cam_activa.environment
+	var mask_original = cam_activa.cull_mask
+
+	# FRAME 1: Forzar compilación de shaders del Fantasma, cielo espiritual, fog y post-procesado
+	if env_fant:
+		cam_activa.environment = env_fant
+	cam_activa.cull_mask = 1048575 # Abarca todas las capas (1, 2, 3, 4)
+
+	await RenderingServer.frame_post_draw
+
+	# FRAME 2: Restaurar configuración y compilar shaders del Reino Vivo
+	cam_activa.environment = env_original if env_original else env_vivo
+	cam_activa.cull_mask = mask_original if mask_original != 0 else (1 << 0) | (1 << 1)
+
+	await RenderingServer.frame_post_draw
+
+	# Limpieza
+	if is_instance_valid(prewarm_holder):
+		prewarm_holder.queue_free()
+	if is_instance_valid(canvas_telon):
+		canvas_telon.queue_free()
 
 func _validar_estructura_minima() -> void:
 	var tiene_vivo = false

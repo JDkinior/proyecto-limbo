@@ -7,11 +7,11 @@
 material_override = ExtResource("1_mat_pasto")
 cast_shadow = 0
 extra_cull_margin = 6.0
-visibility_range_end = 65.0
-visibility_range_end_margin = 4.0
+visibility_range_end = 0.0
+visibility_range_end_margin = 0.0
 visibility_range_fade_mode = 0
 script = ExtResource("2_script_pasto")
-distancia_visibilidad_juego = 65.0
+distancia_visibilidad_juego = 100.0
 deshabilitar_culling_en_editor = true
 area_tamano = Vector2(25, 25)
 cantidad_instancias = 2500

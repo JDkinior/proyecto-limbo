@@ -69,14 +69,16 @@ static func _optimizar_camara(cam: Camera3D) -> void:
 
 ## Limita el rango de cálculo de sombras para no desperdiciar GPU en objetos lejanos
 static func _optimizar_luz_direccional(luz: DirectionalLight3D) -> void:
-	if luz.directional_shadow_max_distance > DISTANCIA_SOMBRA_MAXIMA:
-		luz.directional_shadow_max_distance = DISTANCIA_SOMBRA_MAXIMA
+	if luz.directional_shadow_max_distance > 45.0:
+		luz.directional_shadow_max_distance = 45.0
+	luz.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	luz.directional_shadow_blend_splits = true
 
 static func _optimizar_luz_omni(luz: OmniLight3D) -> void:
-	# Asegurar atenuación suave y evitar sombras en luces de relleno pequeñas
-	if luz.omni_range > 20.0:
-		luz.omni_range = 20.0
+	# Desactivar sombras en luces puntuales para evitar 6 pases de cubemap por luz en móviles
+	luz.shadow_enabled = false
+	if luz.omni_range > 15.0:
+		luz.omni_range = 15.0
 
 static func _optimizar_multimesh(mm: MultiMeshInstance3D) -> void:
 	# El pasto no necesita proyectar sombras sobre sí mismo ni sobre el mundo
@@ -169,7 +171,18 @@ static func _optimizar_static_body(body: StaticBody3D) -> void:
 		if hijo is OccluderInstance3D:
 			return
 			
-	# 5. Solo añadir oclusores a muros o estructuras masivas opacas (grandes en al menos 2 dimensiones, ej. ancho y alto >= 3m)
+	# 5. Añadir oclusor a islas sólidas grandes en su masa rocosa interna (Montaña, Isla Inicio, etc.)
+	if body is IslaFlotante:
+		var ancho = body.ancho if ("ancho" in body) else 10.0
+		var largo = body.largo if ("largo" in body) else 10.0
+		var prof = body.profundidad_roca if ("profundidad_roca" in body) else 6.0
+		if ancho >= 8.0 and largo >= 8.0:
+			var dim_occ = Vector3(ancho * 0.70, maxf(2.0, prof * 0.65), largo * 0.70)
+			var pos_occ = Vector3(0.0, -prof * 0.35, 0.0)
+			agregar_oclusor_caja(body, dim_occ, Transform3D(Basis(), pos_occ))
+			return
+
+	# 6. Añadir oclusores a muros o estructuras masivas opacas
 	for hijo in body.get_children():
 		if hijo is CollisionShape3D and hijo.shape is BoxShape3D:
 			var box = hijo.shape as BoxShape3D

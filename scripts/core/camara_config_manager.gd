@@ -238,6 +238,12 @@ func cargar_config() -> void:
 		_ocultar_controles = false
 		_escala_render = 1.0
 		_limite_fps = 60
+	
+	if OS.has_feature("mobile") or OS.get_name() in ["Android", "iOS"]:
+		if _escala_render > 1.0:
+			_escala_render = 1.0
+		if _limite_fps > 60:
+			_limite_fps = 60
 	aplicar_escala_render(_escala_render)
 	aplicar_limite_fps(_limite_fps)
 	_actualizar_visibilidad_guia()

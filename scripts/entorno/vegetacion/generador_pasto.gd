@@ -205,8 +205,8 @@ func _asegurar_datos_editables() -> void:
 @export var interactuar_con_personajes: bool = true
 
 @export_group("Rendimiento y Visibilidad")
-## Distancia máxima en metros a la que se dibuja el pasto durante el juego (65m para máximo rendimiento móvil/PC).
-@export_range(10.0, 300.0, 5.0) var distancia_visibilidad_juego: float = 65.0:
+## Distancia máxima en metros a la que se dibuja el pasto durante el juego (100m con fade continuo por brizna).
+@export_range(10.0, 300.0, 5.0) var distancia_visibilidad_juego: float = 100.0:
 	set(valor):
 		distancia_visibilidad_juego = valor
 		_aplicar_configuracion_visibilidad()
@@ -229,7 +229,7 @@ var _pos_fantasma_ant: Vector3 = Vector3(0, 9999, 0)
 var _tiempo_reintento_busqueda: float = 0.0
 var _shader_mat: ShaderMaterial = null
 var _chunks: Array[MultiMeshInstance3D] = []
-const TAMANO_CHUNK: float = 12.0
+const TAMANO_CHUNK: float = 8.0
 
 func _actualizar_parametro_shader(param: String, valor: Variant) -> void:
 	if material_override is ShaderMaterial:
@@ -385,30 +385,39 @@ func _on_reino_cambiado(es_fantasma: bool) -> void:
 
 func _actualizar_material_chunks() -> void:
 	for chunk in _chunks:
-		if is_instance_valid(chunk):
+		if is_instance_valid(chunk) and chunk.material_override != material_override:
 			chunk.material_override = material_override
 
 func _actualizar_material_por_reino() -> void:
 	if material_fisico == null:
-		material_fisico = load("res://shaders/entorno/vegetacion/pasto_fisico_mat.tres").duplicate()
+		material_fisico = load("res://shaders/entorno/vegetacion/pasto_fisico_mat.tres")
 	if material_espiritual == null:
-		material_espiritual = load("res://shaders/entorno/vegetacion/pasto_espiritual_mat.tres").duplicate()
-	material_fisico.render_priority = 2
-	material_espiritual.render_priority = 2
+		material_espiritual = load("res://shaders/entorno/vegetacion/pasto_espiritual_mat.tres")
+	if material_fisico:
+		material_fisico.render_priority = 2
+	if material_espiritual:
+		material_espiritual.render_priority = 2
 
+	var mat_correcto: Material = null
 	if modo_reino == 1:
-		material_override = material_fisico
+		mat_correcto = material_fisico
 	elif modo_reino == 2:
-		material_override = material_espiritual
+		mat_correcto = material_espiritual
 	else:
 		# Modo AUTO: en un solo jugador usamos RedManager o la cámara activa.
 		# En multijugador (LAN o en línea) ambos personajes están en la misma escena,
 		# así que debemos detectar quién controla la cámara activa.
 		var es_fantasma = _detectar_es_fantasma_por_camara_activa()
-		material_override = material_espiritual if es_fantasma else material_fisico
+		mat_correcto = material_espiritual if es_fantasma else material_fisico
 
+	if mat_correcto != null and material_override == mat_correcto and _chunks.size() > 0 and is_instance_valid(_chunks[0]) and _chunks[0].material_override == mat_correcto:
+		return
+
+	material_override = mat_correcto
 	if material_override is ShaderMaterial:
 		_shader_mat = material_override as ShaderMaterial
+	else:
+		_shader_mat = null
 	_actualizar_material_chunks()
 	print("[GeneradorPasto] Material asignado: %s" % ["ESPIRITUAL (Azul)" if material_override == material_espiritual else "FISICO (Dorado/Otoño)"])
 
@@ -1297,16 +1306,20 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 		chunk_inst.multimesh = mm
 		chunk_inst.material_override = mat_actual
 		chunk_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		chunk_inst.ignore_occlusion_culling = true
+		chunk_inst.extra_cull_margin = 0.5
 		chunk_inst.visibility_range_end = distancia_visibilidad_juego
-		chunk_inst.visibility_range_end_margin = 4.0
+		chunk_inst.visibility_range_end_margin = 8.0
 		chunk_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 		add_child(chunk_inst)
 		_chunks.append(chunk_inst)
 
-	# Vaciar el multimesh propio en runtime para evitar doble renderizado
+	# Vaciar el multimesh propio y AABB en runtime para permitir Frustum Culling limpio por chunks
 	if multimesh:
 		multimesh.instance_count = 0
+		multimesh.custom_aabb = AABB()
+	custom_aabb = AABB()
 
 ## Crea una malla de briznas afiladas en punta con curvatura y normales hemisféricas estilizadas
 func _crear_malla_pasto_procedural() -> ArrayMesh:
