@@ -35,11 +35,31 @@ group_uniforms TexturaRuido;
 uniform sampler2D textura_ruido : hint_default_white;
 uniform bool usar_textura_ruido = false;
 
+group_uniforms Desvanecimiento_Distancia;
+uniform bool desvanecimiento_distancia = true;
+uniform float distancia_fade_inicio : hint_range(10.0, 150.0) = 40.0;
+uniform float distancia_fade_fin : hint_range(10.0, 200.0) = 60.0;
+
 varying float factor_altura;
 
 void vertex() {
 	// factor_altura: 0.0 en la raíz (suelo), 1.0 en la punta afilada
 	factor_altura = clamp(UV.y, 0.0, 1.0);
+
+	// Posición de la raíz en mundo y distancia a la cámara
+	vec3 root_mundo = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	vec3 cam_pos_mundo = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	float dist_cam = distance(root_mundo, cam_pos_mundo);
+	
+	float escala_dist = 1.0;
+	if (desvanecimiento_distancia) {
+		float t_dist = clamp((dist_cam - distancia_fade_inicio) / max(0.1, distancia_fade_fin - distancia_fade_inicio), 0.0, 1.0);
+		escala_dist = 1.0 - smoothstep(0.0, 1.0, t_dist);
+	}
+
+	// Escala progresiva por brizna: reduce suavemente altura y grosor hacia el suelo sin pops
+	VERTEX.y *= escala_dist;
+	VERTEX.xz *= escala_dist;
 
 	// Posición global de la instancia y vértice
 	vec3 pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -98,7 +118,7 @@ void vertex() {
 		}
 	}
 
-	vec3 pos_final_mundo = pos_mundo + viento_mundo + empuje_mundo;
+	vec3 pos_final_mundo = pos_mundo + (viento_mundo + empuje_mundo) * escala_dist;
 	VERTEX = (VIEW_MATRIX * vec4(pos_final_mundo, 1.0)).xyz;
 
 	// Normales estilizadas hacia arriba (Upward Foliage Normals) para iluminación uniforme total sin sombras de espalda

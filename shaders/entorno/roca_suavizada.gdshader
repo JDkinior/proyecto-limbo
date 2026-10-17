@@ -10,7 +10,7 @@ shader_type spatial;
 // en tiempo real sin modificar la geometría ni la silueta.
 // El color por vértice (vertex_color_use_as_albedo) se conserva íntegro.
 
-render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
+render_mode cull_back, diffuse_lambert, specular_schlick_ggx;
 
 // ---------------------------------------------------------------------------
 // PARÁMETROS AJUSTABLES DESDE EL INSPECTOR
@@ -50,7 +50,45 @@ varying vec3 v_normal_smooth_view; // Normal por sección suavizada interpolada 
 varying vec3 v_color;              // Color por vértice (paleta de la sección)
 varying vec3 v_vertex_view;        // Posición en view-space para derivada geométrica
 
+group_uniforms LevitacionSatelites;
+uniform bool habilitar_levitacion_satelites = true;
+uniform float amplitud_levitacion : hint_range(0.0, 0.5, 0.01) = 0.12;
+uniform float velocidad_levitacion : hint_range(0.1, 4.0, 0.05) = 1.2;
+uniform float balanceo_levitacion : hint_range(0.0, 0.2, 0.005) = 0.035;
+
 void vertex() {
+	if (habilitar_levitacion_satelites && COLOR.a < 0.5) {
+		vec3 offset_local = vec3(UV2.x, UV.x, UV2.y);
+		vec3 centro_roca = VERTEX - offset_local;
+
+		float fase = COLOR.a * 67.0;
+		float t = TIME * velocidad_levitacion;
+
+		float dy = sin(t + fase) * amplitud_levitacion + sin(t * 0.48 + fase * 1.6) * (amplitud_levitacion * 0.22);
+		float dx = sin(t * 0.62 + fase * 1.3) * (amplitud_levitacion * 0.32);
+		float dz = cos(t * 0.71 + fase * 0.77) * (amplitud_levitacion * 0.32);
+		vec3 desplazamiento = vec3(dx, dy, dz);
+
+		float rx = sin(t * 0.82 + fase) * balanceo_levitacion;
+		float rz = cos(t * 0.75 + fase * 1.4) * balanceo_levitacion;
+		float ry = sin(t * 0.41 + fase * 0.5) * (balanceo_levitacion * 0.8);
+
+		float cx = cos(rx), sx = sin(rx);
+		vec3 r_pos = vec3(offset_local.x, offset_local.y * cx - offset_local.z * sx, offset_local.y * sx + offset_local.z * cx);
+		vec3 r_norm = vec3(NORMAL.x, NORMAL.y * cx - NORMAL.z * sx, NORMAL.y * sx + NORMAL.z * cx);
+
+		float cz = cos(rz), sz = sin(rz);
+		r_pos = vec3(r_pos.x * cz - r_pos.y * sz, r_pos.x * sz + r_pos.y * cz, r_pos.z);
+		r_norm = vec3(r_norm.x * cz - r_norm.y * sz, r_norm.x * sz + r_norm.y * cz, r_norm.z);
+
+		float cy = cos(ry), sy = sin(ry);
+		r_pos = vec3(r_pos.x * cy + r_pos.z * sy, r_pos.y, -r_pos.x * sy + r_pos.z * cy);
+		r_norm = vec3(r_norm.x * cy + r_norm.z * sy, r_norm.y, -r_norm.x * sy + r_norm.z * cy);
+
+		NORMAL = normalize(r_norm);
+		VERTEX = centro_roca + r_pos + desplazamiento;
+	}
+
 	v_normal_smooth_view = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	v_color = COLOR.rgb;
 	v_vertex_view = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;

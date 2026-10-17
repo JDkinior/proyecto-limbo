@@ -23,3 +23,6 @@ shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
 shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0

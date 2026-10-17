@@ -1,10 +1,21 @@
-[gd_resource type="StandardMaterial3D" format=3 uid="uid://dlpofbs16wlgk"]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://dlpofbs16wlgk"]
+
+[ext_resource type="Shader" path="res://shaders/entorno/isla_vivo.gdshader" id="1_isla_shader"]
 
 [resource]
 resource_name = "m_isla_roca"
-cull_mode = 2
-diffuse_mode = 1
-vertex_color_use_as_albedo = true
-albedo_color = Color(0.76, 0.75, 0.78, 1)
-roughness = 0.9
-
+render_priority = 0
+shader = ExtResource("1_isla_shader")
+shader_parameter/tinte_roca = Color(0.76, 0.75, 0.78, 1)
+shader_parameter/rugosidad_roca = 0.9
+shader_parameter/habilitar_pasto_distancia = true
+shader_parameter/color_pasto_cerca_base = Color(0.28, 0.18, 0.03, 1)
+shader_parameter/color_pasto_cerca_punta = Color(0.38, 0.25, 0.05, 1)
+shader_parameter/color_pasto_lejos_base = Color(0.46, 0.32, 0.06, 1)
+shader_parameter/color_pasto_lejos_punta = Color(0.66, 0.49, 0.07, 1)
+shader_parameter/distancia_transicion_inicio = 20.0
+shader_parameter/distancia_transicion_fin = 48.0
+shader_parameter/saturacion_pasto = 0.85
+shader_parameter/rugosidad_pasto = 0.96
+shader_parameter/umbral_pendiente_pasto = 0.45
+shader_parameter/suavizado_pendiente_pasto = 0.15
