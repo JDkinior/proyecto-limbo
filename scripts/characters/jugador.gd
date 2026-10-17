@@ -30,6 +30,27 @@ var _tiempo_paso_vivo: float = 0.0
 var _balanceo_paso_actual: float = 0.0
 var _rotacion_inicial_modelo_vivo: Vector3 = Vector3(0.0, PI, 0.0)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SQUASH & STRETCH Y ANTICIPACIÓN (EL VIVO - FÍSICO, ENÉRGICO Y ELÁSTICO)
+# ─────────────────────────────────────────────────────────────────────────────
+const ALTURA_PIVOTE_A_SUELO_VIVO: float = 0.67
+var _escala_base_vivo: Vector3 = Vector3(0.5, 0.5, 0.5)
+var _signo_escala_vivo: Vector3 = Vector3(-1.0, 1.0, -1.0)
+
+var _tiempo_anticipacion_salto_vivo: float = 0.0
+var _duracion_anticipacion_vivo: float = 0.065
+var _tiempo_despegue_salto_vivo: float = 0.0
+var _duracion_despegue_vivo: float = 0.16
+var _es_segundo_salto_vivo: bool = false
+
+var _tiempo_aterrizaje_vivo: float = 0.0
+var _duracion_aterrizaje_vivo: float = 0.28
+var _fuerza_impacto_aterrizaje_vivo: float = 0.0
+
+var _squash_stretch_vivo: Vector3 = Vector3.ONE
+var _offset_y_squash_vivo: float = 0.0
+var _vel_y_remoto_anterior_vivo: float = 0.0
+
 var _eval_shape: SphereShape3D = null
 var _eval_query: PhysicsShapeQueryParameters3D = null
 var _impacto_shape: SphereShape3D = null
@@ -90,8 +111,9 @@ func _ready():
 	# Máscara: Capa 1 (Entorno), Capa 2 (Plataformas físicas), Capa 4 (Monedas/Objetivos)
 	collision_mask = (1 << 0) | (1 << 1) | (1 << 3)
 
-	if is_instance_valid(RedManager):
-		RedManager.registrar_jugador(self)
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr):
+		red_mgr.registrar_jugador(self)
 
 	if es_activo() and controles_tactiles:
 		if controles_tactiles.has_method("configurar_personaje_local"):
@@ -102,6 +124,12 @@ func _ready():
 	if is_instance_valid(modelo_vivo):
 		_pos_y_inicial_vivo = modelo_vivo.position.y
 		_rotacion_inicial_modelo_vivo = modelo_vivo.rotation
+		_escala_base_vivo = modelo_vivo.scale.abs()
+		_signo_escala_vivo = Vector3(
+			signf(modelo_vivo.scale.x) if modelo_vivo.scale.x != 0.0 else -1.0,
+			signf(modelo_vivo.scale.y) if modelo_vivo.scale.y != 0.0 else 1.0,
+			signf(modelo_vivo.scale.z) if modelo_vivo.scale.z != 0.0 else -1.0
+		)
 	_pos_anterior_remoto = global_position
 
 	_configurar_animaciones()
@@ -112,6 +140,10 @@ func _ready():
 	if cam:
 		cam.environment = _entorno_vivo_cache
 		cam.cull_mask = obtener_cull_mask_personaje()
+
+	var arm = obtener_spring_arm()
+	if arm:
+		arm.collision_mask = (1 << 0) | (1 << 1)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GESTIÓN DE MECANISMOS CERCANOS
@@ -206,11 +238,13 @@ func _physics_process(delta: float):
 			_esta_haciendo_embate = false
 
 	if not es_activo():
-		var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+		var red_mgr = _get_red_manager()
+		var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 		if es_offline_o_solo:
 			procesar_salto_base(delta)
 			aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
 			_actualizar_particulas_polvo(vel_y_previa)
+			_actualizar_squash_stretch_vivo(delta)
 			_procesar_inclinacion_visual(delta)
 			_actualizar_animaciones(delta)
 		return
@@ -219,6 +253,7 @@ func _physics_process(delta: float):
 		procesar_salto_base(delta)
 		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
 		_actualizar_particulas_polvo(vel_y_previa)
+		_actualizar_squash_stretch_vivo(delta)
 		_procesar_inclinacion_visual(delta)
 		_actualizar_animaciones(delta)
 		return
@@ -228,6 +263,7 @@ func _physics_process(delta: float):
 	_actualizar_disponibilidad_interaccion()
 	_procesar_input_habilidad()
 	_actualizar_particulas_polvo(vel_y_previa)
+	_actualizar_squash_stretch_vivo(delta)
 	_procesar_inclinacion_visual(delta)
 	_actualizar_animaciones(delta)
 
@@ -242,8 +278,9 @@ func _procesar_input_habilidad() -> void:
 		if is_instance_valid(mecanismo):
 			if mecanismo.has_method("intentar_interactuar"):
 				if mecanismo.intentar_interactuar(self):
-					if es_activo() and is_instance_valid(VibrationManager):
-						VibrationManager.vibrar_mecanismo()
+					var vib_mgr = _get_vibration_manager()
+					if es_activo() and is_instance_valid(vib_mgr):
+						vib_mgr.vibrar_mecanismo()
 			return
 
 		# 2. Si NO hay mecanismos pero hay un muro rompible o caja enfrente: Realizar Embate Rompedor
@@ -258,8 +295,9 @@ func ejecutar_embate() -> void:
 	_cooldown_embate_actual = tiempo_cooldown_embate
 	_esta_haciendo_embate = true
 	_tiempo_embate = 0.22
-	if es_activo() and is_instance_valid(VibrationManager):
-		VibrationManager.vibrar_embate()
+	var vib_mgr = _get_vibration_manager()
+	if es_activo() and is_instance_valid(vib_mgr):
+		vib_mgr.vibrar_embate()
 
 	# 1. Obtener la dirección deseada (Input del joystick/teclado relativo a la cámara)
 	var dir_input = obtener_direccion_movimiento()
@@ -308,12 +346,14 @@ func _comprobar_impacto_frontal(direccion: Vector3) -> void:
 			if is_instance_valid(colisionador):
 				if colisionador.has_method("recibir_impacto"):
 					colisionador.recibir_impacto(self)
-					if es_activo() and is_instance_valid(VibrationManager):
-						VibrationManager.vibrar_impacto_fuerte()
+					var vib_mgr = _get_vibration_manager()
+					if es_activo() and is_instance_valid(vib_mgr):
+						vib_mgr.vibrar_impacto_fuerte()
 				elif colisionador is RigidBody3D:
 					colisionador.apply_central_impulse(direccion * 7.0)
-					if es_activo() and is_instance_valid(VibrationManager):
-						VibrationManager.vibrar_embate()
+					var vib_mgr = _get_vibration_manager()
+					if es_activo() and is_instance_valid(vib_mgr):
+						vib_mgr.vibrar_embate()
 
 @rpc("any_peer", "call_remote", "unreliable")
 func rpc_reproducir_embate() -> void:
@@ -345,6 +385,9 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	if es_mio and camera:
 		camera.cull_mask = obtener_cull_mask_personaje()
 		camera.environment = obtener_entorno_personaje()
+	var arm = obtener_spring_arm()
+	if arm:
+		arm.collision_mask = (1 << 0) | (1 << 1)
 
 const CIELO_VIVO_MAT = preload("res://shaders/entorno/cielo/cielo_vivo_mat.tres")
 
@@ -419,8 +462,21 @@ func _configurar_animaciones():
 func _process(delta: float):
 	super(delta)
 	if not es_activo():
-		var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+		var red_mgr = _get_red_manager()
+		var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 		if not es_offline_o_solo:
+			# Detección remota de salto y aterrizaje en multijugador para peers sincronizados
+			var desp_y = global_position.y - _pos_anterior_remoto.y
+			var vel_y_remoto = desp_y / maxf(delta, 0.001)
+			if vel_y_remoto > 3.6 and _tiempo_anticipacion_salto_vivo <= 0.0 and _tiempo_despegue_salto_vivo <= 0.0:
+				_iniciar_animacion_salto_vivo(1)
+			elif vel_y_remoto < -1.8:
+				_vel_y_remoto_anterior_vivo = vel_y_remoto
+			elif absf(vel_y_remoto) < 0.6 and _vel_y_remoto_anterior_vivo < -1.8:
+				_iniciar_animacion_aterrizaje_vivo(_vel_y_remoto_anterior_vivo)
+				_vel_y_remoto_anterior_vivo = 0.0
+
+			_actualizar_squash_stretch_vivo(delta)
 			_actualizar_animaciones(delta)
 			_procesar_inclinacion_visual(delta)
 
@@ -430,7 +486,8 @@ func _actualizar_animaciones(delta: float):
 		
 	var vel_horizontal: float = 0.0
 	var en_suelo: bool = true
-	var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var red_mgr = _get_red_manager()
+	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 	
 	if es_activo() or es_offline_o_solo:
 		vel_horizontal = Vector2(velocity.x, velocity.z).length()
@@ -473,7 +530,8 @@ func _procesar_inclinacion_visual(delta: float):
 
 	var vel_horizontal: float = 0.0
 	var en_suelo: bool = true
-	var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var red_mgr = _get_red_manager()
+	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 
 	if es_activo() or es_offline_o_solo:
 		vel_horizontal = Vector2(velocity.x, velocity.z).length()
@@ -495,7 +553,7 @@ func _procesar_inclinacion_visual(delta: float):
 	modelo_vivo.rotation.x = _rotacion_inicial_modelo_vivo.x + _inclinacion_actual
 	modelo_vivo.rotation.y = _rotacion_inicial_modelo_vivo.y
 
-	# 2. Amortiguación y rebote sutil sincronizado con la caminata (muy suave y sin mareos)
+	# 2. Amortiguación, caminata y desplazamiento vertical por Squash & Stretch
 	if en_suelo and vel_horizontal > 0.35:
 		var dur = 38.0 / 30.0 # Duración del ciclo completo de 2 pasos (~1.25s)
 		var t_anim = 0.0
@@ -510,32 +568,153 @@ func _procesar_inclinacion_visual(delta: float):
 		var curva_suave = (1.0 - cos(fase_paso * TAU)) * 0.5
 		var rebote_y = curva_suave * 0.018 * factor_vel
 		
-		# Interpolación fluida para evitar cualquier sacudida
-		var target_y = _pos_y_inicial_vivo + rebote_y
-		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, target_y, 16.0 * delta)
+		# Sumar rebote de paso + compresión/extensión de squash & stretch
+		var target_y = _pos_y_inicial_vivo + rebote_y + _offset_y_squash_vivo
+		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, target_y, 18.0 * delta)
 		
-		# Balanceo lateral mínimo y orgánico (reducido al mínimo para confort visual)
+		# Balanceo lateral mínimo y orgánico
 		var balanceo_objetivo = sin((t_anim / dur) * TAU) * 0.008 * factor_vel
 		_balanceo_paso_actual = lerpf(_balanceo_paso_actual, balanceo_objetivo, 14.0 * delta)
 		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 	else:
-		# Regreso suave a la postura y altura de reposo
-		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, _pos_y_inicial_vivo, 12.0 * delta)
+		# Regreso suave a la postura y altura con offset de squash & stretch aplicado
+		var target_y = _pos_y_inicial_vivo + _offset_y_squash_vivo
+		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, target_y, 18.0 * delta)
 		_balanceo_paso_actual = lerpf(_balanceo_paso_actual, 0.0, 12.0 * delta)
 		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTROL PROCEDURAL DE SQUASH & STRETCH (VIVO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+func _actualizar_squash_stretch_vivo(delta: float) -> void:
+	if not is_instance_valid(modelo_vivo):
+		return
+
+	var escala_y = 1.0
+	var offset_y = 0.0
+	var red_mgr = _get_red_manager()
+	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var en_suelo = is_on_floor() if (es_activo() or es_offline_o_solo) else true
+
+	# 1. Fase de Anticipación de Salto (Agazapado enérgico reuniendo fuerza elástica)
+	if _tiempo_anticipacion_salto_vivo > 0.0:
+		_tiempo_anticipacion_salto_vivo = maxf(_tiempo_anticipacion_salto_vivo - delta, 0.0)
+		var p = 1.0 - (_tiempo_anticipacion_salto_vivo / _duracion_anticipacion_vivo)
+		var factor_curva = sin(p * PI)
+		if _es_segundo_salto_vivo:
+			# Doble salto aéreo: encogimiento atlético en el aire (tuck)
+			escala_y = lerpf(1.0, 0.76, factor_curva)
+			offset_y = 0.0
+		else:
+			# Salto desde el suelo: compresión contra el piso con plantas de los pies ancladas
+			escala_y = lerpf(1.0, 0.70, factor_curva)
+			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
+
+	# 2. Fase de Despegue Explosivo (Lanzamiento y estiramiento vertical enérgico)
+	elif _tiempo_despegue_salto_vivo > 0.0:
+		_tiempo_despegue_salto_vivo = maxf(_tiempo_despegue_salto_vivo - delta, 0.0)
+		var p = 1.0 - (_tiempo_despegue_salto_vivo / _duracion_despegue_vivo)
+		var factor_estiramiento = sin(clampf(p * 1.35, 0.0, 1.0) * PI)
+		var stretch_max = 1.35 if _es_segundo_salto_vivo else 1.30
+		escala_y = lerpf(1.0, stretch_max, factor_estiramiento)
+		if not _es_segundo_salto_vivo:
+			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y) * (1.0 - p)
+
+	# 3. Fase Aérea (Deformación aerodinámica según velocidad vertical)
+	elif not en_suelo:
+		var vel_y = velocity.y if (es_activo() or es_offline_o_solo) else 0.0
+		if vel_y > 1.5:
+			# Ascenso: alargamiento sostenido proporcional a la velocidad
+			var factor_subida = clampf(vel_y / FUERZA_SALTO, 0.0, 1.0)
+			escala_y = 1.0 + (factor_subida * 0.20)
+			offset_y = 0.0
+		elif absf(vel_y) <= 1.5:
+			# Ápice: normalización suave con relajación momentánea
+			escala_y = 1.0
+			offset_y = 0.0
+		else:
+			# Caída rápida: estiramiento descendente hacia el suelo anticipando el impacto
+			var factor_caida = clampf(-vel_y / VELOCIDAD_MAX_CAIDA, 0.0, 1.0)
+			escala_y = 1.0 + (factor_caida * 0.16)
+			offset_y = 0.0
+
+	# 4. Fase de Aterrizaje (Impacto, compresión profunda, rebote elástico y asentamiento)
+	elif _tiempo_aterrizaje_vivo > 0.0:
+		_tiempo_aterrizaje_vivo = maxf(_tiempo_aterrizaje_vivo - delta, 0.0)
+		var t = 1.0 - (_tiempo_aterrizaje_vivo / _duracion_aterrizaje_vivo)
+		var f = _fuerza_impacto_aterrizaje_vivo
+
+		if t < 0.25:
+			# Sub-fase A: Impact Squash (Aplastamiento contra el piso con pies firmes)
+			var sub_t = t / 0.25
+			var max_squash = 1.0 - (0.34 * f)
+			escala_y = lerpf(1.0, max_squash, sin(sub_t * (PI * 0.5)))
+			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
+		elif t < 0.60:
+			# Sub-fase B: Rebound Overshoot (Rebote elástico que supera la altura normal)
+			var sub_t = (t - 0.25) / 0.35
+			var max_squash = 1.0 - (0.34 * f)
+			var overshoot = 1.0 + (0.10 * f)
+			escala_y = lerpf(max_squash, overshoot, sin(sub_t * (PI * 0.5)))
+			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * maxf(1.0 - escala_y, 0.0)
+		else:
+			# Sub-fase C: Asentamiento fluido de regreso al reposo
+			var sub_t = (t - 0.60) / 0.40
+			var overshoot = 1.0 + (0.10 * f)
+			escala_y = lerpf(overshoot, 1.0, sin(sub_t * (PI * 0.5)))
+			offset_y = 0.0
+	else:
+		escala_y = 1.0
+		offset_y = 0.0
+
+	# Principio de conservación de volumen: Al encogerse verticalmente se ensancha lateralmente
+	var escala_xz = 1.0 / sqrt(maxf(escala_y, 0.1))
+	var escala_objetivo = Vector3(escala_xz, escala_y, escala_xz)
+
+	_squash_stretch_vivo = _squash_stretch_vivo.lerp(escala_objetivo, 26.0 * delta)
+	_offset_y_squash_vivo = lerpf(_offset_y_squash_vivo, offset_y, 26.0 * delta)
+
+	# Aplicar escala al modelo respetando la escala base y orientación
+	modelo_vivo.scale = Vector3(
+		_escala_base_vivo.x * _squash_stretch_vivo.x * _signo_escala_vivo.x,
+		_escala_base_vivo.y * _squash_stretch_vivo.y * _signo_escala_vivo.y,
+		_escala_base_vivo.z * _squash_stretch_vivo.z * _signo_escala_vivo.z
+	)
+
+func _iniciar_animacion_salto_vivo(numero_salto: int) -> void:
+	_es_segundo_salto_vivo = (numero_salto > 1)
+	_tiempo_anticipacion_salto_vivo = _duracion_anticipacion_vivo
+	_tiempo_despegue_salto_vivo = _duracion_despegue_vivo
+	_tiempo_aterrizaje_vivo = 0.0
+
+func _iniciar_animacion_aterrizaje_vivo(vel_y: float) -> void:
+	if _tiempo_aterrizaje_vivo > (_duracion_aterrizaje_vivo * 0.75):
+		return
+	var factor = clampf((abs(vel_y) - 1.8) / 12.0, 0.25, 1.0)
+	_fuerza_impacto_aterrizaje_vivo = factor
+	_tiempo_aterrizaje_vivo = _duracion_aterrizaje_vivo
+	_tiempo_anticipacion_salto_vivo = 0.0
+	_tiempo_despegue_salto_vivo = 0.0
+
 func _al_realizar_salto(numero_salto: int):
 	super(numero_salto)
+	_iniciar_animacion_salto_vivo(numero_salto)
 	if numero_salto == 2 and is_instance_valid(particulas_aterrizaje):
 		particulas_aterrizaje.restart()
 		particulas_aterrizaje.emitting = true
+
+func _al_aterrizar(vel_y: float) -> void:
+	super(vel_y)
+	_iniciar_animacion_aterrizaje_vivo(vel_y)
 
 func _actualizar_particulas_polvo(vel_y_previa: float = 0.0):
 	var en_suelo = is_on_floor()
 	var vel_horizontal = Vector2(velocity.x, velocity.z).length()
 	
-	if en_suelo and not _estaba_en_suelo and vel_y_previa < -2.5:
+	if en_suelo and not _estaba_en_suelo and vel_y_previa < -1.8:
 		_emitir_impacto_aterrizaje()
+		_iniciar_animacion_aterrizaje_vivo(vel_y_previa)
 		
 	_estaba_en_suelo = en_suelo
 	
@@ -557,8 +736,9 @@ func _actualizar_particulas_polvo(vel_y_previa: float = 0.0):
 				particulas_polvo.direction = dir_expulsion
 
 func _emitir_impacto_aterrizaje():
-	if es_activo() and is_instance_valid(VibrationManager):
-		VibrationManager.vibrar_aterrizaje(1.2)
+	var vib_mgr = _get_vibration_manager()
+	if es_activo() and is_instance_valid(vib_mgr):
+		vib_mgr.vibrar_aterrizaje(1.2)
 	if is_instance_valid(particulas_aterrizaje):
 		particulas_aterrizaje.restart()
 		particulas_aterrizaje.emitting = true
@@ -568,6 +748,17 @@ func _al_resetear_estados() -> void:
 	_tiempo_embate = 0.0
 	_inclinacion_actual = 0.0
 	_balanceo_paso_actual = 0.0
+	_tiempo_anticipacion_salto_vivo = 0.0
+	_tiempo_despegue_salto_vivo = 0.0
+	_tiempo_aterrizaje_vivo = 0.0
+	_squash_stretch_vivo = Vector3.ONE
+	_offset_y_squash_vivo = 0.0
+	_vel_y_remoto_anterior_vivo = 0.0
 	if is_instance_valid(modelo_vivo):
 		modelo_vivo.rotation = _rotacion_inicial_modelo_vivo
-
+		modelo_vivo.position.y = _pos_y_inicial_vivo
+		modelo_vivo.scale = Vector3(
+			_escala_base_vivo.x * _signo_escala_vivo.x,
+			_escala_base_vivo.y * _signo_escala_vivo.y,
+			_escala_base_vivo.z * _signo_escala_vivo.z
+		)

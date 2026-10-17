@@ -19,6 +19,26 @@ var _rotacion_y_anterior: float = 0.0
 var _vel_horizontal_anterior: float = 0.0
 var _rotacion_inicial_modelo_fantasma: Vector3 = Vector3(0.0, PI, 0.0)
 var _pos_anterior_remoto: Vector3 = Vector3.ZERO
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SQUASH & STRETCH Y RESPUESTA DINÁMICA (EL FANTASMA - ETÉREO Y FLUIDO)
+# ─────────────────────────────────────────────────────────────────────────────
+const ALTURA_BASE_FANTASMA: float = 0.686 # Distancia desde el pivote del modelo hasta la base de la túnica/manto
+var _signo_escala_fantasma: Vector3 = Vector3(-1.0, 1.0, -1.0)
+
+var _tiempo_impulso_salto_fantasma: float = 0.0
+var _duracion_impulso_salto_fantasma: float = 0.16
+
+var _tiempo_aterrizaje_fantasma: float = 0.0
+var _duracion_aterrizaje_fantasma: float = 0.22
+var _fuerza_impacto_aterrizaje_fantasma: float = 0.0
+
+var _squash_stretch_fantasma: Vector3 = Vector3.ONE
+var _offset_y_squash_fantasma: float = 0.0
+var _pulso_luz_salto: float = 0.0
+var _estaba_en_suelo_fantasma: bool = true
+var _vel_y_remoto_anterior_fantasma: float = 0.0
+
 ## Control de reproducción de animaciones del fantasma (Idle y flotar/movimiento).
 @export var animaciones_activas: bool = true
 @export var flotacion_procedural_activa: bool = true
@@ -68,8 +88,9 @@ func _ready():
 	# Máscara: detecta capa 1 (entorno), capa 3 (plataformas espirituales), capa 4 (monedas/triggers)
 	collision_mask = (1 << 0) | (1 << 2) | (1 << 3)
 
-	if is_instance_valid(RedManager):
-		RedManager.registrar_jugador(self)
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr):
+		red_mgr.registrar_jugador(self)
 
 	if es_activo() and controles_tactiles:
 		if controles_tactiles.has_method("configurar_personaje_local"):
@@ -84,6 +105,11 @@ func _ready():
 		_pos_y_inicial_fantasma = modelo_fantasma.position.y
 		_escala_base_fantasma = modelo_fantasma.scale.abs()
 		_rotacion_inicial_modelo_fantasma = modelo_fantasma.rotation
+		_signo_escala_fantasma = Vector3(
+			signf(modelo_fantasma.scale.x) if modelo_fantasma.scale.x != 0.0 else -1.0,
+			signf(modelo_fantasma.scale.y) if modelo_fantasma.scale.y != 0.0 else 1.0,
+			signf(modelo_fantasma.scale.z) if modelo_fantasma.scale.z != 0.0 else -1.0
+		)
 	_rotacion_y_anterior = rotation.y
 	_pos_anterior_remoto = global_position
 
@@ -95,6 +121,10 @@ func _ready():
 	if cam:
 		cam.environment = _entorno_fantasma_cache
 		cam.cull_mask = obtener_cull_mask_personaje()
+
+	var arm = obtener_spring_arm()
+	if arm:
+		arm.collision_mask = (1 << 0) | (1 << 2)
 
 func _on_aura_estado_cambiado(activo: bool, progreso_cooldown: float):
 	aura_estado_actualizado.emit(activo, progreso_cooldown)
@@ -117,6 +147,9 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 		# Ver todas las capas (incluyendo plano espiritual)
 		camera.cull_mask = obtener_cull_mask_personaje()
 		camera.environment = obtener_entorno_personaje()
+	var arm = obtener_spring_arm()
+	if arm:
+		arm.collision_mask = (1 << 0) | (1 << 2)
 
 const CIELO_FANTASMA_MAT = preload("res://shaders/entorno/cielo/cielo_fantasma_mat.tres")
 
@@ -169,33 +202,46 @@ func _crear_entorno_fantasma() -> Environment:
 	return env
 
 func _physics_process(delta):
+	var vel_y_previa = velocity.y
+
 	if not es_activo():
-		var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+		var red_mgr = _get_red_manager()
+		var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 		if es_offline_o_solo:
 			procesar_salto_base(delta)
 			aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
+			_comprobar_aterrizaje_fisico(vel_y_previa)
 			_actualizar_animaciones(delta)
 		return
 
 	if entrada_bloqueada():
 		procesar_salto_base(delta)
 		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
+		_comprobar_aterrizaje_fisico(vel_y_previa)
 		_actualizar_animaciones(delta)
 		return
 
 	procesar_salto_base(delta)
 	procesar_movimiento_base(delta)
+	_comprobar_aterrizaje_fisico(vel_y_previa)
 	_actualizar_animaciones(delta)
 
 	if Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial")):
 		activar_habilidad_especial()
+
+func _comprobar_aterrizaje_fisico(vel_y_previa: float) -> void:
+	var en_suelo = is_on_floor()
+	if en_suelo and not _estaba_en_suelo_fantasma and vel_y_previa < -1.0:
+		_iniciar_animacion_aterrizaje_fantasma(vel_y_previa)
+	_estaba_en_suelo_fantasma = en_suelo
 
 func _process(delta: float):
 	super(delta)
 
 	var vel_total: float = 0.0
 	var vel_horizontal: float = 0.0
-	var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var red_mgr = _get_red_manager()
+	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 	if es_activo() or es_offline_o_solo:
 		vel_total = velocity.length()
 		vel_horizontal = Vector2(velocity.x, velocity.z).length()
@@ -203,9 +249,22 @@ func _process(delta: float):
 		var desp = global_position - _pos_anterior_remoto
 		vel_total = desp.length() / maxf(delta, 0.001)
 		vel_horizontal = Vector2(desp.x, desp.z).length() / maxf(delta, 0.001)
+
+		# Detección remota de salto y aterrizaje en multijugador para el fantasma
+		var desp_y = desp.y
+		var vel_y_remoto = desp_y / maxf(delta, 0.001)
+		if vel_y_remoto > 3.0 and _tiempo_impulso_salto_fantasma <= 0.0:
+			_iniciar_animacion_salto_fantasma()
+		elif vel_y_remoto < -1.0:
+			_vel_y_remoto_anterior_fantasma = vel_y_remoto
+		elif absf(vel_y_remoto) < 0.4 and _vel_y_remoto_anterior_fantasma < -1.0:
+			_iniciar_animacion_aterrizaje_fantasma(_vel_y_remoto_anterior_fantasma)
+			_vel_y_remoto_anterior_fantasma = 0.0
+
 		_pos_anterior_remoto = global_position
 		_actualizar_animaciones(delta)
 
+	_actualizar_squash_stretch_fantasma(delta)
 	_procesar_flotacion_visual(delta, vel_horizontal)
 	_actualizar_estela(vel_total)
 
@@ -213,7 +272,7 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	if not is_instance_valid(modelo_fantasma): return
 
 	if not flotacion_procedural_activa:
-		modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, _pos_y_inicial_fantasma, 10.0 * delta)
+		modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, _pos_y_inicial_fantasma + _offset_y_squash_fantasma, 10.0 * delta)
 		modelo_fantasma.rotation.x = lerpf(modelo_fantasma.rotation.x, _rotacion_inicial_modelo_fantasma.x, 10.0 * delta)
 		modelo_fantasma.rotation.z = lerpf(modelo_fantasma.rotation.z, _rotacion_inicial_modelo_fantasma.z, 10.0 * delta)
 		modelo_fantasma.rotation.y = _rotacion_inicial_modelo_fantasma.y
@@ -228,10 +287,10 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	_vel_osc_actual = lerpf(_vel_osc_actual, vel_osc_objetivo, 4.0 * delta)
 	_tiempo_flotacion += delta * _vel_osc_actual
 
-	# Onda sinusoidal pura y suave con amortiguación continua
+	# Onda sinusoidal pura y suave con amortiguación continua + offset de deformación vertical
 	var amplitud_objetivo = 0.08 if en_vortice else (0.048 if planeando else (0.030 + factor_vel * 0.012))
-	var y_objetivo = _pos_y_inicial_fantasma + sin(_tiempo_flotacion) * amplitud_objetivo
-	modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, y_objetivo, 12.0 * delta)
+	var y_objetivo = _pos_y_inicial_fantasma + (sin(_tiempo_flotacion) * amplitud_objetivo) + _offset_y_squash_fantasma
+	modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, y_objetivo, 14.0 * delta)
 
 	# 2. Inclinación en Curvas / Banking (Roll en Z al girar)
 	var diff_ang = wrapf(rotation.y - _rotacion_y_anterior, -PI, PI)
@@ -262,22 +321,19 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	modelo_fantasma.rotation.x = _rotacion_inicial_modelo_fantasma.x + _tilt_espectral_pitch
 	modelo_fantasma.rotation.y = _rotacion_inicial_modelo_fantasma.y
 
-	# 4. Squash & Stretch Espectral / Respiración elástica suavizada
-	var factor_estiramiento = sin(_tiempo_flotacion) * (0.035 if en_vortice else (0.016 if planeando else 0.010))
-	var sx_sign = signf(modelo_fantasma.scale.x) if modelo_fantasma.scale.x != 0.0 else -1.0
-	var sy_sign = signf(modelo_fantasma.scale.y) if modelo_fantasma.scale.y != 0.0 else 1.0
-	var sz_sign = signf(modelo_fantasma.scale.z) if modelo_fantasma.scale.z != 0.0 else -1.0
+	# 4. Squash & Stretch Espectral / Respiración elástica
 	var target_scale = Vector3(
-		_escala_base_fantasma.x * (1.0 - factor_estiramiento * 0.5) * sx_sign,
-		_escala_base_fantasma.y * (1.0 + factor_estiramiento) * sy_sign,
-		_escala_base_fantasma.z * (1.0 - factor_estiramiento * 0.5) * sz_sign
+		_escala_base_fantasma.x * _squash_stretch_fantasma.x * _signo_escala_fantasma.x,
+		_escala_base_fantasma.y * _squash_stretch_fantasma.y * _signo_escala_fantasma.y,
+		_escala_base_fantasma.z * _squash_stretch_fantasma.z * _signo_escala_fantasma.z
 	)
-	modelo_fantasma.scale = modelo_fantasma.scale.lerp(target_scale, 10.0 * delta)
+	modelo_fantasma.scale = modelo_fantasma.scale.lerp(target_scale, 16.0 * delta)
 
-	# 5. Pulso sutil de luminosidad espectral al moverse o levitar
+	# 5. Pulso de luminosidad espectral al moverse, saltar o levitar
 	if is_instance_valid(luz_fantasma):
 		var energia_objetivo = 1.65 if en_vortice else (1.15 if planeando else (0.80 + factor_vel * 0.20))
-		luz_fantasma.light_energy = lerpf(luz_fantasma.light_energy, energia_objetivo, 6.0 * delta)
+		luz_fantasma.light_energy = lerpf(luz_fantasma.light_energy, energia_objetivo + _pulso_luz_salto, 6.0 * delta)
+		_pulso_luz_salto = move_toward(_pulso_luz_salto, 0.0, 2.5 * delta)
 
 func activar_habilidad_especial():
 	if is_instance_valid(habilidad_aura):
@@ -367,7 +423,8 @@ func _actualizar_animaciones(delta: float):
 		return
 
 	var vel_horizontal: float = 0.0
-	var es_offline_o_solo = is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var red_mgr = _get_red_manager()
+	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 
 	if es_activo() or es_offline_o_solo:
 		vel_horizontal = Vector2(velocity.x, velocity.z).length()
@@ -418,7 +475,120 @@ func _actualizar_animaciones(delta: float):
 		anim_player.play(anim_deseada, blend_time)
 
 	anim_player.speed_scale = speed
- 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONTROL PROCEDURAL DE SQUASH & STRETCH ESPECTRAL (FANTASMA)
+# ─────────────────────────────────────────────────────────────────────────────
+
+func _actualizar_squash_stretch_fantasma(delta: float) -> void:
+	if not is_instance_valid(modelo_fantasma):
+		return
+
+	var escala_y = 1.0
+	var offset_y = 0.0
+	var red_mgr = _get_red_manager()
+	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
+	var en_suelo = is_on_floor() if (es_activo() or es_offline_o_solo) else true
+	var planeando = esta_planeando()
+	var salto_mantenido = es_activo() and not entrada_bloqueada() and (Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept"))
+	var en_vortice = esta_absorbido_en_vortice()
+
+	if en_vortice:
+		_squash_stretch_fantasma = Vector3.ONE
+		_offset_y_squash_fantasma = 0.0
+		return
+
+	# 1. Impulso Instantáneo de Salto Espectral (Lanzamiento explosivo sin retraso ni agazapado)
+	if _tiempo_impulso_salto_fantasma > 0.0:
+		_tiempo_impulso_salto_fantasma = maxf(_tiempo_impulso_salto_fantasma - delta, 0.0)
+		var p = 1.0 - (_tiempo_impulso_salto_fantasma / _duracion_impulso_salto_fantasma)
+		# Deformación estilizada: impulso elástico inicial con rápido retorno
+		var factor_impulso = sin((1.0 - p) * (PI * 0.5))
+		escala_y = lerpf(1.0, 1.18, factor_impulso)
+		offset_y = 0.06 * factor_impulso
+
+	# 2. Levitación / Planeo Espectral (Al mantener presionado salto en el aire: manto amplio y majestuoso)
+	elif not en_suelo and (planeando or salto_mantenido):
+		# Manto espectral amplio que flota en corrientes de aire, nunca estrecho ni comprimido
+		var respiracion_planeo = sin(_tiempo_flotacion * 2.8) * 0.02
+		escala_y = 0.96 + respiracion_planeo
+		offset_y = 0.03
+
+	# 3. Flotación libre / Vuelo en el aire (sin mantener levitación)
+	elif not en_suelo:
+		var vel_y = velocity.y if (es_activo() or es_offline_o_solo) else 0.0
+		if vel_y > 1.5:
+			# Ascenso suave: alargamiento muy sutil sin adelgazar la silueta
+			var factor_subida = clampf(vel_y / FUERZA_SALTO, 0.0, 1.0)
+			escala_y = 1.0 + (factor_subida * 0.08)
+			offset_y = 0.02 * factor_subida
+		elif absf(vel_y) <= 1.5:
+			# Ápice: relajación flotante natural
+			escala_y = 0.98 + sin(_tiempo_flotacion * 2.0) * 0.02
+			offset_y = 0.01
+		else:
+			# Descenso suave en gravedad etérea
+			var factor_caida = clampf(-vel_y / VELOCIDAD_MAX_CAIDA, 0.0, 1.0)
+			escala_y = 1.0 + (factor_caida * 0.06)
+			offset_y = 0.0
+
+	# 4. Amortiguación de Aterrizaje Espectral (Pivote anclado a la base de la túnica/manto)
+	elif _tiempo_aterrizaje_fantasma > 0.0:
+		_tiempo_aterrizaje_fantasma = maxf(_tiempo_aterrizaje_fantasma - delta, 0.0)
+		var t = 1.0 - (_tiempo_aterrizaje_fantasma / _duracion_aterrizaje_fantasma)
+		var f = _fuerza_impacto_aterrizaje_fantasma
+
+		if t < 0.40:
+			# Amortiguación suave y etérea contra el piso (máximo 12% para evitar efecto aplastado/panqueque)
+			var sub_t = t / 0.40
+			var max_squash = 1.0 - (0.12 * f)
+			escala_y = lerpf(1.0, max_squash, sin(sub_t * (PI * 0.5)))
+			# Compensación de pivote hacia la base para que la túnica no flote en el aire al deformarse
+			offset_y = -ALTURA_BASE_FANTASMA * (1.0 - escala_y)
+		else:
+			# Retorno elástico y fluido al reposo
+			var sub_t = (t - 0.40) / 0.60
+			var max_squash = 1.0 - (0.12 * f)
+			escala_y = lerpf(max_squash, 1.0, sin(sub_t * (PI * 0.5)))
+			offset_y = -ALTURA_BASE_FANTASMA * (1.0 - escala_y)
+	else:
+		# Reposo en el suelo / flotación neutral
+		var respiracion_reposo = sin(_tiempo_flotacion * 2.0) * 0.015
+		escala_y = 1.0 + respiracion_reposo
+		offset_y = 0.0
+
+	# Conservación elástica de volumen: relación proporcional suave sin exageración
+	var escala_xz = 1.0 / sqrt(maxf(escala_y, 0.2))
+	var escala_objetivo = Vector3(escala_xz, escala_y, escala_xz)
+
+	_squash_stretch_fantasma = _squash_stretch_fantasma.lerp(escala_objetivo, 18.0 * delta)
+	_offset_y_squash_fantasma = lerpf(_offset_y_squash_fantasma, offset_y, 16.0 * delta)
+
+func _iniciar_animacion_salto_fantasma() -> void:
+	_tiempo_impulso_salto_fantasma = _duracion_impulso_salto_fantasma
+	_tiempo_aterrizaje_fantasma = 0.0
+	_pulso_luz_salto = 0.75
+	if is_instance_valid(estela_fantasma):
+		estela_fantasma.restart()
+		estela_fantasma.emitting = true
+
+func _iniciar_animacion_aterrizaje_fantasma(vel_y: float) -> void:
+	if _tiempo_aterrizaje_fantasma > (_duracion_aterrizaje_fantasma * 0.75):
+		return
+	var factor = clampf((abs(vel_y) - 1.0) / 7.0, 0.25, 1.0)
+	_fuerza_impacto_aterrizaje_fantasma = factor
+	_tiempo_aterrizaje_fantasma = _duracion_aterrizaje_fantasma
+	_tiempo_impulso_salto_fantasma = 0.0
+	_pulso_luz_salto = 0.3 * factor
+
+func _al_realizar_salto(numero_salto: int):
+	super(numero_salto)
+	_iniciar_animacion_salto_fantasma()
+
+func _al_aterrizar(vel_y: float) -> void:
+	super(vel_y)
+	_iniciar_animacion_aterrizaje_fantasma(vel_y)
+
 func _al_resetear_estados() -> void:
 	_tilt_espectral_pitch = 0.0
 	_tilt_espectral_roll = 0.0
@@ -427,6 +597,12 @@ func _al_resetear_estados() -> void:
 	_pos_anterior_remoto = global_position
 	_tiempo_flotacion = 0.0
 	_vel_osc_actual = 2.0
+	_tiempo_impulso_salto_fantasma = 0.0
+	_tiempo_aterrizaje_fantasma = 0.0
+	_squash_stretch_fantasma = Vector3.ONE
+	_offset_y_squash_fantasma = 0.0
+	_pulso_luz_salto = 0.0
+	_vel_y_remoto_anterior_fantasma = 0.0
 	if is_instance_valid(modelo_fantasma):
 		modelo_fantasma.rotation = _rotacion_inicial_modelo_fantasma
 		modelo_fantasma.position.y = _pos_y_inicial_fantasma

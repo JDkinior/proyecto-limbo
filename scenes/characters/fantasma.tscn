@@ -154,7 +154,7 @@ omni_attenuation = 1.5
 
 [node name="SpringArm3D" type="SpringArm3D" parent="Node3D" unique_id=1618272517]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
-collision_mask = 7
+collision_mask = 5
 shape = SubResource("SphereShape3D_camara")
 spring_length = 3.5
 margin = 0.15

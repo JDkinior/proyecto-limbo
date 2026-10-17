@@ -94,6 +94,14 @@ var _rot_camara_fija_vortice: Vector3 = Vector3.ZERO
 var _rot_x_arm_fija_vortice: float = 0.0
 var _camara_fijada_en_vortice: bool = false
 
+# Variables para fijar la cámara al caer tras desactivarse una plataforma o caer al vacío
+var _pos_camara_fija_caida: Vector3 = Vector3.ZERO
+var _rot_camara_fija_caida: Vector3 = Vector3.ZERO
+var _rot_x_arm_fija_caida: float = 0.0
+var _camara_fijada_en_caida: bool = false
+var _ultimo_suelo_colisionado: Node = null
+var _tiempo_desde_ultimo_suelo: float = 999.0
+
 signal fantasma_absorbido_en_vortice(centro: Vector3, duracion: float)
 signal fantasma_expulsado_de_vortice(impulso: Vector3)
 
@@ -167,6 +175,42 @@ func obtener_progreso_absorcion() -> float:
 	if not _vortice_esta_absorbido: return 0.0
 	return 1.0 - clampf(_tiempo_absorcion_restante / _duracion_absorcion_total, 0.0, 1.0)
 
+func fijar_camara_en_caida() -> void:
+	if pivote_camara == null:
+		pivote_camara = get_node_or_null("Node3D")
+	if not pivote_camara or _vortice_esta_absorbido or _camara_fijada_en_vortice or _camara_fijada_en_caida:
+		return
+	_pos_camara_fija_caida = pivote_camara.global_position
+	_pos_camara_fija_caida.y = maxf(_pos_camara_fija_caida.y, LIMITE_CAIDA_Y + 4.0)
+	_rot_camara_fija_caida = pivote_camara.rotation
+	var arm = obtener_spring_arm()
+	_rot_x_arm_fija_caida = arm.rotation.x if arm else pivote_camara.rotation.x
+	_camara_fijada_en_caida = true
+
+func esta_camara_fijada_en_caida() -> bool:
+	return _camara_fijada_en_caida
+
+func al_desactivarse_plataforma_soporte(plataforma: Node3D) -> void:
+	if not es_activo():
+		return
+	var estaba_sobre_plataforma = false
+	if _ultimo_suelo_colisionado == plataforma and _tiempo_desde_ultimo_suelo <= 0.4:
+		estaba_sobre_plataforma = true
+	else:
+		# Comprobación espacial: verificar si el personaje se encuentra sobre la superficie de la plataforma
+		var pos_local = plataforma.global_transform.affine_inverse() * global_position
+		var ancho_plat = plataforma.get("ancho") if "ancho" in plataforma else 10.0
+		var largo_plat = plataforma.get("largo") if "largo" in plataforma else 10.0
+		var alt_sup = plataforma.get("altura_superficie") if "altura_superficie" in plataforma else 0.0
+		var semieje_x = (ancho_plat * 0.5) + 1.5
+		var semieje_z = (largo_plat * 0.5) + 1.5
+		var y_rel = pos_local.y - alt_sup
+		if absf(pos_local.x) <= semieje_x and absf(pos_local.z) <= semieje_z and y_rel >= -1.2 and y_rel <= 3.0:
+			estaba_sobre_plataforma = true
+
+	if estaba_sobre_plataforma:
+		fijar_camara_en_caida()
+
 
 var particulas_corazon: CPUParticles3D = null
 var tiempo_cerca_otro: float = 0.0
@@ -178,7 +222,14 @@ const TIEMPO_REQUERIDO_PROXIMIDAD: float = 5.0 # 5 segundos continuos de estar c
 @onready var pivote_camara = $Node3D
 var controles_tactiles: Node = null
 
+func obtener_pivote_camara() -> Node3D:
+	if not pivote_camara:
+		pivote_camara = get_node_or_null("Node3D")
+	return pivote_camara
+
 func obtener_camara() -> Camera3D:
+	if not pivote_camara:
+		pivote_camara = get_node_or_null("Node3D")
 	if not pivote_camara:
 		return null
 	if pivote_camara is Camera3D:
@@ -193,6 +244,8 @@ func obtener_camara() -> Camera3D:
 
 func obtener_spring_arm() -> SpringArm3D:
 	if not pivote_camara:
+		pivote_camara = get_node_or_null("Node3D")
+	if not pivote_camara:
 		return null
 	if pivote_camara is SpringArm3D:
 		return pivote_camara as SpringArm3D
@@ -205,25 +258,58 @@ func centrar_camara_inmediatamente():
 	objetivo_rotacion_y = rotation.y
 	objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
+func _get_camara_config_manager() -> Node:
+	if not is_inside_tree():
+		var loop = Engine.get_main_loop()
+		if loop is SceneTree and (loop as SceneTree).root:
+			return (loop as SceneTree).root.get_node_or_null("CamaraConfigManager")
+		return null
+	return get_node_or_null("/root/CamaraConfigManager")
+
+func _get_red_manager() -> Node:
+	if not is_inside_tree():
+		var loop = Engine.get_main_loop()
+		if loop is SceneTree and (loop as SceneTree).root:
+			return (loop as SceneTree).root.get_node_or_null("RedManager")
+		return null
+	return get_node_or_null("/root/RedManager")
+
+func _get_score_manager() -> Node:
+	if not is_inside_tree():
+		var loop = Engine.get_main_loop()
+		if loop is SceneTree and (loop as SceneTree).root:
+			return (loop as SceneTree).root.get_node_or_null("ScoreManager")
+		return null
+	return get_node_or_null("/root/ScoreManager")
+
+func _get_vibration_manager() -> Node:
+	if not is_inside_tree():
+		var loop = Engine.get_main_loop()
+		if loop is SceneTree and (loop as SceneTree).root:
+			return (loop as SceneTree).root.get_node_or_null("VibrationManager")
+		return null
+	return get_node_or_null("/root/VibrationManager")
+
 func _ready():
 	objetivo_rotacion_y = rotation.y
 	
 	# Configurar parámetros según modo de cámara activo (Normal o Shorts para video vertical)
-	if is_instance_valid(CamaraConfigManager):
-		DISTANCIA_CAMARA = CamaraConfigManager.obtener_distancia_camara()
-		PITCH_DEFECTO_CAMARA = CamaraConfigManager.obtener_pitch_defecto()
-		LIMITE_PITCH_MIN = CamaraConfigManager.obtener_limite_pitch_min()
-		LIMITE_PITCH_MAX = CamaraConfigManager.obtener_limite_pitch_max()
-		if not CamaraConfigManager.modo_shorts_cambiado.is_connected(_on_modo_shorts_cambiado):
-			CamaraConfigManager.modo_shorts_cambiado.connect(_on_modo_shorts_cambiado)
+	var cam_cfg = _get_camara_config_manager()
+	if is_instance_valid(cam_cfg):
+		DISTANCIA_CAMARA = cam_cfg.obtener_distancia_camara()
+		PITCH_DEFECTO_CAMARA = cam_cfg.obtener_pitch_defecto()
+		LIMITE_PITCH_MIN = cam_cfg.obtener_limite_pitch_min()
+		LIMITE_PITCH_MAX = cam_cfg.obtener_limite_pitch_max()
+		if not cam_cfg.modo_shorts_cambiado.is_connected(_on_modo_shorts_cambiado):
+			cam_cfg.modo_shorts_cambiado.connect(_on_modo_shorts_cambiado)
 
 	var spring_arm = obtener_spring_arm()
 	if spring_arm:
 		spring_arm.add_excluded_object(get_rid())
 		spring_arm.spring_length = DISTANCIA_CAMARA
 		spring_arm.margin = MARGEN_COLISION_CAMARA
-		if is_instance_valid(CamaraConfigManager):
-			spring_arm.position.y = CamaraConfigManager.obtener_altura_spring_arm()
+		if is_instance_valid(cam_cfg):
+			spring_arm.position.y = cam_cfg.obtener_altura_spring_arm()
 		objetivo_rotacion_x = spring_arm.rotation.x
 	elif pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
@@ -231,8 +317,8 @@ func _ready():
 		objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
 	var cam = obtener_camara()
-	if cam and is_instance_valid(CamaraConfigManager):
-		cam.v_offset = CamaraConfigManager.obtener_v_offset()
+	if cam and is_instance_valid(cam_cfg):
+		cam.v_offset = cam_cfg.obtener_v_offset()
 
 	posicion_inicial = global_position
 	rotacion_inicial = rotation
@@ -251,9 +337,10 @@ func _ready():
 		controles_tactiles = nodos_ui[0]
 
 func es_activo() -> bool:
-	if is_instance_valid(RedManager) and (RedManager.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
 		var es_fantasma = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
-		if RedManager.personaje_activo_solo == "fantasma":
+		if red_mgr.personaje_activo_solo == "fantasma":
 			return es_fantasma
 		else:
 			return not es_fantasma
@@ -276,11 +363,12 @@ func _process(delta: float):
 
 
 func _on_modo_shorts_cambiado(_activo: bool) -> void:
-	if is_instance_valid(CamaraConfigManager):
-		DISTANCIA_CAMARA = CamaraConfigManager.obtener_distancia_camara()
-		PITCH_DEFECTO_CAMARA = CamaraConfigManager.obtener_pitch_defecto()
-		LIMITE_PITCH_MIN = CamaraConfigManager.obtener_limite_pitch_min()
-		LIMITE_PITCH_MAX = CamaraConfigManager.obtener_limite_pitch_max()
+	var cam_cfg = _get_camara_config_manager()
+	if is_instance_valid(cam_cfg):
+		DISTANCIA_CAMARA = cam_cfg.obtener_distancia_camara()
+		PITCH_DEFECTO_CAMARA = cam_cfg.obtener_pitch_defecto()
+		LIMITE_PITCH_MIN = cam_cfg.obtener_limite_pitch_min()
+		LIMITE_PITCH_MAX = cam_cfg.obtener_limite_pitch_max()
 
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	# Lógica base de cámara, los hijos extenderán esto
@@ -298,9 +386,10 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 			if arm:
 				arm.add_excluded_object(get_rid())
 				arm.rotation.x = objetivo_rotacion_x
-				if is_instance_valid(CamaraConfigManager):
-					arm.position.y = CamaraConfigManager.obtener_altura_spring_arm()
-					arm.spring_length = CamaraConfigManager.obtener_distancia_camara()
+				var cam_cfg = _get_camara_config_manager()
+				if is_instance_valid(cam_cfg):
+					arm.position.y = cam_cfg.obtener_altura_spring_arm()
+					arm.spring_length = cam_cfg.obtener_distancia_camara()
 			else:
 				pivote_camara.rotation.x = objetivo_rotacion_x
 		else:
@@ -309,8 +398,9 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 		var cam = obtener_camara()
 		if cam:
 			cam.current = es_mio
-			if is_instance_valid(CamaraConfigManager):
-				cam.v_offset = CamaraConfigManager.obtener_v_offset()
+			var cam_cfg = _get_camara_config_manager()
+			if is_instance_valid(cam_cfg):
+				cam.v_offset = cam_cfg.obtener_v_offset()
 
 func obtener_entorno_personaje() -> Environment:
 	return null
@@ -321,7 +411,8 @@ func obtener_cull_mask_personaje() -> int:
 func entrada_bloqueada() -> bool:
 	if not is_inside_tree():
 		return true
-	if is_instance_valid(ScoreManager) and not ScoreManager.cronometro_activo and ScoreManager.tiempo_transcurrido > 0.0:
+	var score_mgr = _get_score_manager()
+	if is_instance_valid(score_mgr) and not score_mgr.cronometro_activo and score_mgr.tiempo_transcurrido > 0.0:
 		return true
 	var tree = get_tree()
 	if tree and tree.current_scene:
@@ -336,7 +427,11 @@ func entrada_bloqueada() -> bool:
 
 func procesar_camara_base(delta: float):
 	if not es_activo() or entrada_bloqueada(): return
-	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso: return
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr) and red_mgr.transicion_en_progreso: return
+
+	if pivote_camara == null:
+		pivote_camara = get_node_or_null("Node3D")
 
 	if pivote_camara:
 		if _vortice_esta_absorbido:
@@ -364,14 +459,30 @@ func procesar_camara_base(delta: float):
 				pivote_camara.global_position = pivote_camara.global_position.lerp(global_position, 8.0 * delta)
 				if pivote_camara.global_position.distance_squared_to(global_position) < 0.12:
 					_camara_fijada_en_vortice = false
+		elif _camara_fijada_en_caida:
+			# Mantener la cámara fija en la posición donde cayó el personaje tras desactivarse la plataforma
+			# (comportamiento idéntico al vórtice/tornado, evitando sumergirse, atravesar la plataforma o zoom brusco)
+			if not is_on_floor():
+				pivote_camara.global_position = _pos_camara_fija_caida
+				pivote_camara.rotation = _rot_camara_fija_caida
+				var arm = obtener_spring_arm()
+				if arm:
+					arm.rotation.x = _rot_x_arm_fija_caida
+				return
+			else:
+				# Si aterrizó en otra plataforma o suelo firme, retornar suavemente hacia el personaje
+				pivote_camara.global_position = pivote_camara.global_position.lerp(global_position, 8.0 * delta)
+				if pivote_camara.global_position.distance_squared_to(global_position) < 0.12:
+					_camara_fijada_en_caida = false
 		else:
 			# Al seguir normalmente al jugador, evitar que la cámara descienda a las profundidades del abismo si cae al vacío
-			var limite_y_camara = LIMITE_CAIDA_Y + 1.8
+			var limite_y_camara = LIMITE_CAIDA_Y + 4.0
 			if global_position.y >= limite_y_camara:
 				pivote_camara.global_position = global_position
 			else:
 				pivote_camara.global_position.x = global_position.x
 				pivote_camara.global_position.z = global_position.z
+				pivote_camara.global_position.y = limite_y_camara
 
 		# Buscar controles táctiles si aún no se han referenciado
 		if not controles_tactiles:
@@ -421,17 +532,19 @@ func procesar_camara_base(delta: float):
 		if arm:
 			pivote_camara.rotation.x = 0.0
 			arm.rotation.x = lerp_angle(arm.rotation.x, objetivo_rotacion_x, suavizado_camara)
-			if is_instance_valid(CamaraConfigManager):
-				var target_arm_y = CamaraConfigManager.obtener_altura_spring_arm()
-				var target_arm_dist = CamaraConfigManager.obtener_distancia_camara()
+			var cam_cfg = _get_camara_config_manager()
+			if is_instance_valid(cam_cfg):
+				var target_arm_y = cam_cfg.obtener_altura_spring_arm()
+				var target_arm_dist = cam_cfg.obtener_distancia_camara()
 				arm.position.y = lerp(arm.position.y, target_arm_y, 8.0 * delta)
 				arm.spring_length = lerp(arm.spring_length, target_arm_dist, 8.0 * delta)
 		else:
 			pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
 
 		var cam = obtener_camara()
-		if cam and is_instance_valid(CamaraConfigManager):
-			var target_v_offset = CamaraConfigManager.obtener_v_offset()
+		var cam_cfg = _get_camara_config_manager()
+		if cam and is_instance_valid(cam_cfg):
+			var target_v_offset = cam_cfg.obtener_v_offset()
 			cam.v_offset = lerp(cam.v_offset, target_v_offset, 8.0 * delta)
 
 func esta_planeando() -> bool:
@@ -441,7 +554,8 @@ func esta_planeando() -> bool:
 		return false
 	if not es_activo() or entrada_bloqueada():
 		return false
-	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso:
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr) and red_mgr.transicion_en_progreso:
 		return false
 	var salto_mantenido = Input.is_action_pressed("saltar") or Input.is_action_pressed("ui_accept")
 	return salto_mantenido and velocity.y <= 0.0
@@ -501,14 +615,15 @@ func procesar_salto_base(delta: float):
 	else:
 		_tiempo_impulso_caida = 0.0
 		_vel_max_caida_impulso = 0.0
-		if tiempo_desde_suelo > 0.12 and _vel_y_previa_base < -2.8:
+		if tiempo_desde_suelo > 0.08 and _vel_y_previa_base < -1.6:
 			_al_aterrizar_base(_vel_y_previa_base)
 		tiempo_desde_suelo = 0.0
 		saltos_realizados = 0
 
 	_vel_y_previa_base = velocity.y
 
-	if not es_activo() or entrada_bloqueada() or (is_instance_valid(RedManager) and RedManager.transicion_en_progreso):
+	var red_mgr = _get_red_manager()
+	if not es_activo() or entrada_bloqueada() or (is_instance_valid(red_mgr) and red_mgr.transicion_en_progreso):
 		return
 
 	if Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("ui_accept"):
@@ -529,14 +644,21 @@ func procesar_salto_base(delta: float):
 			_al_realizar_salto(saltos_realizados)
 
 func _al_aterrizar_base(vel_y: float) -> void:
-	if es_activo() and is_instance_valid(VibrationManager):
+	var vib_mgr = _get_vibration_manager()
+	if es_activo() and is_instance_valid(vib_mgr):
 		var factor = clampf(abs(vel_y) / 8.0, 0.4, 1.8)
-		VibrationManager.vibrar_aterrizaje(factor)
+		vib_mgr.vibrar_aterrizaje(factor)
+	_al_aterrizar(vel_y)
+
+func _al_aterrizar(_vel_y: float) -> void:
+	# Hook virtual para subclases (Squash & Stretch y efectos de impacto/aterrizaje)
+	pass
 
 func _al_realizar_salto(numero_salto: int):
 	# Feedback háptico y vibración de salto
-	if es_activo() and is_instance_valid(VibrationManager):
-		VibrationManager.vibrar_salto(numero_salto)
+	var vib_mgr = _get_vibration_manager()
+	if es_activo() and is_instance_valid(vib_mgr):
+		vib_mgr.vibrar_salto(numero_salto)
 
 func obtener_direccion_movimiento() -> Vector3:
 	if entrada_bloqueada():
@@ -680,20 +802,55 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 				# Fallback local para RigidBody3D no sincronizados
 				collider.apply_central_impulse(impulso)
 
+	# Registrar el último suelo colisionado para detección de plataformas
+	if is_on_floor():
+		_tiempo_desde_ultimo_suelo = 0.0
+		for i in get_slide_collision_count():
+			var col = get_slide_collision(i)
+			if col.get_normal().y > 0.5:
+				var collider = col.get_collider()
+				if collider:
+					_ultimo_suelo_colisionado = collider
+					break
+	else:
+		_tiempo_desde_ultimo_suelo += delta
+		
+		# Detección reactiva: si el último suelo era una plataforma espiritual y se ha desactivado
+		if not _camara_fijada_en_caida and not _camara_fijada_en_vortice and _tiempo_desde_ultimo_suelo <= 0.35 and velocity.y < 0.0:
+			if is_instance_valid(_ultimo_suelo_colisionado):
+				var es_espiritual = false
+				if _ultimo_suelo_colisionado is IslaFlotante:
+					es_espiritual = (_ultimo_suelo_colisionado.tipo_comportamiento == IslaFlotante.TipoComportamiento.ESPIRITUAL)
+				elif _ultimo_suelo_colisionado.has_method("es_tangible_para_vivo"):
+					es_espiritual = true
+				
+				if es_espiritual:
+					var sigue_tangible = true
+					if _ultimo_suelo_colisionado.has_method("es_tangible_para_vivo"):
+						sigue_tangible = _ultimo_suelo_colisionado.es_tangible_para_vivo()
+					if not sigue_tangible:
+						fijar_camara_en_caida()
+
+		# Detección de caída al vacío: congelar la cámara en el borde superior antes de descender al abismo
+		if not _camara_fijada_en_caida and not _camara_fijada_en_vortice and velocity.y < 0.0 and global_position.y < (LIMITE_CAIDA_Y + 4.0):
+			fijar_camara_en_caida()
+
 	if _comprobar_caida_vacio():
 		return
 	
 	# Aseguramos que la cámara siga la posición del jugador después del movimiento físico sin hundirse en el abismo
-	if es_activo() and pivote_camara and pivote_camara.top_level and not _camara_fijada_en_vortice:
-		var limite_y_camara = LIMITE_CAIDA_Y + 1.8
+	if es_activo() and pivote_camara and pivote_camara.top_level and not _camara_fijada_en_vortice and not _camara_fijada_en_caida:
+		var limite_y_camara = LIMITE_CAIDA_Y + 4.0
 		if global_position.y >= limite_y_camara:
 			pivote_camara.global_position = global_position
 		else:
 			pivote_camara.global_position.x = global_position.x
 			pivote_camara.global_position.z = global_position.z
+			pivote_camara.global_position.y = limite_y_camara
 
 func procesar_movimiento_base(delta: float):
-	if is_instance_valid(RedManager) and RedManager.transicion_en_progreso:
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr) and red_mgr.transicion_en_progreso:
 		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
 		return
 
@@ -720,6 +877,9 @@ func resetear_estados():
 	_tiempo_impulso_caida = 0.0
 	_vel_max_caida_impulso = 0.0
 	_camara_fijada_en_vortice = false
+	_camara_fijada_en_caida = false
+	_ultimo_suelo_colisionado = null
+	_tiempo_desde_ultimo_suelo = 999.0
 	_fuerza_vortice_acumulada = Vector3.ZERO
 	_arrastre_descendente_vortice = 0.0
 	_nodo_vortice_origen = null
@@ -738,8 +898,9 @@ func establecer_punto_control(nueva_pos: Vector3, nueva_rot: Vector3 = Vector3.Z
 		rotacion_punto_control = nueva_rot
 
 func reaparecer() -> void:
-	if es_activo() and is_instance_valid(VibrationManager):
-		VibrationManager.vibrar_dano()
+	var vib_mgr = _get_vibration_manager()
+	if es_activo() and is_instance_valid(vib_mgr):
+		vib_mgr.vibrar_dano()
 
 	var destino = punto_control if punto_control != Vector3.ZERO else posicion_inicial
 	var rot_dest = rotacion_punto_control if punto_control != Vector3.ZERO else rotacion_inicial
@@ -755,6 +916,8 @@ func reaparecer() -> void:
 	objetivo_rotacion_y = rot_dest.y
 	objetivo_rotacion_x = rotacion_inicial_camara_x
 
+	if pivote_camara == null:
+		pivote_camara = get_node_or_null("Node3D")
 	if pivote_camara:
 		pivote_camara.global_position = destino
 		pivote_camara.rotation = Vector3(0.0, rot_dest.y, 0.0)
@@ -925,9 +1088,10 @@ func _buscar_otro_jugador() -> Node3D:
 	if is_instance_valid(_otro_jugador_cache) and _otro_jugador_cache != self:
 		return _otro_jugador_cache
 
-	if is_instance_valid(RedManager):
+	var red_mgr = _get_red_manager()
+	if is_instance_valid(red_mgr):
 		var es_fantasma = is_in_group("fantasmas") or name.to_lower().contains("fantasma")
-		var candidato = RedManager.jugador_vivo if es_fantasma else RedManager.fantasma
+		var candidato = red_mgr.jugador_vivo if es_fantasma else red_mgr.fantasma
 		if is_instance_valid(candidato) and candidato != self:
 			_otro_jugador_cache = candidato
 			return _otro_jugador_cache
