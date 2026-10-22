@@ -44,6 +44,14 @@ const NIVELES_EXTRA: Array[Dictionary] = [
 		"tiempo_objetivo": 300.0,
 		"es_historia": false,
 	},
+		{
+		"id": "prueba_posesion_shorts",
+		"titulo": "Prueba de posesion",
+		"capitulo": 0,
+		"escena_path": "res://scenes/levels/prueba_posesion_shorts.tscn",
+		"tiempo_objetivo": 300.0,
+		"es_historia": false,
+	},
 ]
 
 ## Retorna la cantidad de niveles que pertenecen a la campaña de historia.

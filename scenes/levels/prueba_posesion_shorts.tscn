@@ -1,0 +1,140 @@
+[gd_scene format=3 uid="uid://b5m8y2k4n7kax"]
+
+[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="1_nivel"]
+[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_vivo"]
+[ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="3_fantasma"]
+[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="4_hud"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/metas/goal.tscn" id="5_goal"]
+[ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="6_p4o7s"]
+[ext_resource type="PackedScene" uid="uid://cx8b2y3n4m5p6" path="res://scenes/components/posesion/plataforma_taxi.tscn" id="6_taxi"]
+[ext_resource type="PackedScene" uid="uid://dm8p3k4n5j6y7" path="res://scenes/components/posesion/canon_espiritual.tscn" id="7_canon"]
+[ext_resource type="PackedScene" uid="uid://bxan2m4k5j7x8" path="res://scenes/components/posesion/farol_espiritual.tscn" id="8_farol"]
+[ext_resource type="PackedScene" uid="uid://df7k2m5j8n10a" path="res://scenes/components/posesion/engranaje_espiritual.tscn" id="9_engranaje"]
+[ext_resource type="Material" uid="uid://c7b63irvr06f4" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="10_cielo_mat"]
+[ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="11_roca_mat"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges1" path="res://scenes/components/mecanismos/boton_presion.tscn" id="12_8y74t"]
+
+[sub_resource type="Sky" id="Sky_shorts"]
+sky_material = ExtResource("10_cielo_mat")
+
+[sub_resource type="Environment" id="Environment_shorts"]
+background_mode = 2
+sky = SubResource("Sky_shorts")
+ambient_light_source = 3
+ambient_light_color = Color(0.35, 0.45, 0.6, 1)
+ambient_light_energy = 1.15
+tonemap_mode = 3
+glow_enabled = true
+glow_intensity = 0.8
+glow_strength = 1.05
+glow_bloom = 0.16
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_isla_inicio"]
+size = Vector3(14, 1.5, 14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_isla_inicio"]
+material = ExtResource("11_roca_mat")
+size = Vector3(14, 1.5, 14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_isla_meta"]
+size = Vector3(12, 1.5, 12)
+
+[sub_resource type="BoxMesh" id="BoxMesh_isla_meta"]
+material = ExtResource("11_roca_mat")
+size = Vector3(12, 1.5, 12)
+
+[node name="PruebaPosesionShorts" type="Node3D" unique_id=577489280]
+script = ExtResource("1_nivel")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=216508728]
+environment = SubResource("Environment_shorts")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1942269977]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 10, 18, 10)
+light_color = Color(0.95, 0.95, 1, 1)
+light_energy = 1.25
+shadow_enabled = true
+
+[node name="IslaInicio" type="StaticBody3D" parent="." unique_id=962192083]
+collision_layer = 3
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="IslaInicio" unique_id=1202440340]
+shape = SubResource("BoxShape3D_isla_inicio")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="IslaInicio" unique_id=1167447047]
+mesh = SubResource("BoxMesh_isla_inicio")
+
+[node name="IslaMeta" type="StaticBody3D" parent="." unique_id=1128921559]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -32)
+collision_layer = 3
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="IslaMeta" unique_id=219997009]
+shape = SubResource("BoxShape3D_isla_meta")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="IslaMeta" unique_id=1704071043]
+mesh = SubResource("BoxMesh_isla_meta")
+
+[node name="Goal" parent="IslaMeta" unique_id=843991546 instance=ExtResource("5_goal")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+
+[node name="PlataformaTaxi" parent="." unique_id=149272682 instance=ExtResource("6_taxi")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -9.5)
+altura_maxima_relativa = 8.0
+descenso_maximo_relativo = 4.0
+velocidad_crucero = 12.0
+velocidad_turbo = 18.0
+nombre_objeto = "Plataforma Taxi"
+preset = 0
+irregularidad_contorno = 0.06
+segmentos_perimetro = 16
+anillos_roca = 4
+anillos_superficie = 2
+intensidad_variacion = 0.66
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.5
+variacion_superficie = 0.6
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+generar_rocas_satelite = false
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("6_p4o7s")
+material_roca = ExtResource("11_roca_mat")
+
+[node name="CanonEspiritual" parent="." unique_id=1738099186 instance=ExtResource("7_canon")]
+transform = Transform3D(0.8660249, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660249, 5, 0.75, 4)
+collision_layer = 3
+nombre_objeto = "Cañón Espiritual"
+distancia_camara_posesion = 6.2
+altura_spring_arm_posesion = 2.2
+pitch_defecto_posesion = -0.18
+
+[node name="FarolEspiritual" parent="." unique_id=1974955890 instance=ExtResource("8_farol")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.75, -2)
+collision_layer = 3
+nombre_objeto = "Farol Espiritual"
+distancia_camara_posesion = 6.8
+altura_spring_arm_posesion = 3.2
+pitch_defecto_posesion = -0.42
+
+[node name="EngranajeEspiritual" parent="." unique_id=1808646476 instance=ExtResource("9_engranaje")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.75, 4)
+collision_layer = 3
+nombre_objeto = "Engranaje Espiritual"
+distancia_camara_posesion = 5.2
+altura_spring_arm_posesion = 1.6
+pitch_defecto_posesion = -0.2
+
+[node name="Jugador" parent="." unique_id=1392858458 instance=ExtResource("2_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 1.8, 0)
+
+[node name="Fantasma" parent="." unique_id=1168586313 instance=ExtResource("3_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 1.8, 0)
+
+[node name="ControlesTactiles" parent="." unique_id=451687318 instance=ExtResource("4_hud")]
+
+[node name="BotonPresion" parent="." unique_id=1865858071 instance=ExtResource("12_8y74t")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7783833, 1.4085969, -1.6009564)

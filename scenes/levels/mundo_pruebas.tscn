@@ -3,6 +3,8 @@
 [ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="1_fantasma"]
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="1_l5la3"]
 [ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="1_qrrgk"]
+[ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="13_g0w4q"]
+[ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="14_ao87r"]
 [ext_resource type="Shader" uid="uid://b5jkqbkbg2hr5" path="res://shaders/entorno/vegetacion/pasto_estilizado.gdshader" id="15_efxv6"]
 [ext_resource type="PackedScene" path="res://scenes/components/mecanismos/manivela_continua.tscn" id="16_h7vbo"]
 [ext_resource type="PackedScene" path="res://scenes/components/mecanismos/ancla_estasis.tscn" id="17_kfjao"]
@@ -60,8 +62,8 @@ size = Vector3(4, 1, 4)
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_g0mv7"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_kfjao"]
-render_priority = 0
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_m33bj"]
+render_priority = 2
 shader = ExtResource("15_efxv6")
 shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
 shader_parameter/color_punta = Color(0.66, 0.49, 0.07, 1)
@@ -81,8 +83,11 @@ shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
 shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_p6bo5"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_6k3ko"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.31500056, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
@@ -95,11 +100,11 @@ _surfaces = [{
 
 [sub_resource type="MultiMesh" id="MultiMesh_28q12"]
 transform_format = 1
-custom_aabb = AABB(78.145454, -0.5, -50.997646, 101.997765, 2.1, 101.9971)
-mesh = SubResource("ArrayMesh_p6bo5")
+custom_aabb = AABB(78.145454, -0.5, -50.997646, 101.997765, 2.1000001, 101.9971)
+mesh = SubResource("ArrayMesh_6k3ko")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_g0w4q"]
-render_priority = 0
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cv6sp"]
+render_priority = 2
 shader = ExtResource("15_efxv6")
 shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
 shader_parameter/color_punta = Color(0.045, 0.35, 0.65, 1)
@@ -119,6 +124,9 @@ shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
 shader_parameter/radio_interaccion = 0.75
 shader_parameter/fuerza_interaccion = 0.45
 shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0
 
 [node name="Mundo_Pruebas" type="Node3D" unique_id=69903151]
 script = ExtResource("nivel_base")
@@ -243,16 +251,53 @@ disparador_objetivo = NodePath("../InterruptorAura")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1, 8)
 physics_material_override = SubResource("PhysicsMaterial_g0mv7")
 
-[node name="PlataformaEspiritualBase" parent="ObjetosInteractivos" unique_id=1502503674 node_paths=PackedStringArray("disparadores_objetivo", "disparador_objetivo") instance=ExtResource("plat_esp")]
+[node name="PlataformaEspiritualBase" parent="ObjetosInteractivos" unique_id=1502503674 node_paths=PackedStringArray("disparador_objetivo", "disparadores_objetivo") instance=ExtResource("plat_esp")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1, 8)
-disparadores_objetivo = [NodePath("../BotonPresion"), NodePath("../InterruptorAura")]
+tipo_comportamiento = 2
 disparador_objetivo = NodePath("../InterruptorAura")
+disparadores_objetivo = [NodePath("../BotonPresion"), NodePath("../InterruptorAura")]
+preset = 0
+irregularidad_contorno = 0.28
+segmentos_perimetro = 16
+anillos_roca = 4
+anillos_superficie = 2
+intensidad_variacion = 0.35
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+variacion_superficie = 0.06
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+generar_rocas_satelite = false
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("13_g0w4q")
+material_roca = ExtResource("14_ao87r")
 
 [node name="Goal" parent="ObjetosInteractivos" unique_id=402448184 instance=ExtResource("goal")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 18)
 
 [node name="PlataformaColapso" parent="ObjetosInteractivos" unique_id=1601010101 instance=ExtResource("20_ao87r")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 1, 8)
+collision_mask = 0
+tipo_comportamiento = 1
+preset = 0
+irregularidad_contorno = 0.28
+segmentos_perimetro = 16
+anillos_roca = 4
+anillos_superficie = 2
+intensidad_variacion = 0.35
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+variacion_superficie = 0.06
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+generar_rocas_satelite = false
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("13_g0w4q")
+material_roca = ExtResource("14_ao87r")
 
 [node name="MuroAgrietado" parent="ObjetosInteractivos" unique_id=1602020202 instance=ExtResource("18_p6bo5")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 1, 8)
@@ -268,10 +313,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.5, 14)
 
 [node name="PastoArea" parent="." unique_id=1679146488 instance=ExtResource("pasto_area")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.862196, 0, 0)
-material_override = SubResource("ShaderMaterial_kfjao")
-custom_aabb = AABB(78.145454, -0.5, -50.997646, 101.997765, 2.1, 101.9971)
-visibility_range_end = 0.0
-visibility_range_fade_mode = 0
+material_override = SubResource("ShaderMaterial_m33bj")
+custom_aabb = AABB(78.145454, -0.5, -50.997646, 101.997765, 2.1000001, 101.9971)
 multimesh = SubResource("MultiMesh_28q12")
 modo_distribucion = 0
 radio_pincel = 20.0
@@ -281,8 +324,8 @@ cantidad_instancias = 20000
 alto_pasto = 0.30000000000000004
 ancho_pasto = 0.30000000000000004
 briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_kfjao")
-material_espiritual = SubResource("ShaderMaterial_g0w4q")
+material_fisico = SubResource("ShaderMaterial_m33bj")
+material_espiritual = SubResource("ShaderMaterial_cv6sp")
 
 [node name="ManivelaContinua" parent="." unique_id=83302795 instance=ExtResource("16_h7vbo")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.631958, -0.016945004, 16.437595)
@@ -298,6 +341,43 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.156695, -0.047357917, 16.99
 
 [node name="PlataformaColapso" parent="." unique_id=1239506125 instance=ExtResource("20_ao87r")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.384909, 1.0897806, 15.596542)
+collision_mask = 0
+tipo_comportamiento = 1
+preset = 0
+irregularidad_contorno = 0.28
+segmentos_perimetro = 16
+anillos_roca = 4
+anillos_superficie = 2
+intensidad_variacion = 0.35
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+variacion_superficie = 0.06
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+generar_rocas_satelite = false
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("13_g0w4q")
+material_roca = ExtResource("14_ao87r")
 
 [node name="PlataformaEspiritualBase" parent="." unique_id=1765704866 instance=ExtResource("plat_esp")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.532913, 4.2980747, 23.155876)
+tipo_comportamiento = 2
+preset = 0
+irregularidad_contorno = 0.28
+segmentos_perimetro = 16
+anillos_roca = 4
+anillos_superficie = 2
+intensidad_variacion = 0.35
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+variacion_superficie = 0.06
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+generar_rocas_satelite = false
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+material_hierba = ExtResource("13_g0w4q")
+material_roca = ExtResource("14_ao87r")
