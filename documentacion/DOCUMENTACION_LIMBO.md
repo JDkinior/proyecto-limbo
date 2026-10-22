@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.13` (Build Code `14`)  
+**Versión Actual:** `1.0.17` (Build Code `18`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 17 de Octubre de 2026  
+**Última Actualización:** 21 de Octubre de 2026  
 
 # Documentación Central - Proyecto Limbo
 
@@ -43,6 +43,72 @@ El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
 | **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
 | **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
 | **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+
+## 🛠 Log de Actualizaciones - Versión 1.0.17 (20 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Corrección Integral del Ciclo de Posesión y Acabado Visual (`isla_flotante.gd`, `plataforma_taxi.tscn`, `cabeza_fantasma_emergente.gd`, `isla_espectral_poseida.gdshader`)**:
+    *   **Ciclo de Estados y Color Normal en Reposo**:
+        *   La plataforma poseíble permanece con su material de roca normal (`m_isla_roca.tres`) en estado de reposo (idle), sin verse prematuramente como un objeto espiritual.
+        *   Al aproximarse el Fantasma, activa el indicador azul tenue de candidato (`indicador_objeto_poseible.gdshader` vía `material_overlay`).
+        *   Únicamente al ser poseída se transmuta al material espiritual azul espectral (`m_isla_espectral_poseida.tres`). Al desposeer, regresa suavemente a su estado y color de roca normal.
+    *   **Emergencia Dinámica del Copete/Cabeza y Homogeneidad Visual**:
+        *   La cabeza y copete ya no permanecen visibles en reposo: inician ocultos (`scale = Vector3.ZERO`) y emergen con animación elástica suave (`emerger()`) únicamente al entrar en posesión. Al salir, se sumergen de nuevo en la piedra (`ocultar_suave()`).
+        *   Se recalibró la escala de la cabeza (factor 0.58) para ajustarse fielmente a las proporciones reales del personaje en el juego y dejar espacio transitable en la cubierta.
+        *   Se reexportó la malla con normales de vértice suaves (`NORMAL`), eliminando el corte tosco y logrando que la cabeza y la plataforma compartan exactamente la misma iluminación Fresnel.
+        *   Se reajustó la emisión en [`isla_espectral_poseida.gdshader`](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/shaders/components/posesion/isla_espectral_poseida.gdshader) (energía de rim moderada a 0.70) para evitar que el brillo sobreexponga y queme la imagen en blanco por efecto del bloom.
+    *   **Reposicionamiento Exterior de los Ojos 3D**:
+        *   Se corrigió la profundidad de los ojos en la faceta inclinada frontal (`Z = -2.06`, `Y = -0.32`, inclinación a -28°), garantizando que se ubiquen plenamente por fuera de la superficie de la roca y no hundidos dentro de la geometría.
+        *   Los ojos aparecen al poseer y desaparecen al desposeer en sincronía con la cabeza.
+    *   **Validación**: Suite `posesion_objetos` 100% aprobada (14/14 tests).
+
+## 🛠 Log de Actualizaciones - Versión 1.0.16 (20 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Rediseño Visual Fiel de Plataforma Poseída (`cabeza_fantasma_emergente.glb`, `ojos_fantasma.glb`, `isla_espectral_poseida.gdshader`, `plataforma_taxi.tscn`)**:
+    *   **Diseño Estético Específico (Basado en Arte Conceptual de Referencia)**:
+        *   **Cabeza Fantasma Emergente**: Extracción de la geometría superior de la cabeza y copete (mechón curvado hacia atrás) del modelo original `fantasma.glb`. Se modeló un faldón perimetral de transición tangencial suave y redondeado que conecta matemáticamente la base del cuello con la superficie superior plana de la isla a nivel `Y = 0` (`cabeza_fantasma_emergente.glb` / `scenes/components/posesion/cabeza_fantasma_emergente.tscn`).
+        *   **Ojos Auténticos del Fantasma**: Extracción directa de la malla 3D de los ojos (`ojos_fantasma.glb` / `ojo_fantasma_malla.glb`) con su silueta de cápsula ovalada y material PBR negro profundo brillante (`m_ojos_fantasma.tres`, rugosidad 0.15, metálico 0.35 y brillo especular). Se ubican en la faceta inclinada frontal de la plataforma conservando la animación reactiva de parpadeo y seguimiento de mirada (`OjosPosesion`).
+        *   **Shader y Material Espectral Unificado**: Creación de [`isla_espectral_poseida.gdshader`](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/shaders/components/posesion/isla_espectral_poseida.gdshader) y su recurso [`m_isla_espectral_poseida.tres`](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/assets/materiales/entorno/m_isla_espectral_poseida.tres), reproduciendo la paleta azul eléctrico de alta luminosidad (`#0b57f8` a `#2279fe`), resalte Fresnel en contornos y facetas con cian brillante (`#4fcbfe`) y emisión viva. Tanto el cuerpo de la roca como la cabeza emergente comparten este material monolítico.
+    *   **Integración Procedural y Escenas**:
+        *   `PlataformaTaxi` y cualquier `IslaFlotante` con `puede_ser_poseida = true` instancian y posicionan automáticamente la cabeza emergente y los ojos frontales, aplicando el shader espectral.
+        *   Se actualizó la escena [`plataforma_taxi.tscn`](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/scenes/components/posesion/plataforma_taxi.tscn) y el nivel [`prueba_posesion_shorts.tscn`](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/scenes/levels/prueba_posesion_shorts.tscn).
+    *   **Validación de Tests**: Suite automatizada `test_posesion_objetos` 100% aprobada (14/14 tests).
+
+## 🛠 Log de Actualizaciones - Versión 1.0.15 (20 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Plataformas Procedurales Poseíbles y Reemplazo de Bloques Fijos (`isla_flotante.gd`, `plataforma_taxi.gd`, `plataforma_poseible.gd`, `habilidad_posesion.gd`)**:
+    *   **Mecánica Polimórfica de Posesión en Islas**: Integración de `TipoComportamiento.POSEIBLE` y la propiedad `@export var puede_ser_poseida: bool` en `IslaFlotante`. Al igual que las plataformas procedurales pueden configurarse como estándar (mundo normal) o espirituales (mundo fantasmal), ahora pueden activarse como poseíbles con un solo interruptor o selector en el inspector.
+    *   **Reemplazo de la Geometría Cúbica Rígida**: `PlataformaTaxi` y las plataformas taxi ahora heredan de `IslaFlotante`, sustituyendo los antiguos bloques primitivos `BoxMesh` por geometría 3D procedural estilizada con roca facetada, superficie de pasto y faldón perimetral.
+    *   **Integración de Efectos de Posesión y Game Feel**:
+        *   Detección de candidatos con shader de resalte azul sutil (`indicador_objeto_poseible.gdshader`).
+        *   Ojos expresivos procedurales (`OjosPosesion`) ubicados en el frontal de la isla que reaccionan a la dirección de movimiento y expresan sorpresa al acelerar.
+        *   Propulsión de partículas espectrales (`PropulsionEspectral`) y shader translúcido cian con Fresnel (`objeto_poseido.gdshader`).
+        *   Control vehicular reactivo en modos `HORIZONTAL`, `VERTICAL`, `HORIZONTAL_Y_VERTICAL` y `RIEL_DIRECCIONAL`, con aceleración turbo mediante el botón de salto y eyección vertical limpia del Fantasma con el botón de aura.
+        *   Temporizador de espera tras abandonar la posesión (`tiempo_espera_retorno = 3.5s`) y retorno progresivo a velocidad suave hacia el origen.
+    *   **Soporte Universal en `HabilidadPosesion`**: Admite polimórficamente tanto objetos basados en `ObjetoPoseibleBase` como plataformas procedurales `IslaFlotante` en el grupo `"objetos_poseibles"`.
+    *   **Batería de Pruebas Unitarias Automatizadas**: Suite `test_posesion_objetos.gd` ampliada a 14/14 tests pasando exitosamente (100% de efectividad).
+
+## 🛠 Log de Actualizaciones - Versión 1.0.14 (19 de Octubre de 2026)
+
+### Implementaciones y Optimizaciones:
+* **Sistema de Posesión Espectral de Objetos Estilo Kirby / Mario Odyssey (`habilidad_posesion.gd`, `objeto_poseible_base.gd`, `ojos_posesion.gd`)**:
+    * **Picada Espectral y Captura**: El Fantasma se lanza en picada con estela y onda expansiva hacia objetos físicos para poseerlos.
+    * **Ojos Expresivos y Shader Translúcido (`ojos_posesion.tscn`, `objeto_poseido.gdshader`)**: Los objetos poseídos adoptan un material azul cian etéreo con Fresnel y brotan dos ojos animados proceduralmente (parpadeo aleatorio, seguimiento de mirada y expresión de sorpresa).
+    * **Adaptación Dinámica de Cámara por Objeto**: Cada objeto posee parámetros de cámara dedicados (`distancia_camara_posesion`, `altura_spring_arm_posesion`, `pitch_defecto_posesion`) que se escalan automáticamente si el modo Shorts vertical 9:16 está activo.
+* **Catálogo de Objetos Poseíbles (`plataforma_taxi.gd`, `canon_espiritual.gd`, `farol_espiritual.gd`, `engranaje_espiritual.gd`)**:
+    * **Plataforma Taxi Espectral**: Vuelo libre horizontal XZ o guiado por riel, con límites de distancia, propulsión mística, balanceo en curvas e inercia fija para que el Vivo viaje firme sin resbalar.
+    * **Cañón Espiritual Ancestral**: Control de Pitch y Yaw 3D para calibrar la puntería balística elevada al cielo (+45° por defecto). Integración como mecanismo interactivo estándar:
+        * **Activación por Botón de Acción**: El Vivo detecta la recámara a nivel de suelo sin ser succionado involuntariamente; el botón de acción de la interfaz HUD / controles táctiles se activa e ilumina (puede_accionar = true), acompañado de una luz etérea en la recámara (luz_recamara).
+        * **Entrada y Disparo Dinámico**: Al pulsar el botón de interactuar/acción, el Vivo entra en el cañón. Desde el interior puede auto-dispararse pulsando de nuevo el botón de acción, salirse saltando, o ser disparado por el Fantasma poseedor con un impulso balístico de 32 m/s.
+    * **Farol Espectral Revelador**: Rotación continua de haz místico que activa plataformas secretas.
+    * **Engranaje Mecánico Espiritual**: Rueda de piedra para manipular compuertas y puentes interactivos.
+* **Cámara Orbital Desbloqueada durante la Posesión**:
+    * Control orbital completo de 360° habilitado para el jugador (stick derecho, ratón o arrastre táctil) durante la posesión de cualquier objeto, adaptando suavemente la distancia y altura del brazo de cámara (SpringArm3D).
+* **Suite de Pruebas y Escenario para Shorts (	ests/test_posesion_objetos.gd, scenes/levels/prueba_posesion_shorts.tscn)**:
+    * Batería completa de 8 pruebas unitarias automatizadas ejecutadas y validadas con 100% de éxito.
+    * Nuevo escenario preparado para grabación de Shorts con todos los elementos de gameplay listos.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.13 (17 de Octubre de 2026)
 
@@ -1513,20 +1579,17 @@ Responsabilidades:
 - **Motor Jolt Physics 3D**:
   - Configurado en `project.godot` con límites de 4096 cuerpos rígidos y 16384 pares de contacto para máxima fidelidad física.
 
-### 8. Gestor de Cámara y Grabación de Video 9:16 (`scripts/core/camara_config_manager.gd`)
-- **Autoload Global `CamaraConfigManager`**:
-  - Centraliza el estado de grabación de contenido y persistencia en `user://opciones.cfg` (sección `[camara]`).
-- **Modo Grabación Shorts (Vertical 9:16)**:
-  - Resuelve el problema clásico de juegos panorámicos donde recortar a vertical corta la cabeza del personaje o esconde las plataformas del suelo.
-  - Al activarse, ajusta automáticamente los parámetros cinemáticos de `CharacterBase` (`obtener_spring_arm()`, `obtener_camara()`):
-    * `ALTURA_SPRING_ARM`: Reducida a `0.65m` (eleva al personaje al tercio superior/central seguro).
-    * `DISTANCIA_CAMARA`: Extendida a `5.2m` (aporta visibilidad amplia del escenario).
-    * `PITCH_DEFECTO`: Inclinado a `-0.22 rad` (~ -12.6°) para visualizar caídas y plataformas inferiores.
-    * `V_OFFSET`: `-0.15m` para que los botones de la interfaz de TikTok/Shorts no tapen la acción.
-- **Herramientas de Apoyo a la Creación de Contenido**:
+### 8. Cámara Inteligente Predeterminada 9:16 y Ajustes de Grabación (`scripts/core/camara_config_manager.gd`, `scripts/base/character_base.gd`)
+- **Cámara Predeterminada para Shorts / Video Vertical (9:16)**:
+  - La posición de la cámara del juego se configuró como el estándar definitivo y predeterminado en todo el proyecto (`CharacterBase`, `jugador.tscn`, `fantasma.tscn`). Se eliminó toda la lógica previa de alternancia y cambio dinámico de modos de cámara:
+    * `ALTURA_SPRING_ARM`: `0.65m` (eleva al personaje al tercio superior/central seguro, con amplio margen vertical).
+    * `DISTANCIA_CAMARA`: `5.2m` (visibilidad amplia y clara de plataformas y entorno).
+    * `PITCH_DEFECTO`: `-0.22 rad` (~ -12.6°) para visualizar claramente caídas y plataformas inferiores.
+    * `V_OFFSET`: `-0.15m` asegurando que la interfaz y subtítulos de plataformas de video vertical no tapen a los personajes.
+- **Herramientas de Apoyo a la Creación de Contenido en `CamaraConfigManager`**:
   - **Guía Visual 9:16**: Muestra barras laterales oscurecidas y retícula de encuadre en pantalla ancha.
   - **Ocultar Controles en Pantalla**: Esconde joysticks y botones de HUD dejando únicamente el botón de pausa accesible para capturas cinematográficas limpias.
-  - **Panel de Ajustes de Video**: Integrado en el HUD (`controles_tactiles.gd`) y menú principal (`menu_inicio.gd`).
+  - **Panel de Ajustes de Video**: Simplificado en el HUD (`controles_tactiles.gd`) y menú principal (`menu_inicio.gd`), eliminando el botón de alternancia redundante.
 
 ### 9. Vórtice Volumétrico y Hojas Espectrales (`shaders/components/peligros/torbellino_espiritual.gdshader`)
 - **Arquitectura Multi-Cinta y Fresnels Orgánicos**:
