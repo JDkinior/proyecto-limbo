@@ -1,0 +1,103 @@
+[gd_scene load_steps=8 format=3 uid="uid://cx8b2y3n4m5p6"]
+
+[ext_resource type="Script" path="res://scripts/components/posesion/plataforma_taxi.gd" id="1_taxi"]
+[ext_resource type="PackedScene" uid="uid://b8t5k3f1m9w0x" path="res://scenes/components/posesion/ojos_posesion.tscn" id="2_ojos"]
+[ext_resource type="PackedScene" path="res://scenes/components/posesion/cabeza_fantasma_emergente.tscn" id="3_cabeza"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_posesion"]
+radius = 4.2
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pasajeros"]
+size = Vector3(3.4, 1.4, 3.4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_propulsion"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.25, 0.82, 1, 0.85)
+
+[sub_resource type="SphereMesh" id="SphereMesh_particula"]
+material = SubResource("StandardMaterial3D_propulsion")
+radius = 0.08
+height = 0.16
+radial_segments = 6
+rings = 4
+
+[sub_resource type="Curve" id="Curve_escala_particulas"]
+_data = [Vector2(0, 1), 0.0, -0.2, 0, 0, Vector2(1, 0.1), -1.5, 0.0, 0, 0]
+point_count = 2
+
+[node name="PlataformaTaxi" type="StaticBody3D" node_paths=PackedStringArray("nodo_cabeza", "nodo_ojos", "marcador_foco_camara", "marcador_punto_eyeccion", "area_deteccion_posesion", "area_deteccion_pasajeros", "particulas_propulsion")]
+collision_layer = 7
+collision_mask = 0
+script = ExtResource("1_taxi")
+tipo_comportamiento = 3
+puede_ser_poseida = true
+ancho = 4.2
+largo = 4.2
+profundidad_roca = 2.0
+generar_pasto = false
+generar_faldon_pasto = false
+pasto_distancia = false
+nodo_cabeza = NodePath("CabezaFantasmaEmergente")
+nodo_ojos = NodePath("OjosPosesion")
+marcador_foco_camara = NodePath("FocoCamara")
+marcador_punto_eyeccion = NodePath("PuntoEyeccion")
+area_deteccion_posesion = NodePath("AreaPosesion")
+area_deteccion_pasajeros = NodePath("ZonaPasajeros")
+particulas_propulsion = NodePath("PropulsionEspectral")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+cast_shadow = 2
+extra_cull_margin = 8.0
+ignore_occlusion_culling = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="Decoracion" type="Node3D" parent="."]
+
+[node name="CabezaFantasmaEmergente" parent="." instance=ExtResource("3_cabeza")]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0, -1.78)
+visible = false
+
+[node name="OjosPosesion" parent="." instance=ExtResource("2_ojos")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, -0.14, -1.95)
+visible = false
+
+[node name="AreaPosesion" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AreaPosesion"]
+shape = SubResource("SphereShape3D_posesion")
+
+[node name="ZonaPasajeros" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ZonaPasajeros"]
+shape = SubResource("BoxShape3D_pasajeros")
+
+[node name="FocoCamara" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+
+[node name="PuntoEyeccion" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+
+[node name="PropulsionEspectral" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 1.8)
+emitting = false
+amount = 24
+lifetime = 0.6
+mesh = SubResource("SphereMesh_particula")
+emission_shape = 1
+emission_sphere_radius = 0.4
+gravity = Vector3(0, 0.5, 0)
+initial_velocity_min = 2.0
+initial_velocity_max = 5.0
+direction = Vector3(0, 0, 1)
+spread = 25.0
+scale_amount_min = 0.6
+scale_amount_max = 1.4
+scale_amount_curve = SubResource("Curve_escala_particulas")

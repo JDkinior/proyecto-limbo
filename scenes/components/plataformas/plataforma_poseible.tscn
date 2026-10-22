@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://cs88ggghqges3"]
+
+[ext_resource type="Script" path="res://scripts/components/plataformas/plataforma_poseible.gd" id="1_script"]
+
+[node name="PlataformaPoseible" type="StaticBody3D"]
+collision_layer = 7
+collision_mask = 0
+script = ExtResource("1_script")
+ancho = 4.5
+largo = 4.5
+profundidad_roca = 2.8
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+cast_shadow = 2
+extra_cull_margin = 8.0
+ignore_occlusion_culling = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="Decoracion" type="Node3D" parent="."]

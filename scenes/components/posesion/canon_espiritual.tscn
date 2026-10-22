@@ -1,0 +1,113 @@
+[gd_scene format=3 uid="uid://dm8p3k4n5j6y7"]
+
+[ext_resource type="Script" path="res://scripts/components/posesion/canon_espiritual.gd" id="1_canon"]
+[ext_resource type="PackedScene" uid="uid://b8t5k3f1m9w0x" path="res://scenes/components/posesion/ojos_posesion.tscn" id="2_ojos"]
+[ext_resource type="PackedScene" uid="uid://btrnax5ucgiq4" path="res://assets/modelos/interactivos/canon_base.glb" id="3_base_glb"]
+[ext_resource type="PackedScene" uid="uid://c64miuvlj7phs" path="res://assets/modelos/interactivos/canon_tubo.glb" id="4_tubo_glb"]
+[ext_resource type="PackedScene" uid="uid://b0copeteposeido" path="res://scenes/components/posesion/cabeza_fantasma_emergente.tscn" id="5_cabeza"]
+[ext_resource type="Script" path="res://scripts/components/posesion/mira_canon_espiritual.gd" id="6_mira"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_base"]
+height = 0.8
+radius = 1.15
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_posesion"]
+radius = 4.2
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_recamara"]
+height = 2.0
+radius = 2.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_disparo"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.3, 0.9, 1, 0.9)
+
+[sub_resource type="SphereMesh" id="SphereMesh_humo"]
+material = SubResource("StandardMaterial3D_disparo")
+radius = 0.18
+height = 0.36
+
+[node name="CanonEspiritual" type="CharacterBody3D" node_paths=PackedStringArray("nodo_canon_giratorio", "marcador_boca_canon", "area_recamara", "luz_recamara", "particulas_disparo", "nodo_ojos", "nodo_cabeza", "nodo_mira", "marcador_foco_camara", "marcador_punto_eyeccion", "area_deteccion_posesion")]
+collision_mask = 1
+script = ExtResource("1_canon")
+nodo_canon_giratorio = NodePath("PivoteCanon")
+marcador_boca_canon = NodePath("PivoteCanon/BocaCanon")
+area_recamara = NodePath("AreaRecamara")
+luz_recamara = NodePath("LuzRecamara")
+particulas_disparo = NodePath("PivoteCanon/BocaCanon/ParticulasDisparo")
+nodo_ojos = NodePath("PivoteCanon/OjosPosesion")
+nodo_cabeza = NodePath("PivoteCanon/CabezaFantasmaEmergente")
+nodo_mira = NodePath("PivoteCanon/MiraCanon")
+marcador_foco_camara = NodePath("FocoCamara")
+marcador_punto_eyeccion = NodePath("PuntoEyeccion")
+area_deteccion_posesion = NodePath("AreaPosesion")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+shape = SubResource("CylinderShape3D_base")
+
+[node name="Canon_Base" parent="." instance=ExtResource("3_base_glb")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="PivoteCanon" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.819152, 0.573576, 0, -0.573576, 0.819152, 0, 1.08, 0)
+
+[node name="Canon_Tubo" parent="PivoteCanon" instance=ExtResource("4_tubo_glb")]
+transform = Transform3D(-1, 0, 0, 0, 0.460001, -0.887918, 0, -0.887918, -0.460001, 0, -0.496801, 0.958952)
+
+[node name="CabezaFantasmaEmergente" parent="PivoteCanon" instance=ExtResource("5_cabeza")]
+transform = Transform3D(-0.62, 0, 0, 0, 0.566115, 0.252811, 0, 0.252811, -0.566115, 0, 0.24, -0.98)
+visible = false
+
+[node name="OjosPosesion" parent="PivoteCanon" instance=ExtResource("2_ojos")]
+transform = Transform3D(-1, 0, 0, 0, 0.971338, -0.237703, 0, -0.237703, -0.971338, 0, 0.08, -1.22)
+visible = false
+
+[node name="MiraCanon" type="Node3D" parent="PivoteCanon"]
+script = ExtResource("6_mira")
+
+[node name="BocaCanon" type="Marker3D" parent="PivoteCanon"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.25)
+
+[node name="ParticulasDisparo" type="CPUParticles3D" parent="PivoteCanon/BocaCanon"]
+emitting = false
+amount = 36
+lifetime = 0.55
+one_shot = true
+explosiveness = 0.95
+mesh = SubResource("SphereMesh_humo")
+direction = Vector3(0, 0, -1)
+spread = 30.0
+initial_velocity_min = 10.0
+initial_velocity_max = 20.0
+
+[node name="AreaRecamara" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+collision_layer = 0
+collision_mask = 2
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AreaRecamara"]
+shape = SubResource("CylinderShape3D_recamara")
+
+[node name="LuzRecamara" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.6)
+visible = false
+light_color = Color(0.25, 0.9, 1, 1)
+light_energy = 1.8
+omni_range = 4.0
+omni_attenuation = 1.2
+
+[node name="AreaPosesion" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AreaPosesion"]
+shape = SubResource("SphereShape3D_posesion")
+
+[node name="FocoCamara" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
+
+[node name="PuntoEyeccion" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)

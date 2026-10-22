@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://b0copeteposeido"]
+
+[ext_resource type="Script" path="res://scripts/components/posesion/cabeza_fantasma_emergente.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cui36we0brt5y" path="res://assets/modelos/personajes/Copete Poseido Fantasma.glb" id="2_copete_glb"]
+
+[node name="CabezaFantasmaEmergente" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="CopetePoseidoFantasma" parent="." instance=ExtResource("2_copete_glb")]

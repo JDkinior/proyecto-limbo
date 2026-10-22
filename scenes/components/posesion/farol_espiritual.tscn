@@ -1,0 +1,68 @@
+[gd_scene format=3 uid="uid://bw9n2m4k5j7x8"]
+
+[ext_resource type="Script" path="res://scripts/components/posesion/farol_espiritual.gd" id="1_farol"]
+[ext_resource type="PackedScene" uid="uid://b8t5k3f1m9w0x" path="res://scenes/components/posesion/ojos_posesion.tscn" id="2_ojos"]
+[ext_resource type="PackedScene" uid="uid://c6j2k4l8m0p1q" path="res://assets/modelos/entorno/iluminacion/farol.glb" id="3_farol_mesh"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_base"]
+height = 2.4
+radius = 0.45
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_posesion"]
+radius = 3.8
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_haz"]
+radius = 18.0
+
+[node name="FarolEspiritual" type="CharacterBody3D" node_paths=PackedStringArray("luz_foco", "nodo_cabeza_farol", "area_cono_luz", "nodo_ojos", "marcador_foco_camara", "marcador_punto_eyeccion", "area_deteccion_posesion")]
+collision_mask = 1
+script = ExtResource("1_farol")
+luz_foco = NodePath("PivoteCabeza/SpotLight3D")
+nodo_cabeza_farol = NodePath("PivoteCabeza")
+area_cono_luz = NodePath("PivoteCabeza/AreaConoLuz")
+nodo_ojos = NodePath("PivoteCabeza/OjosPosesion")
+marcador_foco_camara = NodePath("FocoCamara")
+marcador_punto_eyeccion = NodePath("PuntoEyeccion")
+area_deteccion_posesion = NodePath("AreaPosesion")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+shape = SubResource("CylinderShape3D_base")
+
+[node name="ModeloFarol" parent="." instance=ExtResource("3_farol_mesh")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="PivoteCabeza" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+
+[node name="OjosPosesion" parent="PivoteCabeza" instance=ExtResource("2_ojos")]
+transform = Transform3D(-1, 0, -8.74228e-08, 0, 1, 0, 8.74228e-08, 0, -1, 0, 0.05, -0.38)
+visible = false
+
+[node name="SpotLight3D" type="SpotLight3D" parent="PivoteCabeza"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0, -0.2)
+light_color = Color(0.2, 0.85, 1, 1)
+light_energy = 1.0
+spot_range = 22.0
+spot_angle = 45.0
+
+[node name="AreaConoLuz" type="Area3D" parent="PivoteCabeza"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8.0)
+collision_layer = 0
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PivoteCabeza/AreaConoLuz"]
+shape = SubResource("SphereShape3D_haz")
+
+[node name="AreaPosesion" type="Area3D" parent="."]
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="AreaPosesion"]
+shape = SubResource("SphereShape3D_posesion")
+
+[node name="FocoCamara" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
+
+[node name="PuntoEyeccion" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.8, 0)

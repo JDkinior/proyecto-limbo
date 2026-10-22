@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://c5sd33s1qivgd" path="res://assets/texturas/efectos/estela_espiritual.png" id="5_estela_tex"]
 [ext_resource type="Shader" uid="uid://cgk67pcjy2kiu" path="res://shaders/characters/aura_halo.gdshader" id="6_aura_halo"]
 [ext_resource type="Shader" path="res://shaders/characters/aura_espiritual.gdshader" id="7_aura_disco"]
+[ext_resource type="Script" path="res://scripts/characters/habilidad_posesion.gd" id="8_posesion_comp"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gdkjs"]
 height = 1.08
@@ -153,13 +154,14 @@ omni_attenuation = 1.5
 [node name="Node3D" type="Node3D" parent="." unique_id=1618272515]
 
 [node name="SpringArm3D" type="SpringArm3D" parent="Node3D" unique_id=1618272517]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
 collision_mask = 5
 shape = SubResource("SphereShape3D_camara")
-spring_length = 3.5
+spring_length = 5.2
 margin = 0.15
 
 [node name="Camera3D" type="Camera3D" parent="Node3D/SpringArm3D" unique_id=1460626181]
+v_offset = -0.15
 near = 0.1
 far = 130.0
 
@@ -168,6 +170,9 @@ replication_config = SubResource("SceneReplicationConfig_fantasma")
 
 [node name="HabilidadAura" type="Node3D" parent="." unique_id=1968917712]
 script = ExtResource("2_aura_comp")
+
+[node name="HabilidadPosesion" type="Node3D" parent="." unique_id=1968917713]
+script = ExtResource("8_posesion_comp")
 
 [node name="fantasma" parent="." unique_id=863164652 instance=ExtResource("4_bxr04")]
 transform = Transform3D(-0.5, 0, 4.371139e-08, 0, 0.5, 0, -4.371139e-08, 0, -0.5, 0, 0.2, 0)

@@ -4,6 +4,7 @@ class_name Fantasma
 signal aura_estado_actualizado(activo: bool, progreso_cooldown: float)
 
 @onready var habilidad_aura: HabilidadAura = get_node_or_null("HabilidadAura")
+@onready var habilidad_posesion: HabilidadPosesion = get_node_or_null("HabilidadPosesion")
 @onready var modelo_fantasma: Node3D = get_node_or_null("fantasma")
 @onready var anim_player: AnimationPlayer = get_node_or_null("fantasma/AnimationPlayer")
 @onready var estela_fantasma: CPUParticles3D = get_node_or_null("EstelaFantasma")
@@ -100,6 +101,13 @@ func _ready():
 
 	if is_instance_valid(habilidad_aura):
 		habilidad_aura.estado_cambiado.connect(_on_aura_estado_cambiado)
+
+	if not is_instance_valid(habilidad_posesion):
+		habilidad_posesion = get_node_or_null("HabilidadPosesion") as HabilidadPosesion
+		if not habilidad_posesion:
+			habilidad_posesion = HabilidadPosesion.new()
+			habilidad_posesion.name = "HabilidadPosesion"
+			add_child(habilidad_posesion)
 
 	if is_instance_valid(modelo_fantasma):
 		_pos_y_inicial_fantasma = modelo_fantasma.position.y
@@ -202,6 +210,10 @@ func _crear_entorno_fantasma() -> Environment:
 	return env
 
 func _physics_process(delta):
+	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
+		# El fantasma está fusionado en el objeto poseído
+		return
+
 	var vel_y_previa = velocity.y
 
 	if not es_activo():
@@ -236,6 +248,12 @@ func _comprobar_aterrizaje_fisico(vel_y_previa: float) -> void:
 	_estaba_en_suelo_fantasma = en_suelo
 
 func _process(delta: float):
+	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
+		_pos_anterior_remoto = global_position
+		if es_activo():
+			procesar_camara_base(delta)
+		return
+
 	super(delta)
 
 	var vel_total: float = 0.0
@@ -267,6 +285,20 @@ func _process(delta: float):
 	_actualizar_squash_stretch_fantasma(delta)
 	_procesar_flotacion_visual(delta, vel_horizontal)
 	_actualizar_estela(vel_total)
+
+func obtener_distancia_camara_deseada() -> float:
+	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
+		var obj = habilidad_posesion.obtener_objeto_poseido()
+		if is_instance_valid(obj):
+			return obj.obtener_distancia_camara_adaptada()
+	return super()
+
+func obtener_altura_spring_arm_deseada() -> float:
+	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
+		var obj = habilidad_posesion.obtener_objeto_poseido()
+		if is_instance_valid(obj):
+			return obj.obtener_altura_camara_adaptada()
+	return super()
 
 func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	if not is_instance_valid(modelo_fantasma): return
@@ -336,6 +368,14 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 		_pulso_luz_salto = move_toward(_pulso_luz_salto, 0.0, 2.5 * delta)
 
 func activar_habilidad_especial():
+	if is_instance_valid(habilidad_posesion):
+		if habilidad_posesion.esta_poseyendo():
+			habilidad_posesion.desposeer()
+			return
+		elif habilidad_posesion.puede_poseer_algo():
+			habilidad_posesion.intentar_poseer()
+			return
+
 	if is_instance_valid(habilidad_aura):
 		habilidad_aura.intentar_activar()
 
