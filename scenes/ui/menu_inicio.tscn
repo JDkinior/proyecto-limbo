@@ -803,12 +803,6 @@ horizontal_alignment = 1
 [node name="HSeparator1" type="HSeparator" parent="PanelAjustesVideo/VBoxContainer" unique_id=94701124]
 layout_mode = 2
 
-[node name="BtnModoShorts" type="CheckButton" parent="PanelAjustesVideo/VBoxContainer" unique_id=94701111]
-custom_minimum_size = Vector2(0, 38)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-text = "📹 Modo Grabación Shorts (Cámara 9:16)"
-
 [node name="BtnGuiaShorts" type="CheckButton" parent="PanelAjustesVideo/VBoxContainer" unique_id=94701112]
 custom_minimum_size = Vector2(0, 38)
 layout_mode = 2

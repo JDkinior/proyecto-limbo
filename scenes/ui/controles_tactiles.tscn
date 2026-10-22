@@ -362,12 +362,6 @@ horizontal_alignment = 1
 [node name="HSeparator" type="HSeparator" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=588381111]
 layout_mode = 2
 
-[node name="Boton_Modo_Shorts" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390910]
-custom_minimum_size = Vector2(460, 50)
-layout_mode = 2
-size_flags_horizontal = 4
-text = "📹 Cámara Shorts (9:16): Desactivada"
-
 [node name="Boton_Guia_Shorts" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390911]
 custom_minimum_size = Vector2(460, 50)
 layout_mode = 2
@@ -422,7 +416,6 @@ text = "Atrás"
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Vibracion" to="." method="_on_boton_vibracion_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_FPS" to="." method="_on_boton_fps_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]
-[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Modo_Shorts" to="." method="_on_boton_modo_shorts_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Guia_Shorts" to="." method="_on_boton_guia_shorts_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Ocultar_Controles" to="." method="_on_boton_ocultar_controles_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Escala_Render" to="." method="_on_boton_escala_render_pressed"]

@@ -268,6 +268,9 @@ func _physics_process(delta: float):
 	_actualizar_animaciones(delta)
 
 func _procesar_input_habilidad() -> void:
+	if movimiento_bloqueado:
+		return
+
 	if Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial")):
 		# Solo se activa si hay un objeto interactuable o rompible en frente
 		if not puede_accionar:

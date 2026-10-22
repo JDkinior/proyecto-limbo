@@ -1324,7 +1324,6 @@ func _inicializar_controles_opciones_hud() -> void:
 			
 	_actualizar_texto_boton_vibracion()
 	_actualizar_texto_boton_fps()
-	_actualizar_texto_boton_modo_shorts()
 	_actualizar_texto_boton_guia_shorts()
 	_actualizar_texto_boton_ocultar_controles()
 	_actualizar_texto_boton_escala_render()
@@ -1338,16 +1337,15 @@ func _on_boton_ajustes_video_pressed() -> void:
 	if panel_v:
 		panel_v.visible = true
 		_aplicar_estilo_textos_y_botones(panel_v)
-		_actualizar_texto_boton_modo_shorts()
 		_actualizar_texto_boton_guia_shorts()
 		_actualizar_texto_boton_ocultar_controles()
 		_actualizar_texto_boton_escala_render()
 		_actualizar_texto_boton_limite_fps()
 		var gm = _obtener_gamepad_manager()
 		if is_instance_valid(gm) and gm.hay_control_conectado():
-			var btn_shorts = panel_v.get_node_or_null("VBoxContainer/Boton_Modo_Shorts")
-			if is_instance_valid(btn_shorts):
-				btn_shorts.grab_focus()
+			var btn_guia = panel_v.get_node_or_null("VBoxContainer/Boton_Guia_Shorts")
+			if is_instance_valid(btn_guia):
+				btn_guia.grab_focus()
 	_actualizar_visibilidad_elementos_juego()
 	print("[ControlesTactiles] Entrando a Ajustes de Video")
 
@@ -1392,21 +1390,6 @@ func _actualizar_texto_boton_fps() -> void:
 	if is_instance_valid(btn_fps) and is_instance_valid(fps_node):
 		var activa = fps_node.esta_activo()
 		btn_fps.text = "📊 Mostrar FPS: Activado" if activa else "📊 Mostrar FPS: Desactivado"
-
-func _on_boton_modo_shorts_pressed() -> void:
-	if is_instance_valid(CamaraConfigManager):
-		CamaraConfigManager.alternar_modo_shorts()
-		_actualizar_texto_boton_modo_shorts()
-		if is_instance_valid(VibrationManager):
-			VibrationManager.vibrar_click()
-
-func _actualizar_texto_boton_modo_shorts() -> void:
-	var btn_shorts = get_node_or_null("Panel_Ajustes_Video/VBoxContainer/Boton_Modo_Shorts")
-	if not is_instance_valid(btn_shorts):
-		btn_shorts = find_child("Boton_Modo_Shorts", true, false)
-	if is_instance_valid(btn_shorts) and is_instance_valid(CamaraConfigManager):
-		var activo = CamaraConfigManager.esta_modo_shorts_activo()
-		btn_shorts.text = "📹 Modo Shorts (9:16): Activado" if activo else "📹 Modo Shorts (9:16): Desactivado"
 
 func _on_boton_guia_shorts_pressed() -> void:
 	if is_instance_valid(CamaraConfigManager):

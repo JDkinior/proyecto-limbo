@@ -37,7 +37,6 @@ extends Control
 @onready var btn_mostrar_fps = $PanelOpciones/VBoxContainer/BtnMostrarFPS
 @onready var btn_ajustes_video = $PanelOpciones/VBoxContainer.get_node_or_null("BtnAjustesVideo")
 @onready var panel_ajustes_video = get_node_or_null("PanelAjustesVideo")
-@onready var btn_modo_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnModoShorts")
 @onready var btn_guia_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnGuiaShorts")
 @onready var btn_ocultar_controles = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnOcultarControles")
 @onready var btn_escala_render = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnEscalaRender")

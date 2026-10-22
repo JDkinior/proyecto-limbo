@@ -4,38 +4,15 @@ extends "res://addons/godot_ai/testing/test_suite.gd"
 func suite_name() -> String:
 	return "camara_shorts"
 
-func test_camara_config_manager_valores_normales() -> void:
+func test_camara_config_manager_valores_predeterminados() -> void:
 	var script = load("res://scripts/core/camara_config_manager.gd")
 	assert_ne(script, null, "El script camara_config_manager.gd debe existir")
 	var mgr = track(script.new())
-	mgr.establecer_modo_shorts(false)
-	assert_false(mgr.esta_modo_shorts_activo(), "Por defecto debe estar desactivado")
-	assert_true(abs(mgr.obtener_altura_spring_arm() - 1.35) < 0.01, "Altura normal debe ser 1.35")
-	assert_true(abs(mgr.obtener_distancia_camara() - 3.5) < 0.01, "Distancia normal debe ser 3.5")
-	assert_true(abs(mgr.obtener_pitch_defecto() - (-0.14)) < 0.01, "Pitch normal debe ser -0.14")
-	assert_true(abs(mgr.obtener_v_offset() - 0.0) < 0.01, "v_offset normal debe ser 0.0")
-
-func test_camara_config_manager_valores_shorts() -> void:
-	var script = load("res://scripts/core/camara_config_manager.gd")
-	var mgr = track(script.new())
-	mgr.establecer_modo_shorts(true)
-	assert_true(mgr.esta_modo_shorts_activo(), "Debe reportar modo shorts activo")
-	assert_true(abs(mgr.obtener_altura_spring_arm() - 0.65) < 0.01, "Altura en shorts debe ser 0.65")
-	assert_true(abs(mgr.obtener_distancia_camara() - 5.2) < 0.01, "Distancia en shorts debe ser 5.2")
-	assert_true(abs(mgr.obtener_pitch_defecto() - (-0.22)) < 0.01, "Pitch en shorts debe ser -0.22")
-	assert_true(abs(mgr.obtener_v_offset() - (-0.15)) < 0.01, "v_offset en shorts debe ser -0.15")
-	
-	# Restaurar
-	mgr.establecer_modo_shorts(false)
-
-func test_alternar_modo_shorts() -> void:
-	var script = load("res://scripts/core/camara_config_manager.gd")
-	var mgr = track(script.new())
-	mgr.establecer_modo_shorts(false)
-	var estado_1 = mgr.alternar_modo_shorts()
-	assert_true(estado_1, "Alternar debe activar modo shorts")
-	var estado_2 = mgr.alternar_modo_shorts()
-	assert_false(estado_2, "Alternar de nuevo debe desactivar modo shorts")
+	assert_true(mgr.esta_modo_shorts_activo(), "Por defecto debe estar activo el encuadre vertical")
+	assert_true(abs(mgr.obtener_altura_spring_arm() - 0.65) < 0.01, "Altura predeterminada debe ser 0.65")
+	assert_true(abs(mgr.obtener_distancia_camara() - 5.2) < 0.01, "Distancia predeterminada debe ser 5.2")
+	assert_true(abs(mgr.obtener_pitch_defecto() - (-0.22)) < 0.01, "Pitch predeterminado debe ser -0.22")
+	assert_true(abs(mgr.obtener_v_offset() - (-0.15)) < 0.01, "v_offset predeterminado debe ser -0.15")
 
 func test_jugador_adopta_configuracion_camara() -> void:
 	var scene = load("res://scenes/characters/jugador.tscn")
@@ -43,10 +20,14 @@ func test_jugador_adopta_configuracion_camara() -> void:
 	var jugador = track(scene.instantiate(PackedScene.GEN_EDIT_STATE_INSTANCE)) as Node
 	assert_ne(jugador, null, "Debe ser instancia de nodo")
 	
-	var spring_arm = jugador.get_node_or_null("Node3D/SpringArm3D")
+	var spring_arm = jugador.get_node_or_null("Node3D/SpringArm3D") as SpringArm3D
 	assert_ne(spring_arm, null, "El jugador debe tener SpringArm3D")
-	var cam = jugador.get_node_or_null("Node3D/SpringArm3D/Camera3D")
+	assert_true(abs(spring_arm.spring_length - 5.2) < 0.01, "SpringArm3D debe tener longitud 5.2 (Shorts)")
+	assert_true(abs(spring_arm.position.y - 0.65) < 0.01, "SpringArm3D debe tener altura 0.65 (Shorts)")
+	
+	var cam = jugador.get_node_or_null("Node3D/SpringArm3D/Camera3D") as Camera3D
 	assert_ne(cam, null, "El jugador debe tener Camera3D")
+	assert_true(abs(cam.v_offset - (-0.15)) < 0.01, "Camera3D debe tener v_offset -0.15 (Shorts)")
 
 func test_ocultar_controles_opcion() -> void:
 	var script = load("res://scripts/core/camara_config_manager.gd")

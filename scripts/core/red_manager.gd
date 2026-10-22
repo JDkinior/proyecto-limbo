@@ -520,14 +520,24 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 	# Alinear pivote del personaje destino detrás del personaje para mirar en la dirección hacia donde mira
 	if is_instance_valid(destino_char.pivote_camara):
 		destino_char.pivote_camara.top_level = true
-		destino_char.pivote_camara.global_position = destino_char.global_position
+		var limite_y = destino_char.LIMITE_CAIDA_Y + 4.0
+		if destino_char.global_position.y >= limite_y:
+			destino_char.pivote_camara.global_position = destino_char.global_position
+		else:
+			destino_char.pivote_camara.global_position = Vector3(destino_char.global_position.x, limite_y, destino_char.global_position.z)
 		destino_char.objetivo_rotacion_y = destino_char.rotation.y
-		destino_char.objetivo_rotacion_x = destino_char.PITCH_DEFECTO_CAMARA
+		# Preservar el ángulo vertical (pitch) del jugador para evitar reacomodaciones bruscas
+		destino_char.objetivo_rotacion_x = origen_char.objetivo_rotacion_x
 		destino_char.pivote_camara.rotation.y = destino_char.objetivo_rotacion_y
 		var arm_dest = destino_char.obtener_spring_arm()
 		if is_instance_valid(arm_dest):
 			arm_dest.rotation.x = destino_char.objetivo_rotacion_x
+			arm_dest.position.y = destino_char.obtener_altura_spring_arm_deseada()
+			arm_dest.spring_length = destino_char.obtener_distancia_camara_deseada()
 			arm_dest.add_excluded_object(destino_char.get_rid())
+		var cam_dest_pre = destino_char.obtener_camara()
+		if is_instance_valid(cam_dest_pre):
+			cam_dest_pre.v_offset = destino_char.obtener_v_offset_deseado()
 
 	var transform_inicio: Transform3D = cam_origen.global_transform
 	var fov_inicio: float = cam_origen.fov
@@ -545,6 +555,7 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 	_camara_transicion.far = cam_origen.far
 	_camara_transicion.cull_mask = cam_origen.cull_mask
 	_camara_transicion.environment = cam_origen.environment
+	_camara_transicion.v_offset = cam_origen.v_offset
 
 	_camara_transicion.current = true
 	cam_origen.current = false
@@ -576,15 +587,26 @@ func _interpolar_transicion_camara(progreso: float, trans_inicio: Transform3D, f
 		return
 
 	if is_instance_valid(destino.pivote_camara) and destino.pivote_camara.top_level:
-		destino.pivote_camara.global_position = destino.global_position
+		var limite_y = destino.LIMITE_CAIDA_Y + 4.0
+		if destino.global_position.y >= limite_y:
+			destino.pivote_camara.global_position = destino.global_position
+		else:
+			destino.pivote_camara.global_position = Vector3(destino.global_position.x, limite_y, destino.global_position.z)
 		destino.pivote_camara.rotation.y = destino.objetivo_rotacion_y
 		var arm = destino.obtener_spring_arm()
 		if is_instance_valid(arm):
 			arm.rotation.x = destino.objetivo_rotacion_x
+			arm.position.y = destino.obtener_altura_spring_arm_deseada()
+			arm.spring_length = destino.obtener_distancia_camara_deseada()
 
 	var cam_dest: Camera3D = destino.obtener_camara()
 	if not is_instance_valid(cam_dest):
 		return
+
+	if is_instance_valid(_camara_transicion) and is_instance_valid(_origen):
+		var cam_orig = _origen.obtener_camara()
+		if is_instance_valid(cam_orig):
+			_camara_transicion.v_offset = lerpf(cam_orig.v_offset, cam_dest.v_offset, progreso)
 
 	var trans_fin: Transform3D = cam_dest.global_transform
 	var fov_fin: float = cam_dest.fov

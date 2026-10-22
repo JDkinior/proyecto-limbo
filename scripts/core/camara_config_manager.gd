@@ -26,27 +26,27 @@ const KEY_LIMITE_FPS = "limite_fps"
 const OPCIONES_ESCALA: Array[float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 const OPCIONES_FPS: Array[int] = [30, 60, 90, 120]
 
-# Parámetros Modo Normal (Por Defecto - Mantiene la cámara original intacta)
-const ALTURA_SPRING_ARM_NORMAL: float = 1.35
-const DISTANCIA_CAMARA_NORMAL: float = 3.5
-const PITCH_DEFECTO_NORMAL: float = -0.14
-const V_OFFSET_NORMAL: float = 0.0
-const LIMITE_PITCH_MIN_NORMAL: float = -0.70
-const LIMITE_PITCH_MAX_NORMAL: float = 0.35
-
-# Parámetros Modo Grabación Shorts (Formato Vertical 9:16)
-# - Altura SpringArm reducida (0.65m) para elevar el personaje al tercio superior / centro seguro.
+# Parámetros Predeterminados de Cámara (Formato Vertical Shorts 9:16)
+# - Altura SpringArm (0.65m) para elevar el personaje al tercio superior / centro seguro.
 # - Distancia de cámara (5.2m) alejada para un encuadre amplio donde se aprecie el entorno y plataformas.
 # - Pitch por defecto (-0.22 rad / ~ -12.6°) para visualizar claramente el suelo y plataformas debajo.
 # - Desplazamiento vertical (-0.15m) asegurando que el personaje no quede tapado por los subtítulos o botones de Shorts/TikTok.
-const ALTURA_SPRING_ARM_SHORTS: float = 0.65
-const DISTANCIA_CAMARA_SHORTS: float = 5.2
-const PITCH_DEFECTO_SHORTS: float = -0.22
-const V_OFFSET_SHORTS: float = -0.15
-const LIMITE_PITCH_MIN_SHORTS: float = -0.75
-const LIMITE_PITCH_MAX_SHORTS: float = 0.25
+const ALTURA_SPRING_ARM: float = 0.65
+const DISTANCIA_CAMARA: float = 5.2
+const PITCH_DEFECTO: float = -0.22
+const V_OFFSET: float = -0.15
+const LIMITE_PITCH_MIN: float = -0.75
+const LIMITE_PITCH_MAX: float = 0.25
 
-var _modo_shorts: bool = false
+# Aliases de compatibilidad
+const ALTURA_SPRING_ARM_SHORTS: float = ALTURA_SPRING_ARM
+const DISTANCIA_CAMARA_SHORTS: float = DISTANCIA_CAMARA
+const PITCH_DEFECTO_SHORTS: float = PITCH_DEFECTO
+const V_OFFSET_SHORTS: float = V_OFFSET
+const LIMITE_PITCH_MIN_SHORTS: float = LIMITE_PITCH_MIN
+const LIMITE_PITCH_MAX_SHORTS: float = LIMITE_PITCH_MAX
+
+var _modo_shorts: bool = true
 var _mostrar_guia: bool = false
 var _ocultar_controles: bool = false
 var _escala_render: float = 1.0
@@ -66,18 +66,13 @@ func _ready() -> void:
 # CONSULTAS Y CONTROL DE MODO SHORTS
 # -----------------------------------------------------------------------------
 func esta_modo_shorts_activo() -> bool:
-	return _modo_shorts
+	return true
 
-func establecer_modo_shorts(activo: bool) -> void:
-	if _modo_shorts != activo:
-		_modo_shorts = activo
-		guardar_config()
-		modo_shorts_cambiado.emit(_modo_shorts)
-		print("[CamaraConfigManager] Modo Grabación Shorts establecido en: ", _modo_shorts)
+func establecer_modo_shorts(_activo: bool) -> void:
+	pass
 
 func alternar_modo_shorts() -> bool:
-	establecer_modo_shorts(!_modo_shorts)
-	return _modo_shorts
+	return true
 
 # -----------------------------------------------------------------------------
 # CONSULTAS Y CONTROL DE GUÍA VISUAL 9:16
@@ -198,22 +193,22 @@ func obtener_texto_limite_fps() -> String:
 # PARÁMETROS DINÁMICOS DE CÁMARA
 # -----------------------------------------------------------------------------
 func obtener_altura_spring_arm() -> float:
-	return ALTURA_SPRING_ARM_SHORTS if _modo_shorts else ALTURA_SPRING_ARM_NORMAL
+	return ALTURA_SPRING_ARM
 
 func obtener_distancia_camara() -> float:
-	return DISTANCIA_CAMARA_SHORTS if _modo_shorts else DISTANCIA_CAMARA_NORMAL
+	return DISTANCIA_CAMARA
 
 func obtener_pitch_defecto() -> float:
-	return PITCH_DEFECTO_SHORTS if _modo_shorts else PITCH_DEFECTO_NORMAL
+	return PITCH_DEFECTO
 
 func obtener_v_offset() -> float:
-	return V_OFFSET_SHORTS if _modo_shorts else V_OFFSET_NORMAL
+	return V_OFFSET
 
 func obtener_limite_pitch_min() -> float:
-	return LIMITE_PITCH_MIN_SHORTS if _modo_shorts else LIMITE_PITCH_MIN_NORMAL
+	return LIMITE_PITCH_MIN
 
 func obtener_limite_pitch_max() -> float:
-	return LIMITE_PITCH_MAX_SHORTS if _modo_shorts else LIMITE_PITCH_MAX_NORMAL
+	return LIMITE_PITCH_MAX
 
 # -----------------------------------------------------------------------------
 # PERSISTENCIA DE CONFIGURACIÓN (user://opciones.cfg)

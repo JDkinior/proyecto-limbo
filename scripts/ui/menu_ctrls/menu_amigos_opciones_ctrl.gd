@@ -34,8 +34,6 @@ func _conectar_senales():
 		menu.btn_ajustes_video.pressed.connect(_on_btn_ajustes_video_pressed)
 	if is_instance_valid(menu.btn_volver_video):
 		menu.btn_volver_video.pressed.connect(_on_btn_volver_video_pressed)
-	if is_instance_valid(menu.btn_modo_shorts):
-		menu.btn_modo_shorts.toggled.connect(_on_btn_modo_shorts_toggled)
 	if is_instance_valid(menu.btn_guia_shorts):
 		menu.btn_guia_shorts.toggled.connect(_on_btn_guia_shorts_toggled)
 	if is_instance_valid(menu.btn_ocultar_controles):
@@ -130,13 +128,6 @@ func _on_btn_mostrar_fps_toggled(button_pressed: bool):
 	var fps_node = menu.get_node_or_null("/root/FPSCounter")
 	if is_instance_valid(fps_node):
 		fps_node.establecer_activo(button_pressed)
-
-func _on_btn_modo_shorts_toggled(button_pressed: bool):
-	if is_instance_valid(CamaraConfigManager):
-		CamaraConfigManager.establecer_modo_shorts(button_pressed)
-		var vm = menu.get_node_or_null("/root/VibrationManager")
-		if is_instance_valid(vm):
-			vm.vibrar_click()
 
 func _on_btn_guia_shorts_toggled(button_pressed: bool):
 	if is_instance_valid(CamaraConfigManager):
@@ -286,8 +277,6 @@ func _cargar_opciones():
 		menu.btn_mostrar_fps.set_pressed_no_signal(fps_node.esta_activo())
 		
 	if is_instance_valid(CamaraConfigManager):
-		if is_instance_valid(menu.btn_modo_shorts):
-			menu.btn_modo_shorts.set_pressed_no_signal(CamaraConfigManager.esta_modo_shorts_activo())
 		if is_instance_valid(menu.btn_guia_shorts):
 			menu.btn_guia_shorts.set_pressed_no_signal(CamaraConfigManager.esta_guia_activa())
 		if is_instance_valid(menu.btn_ocultar_controles):

@@ -8,16 +8,18 @@ class_name CharacterBase
 @export var ACELERACION_AIRE : float = 12.0
 @export var DESACELERACION_AIRE : float = 12.0
 @export var VELOCIDAD_ROTACION_PERSONAJE : float = 12.0
-@export var LIMITE_CAIDA_Y : float = -2.0
+@export var LIMITE_CAIDA_Y : float = -8.0
 
 @export_group("Camara Inteligente")
 @export var SENSIBILIDAD_CAMARA : float = 0.005
 @export var SUAVIDAD_CAMARA : float = 18.0
-@export var DISTANCIA_CAMARA : float = 3.5
+@export var DISTANCIA_CAMARA : float = 5.2
 @export var MARGEN_COLISION_CAMARA : float = 0.15
-@export var PITCH_DEFECTO_CAMARA : float = -0.14            # ~-8.0 grados (mirando ligeramente hacia abajo)
-@export var LIMITE_PITCH_MIN : float = -0.70               # ~-40 grados
-@export var LIMITE_PITCH_MAX : float = 0.35                # ~+20 grados
+@export var PITCH_DEFECTO_CAMARA : float = -0.22            # ~-12.6 grados (encuadre Shorts vertical 9:16)
+@export var LIMITE_PITCH_MIN : float = -0.75               # ~-43 grados
+@export var LIMITE_PITCH_MAX : float = 0.25                # ~+14 grados
+@export var ALTURA_SPRING_ARM : float = 0.65
+@export var V_OFFSET_CAMARA : float = -0.15
 
 @export_group("Salto Compartido")
 @export var FUERZA_SALTO : float = 7.5
@@ -73,6 +75,7 @@ var sync_rotation: Vector3
 # ===================================================================
 # GESTIÓN DE FUERZAS EXTERNAS Y VÓRTICES (TORBELLINOS)
 # ===================================================================
+var movimiento_bloqueado: bool = false
 var _fuerza_vortice_acumulada: Vector3 = Vector3.ZERO
 var _arrastre_descendente_vortice: float = 0.0
 var _vortice_esta_absorbido: bool = false
@@ -292,33 +295,23 @@ func _get_vibration_manager() -> Node:
 
 func _ready():
 	objetivo_rotacion_y = rotation.y
-	
-	# Configurar parámetros según modo de cámara activo (Normal o Shorts para video vertical)
-	var cam_cfg = _get_camara_config_manager()
-	if is_instance_valid(cam_cfg):
-		DISTANCIA_CAMARA = cam_cfg.obtener_distancia_camara()
-		PITCH_DEFECTO_CAMARA = cam_cfg.obtener_pitch_defecto()
-		LIMITE_PITCH_MIN = cam_cfg.obtener_limite_pitch_min()
-		LIMITE_PITCH_MAX = cam_cfg.obtener_limite_pitch_max()
-		if not cam_cfg.modo_shorts_cambiado.is_connected(_on_modo_shorts_cambiado):
-			cam_cfg.modo_shorts_cambiado.connect(_on_modo_shorts_cambiado)
+	objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
 	var spring_arm = obtener_spring_arm()
 	if spring_arm:
 		spring_arm.add_excluded_object(get_rid())
 		spring_arm.spring_length = DISTANCIA_CAMARA
+		spring_arm.position.y = ALTURA_SPRING_ARM
 		spring_arm.margin = MARGEN_COLISION_CAMARA
-		if is_instance_valid(cam_cfg):
-			spring_arm.position.y = cam_cfg.obtener_altura_spring_arm()
-		objetivo_rotacion_x = spring_arm.rotation.x
+		spring_arm.rotation.x = objetivo_rotacion_x
 	elif pivote_camara:
 		objetivo_rotacion_x = pivote_camara.rotation.x
 	else:
 		objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
 	var cam = obtener_camara()
-	if cam and is_instance_valid(cam_cfg):
-		cam.v_offset = cam_cfg.obtener_v_offset()
+	if cam:
+		cam.v_offset = V_OFFSET_CAMARA
 
 	posicion_inicial = global_position
 	rotacion_inicial = rotation
@@ -362,14 +355,6 @@ func _process(delta: float):
 			rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
 
 
-func _on_modo_shorts_cambiado(_activo: bool) -> void:
-	var cam_cfg = _get_camara_config_manager()
-	if is_instance_valid(cam_cfg):
-		DISTANCIA_CAMARA = cam_cfg.obtener_distancia_camara()
-		PITCH_DEFECTO_CAMARA = cam_cfg.obtener_pitch_defecto()
-		LIMITE_PITCH_MIN = cam_cfg.obtener_limite_pitch_min()
-		LIMITE_PITCH_MAX = cam_cfg.obtener_limite_pitch_max()
-
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	# Lógica base de cámara, los hijos extenderán esto
 	var es_mio = es_activo()
@@ -386,10 +371,8 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 			if arm:
 				arm.add_excluded_object(get_rid())
 				arm.rotation.x = objetivo_rotacion_x
-				var cam_cfg = _get_camara_config_manager()
-				if is_instance_valid(cam_cfg):
-					arm.position.y = cam_cfg.obtener_altura_spring_arm()
-					arm.spring_length = cam_cfg.obtener_distancia_camara()
+				arm.position.y = obtener_altura_spring_arm_deseada()
+				arm.spring_length = obtener_distancia_camara_deseada()
 			else:
 				pivote_camara.rotation.x = objetivo_rotacion_x
 		else:
@@ -398,9 +381,7 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 		var cam = obtener_camara()
 		if cam:
 			cam.current = es_mio
-			var cam_cfg = _get_camara_config_manager()
-			if is_instance_valid(cam_cfg):
-				cam.v_offset = cam_cfg.obtener_v_offset()
+			cam.v_offset = obtener_v_offset_deseado()
 
 func obtener_entorno_personaje() -> Environment:
 	return null
@@ -532,23 +513,46 @@ func procesar_camara_base(delta: float):
 		if arm:
 			pivote_camara.rotation.x = 0.0
 			arm.rotation.x = lerp_angle(arm.rotation.x, objetivo_rotacion_x, suavizado_camara)
-			var cam_cfg = _get_camara_config_manager()
-			if is_instance_valid(cam_cfg):
-				var target_arm_y = cam_cfg.obtener_altura_spring_arm()
-				var target_arm_dist = cam_cfg.obtener_distancia_camara()
+			var target_arm_y = obtener_altura_spring_arm_deseada()
+			var target_arm_dist = obtener_distancia_camara_deseada()
+			if absf(arm.position.y - target_arm_y) > 0.002:
 				arm.position.y = lerp(arm.position.y, target_arm_y, 8.0 * delta)
+			else:
+				arm.position.y = target_arm_y
+			if absf(arm.spring_length - target_arm_dist) > 0.002:
 				arm.spring_length = lerp(arm.spring_length, target_arm_dist, 8.0 * delta)
+			else:
+				arm.spring_length = target_arm_dist
 		else:
 			pivote_camara.rotation.x = lerp_angle(pivote_camara.rotation.x, objetivo_rotacion_x, suavizado_camara)
 
 		var cam = obtener_camara()
-		var cam_cfg = _get_camara_config_manager()
-		if cam and is_instance_valid(cam_cfg):
-			var target_v_offset = cam_cfg.obtener_v_offset()
-			cam.v_offset = lerp(cam.v_offset, target_v_offset, 8.0 * delta)
+		if cam:
+			var target_v_offset = obtener_v_offset_deseado()
+			if absf(cam.v_offset - target_v_offset) > 0.002:
+				cam.v_offset = lerp(cam.v_offset, target_v_offset, 8.0 * delta)
+			else:
+				cam.v_offset = target_v_offset
+
+func obtener_distancia_camara_deseada() -> float:
+	return DISTANCIA_CAMARA
+
+func obtener_altura_spring_arm_deseada() -> float:
+	return ALTURA_SPRING_ARM
+
+func obtener_v_offset_deseado() -> float:
+	return V_OFFSET_CAMARA
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not es_activo() or entrada_bloqueada():
+		return
+	if event is InputEventMouseMotion:
+		if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			objetivo_rotacion_y -= event.relative.x * SENSIBILIDAD_CAMARA
+			objetivo_rotacion_x = clamp(objetivo_rotacion_x - event.relative.y * SENSIBILIDAD_CAMARA, LIMITE_PITCH_MIN, LIMITE_PITCH_MAX)
 
 func esta_planeando() -> bool:
-	if _vortice_esta_absorbido:
+	if movimiento_bloqueado or _vortice_esta_absorbido:
 		return false
 	if not PUEDE_PLANEAR or is_on_floor():
 		return false
@@ -561,7 +565,7 @@ func esta_planeando() -> bool:
 	return salto_mantenido and velocity.y <= 0.0
 
 func procesar_salto_base(delta: float):
-	if _vortice_esta_absorbido:
+	if movimiento_bloqueado or _vortice_esta_absorbido:
 		_arrastre_descendente_vortice = 0.0
 		return
 
@@ -661,7 +665,7 @@ func _al_realizar_salto(numero_salto: int):
 		vib_mgr.vibrar_salto(numero_salto)
 
 func obtener_direccion_movimiento() -> Vector3:
-	if entrada_bloqueada():
+	if movimiento_bloqueado or entrada_bloqueada():
 		return Vector3.ZERO
 		
 	var input_dir = Input.get_vector("mover_izquierda", "mover_derecha", "mover_adelante", "mover_atras", 0.05)
@@ -832,7 +836,7 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 						fijar_camara_en_caida()
 
 		# Detección de caída al vacío: congelar la cámara en el borde superior antes de descender al abismo
-		if not _camara_fijada_en_caida and not _camara_fijada_en_vortice and velocity.y < 0.0 and global_position.y < (LIMITE_CAIDA_Y + 4.0):
+		if not is_on_floor() and not _camara_fijada_en_caida and not _camara_fijada_en_vortice and velocity.y < 0.0 and global_position.y < (LIMITE_CAIDA_Y + 4.0):
 			fijar_camara_en_caida()
 
 	if _comprobar_caida_vacio():
@@ -849,6 +853,10 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 			pivote_camara.global_position.y = limite_y_camara
 
 func procesar_movimiento_base(delta: float):
+	if movimiento_bloqueado:
+		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
+		return
+
 	var red_mgr = _get_red_manager()
 	if is_instance_valid(red_mgr) and red_mgr.transicion_en_progreso:
 		aplicar_friccion_y_movimiento(Vector3.ZERO, delta)
