@@ -48,8 +48,21 @@ enum EstiloMeseta {
 enum TipoComportamiento {
 	ESTANDAR,   ## Isla flotante fija normal (Estructura Global).
 	COLAPSO,    ## Se estremece y cae al abismo al ser pisada, luego reaparece.
-	ESPIRITUAL  ## Conectada a mecanismos espirituales (Aura/Presión), intangible para el Vivo hasta activarse.
+	ESPIRITUAL, ## Conectada a mecanismos espirituales (Aura/Presión), intangible para el Vivo hasta activarse.
+	POSEIBLE    ## Plataforma procedural que puede ser poseída por el Fantasma para volar/moverse como taxi.
 }
+
+enum ModoEjes {
+	HORIZONTAL,             ## Movimiento en plano horizontal (XZ) adaptado a la cámara. Altura fija y estable.
+	VERTICAL,               ## Movimiento en eje vertical (Y). W / Stick arriba = Subir, S / Stick abajo = Bajar.
+	HORIZONTAL_Y_VERTICAL,  ## Movimiento combinado: Stick vertical (W/S) sube/baja (Y), Stick horizontal (A/D) mueve lateralmente.
+	RIEL_DIRECCIONAL,       ## Movimiento guiado a lo largo de un riel definido por 'direccion_riel'.
+	VUELO_LIBRE = 0         ## Alias de compatibilidad con VUELO_LIBRE
+}
+
+# Alias de compatibilidad
+const ModoVuelo = ModoEjes
+const VUELO_LIBRE = ModoEjes.HORIZONTAL
 
 # Señales de eventos funcionales de plataforma
 signal plataforma_colapsando
@@ -57,15 +70,32 @@ signal plataforma_restaurada
 signal estado_espiritual_cambiado(activo: bool)
 signal aviso_desactivacion_iniciado
 signal aviso_desactivacion_cancelado
+signal posesion_iniciada(fantasma: Node3D)
+signal posesion_terminada()
+signal estado_posesion_actualizado(esta_poseido: bool)
 
 @export_group("Tipo de Plataforma y Comportamiento")
 ## Selecciona el comportamiento funcional de la isla:
 ## - ESTANDAR: Terreno flotante firme normal (Capa 1 Estructura Global).
 ## - COLAPSO: Se desmorona y cae temporalmente al ser pisada por el jugador.
 ## - ESPIRITUAL: Isla translúcida del plano espiritual que se activa con mecanismos.
+## - POSEIBLE: Plataforma procedural que puede ser poseída por el Fantasma.
 @export var tipo_comportamiento: TipoComportamiento = TipoComportamiento.ESTANDAR:
 	set(valor):
 		tipo_comportamiento = valor
+		if valor == TipoComportamiento.POSEIBLE:
+			puede_ser_poseida = true
+		if is_inside_tree():
+			_al_cambiar_tipo_comportamiento()
+
+## Activa si la plataforma procedural puede ser poseída por el Fantasma (reemplaza plataformas y taxis de bloques rígidos).
+@export var puede_ser_poseida: bool = false:
+	set(valor):
+		puede_ser_poseida = valor
+		if valor and tipo_comportamiento == TipoComportamiento.ESTANDAR:
+			tipo_comportamiento = TipoComportamiento.POSEIBLE
+		elif not valor and tipo_comportamiento == TipoComportamiento.POSEIBLE:
+			tipo_comportamiento = TipoComportamiento.ESTANDAR
 		if is_inside_tree():
 			_al_cambiar_tipo_comportamiento()
 
@@ -142,6 +172,78 @@ signal aviso_desactivacion_cancelado
 
 ## Opacidad mínima que alcanza la plataforma durante el parpadeo de aviso.
 @export_range(0.05, 0.8, 0.05) var opacidad_minima_parpadeo: float = 0.2
+
+@export_subgroup("Mecánica Posesión")
+## Define en qué ejes se desplaza la plataforma al mover la palanca / teclas de dirección.
+@export var modo_ejes: ModoEjes = ModoEjes.HORIZONTAL:
+	get:
+		return _modo_ejes_interno
+	set(val):
+		_modo_ejes_interno = val
+
+var _modo_ejes_interno: ModoEjes = ModoEjes.HORIZONTAL
+
+## Propiedad de compatibilidad con modo_vuelo anterior
+var modo_vuelo: ModoEjes:
+	get:
+		return _modo_ejes_interno
+	set(val):
+		_modo_ejes_interno = val
+
+## Dirección 3D del riel si el modo es RIEL_DIRECCIONAL.
+@export var direccion_riel: Vector3 = Vector3.FORWARD
+## Distancia máxima que puede alejarse del punto de origen a lo largo del riel.
+@export var distancia_maxima_riel: float = 35.0
+
+## Radio máximo horizontal desde la posición de inicio (0 = sin límite).
+@export var radio_maximo_horizontal: float = 40.0:
+	get:
+		return _radio_maximo_horizontal_interno
+	set(val):
+		_radio_maximo_horizontal_interno = val
+
+var _radio_maximo_horizontal_interno: float = 40.0
+
+## Propiedad de compatibilidad con radio_maximo_vuelo anterior
+var radio_maximo_vuelo: float:
+	get:
+		return _radio_maximo_horizontal_interno
+	set(val):
+		_radio_maximo_horizontal_interno = val
+
+## Altura máxima permitida sobre el punto de inicio (modo VERTICAL).
+@export var altura_maxima_relativa: float = 12.0
+## Descenso máximo permitido bajo el punto de inicio.
+@export var descenso_maximo_relativo: float = 8.0
+
+@export var velocidad_crucero: float = 11.5
+@export var velocidad_turbo: float = 16.0
+@export var aceleracion: float = 24.0
+@export var friccion: float = 18.0
+@export var inclinacion_curva_maxima: float = 18.0
+@export var cabeceo_aceleracion_maximo: float = 10.0
+
+## Tiempo en segundos que espera quieta tras desposeer antes de regresar al reposo.
+@export var tiempo_espera_retorno: float = 3.5
+## Velocidad a la que regresa al reposo.
+@export var velocidad_retorno_reposo: float = 1.8
+## Fuerza con la que el fantasma sale disparado hacia arriba al salir.
+@export var fuerza_eyeccion_fantasma: float = 10.5
+
+@export var nombre_objeto: String = "Plataforma Procedural"
+@export var distancia_camara_posesion: float = 7.5
+@export var altura_spring_arm_posesion: float = 2.4
+@export var pitch_defecto_posesion: float = -0.26
+@export var v_offset_camara_posesion: float = 0.0
+@export var multiplicador_distancia_shorts: float = 1.25
+
+@export var nodo_cabeza: Node3D = null
+@export var nodo_ojos: Node3D = null
+@export var marcador_foco_camara: Marker3D = null
+@export var marcador_punto_eyeccion: Marker3D = null
+@export var area_deteccion_posesion: Area3D = null
+@export var area_deteccion_pasajeros: Area3D = null
+@export var particulas_propulsion: CPUParticles3D = null
 
 @export_group("Presets de Tamaño")
 ## Selecciona un preset predefinido o personaliza los parámetros individualmente.
@@ -577,6 +679,33 @@ var _fase_aviso_activa: bool = false
 var _opacidad_actual: float = 1.0
 var _materiales_cacheados: Dictionary = {}
 
+# Variables internas para modo Posesión / Taxi Procedural
+var fantasma_poseedor: Node3D = null
+var esta_poseido: bool = false
+var es_candidato_posesion: bool = false
+var velocity: Vector3 = Vector3.ZERO
+var posicion_origen: Vector3 = Vector3.ZERO
+var _posicion_al_desposeer: Vector3 = Vector3.ZERO
+var _temporizador_espera_retorno: float = 0.0
+var _inclinacion_roll_actual: float = 0.0
+var _inclinacion_pitch_actual: float = 0.0
+var _vivo_a_bordo: bool = false
+var _tiempo_flotacion: float = 0.0
+var _material_posesion_instancia: ShaderMaterial = null
+var _material_indicador_instancia: ShaderMaterial = null
+var _mat_orig_mesh_override: Material = null
+var _tween_resalte: Tween = null
+
+const SHADER_POSESION = preload("res://shaders/components/posesion/isla_espectral_poseida.gdshader")
+const SHADER_INDICADOR = preload("res://shaders/components/posesion/indicador_objeto_poseible.gdshader")
+const MAT_ISLA_ESPECTRAL_POSEIDA = preload("res://assets/materiales/entorno/m_isla_espectral_poseida.tres")
+
+var puede_ser_poseido: bool:
+	get:
+		return puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE
+	set(val):
+		puede_ser_poseida = val
+
 ## Retorna true si la plataforma se encuentra en la secuencia de parpadeo previo a desactivarse.
 var esta_en_aviso_desactivacion: bool:
 	get:
@@ -602,6 +731,10 @@ const ESCENA_FAROL = preload("res://scenes/entorno/iluminacion/farol.tscn")
 
 
 func _init() -> void:
+	if puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+		collision_layer = (1 << 0) | (1 << 1) | (1 << 2)
+		collision_mask = 0
+		return
 	match tipo_comportamiento:
 		TipoComportamiento.COLAPSO:
 			collision_layer = 1
@@ -609,6 +742,9 @@ func _init() -> void:
 		TipoComportamiento.ESPIRITUAL:
 			collision_layer = 1 << 2
 			collision_mask = 1 << 2
+		TipoComportamiento.POSEIBLE:
+			collision_layer = (1 << 0) | (1 << 1) | (1 << 2)
+			collision_mask = 0
 		TipoComportamiento.ESTANDAR:
 			collision_layer = 1
 			collision_mask = 0
@@ -617,6 +753,9 @@ func _init() -> void:
 func _enter_tree() -> void:
 	if not is_in_group("islas"):
 		add_to_group("islas")
+	if puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+		if not is_in_group("objetos_poseibles"):
+			add_to_group("objetos_poseibles")
 	set_notify_transform(true)
 	_global_transform_anterior = global_transform
 
@@ -632,6 +771,11 @@ func _ready() -> void:
 	regenerar()
 
 	_posicion_inicial_colapso = global_position
+	posicion_origen = global_position
+	if puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+		_asegurar_nodos_posesion()
+		if not is_in_group("objetos_poseibles"):
+			add_to_group("objetos_poseibles")
 	if Engine.is_editor_hint():
 		set_notify_transform(true)
 	_global_transform_anterior = global_transform
@@ -653,8 +797,16 @@ func _ready() -> void:
 				collision_mask = 1
 			TipoComportamiento.ESPIRITUAL:
 				_inicializar_modo_espiritual()
+			TipoComportamiento.POSEIBLE:
+				_asegurar_nodos_posesion()
+				collision_layer = (1 << 0) | (1 << 1) | (1 << 2)
+				collision_mask = 0
 			TipoComportamiento.ESTANDAR:
-				collision_layer = 1
+				if puede_ser_poseida:
+					_asegurar_nodos_posesion()
+					collision_layer = (1 << 0) | (1 << 1) | (1 << 2)
+				else:
+					collision_layer = 1
 				collision_mask = 0
 	else:
 		_actualizar_materiales()
@@ -663,6 +815,10 @@ func _ready() -> void:
 		elif tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
 			collision_layer = 1 << 2
 			collision_mask = 1 << 2
+		elif puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+			collision_layer = (1 << 0) | (1 << 1) | (1 << 2)
+			collision_mask = 0
+			_asegurar_nodos_posesion()
 
 
 func _on_reino_cambiado(_es_fantasma: bool) -> void:
@@ -747,6 +903,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if tipo_comportamiento == TipoComportamiento.COLAPSO:
 		_procesar_fisica_colapso(delta)
+	elif puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+		_procesar_fisica_posesion(delta)
 
 
 func _marcar_cambio_manual() -> void:
@@ -1335,6 +1493,8 @@ func regenerar() -> void:
 	_col_caras_cache = col_caras
 	if not _esculpiendo_activo:
 		_actualizar_colision(col_caras)
+	if puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+		_adaptar_ojos_a_geometria()
 
 	# 6. Sincronizar área de colapso o material espiritual si corresponde
 	if tipo_comportamiento == TipoComportamiento.COLAPSO:
@@ -1360,6 +1520,19 @@ func _actualizar_materiales() -> void:
 	if _mesh_instance == null or _mesh_instance.mesh == null:
 		return
 	
+	# Solo adquiere el material espiritual azul cuando está efectivamente poseído
+	if (puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE) and esta_poseido:
+		_mesh_instance.set_surface_override_material(0, MAT_ISLA_ESPECTRAL_POSEIDA)
+		if _mesh_instance.mesh.get_surface_count() > 1:
+			_mesh_instance.set_surface_override_material(1, MAT_ISLA_ESPECTRAL_POSEIDA)
+		_mesh_instance.material_override = MAT_ISLA_ESPECTRAL_POSEIDA
+		return
+	
+	if _mesh_instance.material_override == MAT_ISLA_ESPECTRAL_POSEIDA:
+		_mesh_instance.material_override = null
+	if _mesh_instance.get_surface_override_material(0) == MAT_ISLA_ESPECTRAL_POSEIDA:
+		_ultimo_estado_fantasma_mat = -1
+
 	if tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
 		_asegurar_material_espiritual()
 		_mesh_instance.set_surface_override_material(0, _mat_espiritual_instancia)
@@ -2476,12 +2649,21 @@ func _al_cambiar_tipo_comportamiento() -> void:
 			if is_instance_valid(_area_colapso):
 				_area_colapso.queue_free()
 				_area_colapso = null
-		TipoComportamiento.ESTANDAR:
-			collision_layer = 1
+		TipoComportamiento.POSEIBLE:
+			collision_layer = (1 << 0) | (1 << 1) | (1 << 2)
 			collision_mask = 0
 			if is_instance_valid(_area_colapso):
 				_area_colapso.queue_free()
 				_area_colapso = null
+			_asegurar_nodos_posesion()
+		TipoComportamiento.ESTANDAR:
+			collision_layer = (1 << 0) | (1 << 1) | (1 << 2) if puede_ser_poseida else 1
+			collision_mask = 0
+			if is_instance_valid(_area_colapso):
+				_area_colapso.queue_free()
+				_area_colapso = null
+			if puede_ser_poseida:
+				_asegurar_nodos_posesion()
 	_actualizar_materiales()
 	notify_property_list_changed()
 
@@ -2897,5 +3079,592 @@ func _procesar_fisica_colapso(delta: float) -> void:
 			_timer_colapso += delta
 			if _timer_colapso >= tiempo_respawn:
 				_restaurar_colapso()
+
+
+## -----------------------------------------------------------------------------
+## MECÁNICAS DE PLATAFORMA POSESIÓN / TAXI PROCEDURAL
+## -----------------------------------------------------------------------------
+
+func _asegurar_materiales_posesion() -> void:
+	if not _material_posesion_instancia:
+		_material_posesion_instancia = MAT_ISLA_ESPECTRAL_POSEIDA
+	if not _material_indicador_instancia:
+		_material_indicador_instancia = ShaderMaterial.new()
+		_material_indicador_instancia.shader = SHADER_INDICADOR
+		_material_indicador_instancia.set_shader_parameter("intensidad", 0.0)
+
+
+func obtener_punto_y_normal_superficie_frontal(pos_x: float, pos_y: float) -> Dictionary:
+	var mejor_z: float = -INF
+	var mejor_norm: Vector3 = Vector3(0.0, 0.0, -1.0)
+	var encontrado: bool = false
+	
+	if not _col_caras_cache.is_empty():
+		var ray_orig = Vector3(pos_x, pos_y, -(maxf(ancho, largo) + 4.0))
+		var ray_dir = Vector3(0.0, 0.0, 1.0)
+		var n_caras = _col_caras_cache.size()
+		var n_tris = n_caras / 3
+		var min_t = INF
+		
+		for t_idx in range(n_tris):
+			var i = t_idx * 3
+			var v0 = _col_caras_cache[i]
+			var v1 = _col_caras_cache[i + 1]
+			var v2 = _col_caras_cache[i + 2]
+			
+			var edge1 = v1 - v0
+			var edge2 = v2 - v0
+			var h = ray_dir.cross(edge2)
+			var a = edge1.dot(h)
+			if absf(a) < 0.00001:
+				continue
+			var f = 1.0 / a
+			var s = ray_orig - v0
+			var u = f * s.dot(h)
+			if u < 0.0 or u > 1.0:
+				continue
+			var q = s.cross(edge1)
+			var v = f * ray_dir.dot(q)
+			if v < 0.0 or u + v > 1.0:
+				continue
+			var t = f * edge2.dot(q)
+			if t > 0.0001 and t < min_t:
+				min_t = t
+				var hit_pt = ray_orig + ray_dir * t
+				var norm = edge1.cross(edge2).normalized()
+				mejor_z = hit_pt.z
+				mejor_norm = norm
+				encontrado = true
+	
+	if not encontrado:
+		var fallback_r = largo * 0.5
+		if not _perimetro_pts_cache.is_empty():
+			var ang = atan2(-fallback_r, pos_x)
+			fallback_r = _estimar_radio_en_angulo(ang, _perimetro_pts_cache)
+		mejor_z = -fallback_r
+		mejor_norm = Vector3(0.0, 0.0, -1.0)
+	
+	return {"z": mejor_z, "normal": mejor_norm}
+
+
+func _adaptar_ojos_a_geometria() -> void:
+	if not is_instance_valid(nodo_ojos):
+		return
+	
+	# Separación nítida proporcional al ancho para que siempre sean dos ojos distintos
+	var sep = clampf(ancho * 0.22, 0.85, 1.45)
+	# Ojos centrados en la cara frontal vertical de la roca (más abajo para coincidir con la indicación)
+	var altura_ojos = altura_superficie - 0.45
+	var hit_izq = obtener_punto_y_normal_superficie_frontal(-sep * 0.5, altura_ojos)
+	var hit_der = obtener_punto_y_normal_superficie_frontal(sep * 0.5, altura_ojos)
+	
+	var z_izq: float = hit_izq.z
+	var z_der: float = hit_der.z
+	var z_medio: float = (z_izq + z_der) * 0.5
+	
+	nodo_ojos.position = Vector3(0.0, altura_ojos, z_medio - 0.04)
+	nodo_ojos.rotation = Vector3(0.0, PI, 0.0)
+	nodo_ojos.visible = esta_poseido
+	
+	# Posicionar el copete en la parte delantera de la superficie superior, justo detrás del borde frontal sobre los ojos
+	if is_instance_valid(nodo_cabeza):
+		var z_copete = clampf(z_medio + 0.55, -largo * 0.45, -0.65)
+		nodo_cabeza.position = Vector3(0.0, altura_superficie, z_copete)
+		nodo_cabeza.rotation = Vector3(0.0, PI, 0.0)
+	
+	# Cálculo analítico directo de las posiciones relativas (evita colapso por scale==0 en affine_inverse)
+	var pos_izq_rel = Vector3(sep * 0.5, 0.0, -(z_izq - z_medio))
+	var pos_der_rel = Vector3(-sep * 0.5, 0.0, -(z_der - z_medio))
+	
+	# Los ojos se mantienen siempre verticales y paralelos al frente (sin rotarse según la inclinación de la faceta)
+	var rot_izq = Vector3.ZERO
+	var rot_der = Vector3.ZERO
+	
+	var escala_tam = clampf(sqrt(maxf(ancho, largo) / 4.2), 0.95, 1.35)
+	
+	if nodo_ojos.has_method("adaptar_a_superficie"):
+		nodo_ojos.adaptar_a_superficie(pos_izq_rel, rot_izq, pos_der_rel, rot_der, escala_tam)
+
+
+func _asegurar_nodos_posesion() -> void:
+	if not (puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE):
+		return
+	
+	if not is_in_group("objetos_poseibles"):
+		add_to_group("objetos_poseibles")
+	
+	_asegurar_materiales_posesion()
+	
+	if nodo_cabeza == null:
+		nodo_cabeza = get_node_or_null("CabezaFantasmaEmergente") as Node3D
+		if nodo_cabeza == null and not Engine.is_editor_hint():
+			var escena_cabeza = load("res://scenes/components/posesion/cabeza_fantasma_emergente.tscn") as PackedScene
+			if escena_cabeza:
+				nodo_cabeza = escena_cabeza.instantiate() as Node3D
+				nodo_cabeza.name = "CabezaFantasmaEmergente"
+				add_child(nodo_cabeza)
+	
+	if is_instance_valid(nodo_cabeza):
+		var z_copete = -clampf(largo * 0.42, 1.20, 2.50)
+		if not _col_caras_cache.is_empty():
+			var hit_centro = obtener_punto_y_normal_superficie_frontal(0.0, altura_superficie - 0.45)
+			z_copete = clampf(hit_centro.z + 0.55, -largo * 0.45, -0.65)
+		nodo_cabeza.position = Vector3(0.0, altura_superficie, z_copete)
+		nodo_cabeza.rotation = Vector3(0.0, PI, 0.0)
+		nodo_cabeza.visible = esta_poseido
+		if not esta_poseido:
+			nodo_cabeza.scale = Vector3(0.01, 0.01, 0.01)
+
+	if nodo_ojos == null:
+		nodo_ojos = get_node_or_null("OjosPosesion") as Node3D
+		if nodo_ojos == null and not Engine.is_editor_hint():
+			var escena_ojos = load("res://scenes/components/posesion/ojos_posesion.tscn") as PackedScene
+			if escena_ojos:
+				nodo_ojos = escena_ojos.instantiate() as Node3D
+				nodo_ojos.name = "OjosPosesion"
+				add_child(nodo_ojos)
+	
+	if is_instance_valid(nodo_ojos):
+		_adaptar_ojos_a_geometria()
+	
+	if area_deteccion_posesion == null:
+		area_deteccion_posesion = get_node_or_null("AreaPosesion") as Area3D
+		if area_deteccion_posesion == null and not Engine.is_editor_hint():
+			area_deteccion_posesion = Area3D.new()
+			area_deteccion_posesion.name = "AreaPosesion"
+			area_deteccion_posesion.collision_layer = 0
+			area_deteccion_posesion.collision_mask = 1 << 2
+			var col = CollisionShape3D.new()
+			var sphere = SphereShape3D.new()
+			sphere.radius = maxf(ancho, largo) * 0.65 + 1.5
+			col.shape = sphere
+			area_deteccion_posesion.add_child(col)
+			add_child(area_deteccion_posesion)
+	
+	if area_deteccion_pasajeros == null:
+		area_deteccion_pasajeros = get_node_or_null("ZonaPasajeros") as Area3D
+		if area_deteccion_pasajeros == null and not Engine.is_editor_hint():
+			area_deteccion_pasajeros = Area3D.new()
+			area_deteccion_pasajeros.name = "ZonaPasajeros"
+			area_deteccion_pasajeros.collision_layer = 0
+			area_deteccion_pasajeros.collision_mask = 1 << 1
+			var col = CollisionShape3D.new()
+			var box = BoxShape3D.new()
+			box.size = Vector3(ancho * 0.8, 1.4, largo * 0.8)
+			col.shape = box
+			col.position = Vector3(0.0, 0.7, 0.0)
+			area_deteccion_pasajeros.add_child(col)
+			add_child(area_deteccion_pasajeros)
+	
+	if is_instance_valid(area_deteccion_pasajeros) and area_deteccion_pasajeros is Area3D:
+		if not area_deteccion_pasajeros.body_entered.is_connected(_on_cuerpo_pasajero_entro):
+			area_deteccion_pasajeros.body_entered.connect(_on_cuerpo_pasajero_entro)
+		if not area_deteccion_pasajeros.body_exited.is_connected(_on_cuerpo_pasajero_salio):
+			area_deteccion_pasajeros.body_exited.connect(_on_cuerpo_pasajero_salio)
+	
+	if marcador_foco_camara == null:
+		marcador_foco_camara = get_node_or_null("FocoCamara") as Marker3D
+		if marcador_foco_camara == null and not Engine.is_editor_hint():
+			marcador_foco_camara = Marker3D.new()
+			marcador_foco_camara.name = "FocoCamara"
+			marcador_foco_camara.position = Vector3(0.0, 0.8, 0.0)
+			add_child(marcador_foco_camara)
+	
+	if marcador_punto_eyeccion == null:
+		marcador_punto_eyeccion = get_node_or_null("PuntoEyeccion") as Marker3D
+		if marcador_punto_eyeccion == null and not Engine.is_editor_hint():
+			marcador_punto_eyeccion = Marker3D.new()
+			marcador_punto_eyeccion.name = "PuntoEyeccion"
+			marcador_punto_eyeccion.position = Vector3(0.0, 1.8, 0.0)
+			add_child(marcador_punto_eyeccion)
+
+
+func obtener_distancia_camara_adaptada() -> float:
+	return distancia_camara_posesion * multiplicador_distancia_shorts
+
+
+func obtener_altura_camara_adaptada() -> float:
+	return altura_spring_arm_posesion
+
+
+func obtener_pitch_camara_adaptado() -> float:
+	return pitch_defecto_posesion
+
+
+func obtener_v_offset_camara_adaptado() -> float:
+	return v_offset_camara_posesion
+
+
+func obtener_posicion_foco_camara() -> Vector3:
+	if is_instance_valid(marcador_foco_camara):
+		return marcador_foco_camara.global_position
+	return global_position + Vector3(0.0, altura_spring_arm_posesion * 0.4, 0.0)
+
+
+func obtener_punto_eyeccion() -> Vector3:
+	if is_instance_valid(marcador_punto_eyeccion):
+		return marcador_punto_eyeccion.global_position
+	return global_position + Vector3(0.0, 1.8, 0.0)
+
+
+func establecer_resalte_candidato(activo: bool) -> void:
+	if not (puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE):
+		return
+	if es_candidato_posesion == activo:
+		return
+	es_candidato_posesion = activo
+	_aplicar_efectos_resalte_candidato(activo)
+
+
+func _aplicar_efectos_resalte_candidato(activo: bool) -> void:
+	if Engine.is_editor_hint():
+		return
+	_asegurar_materiales_posesion()
+	if not is_instance_valid(_material_indicador_instancia):
+		return
+	
+	if is_instance_valid(_tween_resalte):
+		_tween_resalte.kill()
+	
+	if is_instance_valid(_mesh_instance):
+		if activo and not esta_poseido and (puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE):
+			_mesh_instance.material_overlay = _material_indicador_instancia
+			_tween_resalte = create_tween()
+			if _tween_resalte:
+				var valor_actual: float = _material_indicador_instancia.get_shader_parameter("intensidad") if _material_indicador_instancia else 0.0
+				_tween_resalte.tween_method(_actualizar_intensidad_indicador, valor_actual, 1.0, 0.25).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		else:
+			_tween_resalte = create_tween()
+			if _tween_resalte:
+				var valor_actual: float = _material_indicador_instancia.get_shader_parameter("intensidad") if _material_indicador_instancia else 1.0
+				_tween_resalte.tween_method(_actualizar_intensidad_indicador, valor_actual, 0.0, 0.20).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+				_tween_resalte.finished.connect(_limpiar_overlay_indicador)
+
+
+func _actualizar_intensidad_indicador(val: float) -> void:
+	if is_instance_valid(_material_indicador_instancia):
+		_material_indicador_instancia.set_shader_parameter("intensidad", val)
+
+
+func _limpiar_overlay_indicador() -> void:
+	if not es_candidato_posesion and is_instance_valid(_mesh_instance):
+		if _mesh_instance.material_overlay == _material_indicador_instancia:
+			_mesh_instance.material_overlay = null
+
+
+func iniciar_posesion(fantasma: Node3D) -> bool:
+	if not (puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE) or esta_poseido:
+		return false
+	
+	establecer_resalte_candidato(false)
+	if is_instance_valid(_mesh_instance):
+		_mesh_instance.material_overlay = null
+	
+	fantasma_poseedor = fantasma
+	esta_poseido = true
+	_posicion_al_desposeer = global_position
+	_temporizador_espera_retorno = 0.0
+	
+	_actualizar_materiales()
+	_adaptar_ojos_a_geometria()
+	
+	if is_instance_valid(nodo_cabeza):
+		if nodo_cabeza.has_method("emerger"):
+			nodo_cabeza.emerger()
+		else:
+			nodo_cabeza.visible = true
+			nodo_cabeza.scale = Vector3.ONE
+	
+	if is_instance_valid(nodo_ojos):
+		if nodo_ojos.has_method("aparecer"):
+			nodo_ojos.aparecer()
+		elif nodo_ojos.has_method("activar_expresion_sorpresa"):
+			nodo_ojos.activar_expresion_sorpresa()
+		else:
+			nodo_ojos.visible = true
+			nodo_ojos.scale = Vector3.ONE
+	
+	if is_instance_valid(particulas_propulsion):
+		particulas_propulsion.emitting = true
+	
+	_al_iniciar_posesion()
+	
+	posesion_iniciada.emit(fantasma)
+	estado_posesion_actualizado.emit(true)
+	return true
+
+
+func terminar_posesion() -> void:
+	if not esta_poseido:
+		return
+	
+	var fantasma_saliente = fantasma_poseedor
+	esta_poseido = false
+	fantasma_poseedor = null
+	
+	_actualizar_materiales()
+	_adaptar_ojos_a_geometria()
+	
+	if is_instance_valid(nodo_cabeza):
+		if nodo_cabeza.has_method("ocultar_suave"):
+			nodo_cabeza.ocultar_suave()
+		else:
+			nodo_cabeza.visible = false
+	
+	if is_instance_valid(nodo_ojos):
+		if nodo_ojos.has_method("desaparecer"):
+			nodo_ojos.desaparecer()
+		else:
+			nodo_ojos.visible = false
+	
+	if is_instance_valid(particulas_propulsion):
+		particulas_propulsion.emitting = false
+	
+	velocity = Vector3.ZERO
+	constant_linear_velocity = Vector3.ZERO
+	_posicion_al_desposeer = global_position
+	_temporizador_espera_retorno = tiempo_espera_retorno
+	
+	_al_terminar_posesion()
+	
+	posesion_terminada.emit()
+	estado_posesion_actualizado.emit(false)
+	
+	if is_instance_valid(fantasma_saliente):
+		var pos_salida = obtener_punto_eyeccion()
+		fantasma_saliente.global_position = pos_salida
+		if "velocity" in fantasma_saliente:
+			fantasma_saliente.velocity = Vector3.UP * fuerza_eyeccion_fantasma
+		if not Engine.is_editor_hint() and fantasma_saliente.has_method("_iniciar_animacion_salto_fantasma"):
+			fantasma_saliente._iniciar_animacion_salto_fantasma()
+
+
+func _aplicar_efectos_visuales_posesion(activar: bool) -> void:
+	if not is_instance_valid(_mesh_instance):
+		return
+	_asegurar_materiales_posesion()
+	if activar:
+		_mat_orig_mesh_override = _mesh_instance.material_override
+		_mesh_instance.material_override = _material_posesion_instancia
+	else:
+		_mesh_instance.material_override = _mat_orig_mesh_override
+		_mat_orig_mesh_override = null
+
+
+func procesar_input_posesion(delta: float, input_dir: Vector2, acciones: Dictionary) -> void:
+	if not esta_poseido:
+		return
+	
+	var camara_rot_y = 0.0
+	if is_instance_valid(fantasma_poseedor) and fantasma_poseedor.has_method("obtener_pivote_camara"):
+		var pivote = fantasma_poseedor.obtener_pivote_camara()
+		if is_instance_valid(pivote):
+			camara_rot_y = pivote.rotation.y
+	
+	var es_turbo = acciones.get("turbo", false) or acciones.get("efecto", false) or acciones.get("saltar", false)
+	var vel_objetivo_max = velocidad_turbo if es_turbo else velocidad_crucero
+	
+	if acciones.get("saltar_just_pressed", false) or acciones.get("efecto_just_pressed", false):
+		if is_instance_valid(particulas_propulsion):
+			particulas_propulsion.restart()
+		if is_instance_valid(nodo_ojos) and nodo_ojos.has_method("activar_expresion_sorpresa"):
+			nodo_ojos.activar_expresion_sorpresa()
+	
+	var vel_horizontal_obj = Vector2.ZERO
+	var vel_vertical_obj = 0.0
+	var direccion_inclinacion = Vector3.ZERO
+	
+	match _modo_ejes_interno:
+		ModoEjes.HORIZONTAL:
+			if input_dir.length_squared() > 0.001:
+				var dir_cam = Vector3(input_dir.x, 0.0, input_dir.y).rotated(Vector3.UP, camara_rot_y).normalized()
+				vel_horizontal_obj = Vector2(dir_cam.x, dir_cam.z) * vel_objetivo_max
+				direccion_inclinacion = dir_cam
+			
+			var offset_y = global_position.y - posicion_origen.y
+			vel_vertical_obj = -offset_y * 6.0
+			
+		ModoEjes.VERTICAL:
+			var input_vertical = -input_dir.y
+			if absf(input_vertical) > 0.05:
+				vel_vertical_obj = input_vertical * vel_objetivo_max
+			else:
+				vel_vertical_obj = 0.0
+				
+			var offset_x = global_position.x - posicion_origen.x
+			var offset_z = global_position.z - posicion_origen.z
+			vel_horizontal_obj = Vector2(-offset_x * 5.0, -offset_z * 5.0)
+			
+		ModoEjes.HORIZONTAL_Y_VERTICAL:
+			if absf(input_dir.x) > 0.05:
+				var dir_lat = Vector3.RIGHT.rotated(Vector3.UP, camara_rot_y) * input_dir.x
+				vel_horizontal_obj = Vector2(dir_lat.x, dir_lat.z) * vel_objetivo_max
+				direccion_inclinacion = dir_lat
+			
+			if absf(input_dir.y) > 0.05:
+				vel_vertical_obj = -input_dir.y * vel_objetivo_max
+				
+		ModoEjes.RIEL_DIRECCIONAL:
+			var dir_riel_norm = direccion_riel.normalized()
+			var input_proyectado = -input_dir.y
+			var dir_deseada = dir_riel_norm * input_proyectado
+			vel_horizontal_obj = Vector2(dir_deseada.x, dir_deseada.z) * vel_objetivo_max
+			vel_vertical_obj = dir_deseada.y * vel_objetivo_max
+			direccion_inclinacion = dir_deseada
+	
+	velocity.x = move_toward(velocity.x, vel_horizontal_obj.x, aceleracion * delta)
+	velocity.z = move_toward(velocity.z, vel_horizontal_obj.y, aceleracion * delta)
+	velocity.y = move_toward(velocity.y, vel_vertical_obj, aceleracion * delta)
+	
+	_aplicar_restricciones_limites(delta)
+	
+	constant_linear_velocity = velocity
+	global_position += velocity * delta
+	
+	if _modo_ejes_interno == ModoEjes.HORIZONTAL:
+		_actualizar_inclinacion_vehicular(delta, direccion_inclinacion)
+	else:
+		rotation.x = lerp_angle(rotation.x, 0.0, 8.0 * delta)
+		rotation.z = lerp_angle(rotation.z, 0.0, 8.0 * delta)
+	
+	var acelerando = (vel_horizontal_obj.length_squared() > 0.001 or absf(vel_vertical_obj) > 0.001)
+	_actualizar_efectos_vehiculo(vel_objetivo_max, acelerando)
+
+
+func _procesar_fisica_posesion(delta: float) -> void:
+	if not esta_poseido:
+		_procesar_flotacion_reposo(delta)
+
+
+func _procesar_flotacion_reposo(delta: float) -> void:
+	_tiempo_flotacion += delta * 1.8
+	var ondulacion = sin(_tiempo_flotacion) * 0.15
+	
+	if _temporizador_espera_retorno > 0.0:
+		_temporizador_espera_retorno -= delta
+		var pos_espera = _posicion_al_desposeer + Vector3(0.0, ondulacion, 0.0)
+		var diff_espera = pos_espera - global_position
+		velocity = velocity.lerp(diff_espera * 3.0, 4.0 * delta)
+	else:
+		var pos_meta = posicion_origen + Vector3(0.0, ondulacion, 0.0)
+		var dir_hacia_origen = pos_meta - global_position
+		var dist_hacia_origen = dir_hacia_origen.length()
+		
+		if dist_hacia_origen > 0.05:
+			var dir_norm = dir_hacia_origen.normalized()
+			var vel_deseada = dir_norm * minf(dist_hacia_origen * 1.2, velocidad_retorno_reposo)
+			velocity = velocity.move_toward(vel_deseada, 2.5 * delta)
+		else:
+			velocity = velocity.lerp(Vector3(0.0, ondulacion, 0.0), 4.0 * delta)
+			
+	constant_linear_velocity = velocity
+	global_position += velocity * delta
+	
+	rotation.z = lerp_angle(rotation.z, 0.0, 6.0 * delta)
+	rotation.x = lerp_angle(rotation.x, 0.0, 6.0 * delta)
+
+
+func _aplicar_restricciones_limites(_delta: float) -> void:
+	match _modo_ejes_interno:
+		ModoEjes.HORIZONTAL:
+			if _radio_maximo_horizontal_interno > 0.0:
+				var offset_origen = global_position - posicion_origen
+				var dist_h = Vector2(offset_origen.x, offset_origen.z).length()
+				if dist_h > _radio_maximo_horizontal_interno:
+					var normal_retorno = -Vector3(offset_origen.x, 0.0, offset_origen.z).normalized()
+					var exceso = dist_h - _radio_maximo_horizontal_interno
+					velocity += normal_retorno * (exceso * 12.0)
+					
+		ModoEjes.VERTICAL:
+			var alt_rel = global_position.y - posicion_origen.y
+			if altura_maxima_relativa > 0.0 and alt_rel > altura_maxima_relativa and velocity.y > 0.0:
+				var exceso = alt_rel - altura_maxima_relativa
+				velocity.y = -exceso * 8.0
+			elif descenso_maximo_relativo > 0.0 and alt_rel < -descenso_maximo_relativo and velocity.y < 0.0:
+				var exceso = -descenso_maximo_relativo - alt_rel
+				velocity.y = exceso * 8.0
+				
+		ModoEjes.HORIZONTAL_Y_VERTICAL:
+			if _radio_maximo_horizontal_interno > 0.0:
+				var offset_origen = global_position - posicion_origen
+				var dist_h = Vector2(offset_origen.x, offset_origen.z).length()
+				if dist_h > _radio_maximo_horizontal_interno:
+					var normal_retorno = -Vector3(offset_origen.x, 0.0, offset_origen.z).normalized()
+					var exceso = dist_h - _radio_maximo_horizontal_interno
+					velocity += normal_retorno * (exceso * 12.0)
+			var alt_rel = global_position.y - posicion_origen.y
+			if altura_maxima_relativa > 0.0 and alt_rel > altura_maxima_relativa and velocity.y > 0.0:
+				velocity.y = -(alt_rel - altura_maxima_relativa) * 8.0
+			elif descenso_maximo_relativo > 0.0 and alt_rel < -descenso_maximo_relativo and velocity.y < 0.0:
+				velocity.y = (-descenso_maximo_relativo - alt_rel) * 8.0
+				
+		ModoEjes.RIEL_DIRECCIONAL:
+			var dir_norm = direccion_riel.normalized()
+			var offset_origen = global_position - posicion_origen
+			var dist_riel = offset_origen.dot(dir_norm)
+			if absf(dist_riel) > distancia_maxima_riel:
+				var exceso = absf(dist_riel) - distancia_maxima_riel
+				velocity -= dir_norm * (signf(dist_riel) * exceso * 15.0)
+
+
+func _actualizar_inclinacion_vehicular(delta: float, direccion_deseada: Vector3) -> void:
+	var vel_h = Vector2(velocity.x, velocity.z).length()
+	var factor_vel = clampf(vel_h / velocidad_crucero, 0.0, 1.0)
+	
+	if direccion_deseada.length_squared() > 0.05:
+		var angulo_meta = atan2(-direccion_deseada.x, -direccion_deseada.z)
+		rotation.y = lerp_angle(rotation.y, angulo_meta, 8.0 * delta)
+	
+	var obj_roll = 0.0
+	var diff_ang = wrapf(rotation.y - rotation.y, -PI, PI)
+	obj_roll = clampf(-diff_ang * 2.0, -deg_to_rad(inclinacion_curva_maxima), deg_to_rad(inclinacion_curva_maxima))
+	_inclinacion_roll_actual = lerpf(_inclinacion_roll_actual, obj_roll, 6.0 * delta)
+	rotation.z = _inclinacion_roll_actual
+	
+	var acel_fwd = factor_vel * deg_to_rad(cabeceo_aceleracion_maximo)
+	_inclinacion_pitch_actual = lerpf(_inclinacion_pitch_actual, acel_fwd, 8.0 * delta)
+	rotation.x = _inclinacion_pitch_actual
+
+
+func _actualizar_efectos_vehiculo(vel_max: float, acelerando: bool = true) -> void:
+	var vel_actual = velocity.length()
+	var vel_relativa = clampf(vel_actual / maxf(vel_max, 0.001), 0.0, 1.0)
+	
+	if is_instance_valid(nodo_ojos) and nodo_ojos.has_method("actualizar_mirada"):
+		var dir_local = global_transform.basis.inverse() * velocity
+		nodo_ojos.actualizar_mirada(dir_local.normalized(), vel_relativa)
+	
+	if is_instance_valid(nodo_cabeza) and nodo_cabeza.has_method("actualizar_movimiento"):
+		nodo_cabeza.actualizar_movimiento(vel_relativa, acelerando)
+	
+	if is_instance_valid(particulas_propulsion):
+		var propulsando = acelerando and vel_relativa > 0.15
+		particulas_propulsion.emitting = propulsando
+		if propulsando:
+			particulas_propulsion.initial_velocity_min = lerpf(1.5, 4.5, vel_relativa)
+			particulas_propulsion.initial_velocity_max = lerpf(2.5, 7.0, vel_relativa)
+
+
+func _on_cuerpo_pasajero_entro(body: Node3D) -> void:
+	if body.is_in_group("jugadores") and not body.is_in_group("fantasmas"):
+		_vivo_a_bordo = true
+
+
+func _on_cuerpo_pasajero_salio(body: Node3D) -> void:
+	if body.is_in_group("jugadores") and not body.is_in_group("fantasmas"):
+		_vivo_a_bordo = false
+
+
+func esta_vivo_a_bordo() -> bool:
+	return _vivo_a_bordo
+
+
+func _al_iniciar_posesion() -> void:
+	pass
+
+
+func _al_terminar_posesion() -> void:
+	pass
+
 
 
