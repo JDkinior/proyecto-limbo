@@ -4,6 +4,11 @@ extends "res://addons/godot_ai/testing/test_suite.gd"
 func suite_name() -> String:
 	return "enemigo_espectral"
 
+func suite_setup(_ctx: Dictionary) -> void:
+	var script: GDScript = load("res://scripts/components/peligros/enemigo_espectral.gd")
+	if script != null:
+		script.reload()
+
 func test_enemigo_instantiation() -> void:
 	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
 	assert_ne(scene, null, "La escena enemigo_espectral.tscn debe existir")
@@ -432,3 +437,128 @@ func test_silueta_aviso_limpia_sin_rasgos_faciales() -> void:
 	assert_true(mat_sil.get_shader_parameter("grosor_borde") >= 1.0, "Grosor de borde debe ser marcado")
 	assert_true(mat_sil.get_shader_parameter("opacidad_borde") >= 0.8, "Opacidad de borde debe ser visible")
 	assert_true(mat_sil.get_shader_parameter("fuerza_distorsion") > 0.0, "Debe tener fuerza de distorsión para refracción del fondo")
+
+func test_enemigo_animacion_emergencia_grietas() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.activar_solo_en_zona = true
+	inst.tiempo_anticipacion_spawn = 0.8
+	inst._ready()
+
+	assert_eq(inst._pos_base_visual, Vector3.ZERO, "Posición base visual debe ser Vector3.ZERO")
+	assert_false(inst._animando_transicion_vertical, "No debe estar animando verticalmente antes de despertar")
+	assert_false(inst.nodo_visual.visible, "El nodo visual debe estar oculto en INACTIVO_OCULTO")
+
+	# Al manifestarse, se inicia la emergencia desde las grietas
+	inst._manifestar_en_zona()
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.MANIFESTANDOSE, "Debe estar en MANIFESTANDOSE")
+	assert_gt(inst._temporizador_manifestacion, 0.0, "Temporizador de manifestación debe ser positivo")
+
+	# Simular que está en transición vertical
+	inst._animando_transicion_vertical = true
+	inst.nodo_visual.position.y = -1.5
+	# La flotación no debe alterar el position.y mientras se emerge de las grietas
+	inst._animar_flotacion_y_manos(0.016)
+	assert_eq(inst.nodo_visual.position.y, -1.5, "La flotación no debe sobrescribir la posición durante la emergencia")
+
+	# Al finalizar la transición, la posición base se restaura
+	inst._animando_transicion_vertical = false
+	inst._animar_flotacion_y_manos(0.016)
+	assert_true(absf(inst.nodo_visual.position.y) <= 0.1, "La flotación debe reanudarse alrededor de pos_base_visual.y (0.0)")
+
+func test_enemigo_animacion_hundimiento_al_golpear() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.position = Vector3(2, 0, -5)
+	inst.activar_solo_en_zona = false
+	inst.tiempo_anticipacion_spawn = 0.0
+	inst._ready()
+
+	# Al conectar un golpe letal en un nodo sin SceneTree, debe hundirse y finalizar
+	var mock_vivo = track(MockVivo.new())
+	inst._resolver_contacto_con_vivo(mock_vivo)
+
+	assert_true(mock_vivo.murio, "El Vivo debió morir por el contacto")
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.INACTIVO_OCULTO, "Debe finalizar en INACTIVO_OCULTO tras desaparecer")
+	assert_false(inst.nodo_visual.visible, "El nodo visual debe quedar oculto tras hundirse")
+	assert_eq(inst.position, Vector3(2, 0, -5), "Debe volver a su posición de origen")
+	assert_false(inst._animando_transicion_vertical, "Transición vertical debe finalizar en falso")
+
+func test_enemigo_movimiento_estrictamente_horizontal_al_perseguir() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.position = Vector3(0, 0.75, -10)
+	inst._posicion_origen = Vector3(0, 0.75, -10)
+	inst.activar_solo_en_zona = false
+	inst.tiempo_anticipacion_spawn = 0.0
+	inst._ready()
+
+	# El Vivo está elevado a 5m de altura en el aire y a 5m adelante en Z
+	var mock_vivo = track(CharacterBody3D.new())
+	mock_vivo.position = Vector3(0, 5.0, -5.0)
+	inst._jugador_vivo_ref = mock_vivo
+
+	inst.procesar_ciclo_ia(0.016)
+	assert_gt(inst.velocity.z, 0.0, "Debe desplazarse horizontalmente en Z hacia el Vivo")
+	assert_true(absf(inst.velocity.y) < 0.01, "La velocidad vertical debe ser prácticamente cero, no debe seguir al Vivo al cielo")
+
+func test_enemigo_permanencia_visible_y_piston() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.position = Vector3(0, 0.75, -10)
+	inst._posicion_origen = Vector3(0, 0.75, -10)
+	inst.activar_solo_en_zona = false
+	inst.tiempo_anticipacion_spawn = 0.0
+	inst.tiempo_anticipacion_ataque = 0.5
+	inst.tiempo_permanencia_visible = 0.75
+	inst._ready()
+
+	var mock_vivo = track(MockVivo.new())
+	mock_vivo.position = Vector3(0, 0.75, -9.0)
+	inst._jugador_vivo_ref = mock_vivo
+
+	# 1. Iniciar anticipación
+	inst.procesar_ciclo_ia(0.05)
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.ANTICIPANDO_ATAQUE)
+	assert_false(inst._fase_anticipacion_terminada)
+
+	# 2. Avanzar el tiempo más allá de tiempo_anticipacion_ataque con el Vivo esquivando fuera del alcance
+	mock_vivo.position = Vector3(2.5, 0.75, -10.0) # Vivo fuera del alcance del golpe (2.5m > 2.3m)
+	mock_vivo.velocity = Vector3.ZERO
+	inst.procesar_ciclo_ia(0.6)
+
+	# Debe seguir en ANTICIPANDO_ATAQUE (fase de permanencia visible y vulnerable)
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.ANTICIPANDO_ATAQUE, "Debe permanecer visible y vulnerable")
+	assert_true(inst._fase_anticipacion_terminada, "Fase de anticipación terminó y pasó a permanencia")
+
+	# 3. El Vivo salta y aterriza el pisotón encima
+	mock_vivo.position = Vector3(0, 1.4, -10.0)
+	mock_vivo.velocity = Vector3(0, -3.5, 0)
+	inst._actualizar_comportamiento_ia(mock_vivo, 0.016)
+
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.DERROTADO, "El espectro debe ser derrotado por el pisotón durante la permanencia")
+	assert_gt(mock_vivo.velocity.y, 2.0, "El Vivo debe rebotar al pisar al espectro")
+
+func test_enemigo_asesta_golpe_letal_al_vivo_si_no_esquiva() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.position = Vector3(0, 0.75, -10)
+	inst._posicion_origen = Vector3(0, 0.75, -10)
+	inst.activar_solo_en_zona = false
+	inst.tiempo_anticipacion_spawn = 0.0
+	inst.tiempo_anticipacion_ataque = 0.5
+	inst._ready()
+
+	var mock_vivo = track(MockVivo.new())
+	mock_vivo.position = Vector3(0, 0.75, -9.0) # A 1m de distancia al alcance del golpe
+	inst._jugador_vivo_ref = mock_vivo
+
+	# 1. Inicia anticipación sin matar de inmediato
+	inst.procesar_ciclo_ia(0.05)
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.ANTICIPANDO_ATAQUE)
+	assert_false(mock_vivo.murio, "No debe matar de inmediato durante la anticipación")
+
+	# 2. El Vivo no esquiva y se queda quieto: al terminar la anticipación, el espectro lo elimina
+	inst.procesar_ciclo_ia(0.6)
+	assert_true(mock_vivo.murio, "El espectro debió asestar su golpe letal y eliminar al Vivo")
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.INACTIVO_OCULTO, "El espectro debe hundirse tras asestar el golpe")

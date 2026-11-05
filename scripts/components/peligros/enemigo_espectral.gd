@@ -56,11 +56,13 @@ enum Estado {
 ## Distancia a la que el enemigo se detiene, se hace visible y anticipa su ataque
 @export var distancia_inicio_ataque: float = 1.85
 ## Tiempo en segundos que el enemigo se detiene y aparece visualmente antes de lanzar su golpe
-@export var tiempo_anticipacion_ataque: float = 0.75
+@export var tiempo_anticipacion_ataque: float = 0.95
+## Tiempo adicional en segundos que el enemigo permanece visible y vulnerable tras anticipar o fallar el golpe
+@export var tiempo_permanencia_visible: float = 0.75
 ## Velocidad de persecución flotante y sigilosa (calibrada para dar tiempo de reacción)
 @export var velocidad_acecho: float = 1.9
 ## Altura respecto al suelo donde flota el espectro
-@export var altura_flotacion: float = 0.85
+@export var altura_flotacion: float = 0.75
 ## Tiempo en segundos de anticipación al manifestarse antes de empezar a perseguir
 @export var tiempo_anticipacion_spawn: float = 0.8
 
@@ -103,10 +105,15 @@ var _fantasma_ref: Node3D = null
 var _temporizador_gracia_aura: float = 0.0
 var _temporizador_manifestacion: float = 0.0
 var _temporizador_ataque: float = 0.0
+var _temporizador_permanencia: float = 0.0
+var _fase_anticipacion_terminada: bool = false
 var _esta_tangible: bool = false
 var _tiempo_acumulado: float = 0.0
 var _mat_cuerpo: Material = null
 var _escala_base_visual: Vector3 = Vector3.ONE
+var _pos_base_visual: Vector3 = Vector3.ZERO
+var _animando_transicion_vertical: bool = false
+var _tween_vertical: Tween = null
 var _pos_base_glb_mano_izq: Vector3 = Vector3(-1.44, -0.15, 0.25)
 var _pos_base_glb_mano_der: Vector3 = Vector3(1.44, -0.15, 0.25)
 
@@ -124,6 +131,11 @@ func _ready() -> void:
 	
 	if is_instance_valid(nodo_visual):
 		_escala_base_visual = nodo_visual.scale
+		# Normalizar posición local a Vector3.ZERO para centrar la flotación en el CharacterBody3D
+		nodo_visual.position = Vector3.ZERO
+		_pos_base_visual = Vector3.ZERO
+	if is_instance_valid(colision_cuerpo):
+		colision_cuerpo.position = Vector3.ZERO
 	
 	_cachear_materiales()
 	_configurar_capas_iniciales()
@@ -198,6 +210,23 @@ func _actualizar_luces_grietas() -> void:
 		if luz:
 			luz.position = Vector3(CENTROS_GRIETAS[i].x * radio_malla, -0.35, CENTROS_GRIETAS[i].y * radio_malla)
 			luz.omni_range = 2.8
+
+func _intensificar_luces_grietas(activar: bool) -> void:
+	if not is_instance_valid(grietas_suelo_spawn):
+		return
+	var energia_objetivo: float = 4.8 if activar else 2.4
+	for i in CENTROS_GRIETAS.size():
+		var luz := grietas_suelo_spawn.get_node_or_null("LuzGrieta%d" % i) as OmniLight3D
+		if luz:
+			var tw := luz.create_tween()
+			tw.tween_property(luz, "light_energy", energia_objetivo, 0.35 if activar else 0.8)
+			if not activar:
+				tw.tween_callback(func():
+					if is_instance_valid(luz):
+						var loop_tw := luz.create_tween().set_loops()
+						loop_tw.tween_property(luz, "light_energy", 3.2, 1.3 + 0.3 * i).set_trans(Tween.TRANS_SINE)
+						loop_tw.tween_property(luz, "light_energy", 1.8, 1.3 + 0.3 * i).set_trans(Tween.TRANS_SINE)
+				)
 
 func _anclar_particulas_zona_spawn() -> void:
 	if es_clon:
@@ -277,6 +306,14 @@ func _resolver_plataforma_inicial() -> void:
 			_plataforma_detectada = p if (p is IslaFlotante) else col
 
 		var hit_pos: Vector3 = hit.get("position")
+		# Ajustar origen vertical a la altura deseada sobre la superficie del suelo detectada
+		_posicion_origen.y = hit_pos.y + altura_flotacion
+		if estado_actual == Estado.INACTIVO_OCULTO or estado_actual == Estado.MANIFESTANDOSE:
+			if is_inside_tree():
+				global_position = _posicion_origen
+			else:
+				position = _posicion_origen
+
 		if not Engine.is_editor_hint():
 			if is_instance_valid(particulas_zona_spawn) and not es_clon:
 				particulas_zona_spawn.global_position = Vector3(_posicion_origen.x, hit_pos.y + 0.05, _posicion_origen.z)
@@ -718,8 +755,6 @@ func _manifestar_en_zona() -> void:
 		position = _posicion_origen
 
 	velocity = Vector3.ZERO
-	if is_instance_valid(nodo_visual):
-		nodo_visual.visible = true
 	if is_instance_valid(mesh_distorsion):
 		mesh_distorsion.visible = false
 	if is_instance_valid(colision_cuerpo):
@@ -727,23 +762,76 @@ func _manifestar_en_zona() -> void:
 
 	_configurar_capas_iniciales()
 	if tiempo_anticipacion_spawn > 0.0:
+		var dur_emergencia: float = maxf(tiempo_anticipacion_spawn, 0.75)
 		estado_actual = Estado.MANIFESTANDOSE
-		_temporizador_manifestacion = tiempo_anticipacion_spawn
+		_temporizador_manifestacion = dur_emergencia
 	else:
 		estado_actual = Estado.ACECHO_INVISIBLE
+
 	_establecer_tangibilidad(false, true)
-	_mostrar_silueta_aviso()
 	estado_cambiado.emit(estado_actual)
 	enemigo_manifestado.emit()
 
-	if is_inside_tree() and is_instance_valid(nodo_visual):
-		nodo_visual.scale = Vector3(0.01, 0.01, 0.01)
-		var tween_aparicion = create_tween()
-		tween_aparicion.tween_property(nodo_visual, "scale", _escala_base_visual, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_animar_emergencia_grietas()
 
 	# Iniciar generación escalonada de espectros adicionales si cantidad_enemigos > 1
 	if not es_clon and cantidad_enemigos > 1:
 		_iniciar_secuencia_spawns()
+
+func _animar_emergencia_grietas() -> void:
+	if _tween_vertical != null and _tween_vertical.is_valid():
+		_tween_vertical.kill()
+
+	if not is_inside_tree() or not is_instance_valid(nodo_visual) or tiempo_anticipacion_spawn <= 0.0:
+		if is_instance_valid(nodo_visual):
+			nodo_visual.position = _pos_base_visual
+			nodo_visual.scale = _escala_base_visual
+			nodo_visual.visible = true
+		_animando_transicion_vertical = false
+		_mostrar_silueta_aviso()
+		return
+
+	_animando_transicion_vertical = true
+
+	# 1. Asegurar posición subterránea y escala comprimida ANTES de hacer visible para evitar cualquier destello o pop
+	var y_subterraneo: float = _pos_base_visual.y - 1.6
+	var escala_inicial: Vector3 = _escala_base_visual * Vector3(0.12, 0.20, 0.12)
+	nodo_visual.position = Vector3(_pos_base_visual.x, y_subterraneo, _pos_base_visual.z)
+	nodo_visual.scale = escala_inicial
+	nodo_visual.visible = true
+	_mostrar_silueta_aviso()
+
+	var duracion: float = maxf(tiempo_anticipacion_spawn, 0.75)
+	var dur_subida: float = duracion * 0.70
+	var dur_asentamiento: float = duracion * 0.30
+
+	# Chispas y brasas espectrales que brotan de las grietas al emerger
+	if is_instance_valid(particulas_pasto):
+		particulas_pasto.top_level = false
+		particulas_pasto.position = Vector3(0, -0.2, 0)
+		particulas_pasto.emitting = true
+
+	_intensificar_luces_grietas(true)
+
+	_tween_vertical = create_tween()
+	# 1. Movimiento vertical desde la tierra hacia arriba saliendo de las grietas
+	_tween_vertical.tween_property(nodo_visual, "position:y", _pos_base_visual.y + 0.10, dur_subida).from(y_subterraneo).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_tween_vertical.parallel().tween_property(nodo_visual, "scale", _escala_base_visual * Vector3(0.9, 1.25, 0.9), dur_subida).from(escala_inicial).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	# 2. Asentamiento elástico en su posición y escala de flotación
+	_tween_vertical.tween_property(nodo_visual, "position:y", _pos_base_visual.y, dur_asentamiento).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_tween_vertical.parallel().tween_property(nodo_visual, "scale", _escala_base_visual, dur_asentamiento).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	_tween_vertical.tween_callback(func():
+		_animando_transicion_vertical = false
+		if is_instance_valid(nodo_visual):
+			nodo_visual.position = _pos_base_visual
+			nodo_visual.scale = _escala_base_visual
+		_intensificar_luces_grietas(false)
+		if estado_actual == Estado.MANIFESTANDOSE:
+			estado_actual = Estado.ACECHO_INVISIBLE
+			estado_cambiado.emit(estado_actual)
+	)
 
 func _iniciar_secuencia_spawns() -> void:
 	if _secuencia_spawn_activa:
@@ -779,6 +867,7 @@ func _spawnear_clon(indice: int) -> void:
 	clon.distancia_ataque = distancia_ataque
 	clon.distancia_inicio_ataque = distancia_inicio_ataque
 	clon.tiempo_anticipacion_ataque = tiempo_anticipacion_ataque
+	clon.tiempo_permanencia_visible = tiempo_permanencia_visible
 	clon.velocidad_acecho = velocidad_acecho * (1.0 + (float(indice) * 0.07))
 	clon.altura_flotacion = altura_flotacion + (float(indice) * 0.04)
 	clon.tiempo_anticipacion_spawn = tiempo_anticipacion_spawn
@@ -847,52 +936,114 @@ func _verificar_zona_despejada() -> void:
 		if is_instance_valid(grietas_suelo_spawn):
 			grietas_suelo_spawn.visible = false
 
-func _desvanecer_a_origen(animado: bool = true) -> void:
-	velocity = Vector3.ZERO
-	collision_layer = 0
-	collision_mask = 0
-
+func _finalizar_desvanecimiento_a_origen() -> void:
+	_animando_transicion_vertical = false
+	if is_instance_valid(nodo_visual):
+		nodo_visual.scale = _escala_base_visual * Vector3(0.01, 0.01, 0.01)
+		nodo_visual.position = Vector3(_pos_base_visual.x, _pos_base_visual.y - 1.6, _pos_base_visual.z)
+		nodo_visual.visible = false
+	if is_instance_valid(mesh_distorsion):
+		mesh_distorsion.visible = false
+	if is_instance_valid(colision_cuerpo):
+		colision_cuerpo.set_deferred("disabled", true)
 	if is_instance_valid(particulas_pasto):
 		particulas_pasto.emitting = false
+		particulas_pasto.top_level = false
+		particulas_pasto.position = Vector3(0, -0.2, 0)
 	if is_instance_valid(audio_acecho) and audio_acecho.playing:
 		audio_acecho.stop()
 
 	_esta_tangible = false
+	_temporizador_ataque = 0.0
+	_temporizador_permanencia = 0.0
+	_fase_anticipacion_terminada = false
 	_ocultar_silueta_aviso()
+
+	if is_inside_tree():
+		global_position = _posicion_origen
+	else:
+		position = _posicion_origen
+
 	estado_actual = Estado.INACTIVO_OCULTO
 	estado_cambiado.emit(estado_actual)
 	enemigo_desvanecido.emit()
 
 	_limpiar_clones()
 
-	if animado and is_inside_tree() and is_instance_valid(nodo_visual):
-		var tween_desv = create_tween()
-		tween_desv.tween_property(nodo_visual, "scale", Vector3(0.01, 1.8, 0.01), 0.22)
-		tween_desv.tween_callback(func():
-			if is_instance_valid(nodo_visual):
-				nodo_visual.scale = _escala_base_visual
-				nodo_visual.visible = false
-			if is_instance_valid(mesh_distorsion):
-				mesh_distorsion.visible = false
-			if is_instance_valid(colision_cuerpo):
-				colision_cuerpo.set_deferred("disabled", true)
-			if is_inside_tree():
-				global_position = _posicion_origen
-			else:
-				position = _posicion_origen
-		)
-	else:
-		if is_instance_valid(nodo_visual):
-			nodo_visual.scale = _escala_base_visual
-			nodo_visual.visible = false
-		if is_instance_valid(mesh_distorsion):
-			mesh_distorsion.visible = false
-		if is_instance_valid(colision_cuerpo):
-			colision_cuerpo.set_deferred("disabled", true)
-		if is_inside_tree():
-			global_position = _posicion_origen
-		else:
-			position = _posicion_origen
+func _desvanecer_a_origen(animado: bool = true) -> void:
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	collision_mask = 0
+
+	if not animado or not is_inside_tree() or not is_instance_valid(nodo_visual):
+		_finalizar_desvanecimiento_a_origen()
+		return
+
+	if _tween_vertical != null and _tween_vertical.is_valid():
+		_tween_vertical.kill()
+
+	_animando_transicion_vertical = true
+	var y_sumergido: float = _pos_base_visual.y - 1.6
+
+	_tween_vertical = create_tween()
+	_tween_vertical.tween_property(nodo_visual, "position:y", y_sumergido, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_tween_vertical.parallel().tween_property(nodo_visual, "scale", Vector3(0.12, 1.35, 0.12) * _escala_base_visual, 0.35)
+	_tween_vertical.tween_callback(func():
+		_finalizar_desvanecimiento_a_origen()
+	)
+
+func _hundir_en_tierra_y_desvanecer(animado: bool = true) -> void:
+	if _tween_vertical != null and _tween_vertical.is_valid():
+		_tween_vertical.kill()
+
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	collision_mask = 0
+
+	if not animado or not is_inside_tree() or not is_instance_valid(nodo_visual):
+		_finalizar_desvanecimiento_a_origen()
+		return
+
+	_animando_transicion_vertical = true
+
+	# Detectar la distancia exacta al suelo debajo del espectro
+	var dist_suelo: float = altura_flotacion
+	if get_world_3d() != null:
+		var espacio = get_world_3d().direct_space_state
+		if espacio:
+			var p_origen = global_position + Vector3.UP * 0.5
+			var p_fin = global_position + Vector3.DOWN * 8.0
+			var q = PhysicsRayQueryParameters3D.create(p_origen, p_fin, 1)
+			q.exclude = [get_rid()]
+			var hit = espacio.intersect_ray(q)
+			if hit and not hit.is_empty():
+				var hit_pos: Vector3 = hit.get("position")
+				dist_suelo = maxf(global_position.y - hit_pos.y, 0.2)
+
+	var suelo_y_local: float = _pos_base_visual.y - dist_suelo
+	var y_sumergido: float = suelo_y_local - 1.5
+
+	# Emitir brasas espectrales en la superficie del suelo donde el espectro se hunde
+	if is_instance_valid(particulas_pasto):
+		particulas_pasto.top_level = true
+		particulas_pasto.global_position = Vector3(global_position.x, global_position.y - dist_suelo + 0.04, global_position.z)
+		particulas_pasto.emitting = true
+
+	_tween_vertical = create_tween()
+
+	# 1. Breve retroceso / impacto siniestro al conectar el golpe (0.12s)
+	_tween_vertical.tween_property(nodo_visual, "position:y", _pos_base_visual.y + 0.10, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_tween_vertical.parallel().tween_property(nodo_visual, "scale", _escala_base_visual * Vector3(1.15, 0.90, 1.15), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	# 2. Hundimiento en la tierra: se precipita hacia abajo atravesando el suelo
+	_tween_vertical.tween_property(nodo_visual, "position:y", y_sumergido, 0.52).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	# Se estira verticalmente y se estrecha mientras es succionado por la tierra
+	_tween_vertical.parallel().tween_property(nodo_visual, "scale", _escala_base_visual * Vector3(0.12, 1.45, 0.12), 0.52).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+	# 3. Al terminar de hundirse en la tierra, ahí sí desaparecer y regresar a origen
+	_tween_vertical.tween_callback(func():
+		_finalizar_desvanecimiento_a_origen()
+	)
 
 ## ─────────────────────────────────────────────────────────────────────────────
 ## VERIFICACIÓN DE CONTACTO CON EL AURA DEL FANTASMA
@@ -979,7 +1130,7 @@ func _establecer_visibilidad_vivo(visible_para_vivo: bool) -> void:
 		mesh_distorsion.visible = false
 	if visible_para_vivo:
 		_ocultar_silueta_aviso()
-	elif estado_actual != Estado.INACTIVO_OCULTO:
+	elif estado_actual != Estado.INACTIVO_OCULTO and estado_actual != Estado.MANIFESTANDOSE:
 		_mostrar_silueta_aviso()
 
 ## ─────────────────────────────────────────────────────────────────────────────
@@ -988,7 +1139,8 @@ func _establecer_visibilidad_vivo(visible_para_vivo: bool) -> void:
 func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 	var pos_vivo = vivo.global_position if vivo.is_inside_tree() else vivo.position
 	var pos_propia = global_position if is_inside_tree() else position
-	var dist_al_vivo = pos_propia.distance_to(pos_vivo)
+	var dist_h = Vector2(pos_vivo.x - pos_propia.x, pos_vivo.z - pos_propia.z).length()
+	var diff_y = pos_vivo.y - pos_propia.y
 
 	# 1. ESTADO ATURDIDO POR AURA DEL FANTASMA (TANGIBLE_VULNERABLE):
 	# El enemigo se queda completamente quieto y visible para que el Vivo lo ataque o salte sobre él.
@@ -1006,33 +1158,67 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 		var target_rot_y = atan2(dir_hacia_vivo.x, dir_hacia_vivo.z)
 		rotation.y = lerp_angle(rotation.y, target_rot_y, 7.0 * delta)
 
-	# 2. ESTADO ANTICIPANDO ATAQUE:
-	# Se detiene un momento, aparece visualmente y después lanza su ataque letal.
-	# En este momento el Vivo puede saltar sobre él o atacarlo para derrotarlo.
+	# 2. ESTADO ANTICIPANDO ATAQUE / RECUPERACIÓN VULNERABLE:
+	# Se detiene, aparece visualmente y asesta su golpe letal al expirar el tiempo de anticipación.
 	if estado_actual == Estado.ANTICIPANDO_ATAQUE:
 		velocity = Vector3.ZERO
 		if _verificar_contraataque_vivo(vivo):
 			return
 
-		_temporizador_ataque -= delta
-		if is_instance_valid(nodo_visual):
-			var pulso_amenaza = 1.0 + 0.14 * sin(_tiempo_acumulado * 28.0)
-			nodo_visual.scale = _escala_base_visual * Vector3(pulso_amenaza, 2.0 - pulso_amenaza, pulso_amenaza)
-
-		if _temporizador_ataque <= 0.0:
+		if not _fase_anticipacion_terminada:
+			_temporizador_ataque -= delta
 			if is_instance_valid(nodo_visual):
-				nodo_visual.scale = _escala_base_visual
-			# Embestida final del ataque: si el Vivo sigue al alcance, es eliminado; si esquivó, vuelve a acechar
-			if dist_al_vivo <= maxf(distancia_ataque, distancia_inicio_ataque) + 0.35:
+				var pulso_amenaza = 1.0 + 0.14 * sin(_tiempo_acumulado * 28.0)
+				nodo_visual.scale = _escala_base_visual * Vector3(pulso_amenaza, 2.0 - pulso_amenaza, pulso_amenaza)
+
+			if _temporizador_ataque <= 0.0:
+				_fase_anticipacion_terminada = true
+				if is_instance_valid(nodo_visual):
+					nodo_visual.scale = _escala_base_visual
+
+				# El espectro lanza su embestida letal. Cubre toda la distancia de inicio de ataque + lunge
+				var alcance_golpe: float = maxf(distancia_ataque, distancia_inicio_ataque) + 0.45
+				var vivo_saltando_arriba: bool = (vivo is CharacterBody3D and not (vivo as CharacterBody3D).is_on_floor() and diff_y >= 0.25)
+
+				# Si el Vivo NO está en el aire pisándolo y sigue al alcance: ¡GOLPE LETAL!
+				if not vivo_saltando_arriba and dist_h <= alcance_golpe and absf(diff_y) <= 1.8:
+					_resolver_contacto_con_vivo(vivo)
+					return
+		else:
+			# FASE DE PERMANENCIA VISIBLE TRAS FALLAR EL GOLPE (el Vivo esquivó o saltó):
+			# Permanece completamente VISIBLE y VULNERABLE antes de desvanecerse
+			_temporizador_permanencia -= delta
+
+			# Si durante la permanencia el Vivo choca con el espectro a pie firme en el suelo: contacto letal
+			var esta_en_suelo: bool = (vivo is CharacterBody3D and (vivo as CharacterBody3D).is_on_floor()) if vivo.is_inside_tree() else false
+			if esta_en_suelo and dist_h <= distancia_ataque and absf(diff_y) <= 1.2:
 				_resolver_contacto_con_vivo(vivo)
-			else:
+				return
+
+			# Si el Vivo sigue en el aire por encima preparándose para pisarlo, extender la permanencia
+			if diff_y >= 0.25 and dist_h <= 1.4:
+				_temporizador_permanencia = maxf(_temporizador_permanencia, 0.35)
+
+			if _temporizador_permanencia <= 0.0:
 				_cancelar_anticipacion_ataque()
 		return
 
-	# 3. ESTADO ACECHO INVISIBLE: Flotar persiguiendo al Vivo en la plataforma
+	# 3. ESTADO ACECHO INVISIBLE: Persecución estrictamente horizontal
+	# Comprobar si el Vivo está saltando o cayendo directamente sobre él durante el acecho
+	if _verificar_contraataque_vivo(vivo):
+		return
+
 	var dir_desplazamiento = _calcular_direccion_cooperativa(pos_vivo, pos_propia, dir_hacia_vivo)
-	var vel_objetivo = dir_desplazamiento * velocidad_acecho
-	vel_objetivo.y = ((pos_vivo.y + altura_flotacion) - pos_propia.y) * 2.5
+	dir_desplazamiento.y = 0.0
+	if dir_desplazamiento.length_squared() > 0.01:
+		dir_desplazamiento = dir_desplazamiento.normalized()
+
+	var vel_objetivo = Vector3(dir_desplazamiento.x * velocidad_acecho, 0.0, dir_desplazamiento.z * velocidad_acecho)
+
+	# La altura se mantiene fija en su cota de flotación (_posicion_origen.y), sin seguir verticalmente al Vivo
+	var diff_y_origen = _posicion_origen.y - pos_propia.y
+	vel_objetivo.y = diff_y_origen * 5.0
+
 	velocity = velocity.move_toward(vel_objetivo, 7.0 * delta)
 
 	# Efectos sensoriales de acecho para el Vivo
@@ -1041,9 +1227,9 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 	if is_instance_valid(audio_acecho) and not audio_acecho.playing:
 		audio_acecho.play()
 
-	# ¿Entró en distancia para anticipar su ataque?
+	# ¿Entró en distancia horizontal para anticipar su ataque?
 	var umbral_ataque = maxf(distancia_ataque, distancia_inicio_ataque)
-	if dist_al_vivo <= umbral_ataque:
+	if dist_h <= umbral_ataque and absf(diff_y) <= 2.5:
 		if tiempo_anticipacion_ataque > 0.0:
 			_iniciar_anticipacion_ataque()
 		else:
@@ -1101,6 +1287,8 @@ func _calcular_direccion_cooperativa(pos_vivo: Vector3, pos_propia: Vector3, dir
 func _iniciar_anticipacion_ataque() -> void:
 	estado_actual = Estado.ANTICIPANDO_ATAQUE
 	_temporizador_ataque = tiempo_anticipacion_ataque
+	_temporizador_permanencia = tiempo_permanencia_visible
+	_fase_anticipacion_terminada = false
 	velocity = Vector3.ZERO
 	# Hacerse tangible en colisión (Capa 2) y visible en Capa 1 para que el Vivo lo vea y pueda atacarlo o pisarlo
 	collision_layer = 2 | 4
@@ -1113,6 +1301,8 @@ func _cancelar_anticipacion_ataque() -> void:
 		return
 	estado_actual = Estado.ACECHO_INVISIBLE
 	_temporizador_ataque = 0.0
+	_temporizador_permanencia = 0.0
+	_fase_anticipacion_terminada = false
 	collision_layer = 4
 	collision_mask = 1
 	if is_instance_valid(nodo_visual):
@@ -1141,10 +1331,16 @@ func _verificar_contraataque_vivo(vivo: Node3D) -> bool:
 		return true
 
 	# 2. Contraataque saltando sobre el enemigo (pisotón desde arriba)
+	var esta_en_suelo: bool = false
 	var vel_y_vivo: float = 0.0
 	if vivo is CharacterBody3D:
-		vel_y_vivo = (vivo as CharacterBody3D).velocity.y
-	if dist_h <= 1.15 and diff_y >= 0.35 and diff_y <= 1.85 and vel_y_vivo <= 1.5:
+		var cb := vivo as CharacterBody3D
+		esta_en_suelo = cb.is_on_floor() if cb.is_inside_tree() else false
+		vel_y_vivo = cb.velocity.y
+
+	# Un pisotón requiere que el Vivo esté en el aire (no en el suelo), cayendo y claramente por encima
+	var es_pisoton: bool = (not esta_en_suelo) and (diff_y >= 0.25) and (diff_y <= 2.2) and (vel_y_vivo <= 1.5)
+	if dist_h <= 1.35 and es_pisoton:
 		if vivo is CharacterBody3D:
 			var fuerza_rebote: float = 8.5
 			if "FUERZA_SALTO" in vivo:
@@ -1162,9 +1358,8 @@ func _resolver_contacto_con_vivo(vivo: Node3D) -> void:
 	if estado_actual == Estado.GOLPE_LETAL or estado_actual == Estado.DERROTADO:
 		return
 
-	# Si el enemigo es tangible y el Vivo está embistiendo en este instante, el Vivo gana
-	if _esta_tangible and "_esta_haciendo_embate" in vivo and vivo.get("_esta_haciendo_embate") == true:
-		recibir_impacto(vivo)
+	# Si el Vivo está atacando (embate/dive/ground pound) o pisándolo desde arriba en este instante, el Vivo gana
+	if _verificar_contraataque_vivo(vivo):
 		return
 
 	# CONTACTO MORTAL: El Vivo muere al instante
@@ -1183,11 +1378,7 @@ func _resolver_contacto_con_vivo(vivo: Node3D) -> void:
 	if is_instance_valid(vivo) and vivo.has_method("reaparecer"):
 		vivo.reaparecer()
 
-	if is_instance_valid(particulas_muerte):
-		particulas_muerte.restart()
-		particulas_muerte.emitting = true
-
-	_desvanecer_a_origen(true)
+	_hundir_en_tierra_y_desvanecer(true)
 
 ## ─────────────────────────────────────────────────────────────────────────────
 ## CONTRATO DE COMBATE: IMPACTO POR EMBATE DEL VIVO (recibir_impacto)
@@ -1195,6 +1386,10 @@ func _resolver_contacto_con_vivo(vivo: Node3D) -> void:
 func recibir_impacto(jugador: Node3D) -> void:
 	if estado_actual == Estado.DERROTADO:
 		return
+
+	if _tween_vertical != null and _tween_vertical.is_valid():
+		_tween_vertical.kill()
+	_animando_transicion_vertical = false
 
 	estado_actual = Estado.DERROTADO
 	estado_cambiado.emit(estado_actual)
@@ -1228,8 +1423,9 @@ func _animar_flotacion_y_manos(_delta: float) -> void:
 	if not is_instance_valid(nodo_visual) or not nodo_visual.visible:
 		return
 
-	var oscilacion_y = sin(_tiempo_acumulado * 3.0) * 0.08
-	nodo_visual.position.y = oscilacion_y
+	if not _animando_transicion_vertical:
+		var oscilacion_y = sin(_tiempo_acumulado * 3.0) * 0.08
+		nodo_visual.position.y = _pos_base_visual.y + oscilacion_y
 
 	if is_instance_valid(mano_izq) and is_instance_valid(mano_der):
 		var aleteo_izq = cos(_tiempo_acumulado * 2.8 + 0.5) * 0.05
