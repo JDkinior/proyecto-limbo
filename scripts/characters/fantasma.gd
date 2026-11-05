@@ -8,6 +8,7 @@ signal aura_estado_actualizado(activo: bool, progreso_cooldown: float)
 @onready var modelo_fantasma: Node3D = get_node_or_null("fantasma")
 @onready var anim_player: AnimationPlayer = get_node_or_null("fantasma/AnimationPlayer")
 @onready var estela_fantasma: CPUParticles3D = get_node_or_null("EstelaFantasma")
+@onready var particulas_impacto_fantasma: CPUParticles3D = get_node_or_null("ParticulasImpactoFantasma")
 @onready var luz_fantasma: OmniLight3D = get_node_or_null("OmniLight3D")
 
 var _pos_y_inicial_fantasma: float = 0.36
@@ -61,19 +62,19 @@ func _ready():
 	MULTIPLICADOR_SEGUNDO_SALTO = 1.0
 	MULTIPLICADOR_CAIDA = 0.65
 	MULTIPLICADOR_CORTE_SALTO = 1.8
-	MULTIPLICADOR_GRAVEDAD_APICE = 0.40
-	UMBRAL_VELOCIDAD_APICE = 1.6
+	MULTIPLICADOR_GRAVEDAD_APICE = 0.38
+	UMBRAL_VELOCIDAD_APICE = 1.8
 	VELOCIDAD_MAX_CAIDA = 9.5
-	TIEMPO_COYOTE = 0.18
-	TIEMPO_BUFFER_SALTO = 0.14
+	TIEMPO_COYOTE = 0.12
+	TIEMPO_BUFFER_SALTO = 0.12
 	MAX_SALTOS = 1
 
 	# Habilidad de levitación espectral (Slow-Fall / Glide al mantener presionado el botón de salto)
 	PUEDE_PLANEAR = true
 	MULTIPLICADOR_CAIDA_PLANEO = 0.18
 	VELOCIDAD_MAX_CAIDA_PLANEO = 1.85
-	MULTIPLICADOR_VELOCIDAD_PLANEO = 1.15
-	MULTIPLICADOR_ACELERACION_PLANEO = 1.30
+	MULTIPLICADOR_VELOCIDAD_PLANEO = 1.20
+	MULTIPLICADOR_ACELERACION_PLANEO = 1.35
 	SUAVIDAD_FRENADO_PLANEO = 18.0
 
 	# Silueta etérea cian/azul místico para el personaje espiritual (Fantasma)
@@ -122,6 +123,7 @@ func _ready():
 	_pos_anterior_remoto = global_position
 
 	_configurar_animaciones()
+	_configurar_particulas_lowpoly_fantasma()
 	
 	# Pre-inicializar entorno espiritual y cámara para pre-hornear radiancia del cielo al inicio
 	_entorno_fantasma_cache = obtener_entorno_personaje()
@@ -145,7 +147,8 @@ func obtener_entorno_personaje() -> Environment:
 	return _entorno_fantasma_cache
 
 func obtener_cull_mask_personaje() -> int:
-	return 1048575
+	# Ver todas las capas excepto la Capa 2 (aviso de silueta translúcida exclusivo para el Vivo)
+	return 1048575 & ~(1 << 1)
 
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	super(preservar_rotacion_camara)
@@ -245,6 +248,7 @@ func _comprobar_aterrizaje_fisico(vel_y_previa: float) -> void:
 	var en_suelo = is_on_floor()
 	if en_suelo and not _estaba_en_suelo_fantasma and vel_y_previa < -1.0:
 		_iniciar_animacion_aterrizaje_fantasma(vel_y_previa)
+		_emitir_rafaga_particulas_impacto_fantasma(vel_y_previa < -4.5)
 	_estaba_en_suelo_fantasma = en_suelo
 
 func _process(delta: float):
@@ -287,6 +291,9 @@ func _process(delta: float):
 	_actualizar_estela(vel_total)
 
 func obtener_distancia_camara_deseada() -> float:
+	var cam_mgr = _get_camara_config_manager()
+	if is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica():
+		return cam_mgr.obtener_distancia_camara()
 	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
 		var obj = habilidad_posesion.obtener_objeto_poseido()
 		if is_instance_valid(obj):
@@ -294,6 +301,9 @@ func obtener_distancia_camara_deseada() -> float:
 	return super()
 
 func obtener_altura_spring_arm_deseada() -> float:
+	var cam_mgr = _get_camara_config_manager()
+	if is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica():
+		return cam_mgr.obtener_altura_spring_arm()
 	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
 		var obj = habilidad_posesion.obtener_objeto_poseido()
 		if is_instance_valid(obj):
@@ -345,6 +355,8 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 		obj_pitch = 0.28
 	elif planeando:
 		obj_pitch = 0.12
+	elif esta_derrapando:
+		obj_pitch = -0.10
 	elif vel_horizontal > 0.2:
 		obj_pitch = (factor_vel * 0.10) + inercia_freno
 	else:
@@ -538,58 +550,67 @@ func _actualizar_squash_stretch_fantasma(delta: float) -> void:
 		_offset_y_squash_fantasma = 0.0
 		return
 
-	# 1. Impulso Instantáneo de Salto Espectral (Lanzamiento explosivo sin retraso ni agazapado)
+	# 1. Impulso Instantáneo de Salto Espectral (Lanzamiento explosivo estirándose hacia arriba)
 	if _tiempo_impulso_salto_fantasma > 0.0:
 		_tiempo_impulso_salto_fantasma = maxf(_tiempo_impulso_salto_fantasma - delta, 0.0)
 		var p = 1.0 - (_tiempo_impulso_salto_fantasma / _duracion_impulso_salto_fantasma)
-		# Deformación estilizada: impulso elástico inicial con rápido retorno
 		var factor_impulso = sin((1.0 - p) * (PI * 0.5))
-		escala_y = lerpf(1.0, 1.18, factor_impulso)
-		offset_y = 0.06 * factor_impulso
+		escala_y = lerpf(1.0, 1.28, factor_impulso)
+		offset_y = 0.08 * factor_impulso
 
-	# 2. Levitación / Planeo Espectral (Al mantener presionado salto en el aire: manto amplio y majestuoso)
+	# 2. Frenado / Derrape Espectral (Aplanamiento elástico en el plano de movimiento)
+	elif esta_derrapando:
+		escala_y = 0.88
+		offset_y = -ALTURA_BASE_FANTASMA * (1.0 - escala_y) * 0.5
+
+	# 3. Levitación / Planeo Espectral (Al mantener presionado salto en el aire: manto amplio y majestuoso)
 	elif not en_suelo and (planeando or salto_mantenido):
-		# Manto espectral amplio que flota en corrientes de aire, nunca estrecho ni comprimido
 		var respiracion_planeo = sin(_tiempo_flotacion * 2.8) * 0.02
-		escala_y = 0.96 + respiracion_planeo
+		escala_y = 0.92 + respiracion_planeo
 		offset_y = 0.03
 
-	# 3. Flotación libre / Vuelo en el aire (sin mantener levitación)
+	# 4. Flotación libre / Vuelo en el aire (sin mantener levitación)
 	elif not en_suelo:
 		var vel_y = velocity.y if (es_activo() or es_offline_o_solo) else 0.0
 		if vel_y > 1.5:
-			# Ascenso suave: alargamiento muy sutil sin adelgazar la silueta
+			# Ascenso suave: alargamiento vertical
 			var factor_subida = clampf(vel_y / FUERZA_SALTO, 0.0, 1.0)
-			escala_y = 1.0 + (factor_subida * 0.08)
-			offset_y = 0.02 * factor_subida
+			escala_y = 1.0 + (factor_subida * 0.14)
+			offset_y = 0.03 * factor_subida
 		elif absf(vel_y) <= 1.5:
 			# Ápice: relajación flotante natural
 			escala_y = 0.98 + sin(_tiempo_flotacion * 2.0) * 0.02
 			offset_y = 0.01
 		else:
-			# Descenso suave en gravedad etérea
+			# Descenso suave en gravedad etérea: estirado hacia abajo
 			var factor_caida = clampf(-vel_y / VELOCIDAD_MAX_CAIDA, 0.0, 1.0)
-			escala_y = 1.0 + (factor_caida * 0.06)
+			escala_y = 1.0 + (factor_caida * 0.14)
 			offset_y = 0.0
 
-	# 4. Amortiguación de Aterrizaje Espectral (Pivote anclado a la base de la túnica/manto)
+	# 5. Amortiguación de Aterrizaje Espectral (Pivote anclado a la base de la túnica/manto con rebote rápido de gelatina)
 	elif _tiempo_aterrizaje_fantasma > 0.0:
 		_tiempo_aterrizaje_fantasma = maxf(_tiempo_aterrizaje_fantasma - delta, 0.0)
 		var t = 1.0 - (_tiempo_aterrizaje_fantasma / _duracion_aterrizaje_fantasma)
 		var f = _fuerza_impacto_aterrizaje_fantasma
 
-		if t < 0.40:
-			# Amortiguación suave y etérea contra el piso (máximo 12% para evitar efecto aplastado/panqueque)
-			var sub_t = t / 0.40
-			var max_squash = 1.0 - (0.12 * f)
+		if t < 0.25:
+			# Amortiguación veloz tipo gelatina contra el piso con túnica anclada a la base
+			var sub_t = t / 0.25
+			var max_squash = 1.0 - (0.26 * f)
 			escala_y = lerpf(1.0, max_squash, sin(sub_t * (PI * 0.5)))
-			# Compensación de pivote hacia la base para que la túnica no flote en el aire al deformarse
+			offset_y = -ALTURA_BASE_FANTASMA * (1.0 - escala_y)
+		elif t < 0.62:
+			# Rebote elástico overshoot inmediato
+			var sub_t = (t - 0.25) / 0.37
+			var max_squash = 1.0 - (0.26 * f)
+			var overshoot = 1.0 + (0.14 * f)
+			escala_y = lerpf(max_squash, overshoot, sin(sub_t * (PI * 0.5)))
 			offset_y = -ALTURA_BASE_FANTASMA * (1.0 - escala_y)
 		else:
 			# Retorno elástico y fluido al reposo
-			var sub_t = (t - 0.40) / 0.60
-			var max_squash = 1.0 - (0.12 * f)
-			escala_y = lerpf(max_squash, 1.0, sin(sub_t * (PI * 0.5)))
+			var sub_t = (t - 0.62) / 0.38
+			var overshoot = 1.0 + (0.14 * f)
+			escala_y = lerpf(overshoot, 1.0, sin(sub_t * (PI * 0.5)))
 			offset_y = -ALTURA_BASE_FANTASMA * (1.0 - escala_y)
 	else:
 		# Reposo en el suelo / flotación neutral
@@ -597,20 +618,150 @@ func _actualizar_squash_stretch_fantasma(delta: float) -> void:
 		escala_y = 1.0 + respiracion_reposo
 		offset_y = 0.0
 
-	# Conservación elástica de volumen: relación proporcional suave sin exageración
-	var escala_xz = 1.0 / sqrt(maxf(escala_y, 0.2))
+	# Conservación elástica de volumen tipo gelatina espectral
+	var delta_y = escala_y - 1.0
+	var escala_xz = clampf(1.0 - (delta_y * 0.45), 0.82, 1.22)
 	var escala_objetivo = Vector3(escala_xz, escala_y, escala_xz)
 
-	_squash_stretch_fantasma = _squash_stretch_fantasma.lerp(escala_objetivo, 18.0 * delta)
-	_offset_y_squash_fantasma = lerpf(_offset_y_squash_fantasma, offset_y, 16.0 * delta)
+	_squash_stretch_fantasma = _squash_stretch_fantasma.lerp(escala_objetivo, 28.0 * delta)
+	_offset_y_squash_fantasma = lerpf(_offset_y_squash_fantasma, offset_y, 28.0 * delta)
+
+static var _malla_nube_lowpoly_fantasma_cache: ArrayMesh = null
+
+static func _crear_malla_nube_lowpoly_fantasma(radio: float = 0.14) -> ArrayMesh:
+	if _malla_nube_lowpoly_fantasma_cache != null:
+		return _malla_nube_lowpoly_fantasma_cache
+
+	# Construcción procedural de un icosaedro regular (20 caras triangulares) con sombreado flat-shaded
+	var t: float = (1.0 + sqrt(5.0)) * 0.5
+	var verts_raw: Array[Vector3] = [
+		Vector3(-1,  t,  0), Vector3( 1,  t,  0), Vector3(-1, -t,  0), Vector3( 1, -t,  0),
+		Vector3( 0, -1,  t), Vector3( 0,  1,  t), Vector3( 0, -1, -t), Vector3( 0,  1, -t),
+		Vector3( t,  0, -1), Vector3( t,  0,  1), Vector3(-t,  0, -1), Vector3(-t,  0,  1)
+	]
+	var verts: Array[Vector3] = []
+	for v in verts_raw:
+		verts.append(v.normalized() * radio)
+
+	var caras: Array[int] = [
+		0, 11, 5,   0, 5, 1,    0, 1, 7,    0, 7, 10,   0, 10, 11,
+		1, 5, 9,    5, 11, 4,   11, 10, 2,  10, 7, 6,   7, 1, 8,
+		3, 9, 4,    3, 4, 2,    3, 2, 6,    3, 6, 8,    3, 8, 9,
+		4, 9, 5,    2, 4, 11,   6, 2, 10,   8, 6, 7,    9, 8, 1
+	]
+
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	for i in range(0, caras.size(), 3):
+		var v0: Vector3 = verts[caras[i]]
+		var v1: Vector3 = verts[caras[i + 1]]
+		var v2: Vector3 = verts[caras[i + 2]]
+		var normal: Vector3 = (v2 - v0).cross(v1 - v0).normalized()
+		if normal.dot((v0 + v1 + v2) / 3.0) < 0.0:
+			normal = -normal
+			var tmp = v1
+			v1 = v2
+			v2 = tmp
+		st.set_normal(normal)
+		st.add_vertex(v0)
+		st.set_normal(normal)
+		st.add_vertex(v1)
+		st.set_normal(normal)
+		st.add_vertex(v2)
+
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.50, 0.88, 1.0, 1.0) # Azul celeste/cian espiritual sólido y luminoso
+	mat.roughness = 0.88
+	mat.metallic = 0.0
+	mat.emission_enabled = true
+	mat.emission = Color(0.18, 0.65, 0.95)
+	mat.emission_energy_multiplier = 0.22
+	# Usar TRANSPARENCY_ALPHA con alpha = 1.0 y DEPTH_DRAW_ALWAYS evita activar el X-Ray cian del personaje
+	# manteniendo el poliedro 100% sólido y facetado.
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+	st.set_material(mat)
+
+	_malla_nube_lowpoly_fantasma_cache = st.commit()
+	return _malla_nube_lowpoly_fantasma_cache
+
+func _configurar_particulas_lowpoly_fantasma() -> void:
+	var malla_lowpoly = _crear_malla_nube_lowpoly_fantasma(0.13)
+	var curva_escala = Curve.new()
+	curva_escala.add_point(Vector2(0.0, 0.40))
+	curva_escala.add_point(Vector2(0.20, 1.15))
+	curva_escala.add_point(Vector2(0.68, 0.85))
+	curva_escala.add_point(Vector2(1.0, 0.0))
+
+	if is_instance_valid(estela_fantasma):
+		estela_fantasma.mesh = malla_lowpoly
+		# A nivel de la base de la túnica/pies (-0.36) y ligeramente hacia atrás (z = 0.16)
+		estela_fantasma.position = Vector3(0.0, -0.36, 0.16)
+		estela_fantasma.amount = 10
+		estela_fantasma.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		estela_fantasma.emission_box_extents = Vector3(0.15, 0.03, 0.08)
+		estela_fantasma.direction = Vector3(0.0, 0.25, 0.85)
+		estela_fantasma.spread = 28.0
+		estela_fantasma.scale_amount_curve = curva_escala
+		estela_fantasma.color_ramp = null
+		estela_fantasma.color = Color(1.0, 1.0, 1.0, 1.0)
+		estela_fantasma.gravity = Vector3(0.0, 0.35, 0.0)
+
+	if not is_instance_valid(particulas_impacto_fantasma):
+		particulas_impacto_fantasma = CPUParticles3D.new()
+		particulas_impacto_fantasma.name = "ParticulasImpactoFantasma"
+		add_child(particulas_impacto_fantasma)
+
+	particulas_impacto_fantasma.emitting = false
+	particulas_impacto_fantasma.one_shot = true
+	particulas_impacto_fantasma.mesh = malla_lowpoly
+	particulas_impacto_fantasma.position = Vector3(0.0, -0.38, 0.0)
+	particulas_impacto_fantasma.amount = 16
+	particulas_impacto_fantasma.lifetime = 0.42
+	particulas_impacto_fantasma.explosiveness = 0.98
+	particulas_impacto_fantasma.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	particulas_impacto_fantasma.emission_ring_axis = Vector3(0.0, 1.0, 0.0)
+	particulas_impacto_fantasma.emission_ring_height = 0.04
+	particulas_impacto_fantasma.emission_ring_radius = 0.28
+	particulas_impacto_fantasma.emission_ring_inner_radius = 0.22
+	# Expansión radial uniforme en círculo hacia afuera desde la base del fantasma
+	particulas_impacto_fantasma.direction = Vector3(0.0, 1.0, 0.0)
+	particulas_impacto_fantasma.spread = 15.0
+	particulas_impacto_fantasma.flatness = 0.0
+	particulas_impacto_fantasma.initial_velocity_min = 0.15
+	particulas_impacto_fantasma.initial_velocity_max = 0.35
+	particulas_impacto_fantasma.radial_accel_min = 11.0
+	particulas_impacto_fantasma.radial_accel_max = 15.0
+	particulas_impacto_fantasma.gravity = Vector3(0.0, 0.35, 0.0)
+	particulas_impacto_fantasma.damping_min = 6.5
+	particulas_impacto_fantasma.damping_max = 8.5
+	particulas_impacto_fantasma.scale_amount_min = 0.80
+	particulas_impacto_fantasma.scale_amount_max = 1.40
+	particulas_impacto_fantasma.scale_amount_curve = curva_escala
+	particulas_impacto_fantasma.color_ramp = null
+	particulas_impacto_fantasma.color = Color(1.0, 1.0, 1.0, 1.0)
+
+func _emitir_rafaga_particulas_impacto_fantasma(es_impacto_fuerte: bool = false) -> void:
+	if not is_instance_valid(particulas_impacto_fantasma):
+		return
+	particulas_impacto_fantasma.position = Vector3(0.0, -0.36 if es_impacto_fuerte else -0.38, 0.0)
+	particulas_impacto_fantasma.emission_ring_radius = 0.32 if es_impacto_fuerte else 0.26
+	particulas_impacto_fantasma.emission_ring_inner_radius = 0.25 if es_impacto_fuerte else 0.20
+	particulas_impacto_fantasma.radial_accel_min = 14.5 if es_impacto_fuerte else 10.0
+	particulas_impacto_fantasma.radial_accel_max = 19.5 if es_impacto_fuerte else 14.0
+	particulas_impacto_fantasma.scale_amount_min = 0.95 if es_impacto_fuerte else 0.75
+	particulas_impacto_fantasma.scale_amount_max = 1.60 if es_impacto_fuerte else 1.25
+	particulas_impacto_fantasma.restart()
+	particulas_impacto_fantasma.emitting = true
 
 func _iniciar_animacion_salto_fantasma() -> void:
 	_tiempo_impulso_salto_fantasma = _duracion_impulso_salto_fantasma
 	_tiempo_aterrizaje_fantasma = 0.0
 	_pulso_luz_salto = 0.75
-	if is_instance_valid(estela_fantasma):
-		estela_fantasma.restart()
-		estela_fantasma.emitting = true
+	_emitir_rafaga_particulas_impacto_fantasma(false)
 
 func _iniciar_animacion_aterrizaje_fantasma(vel_y: float) -> void:
 	if _tiempo_aterrizaje_fantasma > (_duracion_aterrizaje_fantasma * 0.75):
@@ -628,6 +779,36 @@ func _al_realizar_salto(numero_salto: int):
 func _al_aterrizar(vel_y: float) -> void:
 	super(vel_y)
 	_iniciar_animacion_aterrizaje_fantasma(vel_y)
+	_emitir_rafaga_particulas_impacto_fantasma(vel_y < -4.5)
+
+func _al_iniciar_derrape(velocidad: float, direccion_input: Vector3) -> void:
+	super(velocidad, direccion_input)
+	_emitir_rafaga_particulas_impacto_fantasma(false)
+	if is_instance_valid(estela_fantasma):
+		estela_fantasma.emitting = true
+		estela_fantasma.scale_amount_max = 1.45
+
+func _al_procesar_derrape(delta: float, velocidad: float) -> void:
+	super(delta, velocidad)
+	if is_instance_valid(estela_fantasma):
+		estela_fantasma.position = Vector3(0.0, -0.36, 0.0)
+		estela_fantasma.emitting = true
+		estela_fantasma.scale_amount_min = 0.85
+		estela_fantasma.scale_amount_max = 1.40
+		estela_fantasma.direction = Vector3(0.0, 0.35, -0.65)
+
+func _al_finalizar_derrape() -> void:
+	super()
+	if is_instance_valid(estela_fantasma):
+		estela_fantasma.position = Vector3(0.0, -0.36, 0.16)
+		estela_fantasma.scale_amount_min = 0.60
+		estela_fantasma.scale_amount_max = 1.15
+		estela_fantasma.direction = Vector3(0.0, 0.25, 0.85)
+
+func _al_realizar_salto_derrape() -> void:
+	super()
+	_iniciar_animacion_salto_fantasma()
+	_emitir_rafaga_particulas_impacto_fantasma(true)
 
 func _al_resetear_estados() -> void:
 	_tilt_espectral_pitch = 0.0
@@ -651,3 +832,6 @@ func _al_resetear_estados() -> void:
 	if is_instance_valid(estela_fantasma):
 		estela_fantasma.emitting = false
 		estela_fantasma.restart()
+	if is_instance_valid(particulas_impacto_fantasma):
+		particulas_impacto_fantasma.emitting = false
+		particulas_impacto_fantasma.restart()

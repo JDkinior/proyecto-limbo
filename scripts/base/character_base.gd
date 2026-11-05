@@ -30,8 +30,8 @@ class_name CharacterBase
 @export var MULTIPLICADOR_GRAVEDAD_APICE : float = 1.0
 @export var UMBRAL_VELOCIDAD_APICE : float = 1.6
 @export var VELOCIDAD_MAX_CAIDA : float = 26.0
-@export var TIEMPO_COYOTE : float = 0.15
-@export var TIEMPO_BUFFER_SALTO : float = 0.14
+@export var TIEMPO_COYOTE : float = 0.12
+@export var TIEMPO_BUFFER_SALTO : float = 0.12
 @export var MAX_SALTOS : int = 2
 
 @export_group("Levitacion / Planeo")
@@ -68,6 +68,14 @@ var tiempo_desde_salto : float = 0.0
 var saltos_realizados : int = 0
 var _vel_y_previa_base : float = 0.0
 
+# Estado de derrape físico y turnaround tipo Odyssey
+var esta_derrapando: bool = false
+var tiempo_derrape_restante: float = 0.0
+const DURACION_DERRAPE: float = 0.28
+const DESACELERACION_DERRAPE: float = 14.0
+var _dir_deslizamiento_derrape: Vector2 = Vector2.ZERO
+var _angulo_derrape_rotacion: float = 0.0
+
 # Variables para interpolación de red (anti-stuttering)
 var sync_position: Vector3
 var sync_rotation: Vector3
@@ -76,6 +84,7 @@ var sync_rotation: Vector3
 # GESTIÓN DE FUERZAS EXTERNAS Y VÓRTICES (TORBELLINOS)
 # ===================================================================
 var movimiento_bloqueado: bool = false
+var en_vuelo_balistico: bool = false
 var _fuerza_vortice_acumulada: Vector3 = Vector3.ZERO
 var _arrastre_descendente_vortice: float = 0.0
 var _vortice_esta_absorbido: bool = false
@@ -102,6 +111,7 @@ var _pos_camara_fija_caida: Vector3 = Vector3.ZERO
 var _rot_camara_fija_caida: Vector3 = Vector3.ZERO
 var _rot_x_arm_fija_caida: float = 0.0
 var _camara_fijada_en_caida: bool = false
+var _retornando_de_camara_estatica: bool = false
 var _ultimo_suelo_colisionado: Node = null
 var _tiempo_desde_ultimo_suelo: float = 999.0
 
@@ -261,7 +271,11 @@ func centrar_camara_inmediatamente():
 	objetivo_rotacion_y = rotation.y
 	objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
+var camara_config_manager_override: Node = null
+
 func _get_camara_config_manager() -> Node:
+	if is_instance_valid(camara_config_manager_override):
+		return camara_config_manager_override
 	if not is_inside_tree():
 		var loop = Engine.get_main_loop()
 		if loop is SceneTree and (loop as SceneTree).root:
@@ -297,6 +311,11 @@ func _ready():
 	objetivo_rotacion_y = rotation.y
 	objetivo_rotacion_x = PITCH_DEFECTO_CAMARA
 
+	var cam_mgr = _get_camara_config_manager()
+	if is_instance_valid(cam_mgr) and cam_mgr.has_signal("camara_estatica_cambiada"):
+		if not cam_mgr.camara_estatica_cambiada.is_connected(_on_camara_estatica_cambiada_base):
+			cam_mgr.camara_estatica_cambiada.connect(_on_camara_estatica_cambiada_base)
+
 	var spring_arm = obtener_spring_arm()
 	if spring_arm:
 		spring_arm.add_excluded_object(get_rid())
@@ -325,9 +344,10 @@ func _ready():
 	actualizar_silueta_oclusion()
 	
 	# Buscar controles táctiles en el grupo global "ui_tactil"
-	var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
-	if nodos_ui.size() > 0:
-		controles_tactiles = nodos_ui[0]
+	if get_tree():
+		var nodos_ui = get_tree().get_nodes_in_group("ui_tactil")
+		if nodos_ui.size() > 0:
+			controles_tactiles = nodos_ui[0]
 
 func es_activo() -> bool:
 	var red_mgr = _get_red_manager()
@@ -355,26 +375,43 @@ func _process(delta: float):
 			rotation.x = lerp_angle(rotation.x, sync_rotation.x, 15.0 * delta)
 
 
+func _on_camara_estatica_cambiada_base(activa: bool) -> void:
+	if not activa:
+		_retornando_de_camara_estatica = true
+	else:
+		_retornando_de_camara_estatica = false
+
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	# Lógica base de cámara, los hijos extenderán esto
 	var es_mio = es_activo()
 	if pivote_camara:
 		if es_mio:
 			pivote_camara.top_level = true
-			pivote_camara.global_position = global_position
-			if not preservar_rotacion_camara:
-				objetivo_rotacion_y = rotation.y
-				pivote_camara.rotation.y = rotation.y
+			var cam_mgr = _get_camara_config_manager()
+			var es_estatica = is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica()
+			if es_estatica:
+				pivote_camara.global_position = cam_mgr.obtener_posicion_camara_estatica()
+				pivote_camara.rotation = cam_mgr.obtener_rotacion_camara_estatica()
+				var arm = obtener_spring_arm()
+				if arm:
+					arm.rotation.x = cam_mgr.obtener_rot_x_arm_estatica()
+					arm.position.y = cam_mgr.obtener_altura_spring_arm()
+					arm.spring_length = cam_mgr.obtener_distancia_camara()
 			else:
-				pivote_camara.rotation.y = objetivo_rotacion_y
-			var arm = obtener_spring_arm()
-			if arm:
-				arm.add_excluded_object(get_rid())
-				arm.rotation.x = objetivo_rotacion_x
-				arm.position.y = obtener_altura_spring_arm_deseada()
-				arm.spring_length = obtener_distancia_camara_deseada()
-			else:
-				pivote_camara.rotation.x = objetivo_rotacion_x
+				pivote_camara.global_position = global_position
+				if not preservar_rotacion_camara:
+					objetivo_rotacion_y = rotation.y
+					pivote_camara.rotation.y = rotation.y
+				else:
+					pivote_camara.rotation.y = objetivo_rotacion_y
+				var arm = obtener_spring_arm()
+				if arm:
+					arm.add_excluded_object(get_rid())
+					arm.rotation.x = objetivo_rotacion_x
+					arm.position.y = obtener_altura_spring_arm_deseada()
+					arm.spring_length = obtener_distancia_camara_deseada()
+				else:
+					pivote_camara.rotation.x = objetivo_rotacion_x
 		else:
 			pivote_camara.top_level = false
 			
@@ -406,6 +443,87 @@ func entrada_bloqueada() -> bool:
 			return true
 	return false
 
+func _procesar_control_mando_camara_estatica(delta: float, cam_mgr: Node) -> void:
+	if not es_activo() or entrada_bloqueada():
+		return
+	
+	var dev_cam = 0
+	if is_inside_tree() and get_tree() and get_tree().root and get_tree().root.has_node("GamepadManager"):
+		dev_cam = get_tree().root.get_node("GamepadManager").dispositivo_activo
+	
+	var stick_cam_x = Input.get_joy_axis(dev_cam, JOY_AXIS_RIGHT_X)
+	var stick_cam_y = Input.get_joy_axis(dev_cam, JOY_AXIS_RIGHT_Y)
+	var trigger_lt = Input.get_joy_axis(dev_cam, JOY_AXIS_TRIGGER_LEFT)
+	var trigger_rt = Input.get_joy_axis(dev_cam, JOY_AXIS_TRIGGER_RIGHT)
+	var btn_rb = Input.is_joy_button_pressed(dev_cam, JOY_BUTTON_RIGHT_SHOULDER)
+	var btn_lb = Input.is_joy_button_pressed(dev_cam, JOY_BUTTON_LEFT_SHOULDER)
+	var btn_r3 = Input.is_joy_button_pressed(dev_cam, JOY_BUTTON_RIGHT_STICK)
+
+	var deadzone_cam = 0.15
+	var stick_vec = Vector2(stick_cam_x, stick_cam_y)
+	var hay_stick = stick_vec.length() > deadzone_cam
+	var hay_triggers = (trigger_lt > 0.15 or trigger_rt > 0.15)
+
+	if not hay_stick and not hay_triggers:
+		return
+
+	# Si se mantiene presionado LB (L1), el stick derecho ajusta la rotación/orientación de la toma
+	if btn_lb:
+		if hay_stick:
+			var factor_cam = (stick_vec.length() - deadzone_cam) / (1.0 - deadzone_cam)
+			var dir_cam = stick_vec.normalized() * factor_cam
+			var vel_rot = 2.8
+			var rot_actual = cam_mgr.obtener_rotacion_camara_estatica()
+			rot_actual.y -= dir_cam.x * vel_rot * delta
+			var rot_x = cam_mgr.obtener_rot_x_arm_estatica()
+			rot_x = clampf(rot_x - dir_cam.y * vel_rot * delta, LIMITE_PITCH_MIN, LIMITE_PITCH_MAX)
+			cam_mgr.fijar_camara_estatica(cam_mgr.obtener_posicion_camara_estatica(), rot_actual, rot_x)
+		return
+
+	# Control de posición tridimensional de la cámara estática
+	var rot_cam = cam_mgr.obtener_rotacion_camara_estatica()
+	var basis_h = Basis(Vector3.UP, rot_cam.y)
+	var cam_right = basis_h.x
+	var cam_forward = -basis_h.z
+	var vel_desp = 5.2
+
+	var delta_pos = Vector3.ZERO
+
+	if hay_stick:
+		var factor_stick = (stick_vec.length() - deadzone_cam) / (1.0 - deadzone_cam)
+		var dir_stick = stick_vec.normalized() * factor_stick
+
+		# Eje X del stick: Desplazamiento lateral (Izquierda / Derecha)
+		delta_pos += cam_right * (dir_stick.x * vel_desp * delta)
+
+		# Eje Y del stick:
+		# Por defecto: Profundidad horizontal (Adelante / Atrás)
+		# Si se presiona RB (R1) o R3: Altura vertical (Arriba / Abajo)
+		if btn_rb or btn_r3:
+			delta_pos += Vector3.UP * (-dir_stick.y * vel_desp * delta)
+		else:
+			delta_pos += cam_forward * (-dir_stick.y * vel_desp * delta)
+
+	# Gatillos analógicos:
+	# Por defecto: RT = Subir altura, LT = Bajar altura
+	# Si se presiona RB o R3: RT = Avanzar, LT = Retroceder
+	if trigger_rt > 0.15:
+		var factor_rt = (trigger_rt - 0.15) / 0.85
+		if btn_rb or btn_r3:
+			delta_pos += cam_forward * (factor_rt * vel_desp * delta)
+		else:
+			delta_pos += Vector3.UP * (factor_rt * vel_desp * delta)
+
+	if trigger_lt > 0.15:
+		var factor_lt = (trigger_lt - 0.15) / 0.85
+		if btn_rb or btn_r3:
+			delta_pos -= cam_forward * (factor_lt * vel_desp * delta)
+		else:
+			delta_pos -= Vector3.UP * (factor_lt * vel_desp * delta)
+
+	if delta_pos != Vector3.ZERO:
+		cam_mgr.mover_posicion_camara_estatica(delta_pos)
+
 func procesar_camara_base(delta: float):
 	if not es_activo() or entrada_bloqueada(): return
 	var red_mgr = _get_red_manager()
@@ -415,6 +533,25 @@ func procesar_camara_base(delta: float):
 		pivote_camara = get_node_or_null("Node3D")
 
 	if pivote_camara:
+		var cam_mgr = _get_camara_config_manager()
+		var es_estatica = is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica()
+		if es_estatica:
+			_procesar_control_mando_camara_estatica(delta, cam_mgr)
+			pivote_camara.global_position = cam_mgr.obtener_posicion_camara_estatica()
+			pivote_camara.rotation = cam_mgr.obtener_rotacion_camara_estatica()
+			var arm = obtener_spring_arm()
+			if arm:
+				arm.rotation.x = cam_mgr.obtener_rot_x_arm_estatica()
+				var target_arm_y = cam_mgr.obtener_altura_spring_arm()
+				var target_arm_dist = cam_mgr.obtener_distancia_camara()
+				arm.position.y = target_arm_y
+				arm.spring_length = target_arm_dist
+			return
+		elif _retornando_de_camara_estatica:
+			pivote_camara.global_position = pivote_camara.global_position.lerp(global_position, 8.0 * delta)
+			if pivote_camara.global_position.distance_squared_to(global_position) < 0.12:
+				_retornando_de_camara_estatica = false
+
 		if _vortice_esta_absorbido:
 			# Mantener la cámara exactamente en la posición en la que quedó al ser absorbido (sin zoom brusco ni saltos)
 			pivote_camara.global_position = _pos_camara_fija_vortice
@@ -535,12 +672,25 @@ func procesar_camara_base(delta: float):
 				cam.v_offset = target_v_offset
 
 func obtener_distancia_camara_deseada() -> float:
+	var mgr = _get_camara_config_manager()
+	if is_instance_valid(mgr) and mgr.has_method("obtener_distancia_camara"):
+		var d = mgr.obtener_distancia_camara()
+		if d != null:
+			return float(d)
 	return DISTANCIA_CAMARA
 
 func obtener_altura_spring_arm_deseada() -> float:
+	var mgr = _get_camara_config_manager()
+	if is_instance_valid(mgr) and mgr.has_method("obtener_altura_spring_arm"):
+		var h = mgr.obtener_altura_spring_arm()
+		if h != null:
+			return float(h)
 	return ALTURA_SPRING_ARM
 
 func obtener_v_offset_deseado() -> float:
+	var mgr = _get_camara_config_manager()
+	if is_instance_valid(mgr) and mgr.has_method("obtener_v_offset"):
+		return mgr.obtener_v_offset()
 	return V_OFFSET_CAMARA
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -617,6 +767,7 @@ func procesar_salto_base(delta: float):
 		if tiempo_desde_suelo > TIEMPO_COYOTE and saltos_realizados == 0:
 			saltos_realizados = 1
 	else:
+		en_vuelo_balistico = false
 		_tiempo_impulso_caida = 0.0
 		_vel_max_caida_impulso = 0.0
 		if tiempo_desde_suelo > 0.08 and _vel_y_previa_base < -1.6:
@@ -636,7 +787,19 @@ func procesar_salto_base(delta: float):
 		tiempo_desde_salto += delta
 
 	if tiempo_desde_salto <= TIEMPO_BUFFER_SALTO:
-		if (is_on_floor() or tiempo_desde_suelo <= TIEMPO_COYOTE) and saltos_realizados == 0:
+		if esta_derrapando and (is_on_floor() or tiempo_desde_suelo <= TIEMPO_COYOTE):
+			# Side Flip / Salto Invertido Acrobático tipo Odyssey
+			esta_derrapando = false
+			tiempo_derrape_restante = 0.0
+			velocity.y = FUERZA_SALTO * 1.18
+			var dir_mov = obtener_direccion_movimiento()
+			if dir_mov != Vector3.ZERO:
+				velocity.x = dir_mov.x * 6.5
+				velocity.z = dir_mov.z * 6.5
+			saltos_realizados = 1
+			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1
+			_al_realizar_salto_derrape()
+		elif (is_on_floor() or tiempo_desde_suelo <= TIEMPO_COYOTE) and saltos_realizados == 0:
 			velocity.y = FUERZA_SALTO
 			saltos_realizados = 1
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1 # Consumir buffer
@@ -657,6 +820,22 @@ func _al_aterrizar_base(vel_y: float) -> void:
 func _al_aterrizar(_vel_y: float) -> void:
 	# Hook virtual para subclases (Squash & Stretch y efectos de impacto/aterrizaje)
 	pass
+
+func _al_iniciar_derrape(_velocidad: float, _direccion_input: Vector3) -> void:
+	# Hook virtual para inicio de derrape
+	pass
+
+func _al_procesar_derrape(_delta: float, _velocidad: float) -> void:
+	# Hook virtual para avance continuo del derrape
+	pass
+
+func _al_finalizar_derrape() -> void:
+	# Hook virtual para fin de derrape
+	pass
+
+func _al_realizar_salto_derrape() -> void:
+	# Hook virtual para salto invertido (Side Flip) tras derrape
+	_al_realizar_salto(1)
 
 func _al_realizar_salto(numero_salto: int):
 	# Feedback háptico y vibración de salto
@@ -769,16 +948,46 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 
 	var planeando = esta_planeando()
 	var vel_max = VELOCIDAD * (MULTIPLICADOR_VELOCIDAD_PLANEO if planeando else 1.0)
+	var vel_horizontal = Vector2(velocity.x, velocity.z)
+
+	# Conservación de inercia aérea (Momentum tipo Odyssey)
+	if not is_on_floor() and vel_horizontal.length() > vel_max:
+		var dir_h = Vector2(direccion.x, direccion.z)
+		if dir_h != Vector2.ZERO and vel_horizontal.normalized().dot(dir_h.normalized()) > 0.2:
+			vel_max = maxf(vel_max, vel_horizontal.length() - (3.5 * delta))
+
 	var velocidad_objetivo = direccion * vel_max
 	var tasa_aceleracion = ACELERACION_SUELO if is_on_floor() else (ACELERACION_AIRE * (MULTIPLICADOR_ACELERACION_PLANEO if planeando else 1.0))
-	
-	if direccion != Vector3.ZERO:
-		velocity.x = move_toward(velocity.x, velocidad_objetivo.x, tasa_aceleracion * delta)
-		velocity.z = move_toward(velocity.z, velocidad_objetivo.z, tasa_aceleracion * delta)
-	else:
+
+	# Detección de inicio de Derrape Físico tipo Odyssey en el suelo (solo a alta velocidad y giro pronunciado)
+	if is_on_floor() and not esta_derrapando and vel_horizontal.length() > 3.6 and direccion != Vector3.ZERO:
+		var dir_obj_2d = Vector2(direccion.x, direccion.z).normalized()
+		var dot_giro = vel_horizontal.normalized().dot(dir_obj_2d)
+		if dot_giro < -0.55:
+			esta_derrapando = true
+			tiempo_derrape_restante = DURACION_DERRAPE
+			_dir_deslizamiento_derrape = vel_horizontal.normalized()
+			_angulo_derrape_rotacion = rotation.y
+			_al_iniciar_derrape(vel_horizontal.length(), direccion)
+
+	if esta_derrapando:
+		tiempo_derrape_restante -= delta
+		# Deslizamiento inercial suave con fricción de frenado fluida
+		vel_horizontal = vel_horizontal.move_toward(Vector2.ZERO, DESACELERACION_DERRAPE * delta)
+		_al_procesar_derrape(delta, vel_horizontal.length())
+		if vel_horizontal.length() <= 0.4 or tiempo_derrape_restante <= 0.0 or not is_on_floor():
+			esta_derrapando = false
+			tiempo_derrape_restante = 0.0
+			_al_finalizar_derrape()
+	elif direccion != Vector3.ZERO:
+		en_vuelo_balistico = false
+		var obj_horizontal = Vector2(velocidad_objetivo.x, velocidad_objetivo.z)
+		vel_horizontal = vel_horizontal.move_toward(obj_horizontal, tasa_aceleracion * delta)
+	elif not (en_vuelo_balistico and not is_on_floor()):
 		var tasa_frenado = DESACELERACION_SUELO if is_on_floor() else DESACELERACION_AIRE
-		velocity.x = move_toward(velocity.x, 0.0, tasa_frenado * delta)
-		velocity.z = move_toward(velocity.z, 0.0, tasa_frenado * delta)
+		vel_horizontal = vel_horizontal.move_toward(Vector2.ZERO, tasa_frenado * delta)
+	velocity.x = vel_horizontal.x
+	velocity.z = vel_horizontal.y
 	
 	# Aplicar fuerza horizontal acumulada del vórtice (succión radial y rotacional)
 	if _fuerza_vortice_acumulada != Vector3.ZERO:
@@ -843,7 +1052,11 @@ func aplicar_friccion_y_movimiento(direccion: Vector3, delta: float):
 		return
 	
 	# Aseguramos que la cámara siga la posición del jugador después del movimiento físico sin hundirse en el abismo
-	if es_activo() and pivote_camara and pivote_camara.top_level and not _camara_fijada_en_vortice and not _camara_fijada_en_caida:
+	var cam_mgr = _get_camara_config_manager()
+	var es_estatica = is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica()
+	if es_estatica and pivote_camara:
+		pivote_camara.global_position = cam_mgr.obtener_posicion_camara_estatica()
+	elif es_activo() and pivote_camara and pivote_camara.top_level and not _camara_fijada_en_vortice and not _camara_fijada_en_caida:
 		var limite_y_camara = LIMITE_CAIDA_Y + 4.0
 		if global_position.y >= limite_y_camara:
 			pivote_camara.global_position = global_position
@@ -868,7 +1081,14 @@ func procesar_movimiento_base(delta: float):
 
 	var direccion = obtener_direccion_movimiento()
 	
-	if direccion != Vector3.ZERO:
+	if esta_derrapando:
+		# Durante el derrape, el personaje desliza a lo largo de su inercia pero rota con fluidez hacia el nuevo input
+		if direccion != Vector3.ZERO:
+			var target_angle = atan2(-direccion.x, -direccion.z)
+			rotation.y = lerp_angle(rotation.y, target_angle, 10.0 * delta)
+		else:
+			rotation.y = lerp_angle(rotation.y, _angulo_derrape_rotacion, 12.0 * delta)
+	elif direccion != Vector3.ZERO:
 		# Rotar suavemente al personaje hacia la dirección en la que se está moviendo
 		var target_angle = atan2(-direccion.x, -direccion.z)
 		rotation.y = lerp_angle(rotation.y, target_angle, 1.0 - exp(-VELOCIDAD_ROTACION_PERSONAJE * delta))
@@ -877,6 +1097,9 @@ func procesar_movimiento_base(delta: float):
 	_procesar_proximidad_corazon(delta)
 
 func resetear_estados():
+	en_vuelo_balistico = false
+	esta_derrapando = false
+	tiempo_derrape_restante = 0.0
 	saltos_realizados = 0
 	tiempo_desde_suelo = 0.0
 	tiempo_desde_salto = 0.0
@@ -927,14 +1150,26 @@ func reaparecer() -> void:
 	if pivote_camara == null:
 		pivote_camara = get_node_or_null("Node3D")
 	if pivote_camara:
-		pivote_camara.global_position = destino
-		pivote_camara.rotation = Vector3(0.0, rot_dest.y, 0.0)
 		var arm = obtener_spring_arm()
-		if arm:
-			pivote_camara.rotation.x = 0.0
-			arm.rotation = Vector3(rotacion_inicial_camara_x, 0.0, 0.0)
-			arm.force_update_transform()
-		pivote_camara.force_update_transform()
+		var cam_mgr = _get_camara_config_manager()
+		var es_estatica = is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica()
+		if es_estatica:
+			pivote_camara.global_position = cam_mgr.obtener_posicion_camara_estatica()
+			pivote_camara.rotation = cam_mgr.obtener_rotacion_camara_estatica()
+			if arm:
+				arm.rotation.x = cam_mgr.obtener_rot_x_arm_estatica()
+				arm.position.y = cam_mgr.obtener_altura_spring_arm()
+				arm.spring_length = cam_mgr.obtener_distancia_camara()
+				arm.force_update_transform()
+			pivote_camara.force_update_transform()
+		else:
+			pivote_camara.global_position = destino
+			pivote_camara.rotation = Vector3(0.0, rot_dest.y, 0.0)
+			if arm:
+				pivote_camara.rotation.x = 0.0
+				arm.rotation = Vector3(rotacion_inicial_camara_x, 0.0, 0.0)
+				arm.force_update_transform()
+			pivote_camara.force_update_transform()
 
 		var cam = obtener_camara()
 		if cam:
