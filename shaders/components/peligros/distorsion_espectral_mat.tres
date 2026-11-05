@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/components/peligros/distorsion_espectral.gdshader" id="1_shader"]
+
+[resource]
+render_priority = 1
+shader = ExtResource("1_shader")
+shader_parameter/fuerza_distorsion = 0.018
+shader_parameter/velocidad_ondulacion = 2.5
+shader_parameter/frecuencia_ondas = 14.0
+shader_parameter/grosor_borde = 1.15
+shader_parameter/opacidad_borde = 0.88
+shader_parameter/opacidad_centro = 0.06
+shader_parameter/factor_visibilidad = 1.0
+shader_parameter/color_borde = Color(1, 1, 1, 0.95)

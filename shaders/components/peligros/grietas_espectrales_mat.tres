@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/components/peligros/grietas_espectrales.gdshader" id="1_shader_grietas"]
+
+[resource]
+render_priority = -1
+shader = ExtResource("1_shader_grietas")
+shader_parameter/color_nucleo_rojo = Color(1.35, 0.055, 0.075, 1)
+shader_parameter/color_fondo_rojo = Color(0.85, 0.03, 0.04, 1)
+shader_parameter/color_pared_oscura = Color(0.16, 0.008, 0.012, 1)
+shader_parameter/color_borde_sombra = Color(0.004, 0.001, 0.001, 1)
+shader_parameter/profundidad_metros = 0.52
+shader_parameter/radio_zona = 5.0
+shader_parameter/max_desplazamiento = 0.9
+shader_parameter/fuerza_emision = 4.2
+shader_parameter/grosor_grietas = 0.7
+shader_parameter/velocidad_pulso = 2.2

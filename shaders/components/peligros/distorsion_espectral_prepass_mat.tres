@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://shaders/components/peligros/distorsion_espectral_prepass.gdshader" id="1_prepass_shader"]
+[ext_resource type="Material" path="res://shaders/components/peligros/distorsion_espectral_mat.tres" id="2_silueta_mat"]
+
+[resource]
+render_priority = 0
+next_pass = ExtResource("2_silueta_mat")
+shader = ExtResource("1_prepass_shader")

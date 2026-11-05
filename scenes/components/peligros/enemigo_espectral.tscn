@@ -1,0 +1,263 @@
+[gd_scene format=3 uid="uid://b0f1k4r7x30aq"]
+
+[ext_resource type="Script" uid="uid://clhfkhhn6ymsi" path="res://scripts/components/peligros/enemigo_espectral.gd" id="1_script"]
+[ext_resource type="Material" uid="uid://ey7hmj3dsmwp" path="res://shaders/components/peligros/enemigo_espectral_mat.tres" id="2_cuerpo_mat"]
+[ext_resource type="Material" path="res://shaders/components/peligros/distorsion_espectral_mat.tres" id="3_distorsion_mat"]
+[ext_resource type="Shader" uid="uid://dgymgjwtso25q" path="res://shaders/components/peligros/enemigo_espectral.gdshader" id="4_gt63f"]
+[ext_resource type="PackedScene" uid="uid://ddke3bp6hgj0u" path="res://assets/modelos/personajes/enemigo_espectral.glb" id="4_modelo_glb"]
+[ext_resource type="Material" path="res://shaders/components/peligros/grietas_espectrales_mat.tres" id="5_grietas_mat"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_cuerpo"]
+radius = 0.45
+height = 1.4
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_cuerpo"]
+material = ExtResource("2_cuerpo_mat")
+radius = 0.38
+height = 1.15
+radial_segments = 24
+rings = 6
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gt63f"]
+render_priority = 0
+shader = ExtResource("4_gt63f")
+shader_parameter/color_cuerpo = Color(0.28, 0.3, 0.34, 1)
+shader_parameter/color_fresnel = Color(0.88, 0.92, 0.96, 1)
+shader_parameter/color_nucleo_oscuro = Color(0.08, 0.09, 0.11, 1)
+shader_parameter/fuerza_emision = 1.15
+shader_parameter/exponente_fresnel = 2.0
+shader_parameter/velocidad_pulso = 2.0
+shader_parameter/ondulacion_colas = 0.04
+shader_parameter/velocidad_colas = 3.5
+shader_parameter/factor_tangible = 0.0
+shader_parameter/color_tangible_destello = Color(0.3, 0.85, 1, 1)
+shader_parameter/rugosidad = 0.5
+shader_parameter/metalico = 0.0
+shader_parameter/especular = 0.25
+
+[sub_resource type="SphereMesh" id="SphereMesh_mano"]
+material = ExtResource("2_cuerpo_mat")
+radius = 0.15
+height = 0.28
+radial_segments = 16
+rings = 6
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ojos_rojos"]
+albedo_color = Color(0.95, 0.05, 0.15, 1)
+roughness = 0.2
+emission_enabled = true
+emission = Color(1, 0.08, 0.18, 1)
+emission_energy_multiplier = 4.5
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_ojo"]
+material = SubResource("StandardMaterial3D_ojos_rojos")
+radius = 0.06
+height = 0.18
+radial_segments = 12
+rings = 4
+
+[sub_resource type="SphereMesh" id="SphereMesh_distorsion"]
+material = ExtResource("3_distorsion_mat")
+radius = 0.65
+height = 1.35
+radial_segments = 24
+rings = 12
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particulas_pasto"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.95, 0.12, 0.16, 0.45)
+
+[sub_resource type="QuadMesh" id="QuadMesh_particula_pasto"]
+material = SubResource("StandardMaterial3D_particulas_pasto")
+size = Vector2(0.12, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particulas_derrota"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.95, 0.15, 0.2, 0.88)
+
+[sub_resource type="SphereMesh" id="SphereMesh_particula_derrota"]
+material = SubResource("StandardMaterial3D_particulas_derrota")
+radius = 0.06
+height = 0.12
+radial_segments = 8
+rings = 4
+
+[sub_resource type="Curve" id="Curve_escala_derrota"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), -2.2, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Gradient" id="Gradient_color_derrota"]
+offsets = PackedFloat32Array(0, 0.2, 0.75, 1)
+colors = PackedColorArray(1, 0.45, 0.45, 1, 0.95, 0.08, 0.14, 0.9, 0.32, 0.34, 0.38, 0.65, 0.12, 0.13, 0.16, 0)
+
+[sub_resource type="Gradient" id="Gradient_particula_radial"]
+offsets = PackedFloat32Array(0, 0.86, 0.9)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_particula_radial"]
+gradient = SubResource("Gradient_particula_radial")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particulas_spawn"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("GradientTexture2D_particula_radial")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_particula_spawn"]
+material = SubResource("StandardMaterial3D_particulas_spawn")
+size = Vector2(0.16, 0.16)
+
+[sub_resource type="Curve" id="Curve_escala_spawn"]
+_data = [Vector2(0, 0.25), 0.0, 1.4, 0, 0, Vector2(0.35, 0.85), 0.3, 0.3, 0, 0, Vector2(0.8, 0.95), 0.0, 0.0, 0, 0, Vector2(1, 0.15), -1.6, 0.0, 0, 0]
+point_count = 4
+
+[sub_resource type="Gradient" id="Gradient_color_spawn"]
+offsets = PackedFloat32Array(0, 0.18, 0.55, 0.85, 1)
+colors = PackedColorArray(0.95, 0.05, 0.07, 1, 0.95, 0.05, 0.07, 1, 0.85, 0.04, 0.06, 1, 0.55, 0.03, 0.04, 1, 0.35, 0.02, 0.03, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_anillo_spawn"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.92, 0.1, 0.15, 0.65)
+
+[sub_resource type="TorusMesh" id="TorusMesh_anillo_spawn"]
+material = SubResource("StandardMaterial3D_anillo_spawn")
+inner_radius = 0.94
+rings = 48
+ring_segments = 4
+
+[node name="EnemigoEspectral" type="CharacterBody3D" unique_id=208018234 groups=["enemigos_espectrales"]]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1427081480]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("CapsuleShape3D_cuerpo")
+disabled = true
+
+[node name="Visual" type="Node3D" parent="." unique_id=840045425]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+
+[node name="ModeloEnemigo" parent="Visual" unique_id=137459763 instance=ExtResource("4_modelo_glb")]
+transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0)
+
+[node name="Cuerpo" type="MeshInstance3D" parent="Visual" unique_id=153621869]
+visible = false
+layers = 4
+mesh = SubResource("CapsuleMesh_cuerpo")
+surface_material_override/0 = SubResource("ShaderMaterial_gt63f")
+
+[node name="ManosFlotantes" type="Node3D" parent="Visual" unique_id=1394293917]
+visible = false
+
+[node name="ManoIzq" type="MeshInstance3D" parent="Visual/ManosFlotantes" unique_id=1564322742]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.55, 0.05, 0.1)
+layers = 4
+mesh = SubResource("SphereMesh_mano")
+
+[node name="ManoDer" type="MeshInstance3D" parent="Visual/ManosFlotantes" unique_id=29385287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.55, 0.05, 0.1)
+layers = 4
+mesh = SubResource("SphereMesh_mano")
+
+[node name="OjosRojos" type="Node3D" parent="Visual" unique_id=569194471]
+visible = false
+
+[node name="OjoIzq" type="MeshInstance3D" parent="Visual/OjosRojos" unique_id=2116060798]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, -0.15, 0.22, 0.35)
+layers = 4
+mesh = SubResource("CapsuleMesh_ojo")
+
+[node name="OjoDer" type="MeshInstance3D" parent="Visual/OjosRojos" unique_id=1317450541]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0.15, 0.22, 0.35)
+layers = 4
+mesh = SubResource("CapsuleMesh_ojo")
+
+[node name="EfectoDistorsion" type="MeshInstance3D" parent="Visual" unique_id=55551838]
+visible = false
+layers = 3
+mesh = SubResource("SphereMesh_distorsion")
+
+[node name="ParticulasPasto" type="CPUParticles3D" parent="." unique_id=1038771620]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+layers = 7
+emitting = false
+amount = 6
+lifetime = 1.6
+mesh = SubResource("QuadMesh_particula_spawn")
+emission_shape = 1
+emission_sphere_radius = 0.45
+direction = Vector3(0, 1, 0)
+spread = 22.0
+gravity = Vector3(0, 0.04, 0)
+initial_velocity_min = 0.18
+initial_velocity_max = 0.3
+scale_amount_min = 0.4
+scale_amount_max = 0.75
+scale_amount_curve = SubResource("Curve_escala_spawn")
+color_ramp = SubResource("Gradient_color_spawn")
+
+[node name="ParticulasDerrota" type="CPUParticles3D" parent="." unique_id=513838736]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+emitting = false
+amount = 24
+lifetime = 0.65
+one_shot = true
+explosiveness = 0.95
+mesh = SubResource("SphereMesh_particula_derrota")
+spread = 180.0
+gravity = Vector3(0, 1.5, 0)
+initial_velocity_min = 3.5
+initial_velocity_max = 7.0
+scale_amount_curve = SubResource("Curve_escala_derrota")
+color_ramp = SubResource("Gradient_color_derrota")
+
+[node name="ParticulasZonaSpawn" type="CPUParticles3D" parent="." unique_id=611924507]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.7, 0)
+layers = 7
+amount = 20
+lifetime = 7.0
+mesh = SubResource("QuadMesh_particula_spawn")
+emission_shape = 3
+emission_box_extents = Vector3(5.76, 0.08, 5.76)
+direction = Vector3(0, 1, 0)
+spread = 18.0
+gravity = Vector3(0, 0.02, 0)
+initial_velocity_min = 0.2
+initial_velocity_max = 0.32
+damping_min = 0.0
+damping_max = 0.0
+scale_amount_min = 0.45
+scale_amount_max = 0.85
+scale_amount_curve = SubResource("Curve_escala_spawn")
+color_ramp = SubResource("Gradient_color_spawn")
+
+[node name="IndicadorAnilloSpawn" type="MeshInstance3D" parent="." unique_id=1512774549]
+transform = Transform3D(8, 0, 0, 0, 1, 0, 0, 0, 8, 0, -0.72, 0)
+layers = 7
+mesh = SubResource("TorusMesh_anillo_spawn")
+
+[node name="GrietasSueloSpawn" type="MeshInstance3D" parent="." unique_id=1952847361]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.71, 0)
+layers = 7
+material_override = ExtResource("5_grietas_mat")
+
+[node name="AudioAcecho" type="AudioStreamPlayer3D" parent="." unique_id=966475773]
+unit_size = 6.0
+max_distance = 18.0
