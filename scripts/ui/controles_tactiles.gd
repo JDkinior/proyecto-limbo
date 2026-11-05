@@ -51,6 +51,14 @@ func _ready():
 	HudConfigManager.aplicar_a_hud(self)
 	_inicializar_controles_opciones_hud()
 	
+	# Asegurar que botones flotantes de HUD nunca capturen el foco de mando o teclado
+	var btn_pausa_init = get_node_or_null("HUD_Menu/Boton_Pausa") as Button
+	if is_instance_valid(btn_pausa_init):
+		btn_pausa_init.focus_mode = Control.FOCUS_NONE
+	var btn_cam_init = get_node_or_null("HUD_Boton_Camara/Boton_Camara_Rapida") as Button
+	if is_instance_valid(btn_cam_init):
+		btn_cam_init.focus_mode = Control.FOCUS_NONE
+	
 	if is_instance_valid(CamaraConfigManager):
 		if not CamaraConfigManager.ocultar_controles_cambiado.is_connected(_on_ocultar_controles_cambiado):
 			CamaraConfigManager.ocultar_controles_cambiado.connect(_on_ocultar_controles_cambiado)
@@ -58,6 +66,16 @@ func _ready():
 			CamaraConfigManager.escala_render_cambiada.connect(func(_v): _actualizar_texto_boton_escala_render())
 		if not CamaraConfigManager.limite_fps_cambiado.is_connected(func(_v): _actualizar_texto_boton_limite_fps()):
 			CamaraConfigManager.limite_fps_cambiado.connect(func(_v): _actualizar_texto_boton_limite_fps())
+		if not CamaraConfigManager.distancia_camara_cambiada.is_connected(func(v): _actualizar_texto_slider_distancia(v)):
+			CamaraConfigManager.distancia_camara_cambiada.connect(func(v): _actualizar_texto_slider_distancia(v))
+		if not CamaraConfigManager.altura_camara_cambiada.is_connected(func(v): _actualizar_texto_slider_altura(v)):
+			CamaraConfigManager.altura_camara_cambiada.connect(func(v): _actualizar_texto_slider_altura(v))
+		if not CamaraConfigManager.camara_estatica_cambiada.is_connected(func(_v): _actualizar_texto_boton_camara_estatica()):
+			CamaraConfigManager.camara_estatica_cambiada.connect(func(_v): _actualizar_texto_boton_camara_estatica())
+		if not CamaraConfigManager.ajustes_camara_revertidos.is_connected(_actualizar_ui_panel_camara_tomas):
+			CamaraConfigManager.ajustes_camara_revertidos.connect(_actualizar_ui_panel_camara_tomas)
+		if not CamaraConfigManager.boton_rapido_hud_cambiado.is_connected(func(_v): _actualizar_visibilidad_elementos_juego()):
+			CamaraConfigManager.boton_rapido_hud_cambiado.connect(func(_v): _actualizar_visibilidad_elementos_juego())
 	
 	var gm = _obtener_gamepad_manager()
 	if is_instance_valid(gm):
@@ -306,6 +324,9 @@ func esta_bloqueado_para_juego() -> bool:
 	var panel_v = get_node_or_null("Panel_Ajustes_Video")
 	if is_instance_valid(panel_v) and panel_v.visible:
 		return true
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
+	if is_instance_valid(panel_c) and panel_c.visible:
+		return true
 	if has_node("AjusteHUD") or has_node("AjusteControl") or has_node("ModoFoto"):
 		return true
 	return false
@@ -325,6 +346,11 @@ func _obtener_boton_en_pos(pos: Vector2) -> Node:
 	if is_instance_valid(btn_pausa) and btn_pausa.is_visible_in_tree():
 		if btn_pausa.get_global_rect().has_point(pos):
 			return btn_pausa
+
+	var btn_cam_rapida = get_node_or_null("HUD_Boton_Camara/Boton_Camara_Rapida")
+	if is_instance_valid(btn_cam_rapida) and btn_cam_rapida.is_visible_in_tree():
+		if btn_cam_rapida.get_global_rect().has_point(pos):
+			return btn_cam_rapida
 
 	# 2. Comprobar botones táctiles de acción (Salto, Interactuar, Cambiar Personaje)
 	var zona_botones = get_node_or_null("Area_Camara/Zona_Botones_Accion")
@@ -402,6 +428,8 @@ func _ejecutar_accion_boton(boton: Node) -> void:
 	elif boton is Button:
 		if boton.name == "Boton_Pausa":
 			_on_boton_pausa_pressed()
+		elif boton.name == "Boton_Camara_Rapida":
+			_on_boton_camara_rapida_pressed()
 		else:
 			boton.emit_signal("pressed")
 
@@ -846,7 +874,7 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 	_asegurar_estilos_cacheados()
 
 	# Evitar procesar menús pausados u opciones si están ocultos durante el juego
-	if (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones" or nodo.name == "Panel_Ajustes_Video") and (nodo is CanvasItem and not (nodo as CanvasItem).visible):
+	if (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones" or nodo.name == "Panel_Ajustes_Video" or nodo.name == "Panel_Camara_Tomas") and (nodo is CanvasItem and not (nodo as CanvasItem).visible):
 		return
 		
 	if nodo is Label:
@@ -859,6 +887,7 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 		
 	elif nodo is Button:
 		if nodo.name == "Boton_Pausa":
+			nodo.focus_mode = Control.FOCUS_NONE
 			nodo.text = ""
 			nodo.icon = preload("res://assets/ui/controles/boton_pausa.png")
 			nodo.expand_icon = true
@@ -870,6 +899,24 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			nodo.add_theme_stylebox_override(&"focus", _style_empty_cache)
 			
 			nodo.modulate = COLOR_FANTASMA_BTN_MOD if es_fantasma else COLOR_VIVO_BTN_MOD
+		elif nodo.name == "Boton_Camara_Rapida":
+			nodo.focus_mode = Control.FOCUS_NONE
+			nodo.material = null
+			nodo.add_theme_color_override(&"font_color", Color(1.0, 1.0, 1.0, 1.0))
+			nodo.add_theme_color_override(&"font_pressed_color", Color(0.9, 0.9, 0.9, 1.0))
+			nodo.add_theme_color_override(&"font_hover_color", color_borde_hover)
+			nodo.add_theme_color_override(&"font_outline_color", Color(0.0, 0.0, 0.0, 0.95))
+			nodo.add_theme_constant_override(&"outline_size", 6)
+			nodo.add_theme_font_size_override(&"font_size", 28)
+			
+			var style_norm = _style_btn_norm_fant if es_fantasma else _style_btn_norm_vivo
+			var style_hov = _style_btn_hov_fant if es_fantasma else _style_btn_hov_vivo
+			var style_press = _style_btn_press_fant if es_fantasma else _style_btn_press_vivo
+			
+			nodo.add_theme_stylebox_override(&"normal", style_norm)
+			nodo.add_theme_stylebox_override(&"hover", style_hov)
+			nodo.add_theme_stylebox_override(&"pressed", style_press)
+			nodo.add_theme_stylebox_override(&"focus", _style_empty_cache)
 		else:
 			nodo.material = null
 			nodo.add_theme_color_override(&"font_color", Color(1.0, 1.0, 1.0, 1.0))
@@ -894,7 +941,7 @@ func _estilar_nodo_recursivo(nodo: Node, color_borde: Color, color_borde_hover: 
 			nodo.add_theme_stylebox_override(&"pressed", style_press)
 			nodo.add_theme_stylebox_override(&"focus", style_hov)
 
-	elif nodo is Panel and (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones" or nodo.name == "Panel_Ajustes_Video"):
+	elif nodo is Panel and (nodo.name == "Panel_Pausa" or nodo.name == "Panel_Opciones" or nodo.name == "Panel_Ajustes_Video" or nodo.name == "Panel_Camara_Tomas"):
 		nodo.material = null
 		var style_panel = _style_panel_fant if es_fantasma else _style_panel_vivo
 		nodo.add_theme_stylebox_override(&"panel", style_panel)
@@ -1053,9 +1100,10 @@ func _actualizar_visibilidad_elementos_juego() -> void:
 	var panel_p = get_node_or_null("Panel_Pausa")
 	var panel_o = get_node_or_null("Panel_Opciones")
 	var panel_v = get_node_or_null("Panel_Ajustes_Video")
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
 	var fondo_oscuro = get_node_or_null("Fondo_Oscuro")
 	if is_instance_valid(fondo_oscuro):
-		fondo_oscuro.visible = (panel_p != null and panel_p.visible) or (panel_o != null and panel_o.visible) or (panel_v != null and panel_v.visible)
+		fondo_oscuro.visible = (panel_p != null and panel_p.visible) or (panel_o != null and panel_o.visible) or (panel_v != null and panel_v.visible) or (panel_c != null and panel_c.visible)
 	
 	visible = not intro_nivel_en_progreso
 	modulate.a = 1.0
@@ -1086,6 +1134,11 @@ func _actualizar_visibilidad_elementos_juego() -> void:
 		hud_menu.visible = menu_visible
 		if menu_visible:
 			hud_menu.modulate.a = 1.0
+
+	var hud_cam = get_node_or_null("HUD_Boton_Camara")
+	if is_instance_valid(hud_cam):
+		var mostrar_btn_cam = is_instance_valid(CamaraConfigManager) and CamaraConfigManager.esta_boton_rapido_hud_activo()
+		hud_cam.visible = mostrar_btn_cam and not bloq and not intro_nivel_en_progreso
 	
 	var ping_visible = not intro_nivel_en_progreso and not ocultar_por_modo_video
 	if is_instance_valid(label_ping) and is_instance_valid(label_ping.get_parent()):
@@ -1145,6 +1198,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_actualizar_visibilidad_elementos_juego()
 			get_viewport().set_input_as_handled()
 			return
+		var panel_c = get_node_or_null("Panel_Camara_Tomas")
+		if is_instance_valid(panel_c) and panel_c.visible:
+			_on_boton_cerrar_camara_tomas_pressed()
+			get_viewport().set_input_as_handled()
+			return
 		if is_instance_valid(panel_v) and panel_v.visible:
 			_on_boton_cerrar_ajustes_video_pressed()
 			get_viewport().set_input_as_handled()
@@ -1166,6 +1224,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if is_instance_valid(ajuste_hud):
 			ajuste_hud.queue_free()
+			get_viewport().set_input_as_handled()
+			return
+		var panel_c = get_node_or_null("Panel_Camara_Tomas")
+		if is_instance_valid(panel_c) and panel_c.visible:
+			_on_boton_cerrar_camara_tomas_pressed()
 			get_viewport().set_input_as_handled()
 			return
 		if is_instance_valid(panel_v) and panel_v.visible:
@@ -1190,6 +1253,9 @@ func _on_boton_pausa_pressed() -> void:
 		var panel_v = get_node_or_null("Panel_Ajustes_Video")
 		if panel_v:
 			panel_v.visible = false
+		var panel_c = get_node_or_null("Panel_Camara_Tomas")
+		if panel_c:
+			panel_c.visible = false
 		if panel_p.visible:
 			_aplicar_estilo_textos_y_botones(panel_p)
 			var btn_cont = panel_p.get_node_or_null("VBoxContainer/Boton_Continuar")
@@ -1273,8 +1339,11 @@ func _on_boton_opciones_pressed() -> void:
 	var panel_p = get_node_or_null("Panel_Pausa")
 	var panel_o = get_node_or_null("Panel_Opciones")
 	var panel_v = get_node_or_null("Panel_Ajustes_Video")
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
 	if panel_v:
 		panel_v.visible = false
+	if panel_c:
+		panel_c.visible = false
 	if panel_o:
 		panel_o.visible = true
 		_aplicar_estilo_textos_y_botones(panel_o)
@@ -1293,8 +1362,11 @@ func _on_boton_cerrar_opciones_pressed() -> void:
 	var panel_p = get_node_or_null("Panel_Pausa")
 	var panel_o = get_node_or_null("Panel_Opciones")
 	var panel_v = get_node_or_null("Panel_Ajustes_Video")
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
 	if panel_v:
 		panel_v.visible = false
+	if panel_c:
+		panel_c.visible = false
 	if panel_o:
 		panel_o.visible = false
 	if panel_p:
@@ -1332,8 +1404,11 @@ func _inicializar_controles_opciones_hud() -> void:
 func _on_boton_ajustes_video_pressed() -> void:
 	var panel_o = get_node_or_null("Panel_Opciones")
 	var panel_v = get_node_or_null("Panel_Ajustes_Video")
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
 	if panel_o:
 		panel_o.visible = false
+	if panel_c:
+		panel_c.visible = false
 	if panel_v:
 		panel_v.visible = true
 		_aplicar_estilo_textos_y_botones(panel_v)
@@ -1352,6 +1427,9 @@ func _on_boton_ajustes_video_pressed() -> void:
 func _on_boton_cerrar_ajustes_video_pressed() -> void:
 	var panel_o = get_node_or_null("Panel_Opciones")
 	var panel_v = get_node_or_null("Panel_Ajustes_Video")
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
+	if panel_c:
+		panel_c.visible = false
 	if panel_v:
 		panel_v.visible = false
 	if panel_o:
@@ -1522,3 +1600,133 @@ func _on_boton_salir_pressed() -> void:
 		
 	# 3. Volver de forma limpia al menú de inicio y liberar recursos huérfanos
 	get_tree().change_scene_to_file("res://scenes/ui/menu_inicio.tscn")
+
+# -----------------------------------------------------------------------------
+# CONTROL DE CÁMARA Y TOMAS (SHORTS) EN EL HUD Y MENÚS
+# -----------------------------------------------------------------------------
+func _on_boton_camara_tomas_pressed() -> void:
+	var panel_p = get_node_or_null("Panel_Pausa")
+	var panel_o = get_node_or_null("Panel_Opciones")
+	var panel_v = get_node_or_null("Panel_Ajustes_Video")
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
+	if panel_p: panel_p.visible = false
+	if panel_o: panel_o.visible = false
+	if panel_v: panel_v.visible = false
+	if panel_c:
+		panel_c.visible = true
+		_aplicar_estilo_textos_y_botones(panel_c)
+		_actualizar_ui_panel_camara_tomas()
+		var gm = _obtener_gamepad_manager()
+		if is_instance_valid(gm) and gm.hay_control_conectado():
+			var btn_est = panel_c.get_node_or_null("VBoxContainer/Boton_Camara_Estatica")
+			if is_instance_valid(btn_est):
+				btn_est.grab_focus()
+	_actualizar_visibilidad_elementos_juego()
+	print("[ControlesTactiles] Entrando a Ajustes de Tomas y Cámara Shorts")
+
+func _on_boton_cerrar_camara_tomas_pressed() -> void:
+	var panel_c = get_node_or_null("Panel_Camara_Tomas")
+	var panel_p = get_node_or_null("Panel_Pausa")
+	if panel_c:
+		panel_c.visible = false
+	if panel_p:
+		panel_p.visible = true
+		var gm = _obtener_gamepad_manager()
+		if is_instance_valid(gm) and gm.hay_control_conectado():
+			var btn_cam = panel_p.get_node_or_null("VBoxContainer/Boton_Camara_Tomas")
+			if is_instance_valid(btn_cam):
+				btn_cam.grab_focus()
+	_actualizar_visibilidad_elementos_juego()
+	print("[ControlesTactiles] Volviendo de Tomas de Cámara a Pausa")
+
+func _on_slider_distancia_camara_changed(val: float) -> void:
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.establecer_distancia_camara(val)
+	_actualizar_texto_slider_distancia(val)
+
+func _on_slider_altura_camara_changed(val: float) -> void:
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.establecer_altura_camara(val)
+	_actualizar_texto_slider_altura(val)
+
+func _on_boton_camara_estatica_pressed() -> void:
+	if is_instance_valid(CamaraConfigManager):
+		var activa = CamaraConfigManager.alternar_camara_estatica()
+		_actualizar_texto_boton_camara_estatica()
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_click()
+		CamaraConfigManager.mostrar_notificacion_camara(
+			"📹 Cámara Estática: ACTIVADA (Punto Fijo)" if activa else "📹 Cámara Estática: DESACTIVADA (Siguiendo al personaje)"
+		)
+
+func _on_boton_camara_rapida_pressed() -> void:
+	var btn_cam_rapida = get_node_or_null("HUD_Boton_Camara/Boton_Camara_Rapida") as Button
+	if is_instance_valid(btn_cam_rapida):
+		btn_cam_rapida.release_focus()
+		btn_cam_rapida.focus_mode = Control.FOCUS_NONE
+	if is_instance_valid(CamaraConfigManager):
+		var activa = CamaraConfigManager.alternar_camara_estatica()
+		_actualizar_texto_boton_camara_estatica()
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_click()
+		CamaraConfigManager.mostrar_notificacion_camara(
+			"📹 Cámara Estática: ACTIVADA" if activa else "📹 Cámara Estática: DESACTIVADA"
+		)
+
+func _on_boton_toggle_hud_rapido_pressed() -> void:
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.alternar_boton_rapido_hud()
+		_actualizar_texto_boton_toggle_hud_rapido()
+		_actualizar_visibilidad_elementos_juego()
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_click()
+
+func _on_boton_revertir_camara_pressed() -> void:
+	if is_instance_valid(CamaraConfigManager):
+		CamaraConfigManager.revertir_ajustes_camara()
+		_actualizar_ui_panel_camara_tomas()
+		if is_instance_valid(VibrationManager):
+			VibrationManager.vibrar_click()
+		CamaraConfigManager.mostrar_notificacion_camara("↺ Cámara restablecida a valores predeterminados")
+
+func _actualizar_ui_panel_camara_tomas() -> void:
+	if not is_instance_valid(CamaraConfigManager):
+		return
+	var slider_dist = get_node_or_null("Panel_Camara_Tomas/VBoxContainer/Slider_Distancia") as HSlider
+	var slider_alt = get_node_or_null("Panel_Camara_Tomas/VBoxContainer/Slider_Altura") as HSlider
+	if is_instance_valid(slider_dist):
+		slider_dist.set_value_no_signal(CamaraConfigManager.obtener_distancia_camara())
+	if is_instance_valid(slider_alt):
+		slider_alt.set_value_no_signal(CamaraConfigManager.obtener_altura_spring_arm())
+	_actualizar_texto_slider_distancia(CamaraConfigManager.obtener_distancia_camara())
+	_actualizar_texto_slider_altura(CamaraConfigManager.obtener_altura_spring_arm())
+	_actualizar_texto_boton_camara_estatica()
+	_actualizar_texto_boton_toggle_hud_rapido()
+
+func _actualizar_texto_slider_distancia(val: float) -> void:
+	var lbl = get_node_or_null("Panel_Camara_Tomas/VBoxContainer/Label_Distancia") as Label
+	if is_instance_valid(lbl):
+		if is_equal_approx(val, 5.2):
+			lbl.text = "🔍 Distancia de Cámara: 5.2 m (Predeterminado)"
+		else:
+			lbl.text = "🔍 Distancia de Cámara: %.1f m" % val
+
+func _actualizar_texto_slider_altura(val: float) -> void:
+	var lbl = get_node_or_null("Panel_Camara_Tomas/VBoxContainer/Label_Altura") as Label
+	if is_instance_valid(lbl):
+		if is_equal_approx(val, 0.65):
+			lbl.text = "📐 Altura de Cámara: 0.65 m (Predeterminado)"
+		else:
+			lbl.text = "📐 Altura de Cámara: %.2f m" % val
+
+func _actualizar_texto_boton_camara_estatica() -> void:
+	var btn = get_node_or_null("Panel_Camara_Tomas/VBoxContainer/Boton_Camara_Estatica") as Button
+	if is_instance_valid(btn) and is_instance_valid(CamaraConfigManager):
+		var activa = CamaraConfigManager.esta_camara_estatica()
+		btn.text = "📹 Cámara Estática: ACTIVADA (Punto Fijo en Escena)" if activa else "📹 Cámara Estática: DESACTIVADA (Siguiendo al personaje)"
+
+func _actualizar_texto_boton_toggle_hud_rapido() -> void:
+	var btn = get_node_or_null("Panel_Camara_Tomas/VBoxContainer/Boton_Toggle_HUD_Rapido") as Button
+	if is_instance_valid(btn) and is_instance_valid(CamaraConfigManager):
+		var activa = CamaraConfigManager.esta_boton_rapido_hud_activo()
+		btn.text = "🔘 Botón Rápido de Tomas en HUD: Visible" if activa else "🔘 Botón Rápido de Tomas en HUD: Desactivado"

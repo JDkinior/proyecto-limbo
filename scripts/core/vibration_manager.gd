@@ -391,3 +391,13 @@ func vibrar_dano() -> void:
 ## Click de interfaz, botón o ajuste
 func vibrar_click() -> void:
 	vibrar(30, 0.20, 0.0, 0.05)
+
+## Derrape / cambio brusco de dirección (skid turnaround)
+func vibrar_derrape(intensidad: float = 1.0) -> void:
+	var factor = clampf(intensidad, 0.2, 1.5)
+	vibrar(int(32 * factor), 0.30 * factor, 0.10 * factor, 0.05 * factor)
+
+## Paso o roce sutil al desplazarse
+func vibrar_paso(intensidad: float = 1.0) -> void:
+	var factor = clampf(intensidad, 0.2, 1.5)
+	vibrar(int(22 * factor), 0.18 * factor, 0.0, 0.04 * factor)

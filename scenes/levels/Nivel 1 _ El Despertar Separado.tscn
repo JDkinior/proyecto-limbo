@@ -160,6 +160,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.7, -13)
 
 [node name="PuertaFantasma" parent="Mecanismos" unique_id=1237335603 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_puerta")]
 transform = Transform3D(3.4, 0, 0, 0, 3.2200003, 0, 0, 0, 1, 8, 0, -9.360757)
+visible = false
 distancia_desplazamiento = 10.0
 direccion_desplazamiento = Vector3(1, 0, 0)
 disparador_objetivo = NodePath("../BotonPresion")
@@ -203,11 +204,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.648987, 0.28124905, -23.16
 
 [node name="Jugador" parent="." unique_id=1660849217 instance=ExtResource("2_jugador")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.629795, 1, 34.943245)
-LIMITE_CAIDA_Y = -8.0
 
 [node name="Fantasma" parent="." unique_id=880578793 instance=ExtResource("3_fantasma")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.6005645, 1, 25.765383)
-LIMITE_CAIDA_Y = -8.0
 
 [node name="Controles_Tactiles" parent="." unique_id=837700757 instance=ExtResource("4_ui")]
 

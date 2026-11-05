@@ -128,7 +128,26 @@ grow_horizontal = 0
 [node name="Boton_Pausa" type="Button" parent="HUD_Menu" unique_id=1449439795]
 custom_minimum_size = Vector2(110, 110)
 layout_mode = 2
+focus_mode = 0
 flat = true
+
+[node name="HUD_Boton_Camara" type="MarginContainer" parent="." unique_id=440735534]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -230.0
+offset_top = 25.0
+offset_right = -135.0
+offset_bottom = 120.0
+grow_horizontal = 0
+
+[node name="Boton_Camara_Rapida" type="Button" parent="HUD_Boton_Camara" unique_id=1449439794]
+custom_minimum_size = Vector2(95, 95)
+layout_mode = 2
+focus_mode = 0
+text = "📹"
 
 [node name="Fondo_Oscuro" type="ColorRect" parent="." unique_id=999888777]
 visible = false
@@ -142,7 +161,7 @@ color = Color(0, 0, 0, 0.55)
 
 [node name="Panel_Pausa" type="Panel" parent="." unique_id=322189228]
 visible = false
-custom_minimum_size = Vector2(460, 580)
+custom_minimum_size = Vector2(460, 640)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -150,9 +169,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -230.0
-offset_top = -290.0
+offset_top = -320.0
 offset_right = 230.0
-offset_bottom = 290.0
+offset_bottom = 320.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -202,6 +221,12 @@ custom_minimum_size = Vector2(380, 50)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "📷 Modo Foto"
+
+[node name="Boton_Camara_Tomas" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=1829104724]
+custom_minimum_size = Vector2(380, 50)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🎬 Tomas y Cámara (Shorts)"
 
 [node name="Boton_Opciones" type="Button" parent="Panel_Pausa/VBoxContainer" unique_id=245179629]
 custom_minimum_size = Vector2(380, 50)
@@ -283,6 +308,12 @@ custom_minimum_size = Vector2(460, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "🎬 Ajustes de Video"
+
+[node name="Boton_Opciones_Camara_Tomas" type="Button" parent="Panel_Opciones/VBoxContainer" unique_id=1617390920]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🎬 Tomas y Cámara Shorts"
 
 [node name="Label_Escala_Botones" type="Label" parent="Panel_Opciones/VBoxContainer" unique_id=774955636]
 layout_mode = 2
@@ -374,6 +405,12 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "👁️ Ocultar Controles (Excepto Pausa): Desactivado"
 
+[node name="Boton_Ir_A_Camara_Tomas" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390919]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🎬 Control Libre de Distancia y Altura..."
+
 [node name="Boton_Escala_Render" type="Button" parent="Panel_Ajustes_Video/VBoxContainer" unique_id=1617390913]
 custom_minimum_size = Vector2(460, 48)
 layout_mode = 2
@@ -403,22 +440,137 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "Atrás"
 
+[node name="Panel_Camara_Tomas" type="Panel" parent="." unique_id=141872661]
+visible = false
+custom_minimum_size = Vector2(560, 610)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -305.0
+offset_right = 280.0
+offset_bottom = 305.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel_Camara_Tomas" unique_id=500451300]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 18.0
+offset_right = -32.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Label_Titulo" type="Label" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=731413466]
+layout_mode = 2
+text = "🎬 Tomas de Cámara (Shorts)"
+label_settings = SubResource("LabelSettings_panel")
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=588381112]
+layout_mode = 2
+
+[node name="Label_Distancia" type="Label" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=774955638]
+layout_mode = 2
+text = "🔍 Distancia de Cámara: 5.2 m (Predeterminado)"
+horizontal_alignment = 1
+
+[node name="Slider_Distancia" type="HSlider" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=1556023313]
+custom_minimum_size = Vector2(460, 36)
+layout_mode = 2
+size_flags_horizontal = 4
+min_value = 1.8
+max_value = 12.0
+step = 0.1
+value = 5.2
+
+[node name="Label_Altura" type="Label" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=774955639]
+layout_mode = 2
+text = "📐 Altura de Cámara: 0.65 m (Predeterminado)"
+horizontal_alignment = 1
+
+[node name="Slider_Altura" type="HSlider" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=1620610422]
+custom_minimum_size = Vector2(460, 36)
+layout_mode = 2
+size_flags_horizontal = 4
+min_value = -1.0
+max_value = 3.5
+step = 0.05
+value = 0.65
+
+[node name="HSeparator2" type="HSeparator" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=2036685274]
+layout_mode = 2
+
+[node name="Boton_Camara_Estatica" type="Button" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=1617390916]
+custom_minimum_size = Vector2(460, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "📹 Cámara Estática: DESACTIVADA (Siguiendo al personaje)"
+
+[node name="Boton_Toggle_HUD_Rapido" type="Button" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=1617390917]
+custom_minimum_size = Vector2(460, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "🔘 Botón Rápido de Tomas en HUD: Desactivado"
+
+[node name="Boton_Revertir_Camara" type="Button" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=1617390918]
+custom_minimum_size = Vector2(460, 46)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "↺ Revertir a Valores Predeterminados"
+
+[node name="Label_Atajos" type="Label" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=774955640]
+layout_mode = 2
+text = "💡 Atajos: + / - = Zoom | 8 / 2 = Altura | * = Guía 9:16 Shorts | K / F6 = Congelar cámara | Control: Stick Der. mueve cámara congelada (RT/LT Altura, LB Ángulo)"
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 0.85)
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 2
+horizontal_alignment = 1
+
+[node name="HSeparator3" type="HSeparator" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=2036685275]
+layout_mode = 2
+
+[node name="Boton_Cerrar_Camara_Tomas" type="Button" parent="Panel_Camara_Tomas/VBoxContainer" unique_id=1382954272]
+custom_minimum_size = Vector2(240, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Atrás"
+
 [connection signal="pressed" from="HUD_Menu/Boton_Pausa" to="." method="_on_boton_pausa_pressed"]
+[connection signal="pressed" from="HUD_Boton_Camara/Boton_Camara_Rapida" to="." method="_on_boton_camara_rapida_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Continuar" to="." method="_on_boton_continuar_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Reiniciar" to="." method="_on_boton_reiniciar_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Reiniciar_Nivel" to="." method="_on_boton_reiniciar_nivel_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Modo_Foto" to="." method="_on_boton_modo_foto_pressed"]
+[connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Camara_Tomas" to="." method="_on_boton_camara_tomas_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Opciones" to="." method="_on_boton_opciones_pressed"]
 [connection signal="pressed" from="Panel_Pausa/VBoxContainer/Boton_Salir" to="." method="_on_boton_salir_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Personalizar_HUD" to="." method="_on_boton_personalizar_hud_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Mapear_Control" to="." method="_on_boton_mapear_control_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Ajustes_Video" to="." method="_on_boton_ajustes_video_pressed"]
+[connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Opciones_Camara_Tomas" to="." method="_on_boton_camara_tomas_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Vibracion" to="." method="_on_boton_vibracion_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_FPS" to="." method="_on_boton_fps_pressed"]
 [connection signal="pressed" from="Panel_Opciones/VBoxContainer/Boton_Cerrar_Opciones" to="." method="_on_boton_cerrar_opciones_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Guia_Shorts" to="." method="_on_boton_guia_shorts_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Ocultar_Controles" to="." method="_on_boton_ocultar_controles_pressed"]
+[connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Ir_A_Camara_Tomas" to="." method="_on_boton_camara_tomas_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Escala_Render" to="." method="_on_boton_escala_render_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Limite_FPS" to="." method="_on_boton_limite_fps_pressed"]
 [connection signal="pressed" from="Panel_Ajustes_Video/VBoxContainer/Boton_Cerrar_Ajustes_Video" to="." method="_on_boton_cerrar_ajustes_video_pressed"]
+[connection signal="value_changed" from="Panel_Camara_Tomas/VBoxContainer/Slider_Distancia" to="." method="_on_slider_distancia_camara_changed"]
+[connection signal="value_changed" from="Panel_Camara_Tomas/VBoxContainer/Slider_Altura" to="." method="_on_slider_altura_camara_changed"]
+[connection signal="pressed" from="Panel_Camara_Tomas/VBoxContainer/Boton_Camara_Estatica" to="." method="_on_boton_camara_estatica_pressed"]
+[connection signal="pressed" from="Panel_Camara_Tomas/VBoxContainer/Boton_Toggle_HUD_Rapido" to="." method="_on_boton_toggle_hud_rapido_pressed"]
+[connection signal="pressed" from="Panel_Camara_Tomas/VBoxContainer/Boton_Revertir_Camara" to="." method="_on_boton_revertir_camara_pressed"]
+[connection signal="pressed" from="Panel_Camara_Tomas/VBoxContainer/Boton_Cerrar_Camara_Tomas" to="." method="_on_boton_cerrar_camara_tomas_pressed"]
 

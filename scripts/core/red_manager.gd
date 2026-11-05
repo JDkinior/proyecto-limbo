@@ -517,6 +517,42 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 		_intentar_asignar_autoridades()
 		return
 
+	# Si la cámara está congelada/estática para tomas de Shorts, no ejecutar vuelo ni reposicionar el pivote detrás del personaje
+	var cam_mgr = CamaraConfigManager if is_instance_valid(CamaraConfigManager) else (origen_char._get_camara_config_manager() if origen_char else null)
+	if is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica():
+		personaje_activo_solo = nuevo_personaje_str
+		reino_espiritual_activo = (nuevo_personaje_str == "fantasma")
+
+		# Asignar posición y orientación estática al pivote de destino sin ningún movimiento relativo
+		if is_instance_valid(destino_char.pivote_camara):
+			destino_char.pivote_camara.top_level = true
+			destino_char.pivote_camara.global_position = cam_mgr.obtener_posicion_camara_estatica()
+			destino_char.pivote_camara.rotation = cam_mgr.obtener_rotacion_camara_estatica()
+			var arm_dest = destino_char.obtener_spring_arm()
+			if is_instance_valid(arm_dest):
+				arm_dest.rotation.x = cam_mgr.obtener_rot_x_arm_estatica()
+				arm_dest.position.y = cam_mgr.obtener_altura_spring_arm()
+				arm_dest.spring_length = cam_mgr.obtener_distancia_camara()
+				arm_dest.add_excluded_object(destino_char.get_rid())
+			var cam_dest_pre = destino_char.obtener_camara()
+			if is_instance_valid(cam_dest_pre):
+				cam_dest_pre.v_offset = destino_char.obtener_v_offset_deseado()
+			destino_char.pivote_camara.force_update_transform()
+			destino_char.pivote_camara.reset_physics_interpolation()
+
+		_intentar_asignar_autoridades(true)
+
+		cam_destino.current = true
+		cam_origen.current = false
+		if is_instance_valid(_camara_transicion):
+			_camara_transicion.current = false
+
+		reino_cambiado.emit(reino_espiritual_activo)
+		personaje_solo_cambiado.emit(personaje_activo_solo)
+		transicion_camara_completada.emit(nuevo_personaje_str)
+		print("[RedManager] Cambio de personaje instantáneo manteniendo cámara estática fija en: ", cam_mgr.obtener_posicion_camara_estatica())
+		return
+
 	# Alinear pivote del personaje destino detrás del personaje para mirar en la dirección hacia donde mira
 	if is_instance_valid(destino_char.pivote_camara):
 		destino_char.pivote_camara.top_level = true
