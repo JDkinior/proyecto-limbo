@@ -254,17 +254,23 @@ func desposeer() -> void:
 		fantasma.collision_layer = 1 << 2 # Capa 3 espiritual
 		fantasma.collision_mask = (1 << 0) | (1 << 2) | (1 << 3)
 	
-	# Restaurar parámetros de cámara suavemente
-	var arm = fantasma.obtener_spring_arm() if (is_instance_valid(fantasma) and not Engine.is_editor_hint() and fantasma.has_method("obtener_spring_arm")) else null
-	if arm:
-		var tween = create_tween()
-		if tween:
-			tween.tween_property(arm, "spring_length", _distancia_camara_original, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(arm, "position:y", _altura_spring_arm_original, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# Restaurar parámetros de cámara suavemente si la cámara no está estática
+	var cam_mgr = fantasma._get_camara_config_manager() if (is_instance_valid(fantasma) and fantasma.has_method("_get_camara_config_manager")) else null
+	if not is_instance_valid(cam_mgr) and is_inside_tree() and get_tree() and get_tree().root:
+		cam_mgr = get_tree().root.get_node_or_null("CamaraConfigManager")
+	var es_cam_estatica = is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica()
 	
-	var cam = fantasma.obtener_camara() if (is_instance_valid(fantasma) and not Engine.is_editor_hint() and fantasma.has_method("obtener_camara")) else null
-	if cam:
-		cam.v_offset = _v_offset_camara_original
+	if not es_cam_estatica:
+		var arm = fantasma.obtener_spring_arm() if (is_instance_valid(fantasma) and not Engine.is_editor_hint() and fantasma.has_method("obtener_spring_arm")) else null
+		if arm:
+			var tween = create_tween()
+			if tween:
+				tween.tween_property(arm, "spring_length", _distancia_camara_original, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+				tween.tween_property(arm, "position:y", _altura_spring_arm_original, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		
+		var cam = fantasma.obtener_camara() if (is_instance_valid(fantasma) and not Engine.is_editor_hint() and fantasma.has_method("obtener_camara")) else null
+		if cam:
+			cam.v_offset = _v_offset_camara_original
 	
 	posesion_terminada.emit(obj)
 
@@ -311,6 +317,13 @@ func _procesar_input_durante_posesion(delta: float) -> void:
 
 func _adaptar_camara_a_objeto(delta: float) -> void:
 	if not is_instance_valid(objeto_poseido_actual) or not is_instance_valid(fantasma):
+		return
+	
+	# Si la cámara está congelada/estática para tomas de Shorts, NO alterar posición ni distancia
+	var cam_mgr = fantasma._get_camara_config_manager() if (fantasma.has_method("_get_camara_config_manager")) else null
+	if not is_instance_valid(cam_mgr) and is_inside_tree() and get_tree() and get_tree().root:
+		cam_mgr = get_tree().root.get_node_or_null("CamaraConfigManager")
+	if is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica():
 		return
 	
 	var arm = fantasma.obtener_spring_arm() if (not Engine.is_editor_hint() and fantasma.has_method("obtener_spring_arm")) else null

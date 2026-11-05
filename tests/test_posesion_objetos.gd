@@ -10,21 +10,7 @@ func suite_name() -> String:
 	return "posesion_objetos"
 
 func _recargar_scripts_posesion() -> void:
-	var base = load("res://scripts/entorno/isla_flotante.gd")
-	if base and base.has_method("reload"):
-		base.reload()
-	var taxi = load("res://scripts/components/posesion/plataforma_taxi.gd")
-	if taxi and taxi.has_method("reload"):
-		taxi.reload()
-	var ojos = load("res://scripts/components/posesion/ojos_posesion.gd")
-	if ojos and ojos.has_method("reload"):
-		ojos.reload()
-	var canon = load("res://scripts/components/posesion/canon_espiritual.gd")
-	if canon and canon.has_method("reload"):
-		canon.reload()
-	var mira = load("res://scripts/components/posesion/mira_canon_espiritual.gd")
-	if mira and mira.has_method("reload"):
-		mira.reload()
+	pass
 
 func test_ojos_posesion_instanciacion_y_expresiones() -> void:
 	_recargar_scripts_posesion()
@@ -158,8 +144,6 @@ func test_plataforma_taxi_eje_vertical() -> void:
 
 func test_canon_espiritual_punteria_y_disparo() -> void:
 	var script = load("res://scripts/components/posesion/canon_espiritual.gd")
-	if script and script.has_method("reload"):
-		script.reload()
 	assert_ne(script, null, "El script de canon_espiritual.gd debe existir")
 	
 	var canon = track(script.new()) as CanonEspiritual
@@ -193,9 +177,8 @@ func test_canon_espiritual_punteria_y_disparo() -> void:
 	assert_true(canon._recoil_offset_z > 0.0, "El cañón debe registrar retroceso visual (recoil)")
 
 func test_canon_vivo_entra_sin_disparo_y_fantasma_apunta_y_dispara() -> void:
+	_recargar_scripts_posesion()
 	var script = load("res://scripts/components/posesion/canon_espiritual.gd")
-	if script and script.has_method("reload"):
-		script.reload()
 	assert_ne(script, null, "El script de canon_espiritual.gd debe existir")
 	
 	var canon = track(script.new()) as CanonEspiritual
@@ -246,6 +229,26 @@ func test_canon_vivo_entra_sin_disparo_y_fantasma_apunta_y_dispara() -> void:
 	assert_eq(canon._jugador_cargado, null, "El jugador vivo debe ser expulsado tras el disparo del fantasma")
 	assert_true(vivo_dummy.velocity.length() > 25.0, "El vivo debe salir impulsado por el disparo")
 	assert_true(vivo_dummy.velocity.dot(dir_elegida) > 0.0, "El vivo debe ser disparado en la dirección elegida por el fantasma")
+	
+	# 7. Verificar que durante el vuelo balístico diagonal el jugador vivo NO se desvía hacia un lado
+	var jugador_script = load("res://scripts/characters/jugador.gd")
+	var vivo_real = track(jugador_script.new()) as Jugador
+	if tree and tree.root:
+		tree.root.add_child(vivo_real)
+	vivo_real._ready()
+	canon._cooldown_recarga = 0.0
+	canon._angulo_yaw = 0.32 # Apuntado diagonal (~18.3 grados)
+	canon._angulo_pitch = 25.0
+	canon._actualizar_orientacion_canon()
+	canon.intentar_interactuar(vivo_real)
+	var dir_disparo_diag = canon.obtener_direccion_disparo()
+	var dir_horiz_esperada = Vector2(dir_disparo_diag.x, dir_disparo_diag.z).normalized()
+	canon.ejecutar_disparo()
+	assert_true(vivo_real.en_vuelo_balistico, "El vivo lanzado por el cañón debe entrar en estado en_vuelo_balistico")
+	for _step in range(30):
+		vivo_real.aplicar_friccion_y_movimiento(Vector3.ZERO, 0.016)
+	var dir_horiz_actual = Vector2(vivo_real.velocity.x, vivo_real.velocity.z).normalized()
+	assert_true(dir_horiz_actual.dot(dir_horiz_esperada) > 0.999, "El vivo debe mantener exactamente la dirección horizontal de disparo sin desviarse hacia un lado")
 
 func test_canon_espiritual_escena_con_modelos_glb() -> void:
 	_recargar_scripts_posesion()
@@ -300,6 +303,13 @@ func test_canon_espiritual_escena_con_modelos_glb() -> void:
 	
 	canon.procesar_input_posesion(0.1, Vector2(0.0, -1.0), {})
 	assert_ne(canon.nodo_canon_giratorio.rotation.x, rot_pitch_inicial, "El input vertical debe rotar solo el cañón en elevación (pitch)")
+	
+	# Verificar alineación geométrica exacta entre el modelo 3D del tubo (Canon_Tubo), BocaCanon y obtener_direccion_disparo()
+	var p_eje_local_glb = Vector3(0.0, 1.08, 0.0)
+	var p_boca_local_glb = Vector3(0.0, 1.08 + 1.06 * sin(deg_to_rad(35.0)), 1.06 * cos(deg_to_rad(35.0)))
+	var dir_modelo_tubo = (tubo_glb.to_global(p_boca_local_glb) - tubo_glb.to_global(p_eje_local_glb)).normalized()
+	var dir_disparo_actual = canon.obtener_direccion_disparo()
+	assert_true(dir_modelo_tubo.dot(dir_disparo_actual) > 0.999, "La orientación del modelo 3D Canon_Tubo debe coincidir exactamente con la dirección de disparo y la mira")
 	
 	canon.terminar_posesion()
 	assert_false(mira.esta_activa, "La mira debe ocultarse al terminar la posesión")
@@ -515,3 +525,115 @@ func test_plataforma_taxi_hereda_isla_flotante_procedural() -> void:
 	assert_false(taxi.esta_poseido, "Debe desposeerse correctamente")
 	var mat_actual = taxi.get_node("MeshInstance3D").get_surface_override_material(0)
 	assert_true(mat_actual != IslaFlotante.MAT_ISLA_ESPECTRAL_POSEIDA, "Al desposeer debe restaurar el material normal de la roca")
+
+func test_canon_salto_animado_y_adaptacion_forma_vivo() -> void:
+	_recargar_scripts_posesion()
+	var canon_script = load("res://scripts/components/posesion/canon_espiritual.gd")
+	var jugador_script = load("res://scripts/characters/jugador.gd")
+	
+	var canon = track(canon_script.new()) as CanonEspiritual
+	var jugador = track(jugador_script.new()) as CharacterBody3D
+	
+	var tree = Engine.get_main_loop() as SceneTree
+	if tree and tree.root:
+		tree.root.add_child(canon)
+		tree.root.add_child(jugador)
+	
+	canon._ready()
+	jugador._ready()
+	
+	jugador.global_position = Vector3(0.0, 0.0, 2.0)
+	assert_true(jugador.silueta_activa, "Inicialmente el vivo debe tener silueta activa")
+	assert_false(jugador.en_canon, "Inicialmente el vivo no está en modo cañón")
+	
+	# 1. Al interactuar, entra en transición de salto animado
+	var interactuo = canon.intentar_interactuar(jugador)
+	assert_true(interactuo, "Debe aceptar la interacción")
+	assert_eq(canon._jugador_cargado, jugador, "El vivo debe quedar registrado como jugador cargado")
+	assert_true(canon._en_transicion_salto_vivo, "Debe iniciar en transición de salto en lugar de teletransporte instantáneo")
+	assert_false(jugador.silueta_activa, "Los rayos X (silueta) deben desactivarse al entrar al cañón")
+	assert_true(jugador.en_canon, "El vivo debe estar en modo cañón")
+	
+	# 2. Simular el salto paso a paso
+	var pos_inicio = canon._pos_inicio_salto_vivo
+	assert_eq(pos_inicio, Vector3(0.0, 0.0, 2.0), "Debe recordar la posición de despegue")
+	
+	# Mitad del salto (arco vertical en el aire)
+	for _i in range(15):
+		canon._physics_process(0.016)
+	
+	assert_true(canon._en_transicion_salto_vivo, "A medio camino sigue en transición")
+	assert_true(jugador.global_position.y > pos_inicio.y, "El salto debe formar un arco elevándose sobre el suelo")
+	assert_eq(jugador._factor_escala_canon, 1.0, "Durante el salto por el aire debe mantener su escala normal 1.0 sin encogerse antes de tiempo")
+	
+	# Completar el salto hasta la recámara
+	for _i in range(25):
+		canon._physics_process(0.016)
+	
+	assert_false(canon._en_transicion_salto_vivo, "Al finalizar el tiempo, la transición de salto debe terminar")
+	assert_false(jugador.silueta_activa, "Los rayos X siguen desactivados dentro de la recámara")
+	assert_eq(jugador._factor_escala_canon, canon.factor_escala_vivo_recamara, "La forma debe adaptarse al factor de recámara para no sobresalir")
+	if "offset_vertical_canon" in jugador:
+		assert_eq(jugador.offset_vertical_canon, canon.descenso_vertical_vivo, "El descenso vertical debe coincidir con la configuración del cañón para ocultar los pies")
+	
+	# 3. Disparo: restablece forma original, rotación erguida y silueta
+	canon.ejecutar_disparo()
+	assert_true(jugador.silueta_activa, "Al ser disparado, los rayos X (silueta) deben restaurarse")
+	assert_false(jugador.en_canon, "Al ser disparado, el modo cañón se desactiva")
+	assert_eq(jugador._factor_escala_canon, 1.0, "La forma/escala del vivo debe restaurarse a 1.0 tras el disparo")
+	assert_eq(jugador.rotation.x, 0.0, "La rotación en pitch debe restablecerse erguida")
+	assert_eq(jugador.rotation.z, 0.0, "La rotación en roll debe restablecerse")
+
+func test_canon_salida_animada_invertida_vivo() -> void:
+	var canon_script = load("res://scripts/components/posesion/canon_espiritual.gd")
+	var jugador_script = load("res://scripts/characters/jugador.gd")
+	
+	var canon = track(canon_script.new()) as CanonEspiritual
+	var jugador = track(jugador_script.new()) as CharacterBody3D
+	
+	var tree = Engine.get_main_loop() as SceneTree
+	if tree and tree.root:
+		tree.root.add_child(canon)
+		tree.root.add_child(jugador)
+	
+	canon._ready()
+	jugador._ready()
+	
+	# 1. Cargar jugador en el cañón y completar entrada
+	canon.cargar_jugador_en_canon(jugador)
+	for _i in range(35):
+		canon._physics_process(0.016)
+	
+	assert_false(canon._en_transicion_salto_vivo, "La entrada debe haber terminado")
+	assert_eq(canon._jugador_cargado, jugador, "El vivo debe estar en la recámara")
+	assert_true(jugador.en_canon, "Debe tener modo cañón activo")
+	
+	# 2. Iniciar salida voluntaria sin disparo (invertida a la entrada)
+	canon._tiempo_en_recamara = 0.5
+	canon._expulsar_vivo_sin_disparar()
+	assert_true(canon._en_transicion_salida_vivo, "Debe activar la transición de salida en lugar de teletransporte instantáneo")
+	
+	# Fase 1 de salida: Sale por la boca del cañón y se expande
+	for _i in range(8):
+		canon._physics_process(0.016)
+	
+	assert_true(canon._en_transicion_salida_vivo, "Sigue en transición de salida")
+	assert_true(jugador._factor_escala_canon > canon.factor_escala_vivo_recamara, "Al salir por la boca debe expandirse hacia 1.0")
+	
+	# Fase 2 de salida: Salto parabólico hacia el suelo
+	for _i in range(15):
+		canon._physics_process(0.016)
+	
+	assert_eq(jugador._factor_escala_canon, 1.0, "En el aire hacia el suelo debe estar a tamaño completo 1.0")
+	
+	# Completar salida y aterrizar en el suelo
+	for _i in range(25):
+		canon._physics_process(0.016)
+	
+	assert_false(canon._en_transicion_salida_vivo, "La transición de salida debe haber terminado")
+	assert_eq(canon._jugador_cargado, null, "El jugador ya no debe estar cargado")
+	assert_false(jugador.en_canon, "El modo cañón debe desactivarse al aterrizar")
+	assert_true(jugador.silueta_activa, "Los rayos X (silueta) deben reactivarse al salir")
+	assert_eq(jugador.rotation.x, 0.0, "La rotación debe estar erguida")
+	assert_eq(jugador.rotation.z, 0.0, "El roll debe estar en 0")
+

@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://b5m8y2k4n7kax"]
+[gd_scene format=4 uid="uid://b5m8y2k4n7kax"]
 
 [ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="1_nivel"]
 [ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_vivo"]
@@ -8,11 +8,12 @@
 [ext_resource type="Material" uid="uid://dk780hfk8i84w" path="res://assets/materiales/entorno/m_isla_hierba.tres" id="6_p4o7s"]
 [ext_resource type="PackedScene" uid="uid://cx8b2y3n4m5p6" path="res://scenes/components/posesion/plataforma_taxi.tscn" id="6_taxi"]
 [ext_resource type="PackedScene" uid="uid://dm8p3k4n5j6y7" path="res://scenes/components/posesion/canon_espiritual.tscn" id="7_canon"]
-[ext_resource type="PackedScene" uid="uid://bxan2m4k5j7x8" path="res://scenes/components/posesion/farol_espiritual.tscn" id="8_farol"]
-[ext_resource type="PackedScene" uid="uid://df7k2m5j8n10a" path="res://scenes/components/posesion/engranaje_espiritual.tscn" id="9_engranaje"]
 [ext_resource type="Material" uid="uid://c7b63irvr06f4" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="10_cielo_mat"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges5" path="res://scenes/components/coleccionables/moneda_vivo.tscn" id="11_2o3q6"]
 [ext_resource type="Material" uid="uid://dlpofbs16wlgk" path="res://assets/materiales/entorno/m_isla_roca.tres" id="11_roca_mat"]
-[ext_resource type="PackedScene" uid="uid://cs88ggghqges1" path="res://scenes/components/mecanismos/boton_presion.tscn" id="12_8y74t"]
+[ext_resource type="PackedScene" uid="uid://cnayqvhumf4io" path="res://scenes/entorno/isla_flotante.tscn" id="13_6qjpx"]
+[ext_resource type="PackedScene" path="res://scenes/entorno/vegetacion/pasto_area.tscn" id="14_wvu41"]
+[ext_resource type="Shader" uid="uid://b5jkqbkbg2hr5" path="res://shaders/entorno/vegetacion/pasto_estilizado.gdshader" id="15_sx7c1"]
 
 [sub_resource type="Sky" id="Sky_shorts"]
 sky_material = ExtResource("10_cielo_mat")
@@ -29,19 +30,71 @@ glow_intensity = 0.8
 glow_strength = 1.05
 glow_bloom = 0.16
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_isla_inicio"]
-size = Vector3(14, 1.5, 14)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2o3q6"]
+render_priority = 2
+shader = ExtResource("15_sx7c1")
+shader_parameter/color_base = Color(0.38, 0.24, 0.02, 1)
+shader_parameter/color_punta = Color(0.66, 0.49, 0.07, 1)
+shader_parameter/suavizado_gradiente = 0.78
+shader_parameter/curva_gradiente = 1.3
+shader_parameter/saturacion = 0.85
+shader_parameter/brillo_puntas = 0.02
+shader_parameter/translucidencia = 0.06
+shader_parameter/oclusion_base = 0.08
+shader_parameter/direccion_viento = Vector2(1, 0.4)
+shader_parameter/velocidad_viento = 2.2
+shader_parameter/fuerza_viento = 0.25
+shader_parameter/escala_onda = 2.5
+shader_parameter/turbulencia = 0.35
+shader_parameter/posicion_jugador = Vector3(0, 9999, 0)
+shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
+shader_parameter/radio_interaccion = 0.75
+shader_parameter/fuerza_interaccion = 0.45
+shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0
 
-[sub_resource type="BoxMesh" id="BoxMesh_isla_inicio"]
-material = ExtResource("11_roca_mat")
-size = Vector3(14, 1.5, 14)
+[sub_resource type="ArrayMesh" id="ArrayMesh_6qjpx"]
+_surfaces = [{
+"aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.26250046, 0.29917035),
+"attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
+"format": 34359738391,
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 9,
+"vertex_data": PackedByteArray("YKU2vAAAAADbLBm+YKU2PAAAAADbLBk+jTxJPRvXEz40vMA9YKU2vAAAAADbLBm+jTxJPRvXEz40vMA9Z+ANPRvXEz46hc29Z+ANPRvXEz46hc29jTxJPRvXEz40vMA9GXLWPXZmhj5xtP+75bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT")
+}]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_isla_meta"]
-size = Vector3(12, 1.5, 12)
+[sub_resource type="MultiMesh" id="MultiMesh_itxob"]
+transform_format = 1
+custom_aabb = AABB(-31.661201, -0.531762, -101.56364, 45.261055, 5.288231, 106.30555)
+mesh = SubResource("ArrayMesh_6qjpx")
 
-[sub_resource type="BoxMesh" id="BoxMesh_isla_meta"]
-material = ExtResource("11_roca_mat")
-size = Vector3(12, 1.5, 12)
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_wvu41"]
+render_priority = 2
+shader = ExtResource("15_sx7c1")
+shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
+shader_parameter/color_punta = Color(0.045, 0.35, 0.65, 1)
+shader_parameter/suavizado_gradiente = 0.8
+shader_parameter/curva_gradiente = 1.25
+shader_parameter/saturacion = 0.9
+shader_parameter/brillo_puntas = 0.03
+shader_parameter/translucidencia = 0.05
+shader_parameter/oclusion_base = 0.38
+shader_parameter/direccion_viento = Vector2(1, 0.4)
+shader_parameter/velocidad_viento = 2.2
+shader_parameter/fuerza_viento = 0.25
+shader_parameter/escala_onda = 2.5
+shader_parameter/turbulencia = 0.35
+shader_parameter/posicion_jugador = Vector3(0, 9999, 0)
+shader_parameter/posicion_fantasma = Vector3(0, 9999, 0)
+shader_parameter/radio_interaccion = 0.75
+shader_parameter/fuerza_interaccion = 0.45
+shader_parameter/usar_textura_ruido = false
+shader_parameter/desvanecimiento_distancia = true
+shader_parameter/distancia_fade_inicio = 40.0
+shader_parameter/distancia_fade_fin = 60.0
 
 [node name="PruebaPosesionShorts" type="Node3D" unique_id=577489280]
 script = ExtResource("1_nivel")
@@ -55,32 +108,30 @@ light_color = Color(0.95, 0.95, 1, 1)
 light_energy = 1.25
 shadow_enabled = true
 
-[node name="IslaInicio" type="StaticBody3D" parent="." unique_id=962192083]
+[node name="CanonEspiritual" parent="." unique_id=1738099186 instance=ExtResource("7_canon")]
+transform = Transform3D(0.9991105, 0, -0.042155415, 0, 1, 0, 0.042155415, 0, 0.9991105, -0.07114816, -0.043165922, -4.9121904)
 collision_layer = 3
-collision_mask = 0
+fuerza_disparo = 40.0
+duracion_salto_entrada = 0.46
+altura_arco_salto = 1.35
+nombre_objeto = "Cañón Espiritual"
+distancia_camara_posesion = 6.2
+altura_spring_arm_posesion = 2.2
+pitch_defecto_posesion = -0.18
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="IslaInicio" unique_id=1202440340]
-shape = SubResource("BoxShape3D_isla_inicio")
+[node name="Jugador" parent="." unique_id=1392858458 instance=ExtResource("2_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.8537626, 0.5085623, 1.0252595)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="IslaInicio" unique_id=1167447047]
-mesh = SubResource("BoxMesh_isla_inicio")
+[node name="Fantasma" parent="." unique_id=1168586313 instance=ExtResource("3_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1726665, 0.7051095, 0)
 
-[node name="IslaMeta" type="StaticBody3D" parent="." unique_id=1128921559]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -32)
-collision_layer = 3
-collision_mask = 0
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="IslaMeta" unique_id=219997009]
-shape = SubResource("BoxShape3D_isla_meta")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="IslaMeta" unique_id=1704071043]
-mesh = SubResource("BoxMesh_isla_meta")
-
-[node name="Goal" parent="IslaMeta" unique_id=843991546 instance=ExtResource("5_goal")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+[node name="ControlesTactiles" parent="." unique_id=451687318 instance=ExtResource("4_hud")]
 
 [node name="PlataformaTaxi" parent="." unique_id=149272682 instance=ExtResource("6_taxi")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -9.5)
+transform = Transform3D(-0.96362466, 0, -0.26725927, 0, 1, 0, 0.26725927, 0, -0.96362466, -0.9059038, 0.5, -12.713593)
+visible = false
+distancia_maxima_riel = 100000.0
+radio_maximo_horizontal = 100000000.0
 altura_maxima_relativa = 8.0
 descenso_maximo_relativo = 4.0
 velocidad_crucero = 12.0
@@ -104,37 +155,103 @@ radio_despeje_centro = 0.8
 material_hierba = ExtResource("6_p4o7s")
 material_roca = ExtResource("11_roca_mat")
 
-[node name="CanonEspiritual" parent="." unique_id=1738099186 instance=ExtResource("7_canon")]
-transform = Transform3D(0.8660249, 0, 0.5, 0, 1, 0, -0.5, 0, 0.8660249, 5, 0.75, 4)
-collision_layer = 3
-nombre_objeto = "Cañón Espiritual"
-distancia_camara_posesion = 6.2
-altura_spring_arm_posesion = 2.2
-pitch_defecto_posesion = -0.18
+[node name="IslasNivel" type="Node3D" parent="." unique_id=567563397]
+transform = Transform3D(-0.7801137, 0, 0.62563777, 0, 1, 0, -0.62563777, 0, -0.7801137, -0.7758627, 2.9439697, -31.222206)
 
-[node name="FarolEspiritual" parent="." unique_id=1974955890 instance=ExtResource("8_farol")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.75, -2)
-collision_layer = 3
-nombre_objeto = "Farol Espiritual"
-distancia_camara_posesion = 6.8
-altura_spring_arm_posesion = 3.2
-pitch_defecto_posesion = -0.42
+[node name="Isla inicio2" parent="IslasNivel" unique_id=1874747314 instance=ExtResource("13_6qjpx")]
+transform = Transform3D(0.7156432, 0, 0.6984662, 0, 1, 0, -0.6984662, 0, 0.7156432, 42.817284, -2.8061771, 52.482742)
+preset = 0
+ancho = 6.5
+largo = 6.5
+profundidad_roca = 5.5
+irregularidad_contorno = 0.28
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.35
+semilla = 2348128613
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.28
+generar_pasto = false
+variacion_superficie = 0.06
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
 
-[node name="EngranajeEspiritual" parent="." unique_id=1808646476 instance=ExtResource("9_engranaje")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.75, 4)
-collision_layer = 3
-nombre_objeto = "Engranaje Espiritual"
-distancia_camara_posesion = 5.2
-altura_spring_arm_posesion = 1.6
-pitch_defecto_posesion = -0.2
+[node name="MonedaVivo" parent="IslasNivel/Isla inicio2" unique_id=1921210106 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, -0.48916864, 1.8307018, -0.47052002)
 
-[node name="Jugador" parent="." unique_id=1392858458 instance=ExtResource("2_vivo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 1.8, 0)
+[node name="MonedaVivo2" parent="IslasNivel/Isla inicio2" unique_id=334141520 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, 1.5363698, 1.8028755, 1.8949203)
 
-[node name="Fantasma" parent="." unique_id=1168586313 instance=ExtResource("3_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 1.8, 0)
+[node name="MonedaVivo3" parent="IslasNivel/Isla inicio2" unique_id=682458415 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, -0.9152794, 1.794754, -2.4199371)
 
-[node name="ControlesTactiles" parent="." unique_id=451687318 instance=ExtResource("4_hud")]
+[node name="MonedaVivo4" parent="IslasNivel/Isla inicio2" unique_id=726103582 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, 0.6238575, 1.8040142, 0.58898926)
 
-[node name="BotonPresion" parent="." unique_id=1865858071 instance=ExtResource("12_8y74t")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7783833, 1.4085969, -1.6009564)
+[node name="MonedaVivo5" parent="IslasNivel/Isla inicio2" unique_id=1372468633 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, 2.0588336, 1.8228245, -0.54268646)
+
+[node name="MonedaVivo6" parent="IslasNivel/Isla inicio2" unique_id=750961601 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, -1.5013123, 1.8263607, 0.23457336)
+
+[node name="MonedaVivo7" parent="IslasNivel/Isla inicio2" unique_id=1005605306 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, 0.66635513, 1.8270779, -2.542965)
+
+[node name="MonedaVivo8" parent="IslasNivel/Isla inicio2" unique_id=2062800068 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, -0.36073208, 1.7998276, -3.8267593)
+
+[node name="MonedaVivo9" parent="IslasNivel/Isla inicio2" unique_id=2026899428 instance=ExtResource("11_2o3q6")]
+transform = Transform3D(-0.99526966, 0, 0.09714956, 0, 1, 0, -0.09714956, 0, -0.99526966, -1.7104878, 1.7923527, -3.0873032)
+
+[node name="IslaMeta" parent="IslasNivel" unique_id=227773737 instance=ExtResource("13_6qjpx")]
+preset = 0
+largo = 10.5
+profundidad_roca = 7.0
+irregularidad_contorno = 0.16
+intensidad_variacion = 0.28
+semilla = 3173407900
+cantidad_picos_rocosos = 2
+dispersion_picos = 0.30000000000000004
+angulo_suavizado_roca = 46.0
+generar_pasto = false
+variacion_superficie = 1.0
+generar_decoracion = true
+densidad_decoracion = 0.7
+incluir_cristales = false
+margen_borde = 2.6
+radio_despeje_centro = 3.8
+
+[node name="Goal" parent="IslasNivel/IslaMeta" unique_id=843991546 instance=ExtResource("5_goal")]
+transform = Transform3D(-0.7801137, 0, -0.62563777, 0, 1, 0, 0.62563777, 0, -0.7801137, -0.11864281, 0.25603032, 1.0921764)
+visible = false
+
+[node name="Isla inicio" parent="IslasNivel" unique_id=1802022335 instance=ExtResource("13_6qjpx")]
+transform = Transform3D(-0.7801137, 0, -0.62563777, 0, 1, 0, 0.62563777, 0, -0.7801137, -20.454937, -2.9439697, -23.945843)
+preset = 0
+irregularidad_contorno = 0.1
+semilla = 2348128613
+generar_pasto = false
+
+[node name="PastoArea" parent="IslasNivel" unique_id=983594008 instance=ExtResource("14_wvu41")]
+transform = Transform3D(-0.93574536, 0, -0.35267615, 0, 1, 0, 0.35267615, 0, -0.93574536, -16.21657, -2.9439697, -29.075428)
+material_override = SubResource("ShaderMaterial_2o3q6")
+custom_aabb = AABB(-31.661201, -0.531762, -101.56364, 45.261055, 5.288231, 106.30555)
+multimesh = SubResource("MultiMesh_itxob")
+modo_distribucion = 0
+activar_pincel = true
+radio_pincel = 8.7
+densidad_pincel = 500
+pendiente_maxima = 43.0
+evitar_repintar = true
+archivo_datos_pasto = "res://scenes/levels/pasto_prueba_posesion_shorts_datos.res"
+solo_pintar_en_objetos = Array[NodePath]([NodePath("../Isla Inicio"), NodePath("../Isla Salto 1"), NodePath("../Isla Boton"), NodePath("../Isla Previa Salto"), NodePath("../Isla_F_Llegada"), NodePath("../Montaña"), NodePath("../Isla Fantasma"), NodePath("../Isla Previa Salto2"), NodePath("../Isla Previa Salto3"), NodePath("../Isla Previa Salto4"), NodePath("../Isla Previa Salto5"), NodePath("../Isla_F_Llegada2"), NodePath("../Isla_F_Llegada3")])
+cantidad_instancias = 20000
+alto_pasto = 0.25
+ancho_pasto = 0.30000000000000004
+briznas_por_manojo = 1
+material_fisico = SubResource("ShaderMaterial_2o3q6")
+material_espiritual = SubResource("ShaderMaterial_wvu41")

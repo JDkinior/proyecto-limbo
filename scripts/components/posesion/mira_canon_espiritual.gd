@@ -16,6 +16,7 @@ const SHADER_MIRA = preload("res://shaders/components/posesion/mira_canon.gdshad
 
 var nodo_origen: Node3D = null
 var esta_activa: bool = false
+var _cuerpo_excluido: CollisionObject3D = null
 
 var _raycast: RayCast3D = null
 var _malla_reticula: MeshInstance3D = null
@@ -56,6 +57,8 @@ func _construir_nodos() -> void:
 		_raycast.collide_with_areas = false
 		_raycast.collide_with_bodies = true
 		_raycast.target_position = Vector3(0.0, 0.0, -alcance_maximo)
+		if is_instance_valid(_cuerpo_excluido):
+			_raycast.add_exception(_cuerpo_excluido)
 		add_child(_raycast)
 	
 	# Malla de la retícula (mira)
@@ -86,8 +89,11 @@ func _construir_nodos() -> void:
 			add_child(punto)
 			_puntos_trayectoria.append(punto)
 
-func configurar_origen(origen: Node3D) -> void:
+func configurar_origen(origen: Node3D, cuerpo_excluido: CollisionObject3D = null) -> void:
 	nodo_origen = origen
+	_cuerpo_excluido = cuerpo_excluido
+	if is_instance_valid(_raycast) and is_instance_valid(_cuerpo_excluido):
+		_raycast.add_exception(_cuerpo_excluido)
 
 func mostrar() -> void:
 	esta_activa = true
@@ -120,8 +126,9 @@ func _process(delta: float) -> void:
 	
 	_fase_animacion = wrapf(_fase_animacion + delta * 1.8, 0.0, 1.0)
 	
-	var pos_inicio = nodo_origen.global_position if is_instance_valid(nodo_origen) else global_position
-	var dir_adelante = -global_transform.basis.z.normalized()
+	var nodo_ref = nodo_origen if is_instance_valid(nodo_origen) else self
+	var pos_inicio = nodo_ref.global_position
+	var dir_adelante = -nodo_ref.global_transform.basis.z.normalized()
 	
 	# Determinar punto de impacto con RayCast3D
 	var punto_destino = pos_inicio + (dir_adelante * alcance_maximo)

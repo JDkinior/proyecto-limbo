@@ -52,24 +52,24 @@ shape = SubResource("CylinderShape3D_base")
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="PivoteCanon" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.819152, 0.573576, 0, -0.573576, 0.819152, 0, 1.08, 0)
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.08, 0)
 
 [node name="Canon_Tubo" parent="PivoteCanon" instance=ExtResource("4_tubo_glb")]
-transform = Transform3D(-1, 0, 0, 0, 0.460001, -0.887918, 0, -0.887918, -0.460001, 0, -0.496801, 0.958952)
+transform = Transform3D(-1, 0, 0, 0, 0.819152, -0.573576, 0, -0.573576, -0.819152, 0, -0.884684, 0.619463)
 
 [node name="CabezaFantasmaEmergente" parent="PivoteCanon" instance=ExtResource("5_cabeza")]
-transform = Transform3D(-0.62, 0, 0, 0, 0.566115, 0.252811, 0, 0.252811, -0.566115, 0, 0.24, -0.98)
+transform = Transform3D(-0.62, 0, 0, 0, 0.384458, 0.486407, 0, 0.486407, -0.384458, 0, 0.666889, -0.757139)
 visible = false
 
 [node name="OjosPosesion" parent="PivoteCanon" instance=ExtResource("2_ojos")]
-transform = Transform3D(-1, 0, 0, 0, 0.971338, -0.237703, 0, -0.237703, -0.971338, 0, 0.08, -1.22)
+transform = Transform3D(-1, 0, 0, 0, 0.970876, 0.239581, 0, 0.239581, -0.970876, 0, 0.636351, -1.043962)
 visible = false
 
 [node name="MiraCanon" type="Node3D" parent="PivoteCanon"]
 script = ExtResource("6_mira")
 
 [node name="BocaCanon" type="Marker3D" parent="PivoteCanon"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.15)
 
 [node name="ParticulasDisparo" type="CPUParticles3D" parent="PivoteCanon/BocaCanon"]
 emitting = false
