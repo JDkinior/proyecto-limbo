@@ -1,48 +1,69 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.17` (Build Code `18`)  
+**Versión Actual:** `1.0.18` (Build Code `19`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 21 de Octubre de 2026  
+**Última Actualización:** 4 de Noviembre de 2026  
 
-# Documentación Central - Proyecto Limbo
+# Documentación Central y GDD - Proyecto Limbo
 
-## 📌 Descripción General
-Proyecto Limbo es un juego cooperativo asimétrico desarrollado en **Godot 4**. La mecánica principal gira en torno a la colaboración entre dos entidades en planos diferentes: el **Jugador Vivo** y el **Fantasma**. Mientras el primero navega el mundo físico, el segundo manipula la realidad para crear caminos.
+## 📌 Documento de Diseño de Juego (GDD Oficial)
+Para el documento detallado y completo de diseño de mecánicas, niveles y narrativa, consultar:
+- **[GDD_PROYECTO_LIMBO.md](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/documentacion/GDD_PROYECTO_LIMBO.md)**: Visión general, pilares, historia en 6 actos, bestiario, jefes y hoja de ruta.
+- **[DISENO_NIVELES.md](file:///c:/Users/degkp/Documents/Proyectos/proyecto-limbo/documentacion/DISENO_NIVELES.md)**: Fichas técnicas de los 12 niveles en 6 zonas, actos, checklists y tareas del Hito M1.
+- **Tablero de Desarrollo (Trello):** [Kanban Proyecto Limbo](https://trello.com/b/LcyBmqEC/kanban-proyecto-limbo) (Tablero privado con clasificación por etiquetas de Gameplay, Niveles, Peligros, Audio y Sistemas).
+
+### 🎮 Resumen de Identidad y Mecánicas Asimétricas
+Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollado en **Godot 4** para dispositivos móviles. La experiencia está orientada tanto a dos jugadores (cooperativo simultáneo) como a un solo jugador (alternancia manual por tramos con seguimiento automático y sin teletransporte).
+
+| Característica | Jugador Vivo | Fantasma |
+| :--- | :--- | :--- |
+| **Color UI / Shader** | Amarillo / Original | Azul espectral con filtro y teñido shader |
+| **Visión de Mundo** | Terrestre / Física | Espectral (Filtro azul/cian, plataformas ocultas) |
+| **Salto y Movimiento** | Salto acrobático con **doble salto** y pisotón | **Salto largo único** con **planeo sostenido** |
+| **Interacción** | Física directa (cajas, botones de presión, manivelas, palancas) | **Aura temporal** (activa plataformas) y **Posesión** |
+| **Peligro y Salud** | 1 golpe / caída = reaparición en checkpoint conjunto | 1 golpe / caída = reaparición en checkpoint conjunto |
 
 ## 📂 Organización del Proyecto
 
 ### Escenas Principales (`.tscn`)
-*   **`mundo_pruebas.tscn`**: El escenario principal de pruebas. Contiene el entorno, las plataformas físicas, la iluminación y los puntos de spawn de los personajes.
-*   **`jugador.tscn`**: Escena del personaje "Vivo". Posee colisiones físicas estándar y una cámara en tercera persona.
-*   **`fantasma.tscn`**: Escena del personaje espectral. Incluye el sistema de **Aura** visual y configuraciones de visibilidad translúcida.
-*   **`controles_tactiles.tscn`**: Interfaz de usuario (HUD) universal que detecta joysticks virtuales y botones de acción para dispositivos móviles.
+*   **`mundo_pruebas.tscn`**: Escenario sandbox de pruebas con iluminación, islas y spawns.
+*   **`Nivel 1 _ El Despertar Separado.tscn`**: Primer nivel de la campaña (Pradera con ruinas, Acto 0 de descenso del Fantasma y encuentro).
+*   **`jugador.tscn`**: Escena del personaje Vivo con física terrestre, doble salto y cámara en tercera persona.
+*   **`fantasma.tscn`**: Escena del Fantasma con planeo, salto largo, halo de Aura y shaders espectrales.
+*   **`controles_tactiles.tscn`**: HUD táctil universal con joysticks virtuales, botones de acción y modo Shorts (9:16).
 
 ### Scripts de Lógica (`.gd`)
-*   **`red_manager.gd`**: El corazón del multijugador. Gestiona conexiones locales (LAN P2P con descubrimiento UDP) y online (matchmaking en servidor dedicado), asignando la autoridad de red y controlando la sincronización de niveles.
-*   **`jugador.gd`**: Controla el movimiento, salto y rotación de cámara del jugador vivo. Incluye lógica para limpiar la interfaz de efectos visuales del fantasma.
-*   **`fantasma.gd`**: Script avanzado que gestiona:
-	*   Movimiento y doble salto.
-	*   Sistema de **Aura Temporal**: Se activa con energía que se consume (encogimiento) y tiene tiempo de recarga.
-	*   Sincronización RPC de plataformas.
-	*   Visión espiritual (filtro azul) y teñido de interfaz mediante Shaders.
-*   **`nivel_base.gd`**: Clase base de nivel (`NivelBase`) que estandariza el ciclo de vida de los niveles (reemplaza al legacy `administrador_plataformas.gd`). Inicializa las plataformas del plano espiritual en el grupo `"plataformas_aura"`, ejecuta la optimización de culling automática (`OptimizadorCulling`), valida la estructura contractual mínima de la escena (Vivo, Fantasma, HUD, Goal) y totaliza las monedas con `ScoreManager`.
-*   **`plataforma_aura.gd`**: Script individual para cada plataforma que gestiona de manera local y sincronizada sus colisiones físicas, opacidad y áreas de contacto.
+*   **`red_manager.gd`**: Gestión multijugador P2P y LAN UDP, autoridad de red y sincronización RPC.
+*   **`jugador.gd`**: Control de movimiento terrestre, doble salto y manipulación de mecanismos físicos.
+*   **`fantasma.gd`**: Movimiento espectral, salto largo, planeo suspendido, activación de Aura y posesión de objetos.
+*   **`nivel_base.gd`**: Clase base de nivel (`NivelBase`) con ciclo de vida contractual, checkpoints y optimizador de culling.
+*   **`catalogo_niveles.gd`**: Registro centralizado de los 12 niveles de la campaña y sus metadatos.
 
-## 🌐 Sistema Multijugador (P2P)
-El juego utiliza el sistema de alto nivel de Godot (`MultiplayerAPI`):
-1.  **Host (ID 1)**: Controla al Jugador Vivo.
-2.  **Cliente**: Controla al Fantasma.
-3.  **Sincronización**: Se utiliza `MultiplayerSynchronizer` para la posición/rotación y `RPC` (Remote Procedure Calls) para eventos de estado (como activar una plataforma).
+## 🌐 Sistema Multijugador (P2P) y Modo Solitario
+1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
+2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
 
-## 🎮 Mecánicas de Personaje
+## 🛠 Log de Actualizaciones - Versión 1.0.18 (4 de Noviembre de 2026)
 
-| Característica | Jugador Vivo | Fantasma |
-| :--- | :--- | :--- |
-| **Color UI** | Amarillo/Original | Azul (Shader) |
-| **Visión** | Normal | Espectral (Filtro Azul/Cian) |
-| **Colisión** | Suelo y Plataformas Activas | Suelo y TODAS las plataformas |
-| **Habilidad** | Supervivencia y Plataformeo | Activación de Aura (Botón Interactuar) |
-| **Efecto de Aura** | No posee | Activa plataformas en un radio que encoge |
+### Implementaciones y Optimizaciones:
+*   **Mecánicas de Movimiento Acrobático Estilo Mario Odyssey (jugador.gd, antasma.gd, 	est_movimiento_odyssey.gd)**:
+    *   **Ground Pound (Pisotón Aéreo en Vivo)**: Ejecutable en el aire mediante input de agacharse o botón contextual HUD. Realiza una pausa breve en suspensión (DURACION_PAUSA_GROUND_POUND = 0.12s) seguida de una caída vertical acelerada a alta velocidad (-22.0 m/s), impacto squash sísmico en el suelo y una ventana de salto de rebote de alto impulso (VENTANA_SALTO_GROUND_POUND = 0.35s).
+    *   **Dive (Zambullida Frontal en Vivo)**: Salto lanzado hacia adelante con impulso horizontal sostenido (FUERZA_HORIZONTAL_DIVE = 8.5 m/s) e impulso vertical (1.8 m/s), encadenable desde el suelo, tras un salto o interrumpiendo un pisotón, con animación de estiramiento y rodamiento de recuperación.
+    *   **Planeo Sostenido y Salto Largo en Fantasma**: El Fantasma adquiere una física aérea etérea única con salto largo amplio y planeo continuo sustentado con desaceleración de caída y estela mística.
+*   **Peligros y Bestiario Espectral (enemigo_espectral.gd, enemigo_espectral.tscn, shaders dedicados)**:
+    *   **Entidad Enemiga Espectral**: Sistema de patrulla, detección de proximidad con estados de alerta y persecución, ondas de choque y peligro de contacto mortal sincronizado en red.
+    *   **Shaders de Distorsión y Grietas**: Shaders visuales de refracción (distorsion_espectral.gdshader, distorsion_espectral_prepass.gdshader, grietas_espectrales.gdshader) para materializar el impacto visual de los entes oscuros del Limbo.
+    *   **Escena y Suite de Pruebas**: Nivel de demostración prueba_enemigos_shorts.tscn y test automatizado 	est_enemigo_espectral.gd.
+*   **Perfeccionamiento del Cañón Espiritual Balístico (canon_espiritual.gd, mira_canon_espiritual.gd)**:
+    *   Alineación y encaje volumétrico preciso del Vivo dentro de la recámara cilíndrica del cañón (offset_vertical_canon).
+    *   Cálculo en tiempo real de trayectoria parabólica y visualización mediante arco de mira holográfica (mira_canon.gdshader).
+    *   Disparo conjunto, eyección con impulso balístico y rotación continua calibrada.
+*   **Adaptación de Controles Táctiles (HUD) y Modos de Cámara (controles_tactiles.gd, camara_config_manager.gd)**:
+    *   Botones contextuales dinámicos para Ground Pound, Dive, Posesión y Disparo de cañón, sincronizados con vibración háptica y controles táctiles adaptables al formato Shorts (9:16).
+*   **Documentación de Diseño Formal (GDD y Diseño de Niveles)**:
+    *   Incorporación de las fichas maestras **GDD_PROYECTO_LIMBO.md** y **DISENO_NIVELES.md** cubriendo la hoja de ruta de los 12 niveles, arquetipos de enemigos, narrativa en 6 actos y vinculación al Kanban de Trello.
+*   **Herramientas Godot AI y Skills de Devlog**:
+    *   Actualización del addon godot_ai (handlers de mutación, rutas y runners) y registro de skills locales para edición de video y devlogs (concat-video-editor, kinior-devlog-shorts).
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.17 (20 de Octubre de 2026)
 
