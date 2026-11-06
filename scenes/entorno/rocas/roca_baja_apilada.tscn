@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/modelos/entorno/rocas/roca_baja_apilada.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_col"]
+height = 0.55
+radius = 0.62
+
+[node name="RocaBajaApilada" type="Node3D"]
+
+[node name="roca_baja_apilada" parent="." instance=ExtResource("1_mesh")]
+
+[node name="roca_baja_apilada" parent="roca_baja_apilada" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.22, 0.0)
+shape = SubResource("CylinderShape3D_col")
+
+[editable path="roca_baja_apilada"]

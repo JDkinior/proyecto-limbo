@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/modelos/entorno/rocas/roca_colosal_inclinada.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_main"]
+size = Vector3(1.6, 2.9, 1.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_mid"]
+size = Vector3(1.5, 2.0, 1.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_low"]
+size = Vector3(1.2, 1.1, 1.3)
+
+[node name="RocaColosalInclinada" type="Node3D"]
+
+[node name="roca_colosal_inclinada" parent="." instance=ExtResource("1_mesh")]
+
+[node name="roca_colosal_inclinada" parent="roca_colosal_inclinada" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="ColMain" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, 1.45, 0.0)
+shape = SubResource("BoxShape3D_main")
+
+[node name="ColMid" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 1.0, 0.0)
+shape = SubResource("BoxShape3D_mid")
+
+[node name="ColLow" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, 0.55, 0.0)
+shape = SubResource("BoxShape3D_low")
+
+[editable path="roca_colosal_inclinada"]

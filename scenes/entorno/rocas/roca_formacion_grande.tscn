@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/modelos/entorno/rocas/roca_formacion_grande.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_col"]
+size = Vector3(1.6, 2.0, 1.35)
+
+[node name="RocaFormacionGrande" type="Node3D"]
+
+[node name="roca_formacion_grande" parent="." instance=ExtResource("1_mesh")]
+
+[node name="roca_formacion_grande" parent="roca_formacion_grande" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 0.95, -0.05)
+shape = SubResource("BoxShape3D_col")
+
+[editable path="roca_formacion_grande"]

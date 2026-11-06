@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/modelos/entorno/rocas/rocas_cluster_pequenas.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_col"]
+size = Vector3(0.85, 0.28, 0.75)
+
+[node name="RocasClusterPequenas" type="Node3D"]
+
+[node name="rocas_cluster_pequenas" parent="." instance=ExtResource("1_mesh")]
+
+[node name="rocas_cluster_pequenas" parent="rocas_cluster_pequenas" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.10, 0.0)
+shape = SubResource("BoxShape3D_col")
+
+[editable path="rocas_cluster_pequenas"]
