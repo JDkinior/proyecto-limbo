@@ -1,6 +1,6 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://cwnnkpjwhwlo"]
 
-[ext_resource type="Shader" path="res://shaders/components/peligros/distorsion_espectral.gdshader" id="1_shader"]
+[ext_resource type="Shader" uid="uid://dn2w5hxdwnvd" path="res://shaders/components/peligros/distorsion_espectral.gdshader" id="1_shader"]
 
 [resource]
 render_priority = 1

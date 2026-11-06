@@ -562,3 +562,77 @@ func test_enemigo_asesta_golpe_letal_al_vivo_si_no_esquiva() -> void:
 	inst.procesar_ciclo_ia(0.6)
 	assert_true(mock_vivo.murio, "El espectro debió asestar su golpe letal y eliminar al Vivo")
 	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.INACTIVO_OCULTO, "El espectro debe hundirse tras asestar el golpe")
+
+func test_enemigo_calibracion_zona_pisoton() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.position = Vector3(0, 0.75, -10.0)
+	inst._posicion_origen = Vector3(0, 0.75, -10.0)
+	inst.activar_solo_en_zona = false
+	inst.tiempo_anticipacion_spawn = 0.0
+	inst.tiempo_anticipacion_ataque = 0.5
+	inst.tiempo_permanencia_visible = 0.75
+	inst._ready()
+
+	# Ponerlo en permanencia visible
+	inst.estado_actual = EnemigoEspectral.Estado.ANTICIPANDO_ATAQUE
+	inst._fase_anticipacion_terminada = true
+	inst._temporizador_permanencia = 0.5
+
+	var mock_vivo = track(MockVivo.new())
+
+	# CASO 1: Demasiado alto (diff_y = 2.15 > 1.80) -> NO debe activar pisotón en el aire
+	mock_vivo.position = Vector3(0, 2.90, -10.0)
+	mock_vivo.velocity = Vector3(0, -3.0, 0)
+	inst._actualizar_comportamiento_ia(mock_vivo, 0.016)
+	assert_ne(inst.estado_actual, EnemigoEspectral.Estado.DERROTADO, "No debe activar pisoton si el Vivo esta demasiado alto")
+
+	# CASO 2: Demasiado lejos horizontalmente (dist_h = 1.35 > 1.05) -> NO debe activar pisotón
+	mock_vivo.position = Vector3(1.35, 1.6, -10.0)
+	mock_vivo.velocity = Vector3(0, -3.0, 0)
+	inst._actualizar_comportamiento_ia(mock_vivo, 0.016)
+	assert_ne(inst.estado_actual, EnemigoEspectral.Estado.DERROTADO, "No debe activar pisoton si el Vivo esta lejos horizontalmente")
+
+	# CASO 3: Subiendo en el aire (vel_y = +2.5 > 0.8) -> NO debe activar pisotón
+	mock_vivo.position = Vector3(0.1, 1.6, -10.0)
+	mock_vivo.velocity = Vector3(0, 2.5, 0)
+	inst._actualizar_comportamiento_ia(mock_vivo, 0.016)
+	assert_ne(inst.estado_actual, EnemigoEspectral.Estado.DERROTADO, "No debe activar pisoton si el Vivo esta ascendiendo")
+
+	# CASO 4: Cayendo justo encima de la coronilla (dist_h = 0.2 <= 1.05, diff_y = 0.85 en [0.45, 1.80], vel_y = -3.0 <= 0.8) -> ¡PISOTÓN EXITOSO!
+	mock_vivo.position = Vector3(0.2, 1.6, -10.0)
+	mock_vivo.velocity = Vector3(0, -3.0, 0)
+	inst._actualizar_comportamiento_ia(mock_vivo, 0.016)
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.DERROTADO, "Debe activar pisoton con precision al caer sobre la cabeza")
+	assert_gt(mock_vivo.velocity.y, 2.0, "El Vivo debe rebotar")
+	assert_true(mock_vivo.position.y <= inst.position.y + 1.101, "La posicion del Vivo debe alinearse con la superficie de la cabeza")
+
+func test_enemigo_salto_esquiva_no_mata_en_el_aire() -> void:
+	var scene = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var inst = track(scene.instantiate()) as EnemigoEspectral
+	inst.position = Vector3(0, 0.75, -10.0)
+	inst._posicion_origen = Vector3(0, 0.75, -10.0)
+	inst.activar_solo_en_zona = false
+	inst.tiempo_anticipacion_spawn = 0.0
+	inst.tiempo_anticipacion_ataque = 0.5
+	inst._ready()
+
+	var mock_vivo = track(MockVivo.new())
+	mock_vivo.position = Vector3(0, 0.75, -9.0) # A 1m de distancia
+	inst._jugador_vivo_ref = mock_vivo
+
+	# 1. Inicia anticipación
+	inst.procesar_ciclo_ia(0.05)
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.ANTICIPANDO_ATAQUE)
+
+	# 2. El Vivo salta al aire hacia un lado para esquivar el golpe terrestre (diff_y = 0.85 >= 0.40, dist_h = 1.5)
+	mock_vivo.position = Vector3(1.5, 1.6, -10.0) # diff_y = 0.85, dist_h = 1.5 (en el aire esquivando al lado)
+	mock_vivo.velocity = Vector3(0, 0.0, 0)
+
+	# 3. Expira la anticipación: el espectro asesta su golpe terrestre, pero el Vivo está en el aire esquivando
+	inst.procesar_ciclo_ia(0.6)
+
+	# El Vivo NO debió morir porque esquivó en el aire
+	assert_false(mock_vivo.murio, "El espectro no debe matar al Vivo en pleno aire si este salto para esquivar")
+	assert_eq(inst.estado_actual, EnemigoEspectral.Estado.ANTICIPANDO_ATAQUE, "El espectro debe entrar a permanencia vulnerable")
+	assert_true(inst._fase_anticipacion_terminada, "La fase de anticipación terminó y el golpe falló")

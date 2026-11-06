@@ -19,7 +19,6 @@ ambient_light_source = 3
 ambient_light_color = Color(0.35, 0.45, 0.6, 1)
 ambient_light_energy = 1.15
 tonemap_mode = 3
-ssr_enabled = false
 glow_enabled = true
 glow_intensity = 0.8
 glow_strength = 1.05
@@ -49,6 +48,887 @@ ancho = 23.5
 largo = 26.0
 profundidad_roca = 4.5
 generar_pasto = false
+activar_pincel_terreno = true
+modo_pincel_terreno = 6
+radio_pincel_terreno = 2.0
+fuerza_pincel_terreno = 0.65
+deformaciones_escultura = Array[Dictionary]([{
+"forma": 0,
+"fuerza": 0.65,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(2.0803719, 3.5082488),
+"radio": 2.0
+}, {
+"forma": 0,
+"fuerza": 0.65,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(4.3534136, 1.9950681),
+"radio": 2.0
+}, {
+"forma": 0,
+"fuerza": 0.65,
+"limitar_a_cero": true,
+"modo": 4,
+"pos": Vector2(-1.0499563, -2.5832424),
+"radio": 2.0
+}])
+activar_pincel_camino = true
+modo_accion_camino = 1
+trazos_pintura_caminos = Array[Dictionary]([{
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.44002533, 1.9964833),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(3.7353106, 2.9880247),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.986043, 2.9786918),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.7374668, 2.6575742),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.87497425, 2.31633),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.08074188, 2.0492952),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.5646782, 1.6920271),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.9604187, 1.0951424),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.229073, 0.42511988),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.2164569, -0.28323078),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.0916638, -0.98383284),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.1706686, -1.7697902),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.293261, -2.5343513),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.1420574, 2.2797146),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.9847231, 1.4695835),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.8718462, 0.7757764),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.7750673, 0.002667904),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.9164753, -1.2443142),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.7363138, 3.3849812),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.865838, 2.6702645),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.4605775, -3.2628517),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.5347242, -2.498454),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.3863034, -1.8034072),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.04130602, -0.82957554),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.6421833, 0.2977271),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.3448858, 0.8285241),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.623703, 1.3232508),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.18857622, 1.2908034),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.9059658, 0.6023612),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.54215, -0.93148947),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.7329602, -2.1693487),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.7326388, -3.4557304),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.7246356, -4.233261),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.4710503, -7.3757334),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(20.439365, 0.8442731),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.274603, 2.8554258),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.0825813, -4.58506),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(6.977911, -0.58921003),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.2092047, 3.226923),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.5478377, 4.2159877),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.2706535, 5.211672),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.6987023, 4.7845354),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.6987023, 4.7845354),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.1734574, 5.4295883),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.4877179, 6.4549537),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.985709, 9.097475),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.0822392, 10.716221),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.1718817, 11.494207),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.406054, 10.291586),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.5253103, 7.812502),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.6426287, 6.2957616),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.719158, 5.3465385),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.719158, 5.3465385),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.021576881, 3.7238727),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.35229492, 3.1446419),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.9824045, 5.968342),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.1793666, 6.3646812),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.795609, 8.907209),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.795609, 8.907209),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.0803921, 9.121441),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.0803921, 9.121441),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.1115272, 11.094582),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.1115272, 11.094582),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-3.1581593, 7.0028405),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.6975875, 5.827029),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.6186361, 5.6919336),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.4556, 5.5312634),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.4912703, 3.8397555),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.4912703, 3.8397555),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.56307507, 3.0028753),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.6590035, 3.0340006),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.0068419, 3.2465343),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.0068419, 3.2465343),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.0068419, 3.2465343),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.707073, 3.3037677),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.71490407, 3.2900538),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.71490407, 3.2900538),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.71490407, 3.2900538),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.71490407, 3.2900538),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.71490407, 3.2900538),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.71490407, 3.2900538),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.5331542, 3.7186985),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.5331542, 3.7186985),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.5331542, 3.7186985),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.5331542, 3.7186985),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.5331542, 3.7186985),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.5331542, 3.7186985),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.2685585, 3.9804535),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.2275486, 3.9784067),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.2275486, 3.9784067),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.2275486, 3.9784067),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.73101354, 4.1882443),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.2925582, 4.158856),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.17704773, 3.9302874),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.46689272, 3.8576121),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.3813224, 3.258149),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.3813224, 3.258149),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.4838052, 3.0808845),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.5259914, 3.007914),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.5259914, 3.007914),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.5259914, 3.007914),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.3406353, -4.0469513),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.1661282, -3.7603464),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.8166938, -3.4728413),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.8166938, -3.4728413),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.0322804, -1.4480639),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.7024512, 1.2091575),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.7024512, 1.2091575),
+"radio": 2.0
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.7024512, 1.2091575),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.17605591, 3.55722),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.42572403, 4.139599),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.99799085, 4.6857014),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.5048032, 5.1953964),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.97309566, 4.687006),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.4094448, 4.184026),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.2595141, 3.7095733),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.3058972, 3.1401086),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.321909, 2.595377),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(3.4171252, 2.0895512),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(4.351354, 1.761302),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(3.6136303, 1.9596314),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.5375423, 3.0942564),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.061151505, 3.887364),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.75714517, 4.383583),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.3882866, 4.836591),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.7488178, 5.025018),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.3037717, 3.8582006),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.98149157, 3.0424836),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.69155693, 2.3989666),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-3.0630472, 7.2847714),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-2.6419053, 6.618137),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.7889376, 5.638996),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-1.1344042, 5.006802),
+"radio": 2.0
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.4768348, 8.023293),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.3375263, 8.549899),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.8792038, 8.268847),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(4.150864, 7.8496704),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(6.0570884, 6.9757795),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(6.8948874, 6.5482173),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(8.079779, 5.876109),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(7.456906, 5.8195505),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(4.105591, 6.9169474),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.8150191, 7.5314293),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.3247166, 7.8716784),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(1.6288044, 8.122202),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.7029269, 8.271078),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(6.494058, 5.4396286),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(5.9661865, 5.8796215),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(6.2791443, 7.1913867),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(8.350176, 7.9659176),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(9.11002, 8.015069),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(9.8307705, 7.263834),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(9.308425, 6.3938093),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(8.83923, 5.7826242),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(8.405689, 5.262062),
+"radio": 2.0,
+"tipo": 1
+}])
 
 [node name="IslaMeta" parent="Islas" unique_id=851846071 instance=ExtResource("7_isla")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -25)
@@ -67,7 +947,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 4)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 0.8, 4)
 
 [node name="EnemigoEspectral" parent="." unique_id=569553707 node_paths=PackedStringArray("plataforma_asignada") instance=ExtResource("6_enemigo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1994286, 0.8497807, -14.205868)
 plataforma_asignada = NodePath("../Islas/IslaCamino")
+tiempo_anticipacion_ataque = 0.75
+altura_flotacion = 0.85
 cantidad_enemigos = 2
 tiempo_entre_spawns = 1.8

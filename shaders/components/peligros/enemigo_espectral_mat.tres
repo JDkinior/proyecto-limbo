@@ -5,7 +5,7 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_shader")
-shader_parameter/color_cuerpo = Color(0.28, 0.3, 0.34, 1)
+shader_parameter/color_cuerpo = Color(0.28, 0.3, 0.34, 0.96)
 shader_parameter/color_fresnel = Color(0.88, 0.92, 0.96, 1)
 shader_parameter/color_nucleo_oscuro = Color(0.08, 0.09, 0.11, 1)
 shader_parameter/fuerza_emision = 1.15
@@ -15,6 +15,6 @@ shader_parameter/ondulacion_colas = 0.04
 shader_parameter/velocidad_colas = 3.5
 shader_parameter/factor_tangible = 0.0
 shader_parameter/color_tangible_destello = Color(0.3, 0.85, 1, 1)
-shader_parameter/rugosidad = 0.5
+shader_parameter/rugosidad = 0.4
 shader_parameter/metalico = 0.0
-shader_parameter/especular = 0.25
+shader_parameter/especular = 0.5

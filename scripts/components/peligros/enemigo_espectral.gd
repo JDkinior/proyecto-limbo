@@ -537,9 +537,11 @@ func procesar_ciclo_ia(delta: float) -> void:
 	var dist_vivo_a_zona = pos_origen_2d.distance_to(pos_vivo_2d)
 	var diff_y = abs(pos_vivo.y - _posicion_origen.y)
 
-	# 1. ESTADO INACTIVO: Vigilar si el Vivo entra a la zona de peligro
+	# 1. ESTADO INACTIVO: Vigilar si el Vivo entra a la zona de peligro o se encuentra en su plataforma
 	if estado_actual == Estado.INACTIVO_OCULTO:
-		if dist_vivo_a_zona <= radio_zona_peligro and diff_y <= 5.0:
+		var dentro_de_zona: bool = (dist_vivo_a_zona <= radio_zona_peligro and diff_y <= 6.0)
+		var en_misma_plat: bool = is_instance_valid(plataforma_asignada) and _esta_vivo_en_misma_plataforma(vivo)
+		if dentro_de_zona or en_misma_plat:
 			_manifestar_en_zona()
 		return
 
@@ -593,6 +595,8 @@ func _esta_vivo_en_misma_plataforma(vivo: Node3D) -> bool:
 			return false
 
 	# 2. Comprobación física con raycast hacia el suelo excluyendo al Vivo
+	# Solo confirma si aterrizó en una isla diferente (ej. saltar a IslaMeta).
+	# Si el raycast está en el aire sobre la misma isla, los límites geométricos mandan.
 	if is_inside_tree() and get_world_3d():
 		var espacio = get_world_3d().direct_space_state
 		if espacio:
@@ -617,9 +621,6 @@ func _esta_vivo_en_misma_plataforma(vivo: Node3D) -> bool:
 					# Si impactó otra isla distinta (por ejemplo IslaMeta)
 					if col is IslaFlotante or (p != null and p is IslaFlotante):
 						return false
-			else:
-				# En el aire sobre el abismo sin suelo debajo
-				return false
 
 	return true
 
@@ -1176,12 +1177,13 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 				if is_instance_valid(nodo_visual):
 					nodo_visual.scale = _escala_base_visual
 
-				# El espectro lanza su embestida letal. Cubre toda la distancia de inicio de ataque + lunge
+				# El espectro lanza su embestida letal hacia el Vivo
 				var alcance_golpe: float = maxf(distancia_ataque, distancia_inicio_ataque) + 0.45
-				var vivo_saltando_arriba: bool = (vivo is CharacterBody3D and not (vivo as CharacterBody3D).is_on_floor() and diff_y >= 0.25)
+				var esta_en_suelo: bool = (vivo is CharacterBody3D and (vivo as CharacterBody3D).is_on_floor()) if vivo.is_inside_tree() else false
+				var vivo_esquivo_en_aire: bool = (not esta_en_suelo) and (diff_y >= 0.40)
 
-				# Si el Vivo NO está en el aire pisándolo y sigue al alcance: ¡GOLPE LETAL!
-				if not vivo_saltando_arriba and dist_h <= alcance_golpe and absf(diff_y) <= 1.8:
+				# Si el Vivo NO esquivó en el aire y sigue al alcance: ¡GOLPE LETAL!
+				if not vivo_esquivo_en_aire and dist_h <= alcance_golpe and absf(diff_y) <= 1.4:
 					_resolver_contacto_con_vivo(vivo)
 					return
 		else:
@@ -1189,15 +1191,16 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 			# Permanece completamente VISIBLE y VULNERABLE antes de desvanecerse
 			_temporizador_permanencia -= delta
 
-			# Si durante la permanencia el Vivo choca con el espectro a pie firme en el suelo: contacto letal
-			var esta_en_suelo: bool = (vivo is CharacterBody3D and (vivo as CharacterBody3D).is_on_floor()) if vivo.is_inside_tree() else false
-			if esta_en_suelo and dist_h <= distancia_ataque and absf(diff_y) <= 1.2:
+			# Si durante la permanencia el Vivo choca lateralmente con el espectro a nivel de cuerpo: contacto letal
+			if dist_h <= (distancia_ataque + 0.15) and diff_y < 0.40 and diff_y > -1.2:
 				_resolver_contacto_con_vivo(vivo)
 				return
 
 			# Si el Vivo sigue en el aire por encima preparándose para pisarlo, extender la permanencia
-			if diff_y >= 0.25 and dist_h <= 1.4:
-				_temporizador_permanencia = maxf(_temporizador_permanencia, 0.35)
+			var esta_en_suelo: bool = (vivo is CharacterBody3D and (vivo as CharacterBody3D).is_on_floor()) if vivo.is_inside_tree() else false
+			var en_aire_pisando: bool = (not esta_en_suelo) and (diff_y >= 0.40) and (diff_y <= 2.2) and (dist_h <= 1.20)
+			if en_aire_pisando:
+				_temporizador_permanencia = maxf(_temporizador_permanencia, 0.40)
 
 			if _temporizador_permanencia <= 0.0:
 				_cancelar_anticipacion_ataque()
@@ -1338,14 +1341,23 @@ func _verificar_contraataque_vivo(vivo: Node3D) -> bool:
 		esta_en_suelo = cb.is_on_floor() if cb.is_inside_tree() else false
 		vel_y_vivo = cb.velocity.y
 
-	# Un pisotón requiere que el Vivo esté en el aire (no en el suelo), cayendo y claramente por encima
-	var es_pisoton: bool = (not esta_en_suelo) and (diff_y >= 0.25) and (diff_y <= 2.2) and (vel_y_vivo <= 1.5)
-	if dist_h <= 1.35 and es_pisoton:
+	# Un pisotón requiere que el Vivo esté en el aire (no en el suelo), descendiendo y sobre el enemigo
+	var es_pisoton: bool = (not esta_en_suelo) and (diff_y >= 0.45) and (diff_y <= 1.80) and (vel_y_vivo <= 0.8)
+	if dist_h <= 1.05 and es_pisoton:
 		if vivo is CharacterBody3D:
+			# Alinear los pies del Vivo en contacto físico inmediato con la coronilla del fantasma
+			var pos_contacto_y: float = pos_propia.y + 0.98
+			if vivo.is_inside_tree() and vivo.global_position.y > pos_contacto_y:
+				vivo.global_position.y = pos_contacto_y
+			elif not vivo.is_inside_tree() and vivo.position.y > pos_contacto_y:
+				vivo.position.y = pos_contacto_y
+
 			var fuerza_rebote: float = 8.5
 			if "FUERZA_SALTO" in vivo:
 				fuerza_rebote = float(vivo.get("FUERZA_SALTO")) * 0.9
 			(vivo as CharacterBody3D).velocity.y = fuerza_rebote
+			if "saltos_realizados" in vivo:
+				vivo.set("saltos_realizados", 1)
 		recibir_impacto(vivo)
 		return true
 
@@ -1405,9 +1417,11 @@ func recibir_impacto(jugador: Node3D) -> void:
 
 	if is_inside_tree() and is_instance_valid(nodo_visual):
 		var tween_derrota = create_tween()
+		# Mantener la coronilla aplastada en contacto exacto con los pies del Vivo al recibir el pisotón
 		tween_derrota.tween_property(nodo_visual, "scale", Vector3(1.7, 0.25, 1.7), 0.12).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		tween_derrota.parallel().tween_property(nodo_visual, "position:y", _pos_base_visual.y + 0.18, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween_derrota.tween_property(nodo_visual, "scale", Vector3(0.01, 2.2, 0.01), 0.20)
-		tween_derrota.parallel().tween_property(nodo_visual, "position:y", 1.5, 0.20)
+		tween_derrota.parallel().tween_property(nodo_visual, "position:y", _pos_base_visual.y + 1.5, 0.20)
 		tween_derrota.tween_callback(func():
 			_al_ser_derrotado()
 			queue_free()

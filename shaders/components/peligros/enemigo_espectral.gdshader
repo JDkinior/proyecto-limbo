@@ -3,13 +3,12 @@ render_mode blend_mix, depth_draw_always, cull_back, diffuse_toon, specular_toon
 
 // ===================================================================
 // SHADER DE ENEMIGO ESPECTRAL (PROYECTO LIMBO)
-// Silueta oscura, morada/grisácea con resalte Fresnel plateado/violeta,
+// Silueta oscura, morada/grisácea con resalte Fresnel violeta eléctrico,
 // ondulación etérea en las colas y ojos carmesí brillantes.
-// Superficie dieléctrica mate para evitar reflejos especulares parásitos.
 // ===================================================================
 
 group_uniforms Colores;
-uniform vec4 color_cuerpo : source_color = vec4(0.28, 0.30, 0.34, 1.0);
+uniform vec4 color_cuerpo : source_color = vec4(0.28, 0.30, 0.34, 0.96);
 uniform vec4 color_fresnel : source_color = vec4(0.88, 0.92, 0.96, 1.0);
 uniform vec4 color_nucleo_oscuro : source_color = vec4(0.08, 0.09, 0.11, 1.0);
 
@@ -27,9 +26,9 @@ uniform float factor_tangible : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 color_tangible_destello : source_color = vec4(0.3, 0.85, 1.0, 1.0);
 
 group_uniforms PropiedadesSuperficie;
-uniform float rugosidad : hint_range(0.0, 1.0) = 0.50;
+uniform float rugosidad : hint_range(0.0, 1.0) = 0.40;
 uniform float metalico : hint_range(0.0, 1.0) = 0.0;
-uniform float especular : hint_range(0.0, 1.0) = 0.25;
+uniform float especular : hint_range(0.0, 1.0) = 0.5;
 
 varying float pos_y_local;
 
@@ -67,5 +66,5 @@ void fragment() {
 	ROUGHNESS = rugosidad;
 	METALLIC = metalico;
 	SPECULAR = especular;
-	ALPHA = 1.0;
+	ALPHA = color_cuerpo.a;
 }
