@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://caminorectolargo01"]
+
+[ext_resource type="PackedScene" uid="uid://bo6oapmsxixwd" path="res://assets/modelos/entorno/caminos/camino_rocas_recto_largo.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_road"]
+size = Vector3(2.2, 0.14, 4.0)
+
+[node name="CaminoRocasRectoLargo" type="Node3D"]
+
+[node name="camino_rocas_recto_largo" parent="." instance=ExtResource("1_mesh")]
+
+[node name="camino_rocas_recto_largo" parent="camino_rocas_recto_largo" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+shape = SubResource("BoxShape3D_road")
+
+[editable path="camino_rocas_recto_largo"]

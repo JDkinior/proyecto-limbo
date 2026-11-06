@@ -1,0 +1,17 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://dm_cristal_luminoso"]
+
+[resource]
+resource_name = "M_Cristal_Luminoso"
+cull_mode = 2
+diffuse_mode = 2
+albedo_color = Color(0.48, 0.82, 0.98, 1)
+metallic = 0.02
+roughness = 0.22
+emission_enabled = true
+emission = Color(0.25, 0.72, 0.95, 1)
+emission_energy_multiplier = 0.45
+rim_enabled = true
+rim = 0.75
+rim_tint = 0.5
+backlight_enabled = true
+backlight = Color(0.2, 0.55, 0.8, 1)

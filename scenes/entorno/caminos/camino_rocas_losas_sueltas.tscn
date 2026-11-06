@@ -1,0 +1,51 @@
+[gd_scene format=3 uid="uid://caminolosassueltas01"]
+
+[ext_resource type="PackedScene" uid="uid://3t0ls2xw38k" path="res://assets/modelos/entorno/caminos/camino_rocas_losas_sueltas.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_slab1"]
+size = Vector3(1.0, 0.14, 0.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_slab2"]
+size = Vector3(0.8, 0.14, 0.5)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_slab3"]
+size = Vector3(0.7, 0.14, 0.65)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_slab4"]
+size = Vector3(1.1, 0.14, 0.45)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_slab5"]
+size = Vector3(0.55, 0.14, 0.4)
+
+[node name="CaminoRocasLosasSueltas" type="Node3D"]
+
+[node name="camino_rocas_losas_sueltas" parent="." instance=ExtResource("1_mesh")]
+
+[node name="camino_rocas_losas_sueltas" parent="camino_rocas_losas_sueltas" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="ColSlab1" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, -0.05, 0)
+shape = SubResource("BoxShape3D_slab1")
+
+[node name="ColSlab2" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.1, -0.05, 0)
+shape = SubResource("BoxShape3D_slab2")
+
+[node name="ColSlab3" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, -0.05, 0)
+shape = SubResource("BoxShape3D_slab3")
+
+[node name="ColSlab4" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1, -0.05, 0)
+shape = SubResource("BoxShape3D_slab4")
+
+[node name="ColSlab5" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, -0.05, 0)
+shape = SubResource("BoxShape3D_slab5")
+
+[editable path="camino_rocas_losas_sueltas"]

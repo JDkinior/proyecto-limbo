@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://caminocurva01"]
+
+[ext_resource type="PackedScene" uid="uid://dp6et2it4en16" path="res://assets/modelos/entorno/caminos/camino_rocas_curva.glb" id="1_mesh"]
+[ext_resource type="Material" uid="uid://caminorocas01" path="res://assets/materiales/entorno/m_camino_rocas.tres" id="2_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_curva_1"]
+size = Vector3(2.2, 0.14, 1.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_curva_2"]
+size = Vector3(2.2, 0.14, 1.1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_curva_3"]
+size = Vector3(2.2, 0.14, 1.1)
+
+[node name="CaminoRocasCurva" type="Node3D"]
+
+[node name="camino_rocas_curva" parent="." instance=ExtResource("1_mesh")]
+
+[node name="camino_rocas_curva" parent="camino_rocas_curva" index="0"]
+material_override = ExtResource("2_mat")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+collision_mask = 0
+
+[node name="Collision1" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(0.991445, 0, -0.130526, 0, 1, 0, 0.130526, 0, 0.991445, 0.1, -0.05, 0.5)
+shape = SubResource("BoxShape3D_curva_1")
+
+[node name="Collision2" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(0.92388, 0, -0.382683, 0, 1, 0, 0.382683, 0, 0.92388, 0.45, -0.05, 1.5)
+shape = SubResource("BoxShape3D_curva_2")
+
+[node name="Collision3" type="CollisionShape3D" parent="StaticBody3D"]
+transform = Transform3D(0.793353, 0, -0.608761, 0, 1, 0, 0.608761, 0, 0.793353, 0.95, -0.05, 2.45)
+shape = SubResource("BoxShape3D_curva_3")
+
+[editable path="camino_rocas_curva"]

@@ -1,16 +1,22 @@
 [gd_scene format=3 uid="uid://dlr4n5fwa5co0"]
 
+[ext_resource type="Script" uid="uid://t8rcdntmew0y" path="res://scripts/entorno/cristales/cristal_interactivo.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://bst3syn5w14jm" path="res://assets/modelos/entorno/cristales/cristales.glb" id="1_qswo4"]
+[ext_resource type="Material" uid="uid://dm_cristal_luminoso" path="res://assets/materiales/entorno/m_cristal_luminoso.tres" id="2_mat"]
 
 [node name="Cristales" type="Node3D" unique_id=1793408612]
+script = ExtResource("1_script")
 
 [node name="Cristales" parent="." unique_id=456126745 instance=ExtResource("1_qswo4")]
 
+[node name="cristales_cluster_principal" parent="Cristales" index="0"]
+material_override = ExtResource("2_mat")
+
 [node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=1582124473]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
-light_color = Color(0.3, 0.75, 1, 1)
-light_energy = 2.5
-omni_range = 6.0
-omni_attenuation = 1.2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
+light_color = Color(0.35, 0.82, 1.0, 1)
+light_energy = 0.9
+omni_range = 4.5
+omni_attenuation = 1.3
 
 [editable path="Cristales"]
