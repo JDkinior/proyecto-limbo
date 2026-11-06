@@ -35,7 +35,7 @@
       "args": [
         "/c",
         "uvx",
-        "blender-mcp"
+        "mcp-for-blender"
       ]
     }
   }
