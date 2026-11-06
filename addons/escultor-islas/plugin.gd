@@ -12,6 +12,7 @@ var _esculpiendo: bool = false
 var _ultima_pos_trazo: Vector3 = Vector3.INF
 var _trazo_en_curso: bool = false
 var _deformaciones_antes_del_trazo: Array[Dictionary] = []
+var _caminos_antes_del_trazo: Array[Dictionary] = []
 var _modo_trazo_activo: int = 0
 var _limitar_a_cero_activo: bool = false
 
@@ -19,6 +20,7 @@ var _limitar_a_cero_activo: bool = false
 var _toolbar: HBoxContainer = null
 var _btn_activar: Button = null
 var _opt_modo: OptionButton = null
+var _btn_limpiar_caminos_toolbar: Button = null
 var _btn_ajustes: Button = null
 
 # Menú flotante / Panel de configuración detallada del escultor
@@ -34,7 +36,9 @@ var _chk_mesetas: CheckBox = null
 var _opt_estilo_meseta: OptionButton = null
 
 # Cursor visual 3D
-var _gizmo_cursor: MeshInstance3D = null
+var _gizmo_cursor: Node3D = null
+var _gizmo_disco: MeshInstance3D = null
+var _gizmo_anillo: MeshInstance3D = null
 var _forma_actual_gizmo: int = -1
 
 
@@ -94,16 +98,24 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 		_ocultar_cursor()
 		return AFTER_GUI_INPUT_PASS
 
-	if not _isla.activar_pincel_terreno:
+	var es_camino: bool = _isla.activar_pincel_camino
+	var es_terreno: bool = _isla.activar_pincel_terreno
+	if es_camino and es_terreno:
+		var sel_m: int = _opt_modo.selected if is_instance_valid(_opt_modo) else 0
+		if sel_m >= 5:
+			_isla.activar_pincel_terreno = false
+			es_terreno = false
+		else:
+			_isla.activar_pincel_camino = false
+			es_camino = false
+	var activo: bool = es_camino or es_terreno
+	if not activo:
 		_ocultar_cursor()
 		return AFTER_GUI_INPUT_PASS
 
-	var radio = _isla.radio_pincel_terreno
-	var fuerza = _isla.fuerza_pincel_terreno
-	var modo = int(_isla.modo_pincel_terreno)
-	var forma = int(_isla.forma_pincel_terreno)
-
-	_actualizar_forma_gizmo()
+	var radio: float = _isla.radio_pincel_camino if es_camino else _isla.radio_pincel_terreno
+	var fuerza: float = _isla.fuerza_pincel_camino if es_camino else _isla.fuerza_pincel_terreno
+	var forma: int = int(_isla.forma_pincel_terreno)
 
 	# --- Atajos de Teclado: [ y ] para cambiar radio del pincel en tiempo real ---
 	if event is InputEventKey:
@@ -124,10 +136,23 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 		if not hit.is_empty():
 			var hit_pos: Vector3 = hit.position
 			var hit_norm: Vector3 = hit.get("normal", Vector3.UP)
+
+			# Actualizar color del cursor y modo dinámico en caminos (Shift / Ctrl invierte a borrar)
+			if es_camino:
+				var quiere_borrar: bool = (_isla.modo_accion_camino == 4) or mm.shift_pressed or mm.ctrl_pressed
+				var tipo_efectivo = _isla.modo_accion_camino
+				var modo_efectivo = 9 if quiere_borrar else (5 + clampi(tipo_efectivo, 0, 3))
+				_actualizar_color_gizmo_camino(modo_efectivo)
+				if _esculpiendo and _trazo_en_curso:
+					_modo_trazo_activo = modo_efectivo
+					_limitar_a_cero_activo = quiere_borrar
+			else:
+				_actualizar_forma_gizmo()
+
 			_posicionar_cursor(hit_pos, hit_norm, radio)
 
 			if _esculpiendo and _trazo_en_curso:
-				var dist_min_paso = maxf(radio * 0.35, 0.4)
+				var dist_min_paso = maxf(radio * 0.28, 0.3)
 				if _ultima_pos_trazo.distance_to(hit_pos) >= dist_min_paso:
 					_aplicar_estampa(hit_pos, radio, fuerza, _modo_trazo_activo, forma, _limitar_a_cero_activo)
 					_ultima_pos_trazo = hit_pos
@@ -160,31 +185,36 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 			if mb.pressed:
 				_iniciar_trazo()
 				_esculpiendo = true
-				var modo_sel = modo
-				var modo_final = modo_sel
-				var limitar = false
+				if es_camino:
+					var quiere_borrar: bool = (_isla.modo_accion_camino == 4) or mb.shift_pressed or mb.ctrl_pressed
+					var tipo: int = _isla.modo_accion_camino
+					_modo_trazo_activo = 9 if quiere_borrar else (5 + clampi(tipo, 0, 3))
+					_limitar_a_cero_activo = quiere_borrar
+				else:
+					var modo_sel = int(_isla.modo_pincel_terreno)
+					var modo_final = modo_sel
+					var limitar = false
 
-				if modo_sel == 0: # ELEVAR
-					if mb.shift_pressed or mb.ctrl_pressed:
-						# Invertir elevación: REDUCIR pero limitado a la superficie original (sin extruir hacia adentro)
-						modo_final = 4 # REDUCIR_A_BASE
+					if modo_sel == 0: # ELEVAR
+						if mb.shift_pressed or mb.ctrl_pressed:
+							modo_final = 4 # REDUCIR_A_BASE
+							limitar = true
+						else:
+							modo_final = 0
+							limitar = false
+					elif modo_sel == 1: # HUNDIR
+						if mb.shift_pressed or mb.ctrl_pressed:
+							modo_final = 0 # Invertir a elevar
+							limitar = false
+						else:
+							modo_final = 1
+							limitar = false
+					elif modo_sel == 4: # REDUCIR A BASE
+						modo_final = 4
 						limitar = true
-					else:
-						modo_final = 0
-						limitar = false
-				elif modo_sel == 1: # HUNDIR (seleccionado explícitamente desde la barra de herramientas)
-					if mb.shift_pressed or mb.ctrl_pressed:
-						modo_final = 0 # Invertir a elevar
-						limitar = false
-					else:
-						modo_final = 1 # Hundir: extruye hacia adentro del cuerpo rocoso
-						limitar = false
-				elif modo_sel == 4: # REDUCIR A BASE
-					modo_final = 4
-					limitar = true
 
-				_modo_trazo_activo = modo_final
-				_limitar_a_cero_activo = limitar
+					_modo_trazo_activo = modo_final
+					_limitar_a_cero_activo = limitar
 
 				if not hit.is_empty():
 					_aplicar_estampa(hit.position, radio, fuerza, _modo_trazo_activo, forma, _limitar_a_cero_activo)
@@ -197,17 +227,32 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 				_ultima_pos_trazo = Vector3.INF
 				return AFTER_GUI_INPUT_STOP
 
-		elif mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			# Clic derecho:
-			# Si está en modo ELEVAR o REDUCIR, reduce a la base original (sin hacer pozos ni extruir hacia dentro)
-			# Si está explícitamente en modo HUNDIR, hunde hacia adentro libremente
-			if not hit.is_empty():
-				var modo_sel = modo
-				var modo_r = 4 if modo_sel != 1 else 1
-				var lim_r = (modo_sel != 1)
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			if mb.pressed:
 				_iniciar_trazo()
-				_aplicar_estampa(hit.position, radio, fuerza, modo_r, forma, lim_r)
-				_finalizar_trazo()
+				_esculpiendo = true
+				if es_camino:
+					_modo_trazo_activo = 9 # Clic derecho en caminos siempre borra de forma continua
+					_limitar_a_cero_activo = true
+				else:
+					var modo_sel = int(_isla.modo_pincel_terreno)
+					var modo_r = 4
+					var lim_r = true
+					if modo_sel == 1:
+						modo_r = 1
+						lim_r = false
+					_modo_trazo_activo = modo_r
+					_limitar_a_cero_activo = lim_r
+
+				if not hit.is_empty():
+					_aplicar_estampa(hit.position, radio, fuerza, _modo_trazo_activo, forma, _limitar_a_cero_activo)
+					_ultima_pos_trazo = hit.position
+				return AFTER_GUI_INPUT_STOP
+			else:
+				if _trazo_en_curso:
+					_finalizar_trazo()
+				_esculpiendo = false
+				_ultima_pos_trazo = Vector3.INF
 				return AFTER_GUI_INPUT_STOP
 
 	return AFTER_GUI_INPUT_PASS
@@ -222,11 +267,12 @@ func _hacer_raycast(camera: Camera3D, mouse_pos: Vector2) -> Dictionary:
 	var query = PhysicsRayQueryParameters3D.create(from, to)
 	query.collide_with_areas = false
 	query.collide_with_bodies = true
+	query.collision_mask = 0xFFFFFFFF
 
 	var hit = space_state.intersect_ray(query)
 	if not hit.is_empty():
 		var col = hit.collider
-		if col == _isla:
+		if col == _isla or (col is Node and _isla.is_ancestor_of(col)):
 			return hit
 
 	# Proyección al plano horizontal de la isla si no impactó directamente la malla física
@@ -236,7 +282,7 @@ func _hacer_raycast(camera: Camera3D, mouse_pos: Vector2) -> Dictionary:
 		var hit_plane = plano.intersects_ray(from, dir)
 		if hit_plane != null:
 			var pos_local = _isla.to_local(hit_plane)
-			var r_max = maxf(_isla.ancho, _isla.largo) * 0.70
+			var r_max = maxf(_isla.ancho, _isla.largo) * 1.5
 			if Vector2(pos_local.x, pos_local.z).length() <= r_max:
 				var h_calc = _isla.calcular_altura_en(Vector2(pos_local.x, pos_local.z))
 				var pos_ajustada = _isla.to_global(Vector3(pos_local.x, h_calc, pos_local.z))
@@ -248,7 +294,12 @@ func _hacer_raycast(camera: Camera3D, mouse_pos: Vector2) -> Dictionary:
 func _aplicar_estampa(pos_mundo: Vector3, radio: float, fuerza: float, modo: int, forma: int, limitar_a_cero: bool = false) -> void:
 	if not is_instance_valid(_isla):
 		return
-	_isla.aplicar_trazo_esculpido(pos_mundo, radio, fuerza, modo, forma, limitar_a_cero)
+	if modo >= 5 and modo <= 9:
+		var borrar = (modo == 9) or limitar_a_cero
+		var tipo = clampi(modo - 5, 0, 3) # 0: Tierra Clara, 1: Tierra Oscura, 2: Roca Base, 3: Pasto
+		_isla.aplicar_trazo_camino(pos_mundo, radio, fuerza, borrar, tipo)
+	else:
+		_isla.aplicar_trazo_esculpido(pos_mundo, radio, fuerza, modo, forma, limitar_a_cero)
 
 
 # ==============================================================================
@@ -261,6 +312,7 @@ func _iniciar_trazo() -> void:
 	_trazo_en_curso = true
 	_isla._esculpiendo_activo = true
 	_deformaciones_antes_del_trazo = _isla.deformaciones_escultura.duplicate(true)
+	_caminos_antes_del_trazo = _isla.trazos_pintura_caminos.duplicate(true)
 
 
 func _finalizar_trazo() -> void:
@@ -280,6 +332,20 @@ func _finalizar_trazo() -> void:
 	if is_instance_valid(_isla):
 		_isla.finalizar_arrastre_escultura()
 
+	if _modo_trazo_activo >= 5 and _modo_trazo_activo <= 9:
+		var antes_c = _caminos_antes_del_trazo
+		var despues_c = _isla.trazos_pintura_caminos.duplicate(true)
+		if antes_c.size() != despues_c.size():
+			var ur = get_undo_redo()
+			if ur != null:
+				ur.create_action("Pintar Camino en Isla")
+				ur.add_do_property(_isla, "trazos_pintura_caminos", despues_c)
+				ur.add_undo_property(_isla, "trazos_pintura_caminos", antes_c)
+				ur.add_do_method(_isla, "regenerar_completo_con_pasto")
+				ur.add_undo_method(_isla, "regenerar_completo_con_pasto")
+				ur.commit_action(false)
+		return
+
 	var antes = _deformaciones_antes_del_trazo
 	var despues = _isla.deformaciones_escultura.duplicate(true)
 
@@ -290,6 +356,7 @@ func _finalizar_trazo() -> void:
 	if ur != null:
 		ur.create_action("Esculpir Isla 3D")
 		ur.add_do_property(_isla, "deformaciones_escultura", despues)
+		ur.add_undo_property(_isla, "deformaciones_escultura", antes)
 		ur.add_do_method(_isla, "regenerar_completo_con_pasto")
 		ur.add_undo_method(_isla, "regenerar_completo_con_pasto")
 		ur.commit_action(false)
@@ -328,8 +395,21 @@ func _crear_toolbar() -> void:
 	_opt_modo.add_item("🔲 Meseta / Terraza", 2)
 	_opt_modo.add_item("〰️ Suavizar", 3)
 	_opt_modo.add_item("📉 Reducir a Base", 4)
+	_opt_modo.add_item("🏜️ Pintar Tierra Clara", 5)
+	_opt_modo.add_item("🟤 Pintar Tierra Oscura", 6)
+	_opt_modo.add_item("🪨 Pintar Base (Roca)", 7)
+	_opt_modo.add_item("🌾 Pintar Pasto (Césped)", 8)
+	_opt_modo.add_item("🧹 Borrar (Restaurar Base)", 9)
 	_opt_modo.item_selected.connect(_on_modo_selected)
 	_toolbar.add_child(_opt_modo)
+
+	# 2.1 Botón directo para limpiar caminos
+	_btn_limpiar_caminos_toolbar = Button.new()
+	_btn_limpiar_caminos_toolbar.text = "🧹 Limpiar Caminos"
+	_btn_limpiar_caminos_toolbar.tooltip_text = "Borrar todos los caminos de tierra pintados y restaurar césped puro (Ctrl+Z para deshacer)"
+	_btn_limpiar_caminos_toolbar.pressed.connect(_on_limpiar_caminos_pressed)
+	_btn_limpiar_caminos_toolbar.visible = false
+	_toolbar.add_child(_btn_limpiar_caminos_toolbar)
 
 	# 3. Botón indicador y desplegable de configuración detallada (estilo pincel de pasto)
 	_btn_ajustes = Button.new()
@@ -502,12 +582,21 @@ func _crear_popup_ajustes() -> void:
 	hbox_acciones.add_child(_btn_limpiar)
 	vbox.add_child(hbox_acciones)
 
+	var hbox_caminos = HBoxContainer.new()
+	var btn_limpiar_caminos = Button.new()
+	btn_limpiar_caminos.text = "🧹 Borrar Todos los Caminos"
+	btn_limpiar_caminos.tooltip_text = "Eliminar todos los senderos de tierra pintados y restaurar césped puro"
+	btn_limpiar_caminos.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_limpiar_caminos.pressed.connect(_on_limpiar_caminos_pressed)
+	hbox_caminos.add_child(btn_limpiar_caminos)
+	vbox.add_child(hbox_caminos)
+
 	var sep_help = HSeparator.new()
 	vbox.add_child(sep_help)
 
 	# --- Guía de atajos rápidos ---
 	var lbl_atajos = Label.new()
-	lbl_atajos.text = "💡 Atajos 3D:\n• Shift + Rueda o [ / ]: Radio del pincel\n• Ctrl + Shift + Rueda: Fuerza del pincel\n• Clic izq.: Esculpir relieve\n• Shift + Clic o Clic der.: Invertir (Hundir)"
+	lbl_atajos.text = "💡 Atajos 3D:\n• Shift + Rueda o [ / ]: Radio del pincel\n• Ctrl + Shift + Rueda: Fuerza del pincel\n• Clic izq.: Esculpir o Pintar camino\n• Shift + Clic o Clic der.: Invertir / Borrar camino"
 	lbl_atajos.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7, 0.85))
 	lbl_atajos.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(lbl_atajos)
@@ -549,36 +638,91 @@ func _actualizar_texto_boton_ajustes() -> void:
 func _sincronizar_toolbar_con_isla() -> void:
 	if not is_instance_valid(_isla):
 		return
+	var es_camino: bool = _isla.activar_pincel_camino
+	var es_terreno: bool = _isla.activar_pincel_terreno
+
+	# Resolver conflicto si ambos quedaron activos: sincronizar con la selección del toolbar
+	if es_camino and es_terreno:
+		var sel_m: int = _opt_modo.selected if is_instance_valid(_opt_modo) else 0
+		if sel_m >= 5:
+			_isla.activar_pincel_terreno = false
+			es_terreno = false
+		else:
+			_isla.activar_pincel_camino = false
+			es_camino = false
+
+	var activo: bool = es_camino or es_terreno
+
+	var modo_idx: int = 0
+	var radio_val: float = 3.5
+	var fuerza_val: float = 1.2
+
+	if es_camino:
+		modo_idx = 5 + clampi(_isla.modo_accion_camino, 0, 4)
+		radio_val = _isla.radio_pincel_camino
+		fuerza_val = _isla.fuerza_pincel_camino
+	else:
+		modo_idx = clampi(int(_isla.modo_pincel_terreno), 0, 4)
+		radio_val = _isla.radio_pincel_terreno
+		fuerza_val = _isla.fuerza_pincel_terreno
+
 	if is_instance_valid(_btn_activar):
-		_btn_activar.set_pressed_no_signal(_isla.activar_pincel_terreno)
+		_btn_activar.set_pressed_no_signal(activo)
 	if is_instance_valid(_opt_modo):
-		_opt_modo.select(int(_isla.modo_pincel_terreno))
+		_opt_modo.select(modo_idx)
 	if is_instance_valid(_opt_forma):
 		_opt_forma.select(int(_isla.forma_pincel_terreno))
+		_opt_forma.disabled = es_camino
+
 	if is_instance_valid(_spin_radio):
-		_spin_radio.set_value_no_signal(_isla.radio_pincel_terreno)
+		_spin_radio.set_value_no_signal(radio_val)
 	if is_instance_valid(_slider_radio):
-		_slider_radio.set_value_no_signal(_isla.radio_pincel_terreno)
+		_slider_radio.set_value_no_signal(radio_val)
 	if is_instance_valid(_spin_fuerza):
-		_spin_fuerza.set_value_no_signal(_isla.fuerza_pincel_terreno)
+		_spin_fuerza.set_value_no_signal(fuerza_val)
 	if is_instance_valid(_slider_fuerza):
-		_slider_fuerza.set_value_no_signal(_isla.fuerza_pincel_terreno)
+		_slider_fuerza.set_value_no_signal(fuerza_val)
 	if is_instance_valid(_chk_mesetas) and "habilitar_mesetas_superficie" in _isla:
 		_chk_mesetas.set_pressed_no_signal(_isla.habilitar_mesetas_superficie)
 	if is_instance_valid(_opt_estilo_meseta) and "estilo_mesetas_superficie" in _isla:
 		_opt_estilo_meseta.select(int(_isla.estilo_mesetas_superficie))
+	if is_instance_valid(_btn_limpiar_caminos_toolbar):
+		_btn_limpiar_caminos_toolbar.visible = es_camino
 	_actualizar_texto_boton_ajustes()
+	_actualizar_forma_gizmo()
 
 
 func _on_activar_toggled(pressed: bool) -> void:
-	if is_instance_valid(_isla):
-		_isla.activar_pincel_terreno = pressed
+	if not is_instance_valid(_isla):
+		return
+	if not pressed:
+		_isla.activar_pincel_terreno = false
+		_isla.activar_pincel_camino = false
+	else:
+		var sel: int = _opt_modo.selected if is_instance_valid(_opt_modo) else 0
+		if sel < 5:
+			_isla.activar_pincel_camino = false
+			_isla.activar_pincel_terreno = true
+		else:
+			_isla.activar_pincel_terreno = false
+			_isla.activar_pincel_camino = true
+	_sincronizar_toolbar_con_isla()
 	_actualizar_visibilidad()
 
 
 func _on_modo_selected(index: int) -> void:
-	if is_instance_valid(_isla):
+	if not is_instance_valid(_isla):
+		return
+	if index < 5:
 		_isla.modo_pincel_terreno = index as IslaFlotante.ModoPincelTerreno
+		_isla.activar_pincel_camino = false
+		_isla.activar_pincel_terreno = true
+	else:
+		_isla.modo_accion_camino = index - 5
+		_isla.activar_pincel_terreno = false
+		_isla.activar_pincel_camino = true
+	_sincronizar_toolbar_con_isla()
+	_actualizar_forma_gizmo()
 
 
 func _on_forma_selected(index: int) -> void:
@@ -603,7 +747,10 @@ func _on_radio_changed(val: float) -> void:
 	if is_instance_valid(_spin_radio) and abs(_spin_radio.value - val) > 0.01:
 		_spin_radio.set_value_no_signal(val)
 	if is_instance_valid(_isla):
-		_isla.radio_pincel_terreno = val
+		if _isla.activar_pincel_camino:
+			_isla.radio_pincel_camino = val
+		else:
+			_isla.radio_pincel_terreno = val
 	_actualizar_texto_boton_ajustes()
 
 
@@ -613,13 +760,19 @@ func _on_fuerza_changed(val: float) -> void:
 	if is_instance_valid(_spin_fuerza) and abs(_spin_fuerza.value - val) > 0.01:
 		_spin_fuerza.set_value_no_signal(val)
 	if is_instance_valid(_isla):
-		_isla.fuerza_pincel_terreno = val
+		if _isla.activar_pincel_camino:
+			_isla.fuerza_pincel_camino = minf(1.0, val)
+		else:
+			_isla.fuerza_pincel_terreno = val
 	_actualizar_texto_boton_ajustes()
 
 
 func _on_deshacer_pressed() -> void:
 	if is_instance_valid(_isla):
-		_isla.deshacer_ultimo_trazo()
+		if _isla.activar_pincel_camino:
+			_isla.deshacer_ultimo_trazo_camino()
+		else:
+			_isla.deshacer_ultimo_trazo()
 
 
 func _on_limpiar_pressed() -> void:
@@ -637,66 +790,167 @@ func _on_limpiar_pressed() -> void:
 			_isla.limpiar_esculpido()
 
 
+func _on_limpiar_caminos_pressed() -> void:
+	if is_instance_valid(_isla):
+		var antes = _isla.trazos_pintura_caminos.duplicate(true)
+		var ur = get_undo_redo()
+		if ur != null:
+			ur.create_action("Limpiar Caminos de Isla")
+			ur.add_do_property(_isla, "trazos_pintura_caminos", [])
+			ur.add_undo_property(_isla, "trazos_pintura_caminos", antes)
+			ur.add_do_method(_isla, "regenerar_completo_con_pasto")
+			ur.add_undo_method(_isla, "regenerar_completo_con_pasto")
+			ur.commit_action(true)
+		else:
+			_isla.limpiar_caminos()
+
+
 # ==============================================================================
-# GIZMO VISUAL 3D
+# GIZMO VISUAL 3D (ANILLO PERIMETRAL + DISCO TRANSLÚCIDO)
 # ==============================================================================
 
 func _crear_gizmo_cursor() -> void:
 	if _gizmo_cursor != null:
 		return
 
-	_gizmo_cursor = MeshInstance3D.new()
+	_gizmo_cursor = Node3D.new()
 	_gizmo_cursor.name = "_GizmoEscultorIslas"
-
-	var mat = StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.95, 0.58, 0.18, 0.45) # Tono ámbar/dorado de relieve
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mat.no_depth_test = true
-
-	_gizmo_cursor.material_override = mat
-	_gizmo_cursor.visible = false
 	_gizmo_cursor.top_level = true
+	_gizmo_cursor.visible = false
+
+	# 1. Relleno interior translúcido
+	_gizmo_disco = MeshInstance3D.new()
+	_gizmo_disco.name = "DiscoRelleno"
+	var mat_disco = StandardMaterial3D.new()
+	mat_disco.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat_disco.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_disco.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat_disco.no_depth_test = true
+	mat_disco.render_priority = 10
+	mat_disco.albedo_color = Color(0.95, 0.58, 0.18, 0.35)
+	_gizmo_disco.material_override = mat_disco
+	_gizmo_cursor.add_child(_gizmo_disco)
+
+	# 2. Anillo perimetral nítido y de alto contraste (TorusMesh)
+	_gizmo_anillo = MeshInstance3D.new()
+	_gizmo_anillo.name = "AnilloPerimetro"
+	var torus = TorusMesh.new()
+	torus.inner_radius = 0.95
+	torus.outer_radius = 1.0
+	torus.rings = 36
+	torus.ring_segments = 8
+	_gizmo_anillo.mesh = torus
+
+	var mat_anillo = StandardMaterial3D.new()
+	mat_anillo.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat_anillo.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_anillo.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat_anillo.no_depth_test = true
+	mat_anillo.render_priority = 12
+	mat_anillo.albedo_color = Color(1.0, 0.85, 0.20, 0.95)
+	_gizmo_anillo.material_override = mat_anillo
+	_gizmo_cursor.add_child(_gizmo_anillo)
+
 	_forma_actual_gizmo = -1
 	_actualizar_forma_gizmo()
 
 
+func _actualizar_color_gizmo_camino(modo_efectivo: int) -> void:
+	if not is_instance_valid(_gizmo_disco) or not is_instance_valid(_gizmo_anillo):
+		return
+	var mat_disco = _gizmo_disco.material_override as StandardMaterial3D
+	var mat_anillo = _gizmo_anillo.material_override as StandardMaterial3D
+	if modo_efectivo == 9: # BORRAR (RESTAURAR BASE)
+		if mat_disco != null:
+			mat_disco.albedo_color = Color(0.9, 0.28, 0.28, 0.35) # Rojo borrador
+		if mat_anillo != null:
+			mat_anillo.albedo_color = Color(1.0, 0.35, 0.35, 0.98) # Anillo rojo borrador
+	elif modo_efectivo == 8: # PINTAR PASTO (CÉSPED DORADO)
+		if mat_disco != null:
+			mat_disco.albedo_color = Color(0.88, 0.72, 0.22, 0.45) # Ámbar dorado pasto
+		if mat_anillo != null:
+			mat_anillo.albedo_color = Color(1.0, 0.85, 0.20, 0.98) # Anillo dorado cálido
+	elif modo_efectivo == 7: # PINTAR BASE (ROCA: #75769d)
+		if mat_disco != null:
+			mat_disco.albedo_color = Color(0.459, 0.463, 0.616, 0.45) # Roca base real (#75769d)
+		if mat_anillo != null:
+			mat_anillo.albedo_color = Color(0.514, 0.518, 0.690, 0.98) # Anillo piedra (#8384af)
+	elif modo_efectivo == 6: # PINTAR TIERRA OSCURA
+		if mat_disco != null:
+			mat_disco.albedo_color = Color(0.34, 0.27, 0.24, 0.45) # Tierra oscura cálida
+		if mat_anillo != null:
+			mat_anillo.albedo_color = Color(0.60, 0.45, 0.35, 0.98) # Anillo tierra oscura
+	else: # modo_efectivo == 5 -> PINTAR TIERRA CLARA
+		if mat_disco != null:
+			mat_disco.albedo_color = Color(0.78, 0.58, 0.32, 0.45) # Tierra clara arenosa
+		if mat_anillo != null:
+			mat_anillo.albedo_color = Color(0.92, 0.72, 0.45, 0.98) # Anillo arena clara
+
+	if not _gizmo_disco.mesh is CylinderMesh or _forma_actual_gizmo != -99:
+		var cyl_flat = CylinderMesh.new()
+		cyl_flat.top_radius = 0.96
+		cyl_flat.bottom_radius = 0.96
+		cyl_flat.height = 0.02
+		cyl_flat.radial_segments = 32
+		_gizmo_disco.mesh = cyl_flat
+		_forma_actual_gizmo = -99
+	_gizmo_anillo.visible = true
+
+
 func _actualizar_forma_gizmo() -> void:
-	if not is_instance_valid(_gizmo_cursor):
+	if not is_instance_valid(_gizmo_cursor) or not is_instance_valid(_gizmo_disco) or not is_instance_valid(_gizmo_anillo):
 		return
 
-	var forma: int = 0
-	if is_instance_valid(_isla):
-		forma = int(_isla.forma_pincel_terreno)
+	if not is_instance_valid(_isla):
+		return
 
-	if _forma_actual_gizmo == forma and _gizmo_cursor.mesh != null:
+	if _isla.activar_pincel_camino:
+		var modo_cam: int = _isla.modo_accion_camino
+		var modo_eff: int = 9 if modo_cam == 4 else (5 + clampi(modo_cam, 0, 3))
+		_actualizar_color_gizmo_camino(modo_eff)
+		return
+
+	var forma: int = int(_isla.forma_pincel_terreno)
+
+	var mat_disco = _gizmo_disco.material_override as StandardMaterial3D
+	var mat_anillo = _gizmo_anillo.material_override as StandardMaterial3D
+
+	# Configurar colores para escultura de relieve
+	if mat_disco != null:
+		mat_disco.albedo_color = Color(0.95, 0.58, 0.18, 0.35) # Ámbar relieve
+	if mat_anillo != null:
+		mat_anillo.albedo_color = Color(1.0, 0.88, 0.25, 0.95) # Anillo dorado brillante
+
+	if _forma_actual_gizmo == forma and _gizmo_disco.mesh != null:
 		return
 
 	_forma_actual_gizmo = forma
 
 	match forma:
-		1: # Meseta Plana (Cilindro disco de bordes nítidos)
+		1: # Meseta Plana
 			var cyl_flat = CylinderMesh.new()
-			cyl_flat.top_radius = 1.0
-			cyl_flat.bottom_radius = 1.0
+			cyl_flat.top_radius = 0.96
+			cyl_flat.bottom_radius = 0.96
 			cyl_flat.height = 0.04
-			cyl_flat.radial_segments = 24
-			_gizmo_cursor.mesh = cyl_flat
+			cyl_flat.radial_segments = 28
+			_gizmo_disco.mesh = cyl_flat
+			_gizmo_anillo.visible = true
 		2: # Cúpula Suave
 			var sphere = SphereMesh.new()
 			sphere.radius = 1.0
 			sphere.height = 0.6
 			sphere.radial_segments = 24
 			sphere.rings = 12
-			_gizmo_cursor.mesh = sphere
+			_gizmo_disco.mesh = sphere
+			_gizmo_anillo.visible = true
 		_: # Cónica Low-Poly
 			var cone = CylinderMesh.new()
 			cone.top_radius = 0.1
 			cone.bottom_radius = 1.0
 			cone.height = 0.8
 			cone.radial_segments = 16
-			_gizmo_cursor.mesh = cone
+			_gizmo_disco.mesh = cone
+			_gizmo_anillo.visible = true
 
 
 func _destruir_gizmo_cursor() -> void:
@@ -705,6 +959,8 @@ func _destruir_gizmo_cursor() -> void:
 			_gizmo_cursor.get_parent().remove_child(_gizmo_cursor)
 		_gizmo_cursor.queue_free()
 		_gizmo_cursor = null
+		_gizmo_disco = null
+		_gizmo_anillo = null
 
 
 func _asegurar_gizmo_en_arbol() -> void:
@@ -733,7 +989,7 @@ func _posicionar_cursor(pos: Vector3, normal: Vector3, radio: float) -> void:
 			rot_basis = Basis(eje, angulo)
 
 	_gizmo_cursor.global_basis = rot_basis.scaled(Vector3(radio, 1.0, radio))
-	_gizmo_cursor.global_position = pos + normal * 0.05
+	_gizmo_cursor.global_position = pos + normal * 0.12
 
 
 func _ocultar_cursor() -> void:
@@ -742,6 +998,6 @@ func _ocultar_cursor() -> void:
 
 
 func _actualizar_visibilidad() -> void:
-	var mostrar = is_instance_valid(_isla) and _isla.activar_pincel_terreno
+	var mostrar = is_instance_valid(_isla) and (_isla.activar_pincel_terreno or _isla.activar_pincel_camino)
 	if not mostrar:
 		_ocultar_cursor()

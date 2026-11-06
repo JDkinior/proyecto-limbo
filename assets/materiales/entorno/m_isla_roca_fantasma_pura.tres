@@ -1,6 +1,7 @@
-[gd_resource type="ShaderMaterial" format=3]
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bekgf2olai2nq"]
 
-[ext_resource type="Shader" path="res://shaders/entorno/isla_fantasma.gdshader" id="1_isla_shader"]
+[ext_resource type="Shader" uid="uid://bksfvbjihecd8" path="res://shaders/entorno/isla_fantasma.gdshader" id="1_isla_shader"]
+[ext_resource type="Texture2D" uid="uid://d314dykpum2xm" path="res://assets/materiales/entorno/ruido_terreno.tres" id="2_ruido"]
 
 [resource]
 resource_name = "m_isla_roca_fantasma_pura"
@@ -12,9 +13,13 @@ shader_parameter/rugosidad = 0.88
 shader_parameter/fuerza_variacion = 1.0
 shader_parameter/color_emision = Color(0, 0, 0, 1)
 shader_parameter/energia_emision = 0.0
+shader_parameter/habilitar_levitacion_satelites = true
+shader_parameter/amplitud_levitacion = 0.12
+shader_parameter/velocidad_levitacion = 1.2
+shader_parameter/balanceo_levitacion = 0.035
 shader_parameter/habilitar_pasto_distancia = false
-shader_parameter/color_pasto_cerca_base = Color(0.015, 0.1, 0.24, 1)
-shader_parameter/color_pasto_cerca_punta = Color(0.025, 0.18, 0.38, 1)
+shader_parameter/color_pasto_cerca_base = Color(0.025, 0.22, 0.46, 1)
+shader_parameter/color_pasto_cerca_punta = Color(0.045, 0.35, 0.65, 1)
 shader_parameter/color_pasto_lejos_base = Color(0.025, 0.22, 0.46, 1)
 shader_parameter/color_pasto_lejos_punta = Color(0.045, 0.35, 0.65, 1)
 shader_parameter/distancia_transicion_inicio = 20.0
@@ -23,3 +28,20 @@ shader_parameter/saturacion_pasto = 0.9
 shader_parameter/rugosidad_pasto = 0.96
 shader_parameter/umbral_pendiente_pasto = 0.45
 shader_parameter/suavizado_pendiente_pasto = 0.15
+shader_parameter/textura_ruido_terreno = ExtResource("2_ruido")
+shader_parameter/escala_ruido_terreno = 0.12
+shader_parameter/fuerza_variacion_pasto = 0.25
+shader_parameter/usar_normal_ruido = true
+shader_parameter/fuerza_normal_terreno = 0.15
+shader_parameter/habilitar_caminos = true
+shader_parameter/color_tierra_clara_base = Color(0.04, 0.12, 0.24, 1)
+shader_parameter/color_tierra_clara_resalte = Color(0.08, 0.18, 0.32, 1)
+shader_parameter/color_tierra_oscura_base = Color(0.02, 0.05, 0.12, 1)
+shader_parameter/color_tierra_oscura_resalte = Color(0.04, 0.1, 0.2, 1)
+shader_parameter/color_roca_base_pintada = Color(0.08, 0.16, 0.28, 1)
+shader_parameter/color_roca_resalte_pintada = Color(0.14, 0.25, 0.4, 1)
+shader_parameter/color_pasto_resalte = Color(0.05, 0.4, 0.7, 1)
+shader_parameter/rugosidad_tierra = 0.94
+shader_parameter/contraste_borde_camino = 1.6
+shader_parameter/nitidez_borde_camino = 0.06
+shader_parameter/relieve_profundidad_camino = 0.6

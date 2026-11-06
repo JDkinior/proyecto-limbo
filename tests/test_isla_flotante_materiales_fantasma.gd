@@ -20,27 +20,21 @@ func test_cambio_materiales_vivo_y_fantasma() -> void:
 	assert_ne(mesh_inst, null, "MeshInstance3D debe existir")
 	
 	var mat_sup_vivo = mesh_inst.get_surface_override_material(0)
-	var mat_roca_vivo = mesh_inst.get_surface_override_material(1)
-	assert_eq(mat_sup_vivo, IslaFlotante.MAT_HIERBA_DEFAULT, "En Reino Vivo, superficie 0 debe ser hierba dorada por defecto")
-	assert_eq(mat_roca_vivo, IslaFlotante.MAT_ROCA_DEFAULT, "En Reino Vivo, superficie 1 debe ser roca cálida por defecto")
+	assert_eq(mat_sup_vivo, IslaFlotante.MAT_ROCA_DEFAULT, "En Reino Vivo, superficie 0 debe ser el material unificado de roca/pasto por defecto")
 
 	# 2. En vista del Reino Fantasma
 	isla.vista_fantasma_en_editor = true
 	isla._actualizar_materiales()
 
 	var mat_sup_fant = mesh_inst.get_surface_override_material(0)
-	var mat_roca_fant = mesh_inst.get_surface_override_material(1)
-	assert_eq(mat_sup_fant, IslaFlotante.MAT_HIERBA_FANTASMA_DEFAULT, "En Reino Fantasma, superficie 0 debe ser material azul oscuro grisáceo")
-	assert_eq(mat_roca_fant, IslaFlotante.MAT_ROCA_FANTASMA_DEFAULT, "En Reino Fantasma, superficie 1 debe ser roca azul oscura grisácea")
-	assert_true(mat_sup_fant is ShaderMaterial, "Material de hierba fantasma debe ser ShaderMaterial")
-	assert_true(mat_roca_fant is ShaderMaterial, "Material de roca fantasma debe ser ShaderMaterial")
+	assert_eq(mat_sup_fant, IslaFlotante.MAT_ROCA_FANTASMA_DEFAULT, "En Reino Fantasma, superficie 0 debe ser material espectral por defecto")
+	assert_true(mat_sup_fant is ShaderMaterial, "Material de roca fantasma debe ser ShaderMaterial")
 
 	# 3. Retorno al Reino Vivo
 	isla.vista_fantasma_en_editor = false
 	isla._actualizar_materiales()
 
-	assert_eq(mesh_inst.get_surface_override_material(0), IslaFlotante.MAT_HIERBA_DEFAULT, "Debe restaurar hierba dorada para el Vivo")
-	assert_eq(mesh_inst.get_surface_override_material(1), IslaFlotante.MAT_ROCA_DEFAULT, "Debe restaurar roca cálida para el Vivo")
+	assert_eq(mesh_inst.get_surface_override_material(0), IslaFlotante.MAT_ROCA_DEFAULT, "Debe restaurar material de roca/pasto para el Vivo")
 
 func test_plataforma_espiritual_conserva_material_propio() -> void:
 	var tree = Engine.get_main_loop() as SceneTree

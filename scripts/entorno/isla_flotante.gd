@@ -347,18 +347,21 @@ var radio_maximo_vuelo: float:
 		_solicitar_regeneracion()
 
 @export_group("Superficie y Pasto")
-## Si está activo, la isla tiene cubierta de hierba/pasto dorado superior y faldón colgante.
+## Si está activo, la isla tiene cubierta de hierba/pasto dorado superior.
 ## Si está inactivo, la isla se genera como una formación rocosa pura (sin pasto).
 @export var generar_pasto: bool = true:
 	set(valor):
 		generar_pasto = valor
+		_ultimo_estado_fantasma_mat = -1
 		_solicitar_regeneracion()
+		_actualizar_materiales()
 
 ## Si está activo, muestra la tonalidad de pasto en las mesetas y terrazas en la distancia (sin costo de geometría).
 ## Si está inactivo, la plataforma se muestra como roca pura (ideal para islas rocosas o acantilados sin vegetación).
 @export var pasto_distancia: bool = true:
 	set(valor):
 		pasto_distancia = valor
+		_ultimo_estado_fantasma_mat = -1
 		_actualizar_materiales()
 
 ## Altura base relativa de la superficie superior transitable.
@@ -417,7 +420,7 @@ var radio_maximo_vuelo: float:
 		_marcar_cambio_manual()
 
 ## Genera el faldón/fleco perimetral de mechones de pasto estilizados que caen sobre la roca.
-@export var generar_faldon_pasto: bool = true:
+@export var generar_faldon_pasto: bool = false:
 	set(valor):
 		generar_faldon_pasto = valor
 		_solicitar_regeneracion()
@@ -503,10 +506,20 @@ var radio_maximo_vuelo: float:
 
 @export_group("Pincel de Esculpido 3D (Editor)")
 ## Activa la herramienta de pincel en el visor 3D para esculpir montañas/valles con clic y arrastre.
-@export var activar_pincel_terreno: bool = false
+@export var activar_pincel_terreno: bool = false:
+	set(valor):
+		if activar_pincel_terreno == valor:
+			return
+		activar_pincel_terreno = valor
+		if valor:
+			if activar_pincel_camino:
+				activar_pincel_camino = false
+		notify_property_list_changed()
 
 ## Modo de acción del pincel al hacer clic en el terreno.
-@export var modo_pincel_terreno: ModoPincelTerreno = ModoPincelTerreno.ELEVAR
+@export var modo_pincel_terreno: ModoPincelTerreno = ModoPincelTerreno.ELEVAR:
+	set(valor):
+		modo_pincel_terreno = valor
 
 ## Forma de la huella del pincel.
 @export var forma_pincel_terreno: FormaPincelTerreno = FormaPincelTerreno.CONICA_LOWPOLY
@@ -526,6 +539,49 @@ var radio_maximo_vuelo: float:
 		if valor:
 			limpiar_esculpido()
 			limpiar_deformaciones = false
+			notify_property_list_changed()
+
+@export_group("Pintura de Caminos (Editor)")
+## Activa la herramienta de pincel para pintar senderos de tierra, roca o pasto directamente en el visor 3D.
+@export var activar_pincel_camino: bool = false:
+	set(valor):
+		if activar_pincel_camino == valor:
+			return
+		activar_pincel_camino = valor
+		if valor:
+			if activar_pincel_terreno:
+				activar_pincel_terreno = false
+		notify_property_list_changed()
+
+## Modo de acción del pincel: Pintar tierra clara, Pintar tierra oscura, Pintar roca base, Pintar pasto, o Borrar para restaurar base.
+@export_enum("Pintar Tierra Clara", "Pintar Tierra Oscura", "Pintar Base (Roca)", "Pintar Pasto (Césped)", "Borrar (Restaurar Base)") var modo_accion_camino: int = 0:
+	set(valor):
+		modo_accion_camino = valor
+
+## Radio del pincel de caminos en metros.
+@export_range(0.3, 15.0, 0.1, "or_greater") var radio_pincel_camino: float = 2.0
+
+## Intensidad o opacidad de pintura por pasada (0.1 a 1.0).
+@export_range(0.1, 1.0, 0.05) var fuerza_pincel_camino: float = 0.65
+
+## Trazos de pintura de caminos guardados en la escena.
+@export var trazos_pintura_caminos: Array[Dictionary] = []
+
+## Botón en el Inspector para borrar todos los caminos de tierra y restaurar césped puro.
+@export var limpiar_todo_el_camino: bool = false:
+	set(valor):
+		if valor:
+			limpiar_caminos()
+			limpiar_todo_el_camino = false
+			notify_property_list_changed()
+
+## Variable interna de compatibilidad (oculta del inspector para evitar botones duplicados).
+var limpiar_caminos_boton: bool = false:
+	set(valor):
+		if valor:
+			limpiar_caminos()
+			limpiar_caminos_boton = false
+			notify_property_list_changed()
 
 @export_group("Rocas Satélite Flotantes")
 ## Genera pequeños fragmentos de roca flotando suspendidos bajo la punta inferior.
@@ -713,9 +769,9 @@ var esta_en_aviso_desactivacion: bool:
 
 # Paleta cromática oficial de Proyecto Limbo
 # Pasto / Césped dorado: calibrado para integrarse con pasto_fisico_mat.tres y pasto_estilizado.gdshader
-# Color base del suelo/raíces bajo la hierba coincidente con el sombreado del pasto 3D
-const COLOR_PASTO_TERRENO = Color(0.28, 0.18, 0.03, 1.0)
-const COLOR_PASTO_MECHON = Color(0.38, 0.25, 0.05, 1.0)
+# Color del suelo superior y faldón coincidente con el tono dorado brillante de las puntas del pasto
+const COLOR_PASTO_TERRENO = Color(0.46, 0.32, 0.06, 1.0)
+const COLOR_PASTO_MECHON = Color(0.66, 0.49, 0.07, 1.0)
 
 # Roca: coincide exactamente con StandardMaterial3D_floor_vivo del bloque derecho
 const COLOR_ROCA_BASE = Color(0.54901963, 0.4392157, 0.32156864, 1.0) # Terracota / caramelo cálido
@@ -761,6 +817,8 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	if activar_pincel_camino and activar_pincel_terreno:
+		activar_pincel_terreno = false
 	if not is_in_group("islas"):
 		add_to_group("islas")
 	_asegurar_nodos_hijos()
@@ -937,8 +995,9 @@ func _asegurar_nodos_hijos() -> void:
 			_mesh_instance = MeshInstance3D.new()
 			_mesh_instance.name = "MeshInstance3D"
 			add_child(_mesh_instance)
-			if Engine.is_editor_hint():
-				_mesh_instance.owner = get_tree().edited_scene_root if get_tree() else null
+			var root = get_tree().edited_scene_root if (Engine.is_editor_hint() and is_inside_tree() and get_tree()) else null
+			if root != null and root.is_ancestor_of(_mesh_instance):
+				_mesh_instance.owner = root
 
 	if _mesh_instance != null:
 		_mesh_instance.ignore_occlusion_culling = false
@@ -951,8 +1010,9 @@ func _asegurar_nodos_hijos() -> void:
 			_collision_shape = CollisionShape3D.new()
 			_collision_shape.name = "CollisionShape3D"
 			add_child(_collision_shape)
-			if Engine.is_editor_hint():
-				_collision_shape.owner = get_tree().edited_scene_root if get_tree() else null
+			var root = get_tree().edited_scene_root if (Engine.is_editor_hint() and is_inside_tree() and get_tree()) else null
+			if root != null and root.is_ancestor_of(_collision_shape):
+				_collision_shape.owner = root
 
 	if _decoracion_nodo == null:
 		_decoracion_nodo = get_node_or_null("Decoracion") as Node3D
@@ -960,8 +1020,9 @@ func _asegurar_nodos_hijos() -> void:
 			_decoracion_nodo = Node3D.new()
 			_decoracion_nodo.name = "Decoracion"
 			add_child(_decoracion_nodo)
-			if Engine.is_editor_hint():
-				_decoracion_nodo.owner = get_tree().edited_scene_root if get_tree() else null
+			var root = get_tree().edited_scene_root if (Engine.is_editor_hint() and is_inside_tree() and get_tree()) else null
+			if root != null and root.is_ancestor_of(_decoracion_nodo):
+				_decoracion_nodo.owner = root
 
 
 func _aplicar_preset(tipo: PresetTamano) -> void:
@@ -980,7 +1041,7 @@ func _aplicar_preset(tipo: PresetTamano) -> void:
 			variacion_superficie = 0.06
 			cantidad_picos_rocosos = 2
 			dispersion_picos = 0.28
-			generar_faldon_pasto = true
+			generar_faldon_pasto = false
 			longitud_faldon_pasto = 0.50
 			vuelo_faldon_pasto = 0.30
 			cantidad_rocas_satelite = 2
@@ -999,7 +1060,7 @@ func _aplicar_preset(tipo: PresetTamano) -> void:
 			variacion_superficie = 0.08
 			cantidad_picos_rocosos = 3
 			dispersion_picos = 0.35
-			generar_faldon_pasto = true
+			generar_faldon_pasto = false
 			longitud_faldon_pasto = 0.65
 			vuelo_faldon_pasto = 0.38
 			cantidad_rocas_satelite = 4
@@ -1018,7 +1079,7 @@ func _aplicar_preset(tipo: PresetTamano) -> void:
 			variacion_superficie = 0.12
 			cantidad_picos_rocosos = 4
 			dispersion_picos = 0.42
-			generar_faldon_pasto = true
+			generar_faldon_pasto = false
 			longitud_faldon_pasto = 0.80
 			vuelo_faldon_pasto = 0.48
 			cantidad_rocas_satelite = 6
@@ -1035,16 +1096,28 @@ func regenerar() -> void:
 	_ultimo_estado_fantasma_mat = -1
 	_asegurar_nodos_hijos()
 	
-	var rng = RandomNumberGenerator.new()
-	rng.seed = semilla
+	# 1. Configurar generadores deterministas aislados por subsistema
+	# para garantizar determinismo geométrico absoluto: el esculpido o la pintura
+	# de caminos en la superficie jamás alterarán la forma de la roca o sus picos inferiores.
+	var rng_silueta = RandomNumberGenerator.new()
+	rng_silueta.seed = semilla
+
+	var rng_top = RandomNumberGenerator.new()
+	rng_top.seed = semilla + 202
+
+	var rng_roca = RandomNumberGenerator.new()
+	rng_roca.seed = semilla + 101
+
+	var rng_decoracion = RandomNumberGenerator.new()
+	rng_decoracion.seed = semilla + 303
 
 	# 1. Parámetros armónicos deterministas de silueta perimetral
-	var arm_amp1 = rng.randf_range(0.70, 1.05)
-	var arm_phase1 = rng.randf_range(0.0, TAU)
-	var arm_amp2 = rng.randf_range(0.40, 0.80)
-	var arm_phase2 = rng.randf_range(0.0, TAU)
-	var arm_amp3 = rng.randf_range(0.20, 0.50)
-	var arm_phase3 = rng.randf_range(0.0, TAU)
+	var arm_amp1 = rng_silueta.randf_range(0.70, 1.05)
+	var arm_phase1 = rng_silueta.randf_range(0.0, TAU)
+	var arm_amp2 = rng_silueta.randf_range(0.40, 0.80)
+	var arm_phase2 = rng_silueta.randf_range(0.0, TAU)
+	var arm_amp3 = rng_silueta.randf_range(0.20, 0.50)
+	var arm_phase3 = rng_silueta.randf_range(0.0, TAU)
 
 	# 2. Vértices del perímetro 2D exterior
 	var radio_x_base = ancho * 0.5
@@ -1062,7 +1135,7 @@ func regenerar() -> void:
 			arm_amp3 * sin(5.0 * ang + arm_phase3)
 		)
 		
-		var jitter_local = (rng.randf() - 0.5) * 2.0 * (intensidad_variacion * 0.32)
+		var jitter_local = (rng_silueta.randf() - 0.5) * 2.0 * (intensidad_variacion * 0.32)
 		var factor_radio = 1.0 + (factor_armonico * irregularidad_contorno) + jitter_local
 		factor_radio = maxf(factor_radio, 0.42)
 
@@ -1075,27 +1148,21 @@ func regenerar() -> void:
 
 	_perimetro_pts_cache = perimetro_pts
 
-	# 3. Construir la malla con dos superficies (Pasto / Hierba y Roca) si generar_pasto es true,
-	# o una única superficie monolítica de roca si generar_pasto es false.
+	# 3. Construir la malla como una única superficie monolítica
 	var mesh = ArrayMesh.new()
-	var st_pasto = SurfaceTool.new()
 	var st_roca = SurfaceTool.new()
 	var col_caras: PackedVector3Array = PackedVector3Array()
 	var espesor_suelo = minf(2.5, maxf(1.8, profundidad_roca * 0.4))
 
-	if generar_pasto:
-		st_pasto.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st_roca.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_tris_roca_buffer.clear()
-
-	var st_sup = st_pasto if generar_pasto else st_roca
 
 	# ==========================================================================
 	# SUPERFICIE SUPERIOR (Terreno Transitable: Pasto o Roca según generar_pasto)
 	# ==========================================================================
 	var num_anillos_sup = anillos_superficie
 	if habilitar_montanas or not deformaciones_escultura.is_empty() or habilitar_mesetas_superficie:
-		num_anillos_sup = maxi(anillos_superficie, 22)
+		num_anillos_sup = maxi(anillos_superficie, 20)
 
 	var y_centro = _calcular_altura_superficie_interna(Vector2.ZERO)
 	var vertice_centro = Vector3(0.0, y_centro, 0.0)
@@ -1123,13 +1190,7 @@ func regenerar() -> void:
 		var v1 = primer_anillo[i]
 		var v2 = primer_anillo[next_i]
 
-		var norm_tri = (v2 - v0).cross(v1 - v0).normalized()
-		var es_roca = not generar_pasto or (roca_en_pendientes and norm_tri.y < cos_corte_roca)
-		if es_roca:
-			_anadir_triangulo_roca_lowpoly(st_roca, v0, v2, v1, rng, 1.05)
-		else:
-			var col_top = _color_pasto(rng, i, 1.0)
-			_anadir_triangulo_lowpoly(st_pasto, v0, v2, v1, col_top)
+		_anadir_triangulo_roca_lowpoly(st_roca, v0, v2, v1, rng_top, 1.05, false, Vector3.ZERO, 0, true)
 
 		# Colisión: cara superior (+Y) y losa inferior (-Y) para solidez física absoluta
 		col_caras.append(v0); col_caras.append(v2); col_caras.append(v1)
@@ -1149,22 +1210,10 @@ func regenerar() -> void:
 			var p_out1 = r_out[next_i]
 
 			# Triángulo 1
-			var n1 = (p_out1 - p_in0).cross(p_out0 - p_in0).normalized()
-			var es_roca1 = not generar_pasto or (roca_en_pendientes and n1.y < cos_corte_roca)
-			if es_roca1:
-				_anadir_triangulo_roca_lowpoly(st_roca, p_in0, p_out1, p_out0, rng, 1.04)
-			else:
-				var col_ring1 = _color_pasto(rng, an * segmentos_perimetro + i, 1.0)
-				_anadir_triangulo_lowpoly(st_pasto, p_in0, p_out1, p_out0, col_ring1)
+			_anadir_triangulo_roca_lowpoly(st_roca, p_in0, p_out1, p_out0, rng_top, 1.04, false, Vector3.ZERO, 0, true)
 
 			# Triángulo 2
-			var n2 = (p_in1 - p_in0).cross(p_out1 - p_in0).normalized()
-			var es_roca2 = not generar_pasto or (roca_en_pendientes and n2.y < cos_corte_roca)
-			if es_roca2:
-				_anadir_triangulo_roca_lowpoly(st_roca, p_in0, p_in1, p_out1, rng, 1.04)
-			else:
-				var col_ring2 = _color_pasto(rng, an * segmentos_perimetro + i + 1, 1.0)
-				_anadir_triangulo_lowpoly(st_pasto, p_in0, p_in1, p_out1, col_ring2)
+			_anadir_triangulo_roca_lowpoly(st_roca, p_in0, p_in1, p_out1, rng_top, 1.04, false, Vector3.ZERO, 0, true)
 
 			# Colisión: caras superiores (+Y)
 			col_caras.append(p_in0); col_caras.append(p_out1); col_caras.append(p_out0)
@@ -1192,81 +1241,30 @@ func regenerar() -> void:
 	# --------------------------------------------------------------------------
 	# FALDÓN / FLECO PERIMETRAL DE PASTO O TRANSICIÓN ROCOSA DIRECTA
 	# --------------------------------------------------------------------------
+	# UNIÓN DIRECTA Y MONOLÍTICA (MANTIENE LA FORMA PURA DE LA ISLA):
+	# El cuerpo rocoso conecta directamente con el borde superior perimetral exacto
+	# --------------------------------------------------------------------------
 	var rim_roca_pts: Array[Vector3] = []
-
-	if generar_pasto:
-		# 1. Puntos de los dientes del faldón de pasto que caen hacia afuera y abajo
-		var dientes_pasto_pts: Array[Vector3] = []
-		for i in range(segmentos_perimetro):
-			var top_p = ultimo_anillo_sup[i]
-			var dir_horiz = Vector3(top_p.x, 0.0, top_p.z).normalized()
-
-			var caida_base = longitud_faldon_pasto if generar_faldon_pasto else 0.28
-			var vuelo_base = vuelo_faldon_pasto if generar_faldon_pasto else 0.15
-
-			var es_diente_largo = (i % 2 == 1)
-			var factor_diente = 1.25 if (es_diente_largo and generar_faldon_pasto) else 0.75
-			var ruido_diente = (rng.randf() - 0.5) * 0.16 * intensidad_variacion
-
-			var caida = caida_base * factor_diente * (1.0 + ruido_diente)
-			var vuelo = vuelo_base * factor_diente * (1.0 + ruido_diente * 0.35)
-
-			var p_diente = Vector3(
-				top_p.x + dir_horiz.x * vuelo,
-				top_p.y - caida,
-				top_p.z + dir_horiz.z * vuelo
-			)
-			dientes_pasto_pts.append(p_diente)
-
-		# 2. Borde superior de la roca: anillo continuo y suave recogido bajo el faldón
-		for i in range(segmentos_perimetro):
-			var top_p = ultimo_anillo_sup[i]
-			var p_roca_top = Vector3(top_p.x * 0.93, top_p.y - 0.22, top_p.z * 0.93)
-			rim_roca_pts.append(p_roca_top)
-
-		# 3. Triangulación limpia y continua de la cara exterior del faldón de pasto
-		for i in range(segmentos_perimetro):
-			var next_i = (i + 1) % segmentos_perimetro
-			var t0 = ultimo_anillo_sup[i]
-			var t1 = ultimo_anillo_sup[next_i]
-			var b0 = dientes_pasto_pts[i]
-			var b1 = dientes_pasto_pts[next_i]
-
-			var col_hoja = _color_pasto(rng, i + 100, 1.0)
-			var col_punta = _color_pasto(rng, i + 150, 1.12)
-
-			_anadir_triangulo_lowpoly(st_pasto, t0, t1, b1, col_hoja)
-			_anadir_triangulo_lowpoly(st_pasto, t0, b1, b0, col_punta)
-
-			# 4. Solapa interior que sella el volumen del pasto hacia el borde de la roca
-			var r0 = rim_roca_pts[i]
-			var r1 = rim_roca_pts[next_i]
-			var col_rev = _color_pasto(rng, i + 200, 0.92)
-			_anadir_triangulo_lowpoly(st_pasto, b0, b1, r1, col_rev)
-			_anadir_triangulo_lowpoly(st_pasto, b0, r1, r0, col_rev)
-	else:
-		# ISLA DE ROCA PURA (SIN PASTO):
-		# El cuerpo rocoso conecta directamente con el borde superior perimetral
-		for i in range(segmentos_perimetro):
-			rim_roca_pts.append(ultimo_anillo_sup[i])
+	for i in range(segmentos_perimetro):
+		rim_roca_pts.append(ultimo_anillo_sup[i])
 
 	# ==========================================================================
 	# SUPERFICIE 1: CUERPO ROCOSO CON MÚLTIPLES PICOS Y FACETAS IRREGULARES
 	# ==========================================================================
 	# Generación determinista de picos inferiores ordenados angularmente
 	var picos: Array[Vector3] = []
-	var p0_x = (rng.randf() - 0.5) * ancho * 0.14 * intensidad_variacion
-	var p0_z = (rng.randf() - 0.5) * largo * 0.14 * intensidad_variacion
-	var p0_y = -profundidad_roca * rng.randf_range(0.96, 1.08)
+	var p0_x = (rng_roca.randf() - 0.5) * ancho * 0.14 * intensidad_variacion
+	var p0_z = (rng_roca.randf() - 0.5) * largo * 0.14 * intensidad_variacion
+	var p0_y = -profundidad_roca * rng_roca.randf_range(0.96, 1.08)
 	var p_main = Vector3(p0_x, p0_y, p0_z)
 	picos.append(p_main)
 
 	if cantidad_picos_rocosos >= 2:
 		for k in range(1, cantidad_picos_rocosos):
-			var ang_k = (float(k) / float(cantidad_picos_rocosos)) * TAU + rng.randf_range(-0.30, 0.30)
-			var dist_x_k = (ancho * 0.5) * dispersion_picos * rng.randf_range(0.55, 0.95)
-			var dist_z_k = (largo * 0.5) * dispersion_picos * rng.randf_range(0.55, 0.95)
-			var pk_y = -profundidad_roca * rng.randf_range(0.58, 0.85)
+			var ang_k = (float(k) / float(cantidad_picos_rocosos)) * TAU + rng_roca.randf_range(-0.30, 0.30)
+			var dist_x_k = (ancho * 0.5) * dispersion_picos * rng_roca.randf_range(0.55, 0.95)
+			var dist_z_k = (largo * 0.5) * dispersion_picos * rng_roca.randf_range(0.55, 0.95)
+			var pk_y = -profundidad_roca * rng_roca.randf_range(0.58, 0.85)
 			picos.append(Vector3(
 				p0_x + cos(ang_k) * dist_x_k,
 				pk_y,
@@ -1325,8 +1323,8 @@ func regenerar() -> void:
 
 			# Desplazamiento 3D asimétrico (altura escalonada alterna para eliminar líneas horizontales)
 			var stagger_y = ((i % 2) * 2.0 - 1.0) * (profundidad_roca / float(anillos_roca)) * 0.32 * intensidad_variacion
-			var ruido_r = 1.0 + (rng.randf() - 0.5) * 0.55 * intensidad_variacion
-			var ruido_y = (rng.randf() - 0.5) * (profundidad_roca / float(anillos_roca)) * 0.45 * intensidad_variacion
+			var ruido_r = 1.0 + (rng_roca.randf() - 0.5) * 0.55 * intensidad_variacion
+			var ruido_y = (rng_roca.randf() - 0.5) * (profundidad_roca / float(anillos_roca)) * 0.45 * intensidad_variacion
 
 			var px = centro_x + cos(ang_orig) * (base_rim.length() * factor_radio * ruido_r)
 			var pz = centro_z + sin(ang_orig) * (base_rim.length() * factor_radio * ruido_r)
@@ -1359,23 +1357,23 @@ func regenerar() -> void:
 				var centroide = (u0 + u1 + d0 + d1) * 0.25
 				var normal_aprox = ((u1 - u0).cross(d0 - u0)).normalized()
 				var escala_jitter = 0.25 if an == 0 else 0.65
-				var jitter_3d = normal_aprox * (rng.randf() - 0.5) * escala_jitter * intensidad_variacion
+				var jitter_3d = normal_aprox * (rng_roca.randf() - 0.5) * escala_jitter * intensidad_variacion
 				var v_c = centroide + jitter_3d
 				if an == 0:
 					v_c.y = minf(v_c.y, minf(u0.y, u1.y) - 0.05)
 
-				_anadir_triangulo_roca_lowpoly(st_roca, u0, u1, v_c, rng)
-				_anadir_triangulo_roca_lowpoly(st_roca, u1, d1, v_c, rng)
-				_anadir_triangulo_roca_lowpoly(st_roca, d1, d0, v_c, rng)
-				_anadir_triangulo_roca_lowpoly(st_roca, d0, u0, v_c, rng)
+				_anadir_triangulo_roca_lowpoly(st_roca, u0, u1, v_c, rng_roca)
+				_anadir_triangulo_roca_lowpoly(st_roca, u1, d1, v_c, rng_roca)
+				_anadir_triangulo_roca_lowpoly(st_roca, d1, d0, v_c, rng_roca)
+				_anadir_triangulo_roca_lowpoly(st_roca, d0, u0, v_c, rng_roca)
 
 				col_caras.append(u0); col_caras.append(u1); col_caras.append(v_c)
 				col_caras.append(u1); col_caras.append(d1); col_caras.append(v_c)
 				col_caras.append(d1); col_caras.append(d0); col_caras.append(v_c)
 				col_caras.append(d0); col_caras.append(u0); col_caras.append(v_c)
 			else:
-				_anadir_triangulo_roca_lowpoly(st_roca, u0, u1, d0, rng)
-				_anadir_triangulo_roca_lowpoly(st_roca, u1, d1, d0, rng)
+				_anadir_triangulo_roca_lowpoly(st_roca, u0, u1, d0, rng_roca)
+				_anadir_triangulo_roca_lowpoly(st_roca, u1, d1, d0, rng_roca)
 
 				col_caras.append(u0); col_caras.append(u1); col_caras.append(d0)
 				col_caras.append(u1); col_caras.append(d1); col_caras.append(d0)
@@ -1421,16 +1419,16 @@ func regenerar() -> void:
 		var pk_next = picos[idx_next]
 
 		# Cara principal hacia el pico asignado (Normal hacia afuera)
-		_anadir_triangulo_roca_lowpoly(st_roca, u0, u1, pk_curr, rng)
+		_anadir_triangulo_roca_lowpoly(st_roca, u0, u1, pk_curr, rng_roca)
 		col_caras.append(u0); col_caras.append(u1); col_caras.append(pk_curr)
 
 		# Si el siguiente segmento conecta a un pico distinto, cerrar la brecha con cara de puente
 		# y sellar la hendidura central directamente para garantizar una malla hermética sin aristas abiertas
 		if idx_curr != idx_next:
-			_anadir_triangulo_roca_lowpoly(st_roca, u1, pk_next, pk_curr, rng)
+			_anadir_triangulo_roca_lowpoly(st_roca, u1, pk_next, pk_curr, rng_roca)
 			col_caras.append(u1); col_caras.append(pk_next); col_caras.append(pk_curr)
 
-			_anadir_triangulo_roca_lowpoly(st_roca, pk_curr, pk_next, c_mid, rng, 0.78)
+			_anadir_triangulo_roca_lowpoly(st_roca, pk_curr, pk_next, c_mid, rng_roca, 0.78)
 			col_caras.append(pk_curr); col_caras.append(pk_next); col_caras.append(c_mid)
 
 	# ==========================================================================
@@ -1439,48 +1437,41 @@ func regenerar() -> void:
 	if generar_rocas_satelite and cantidad_rocas_satelite > 0:
 		var dim_min = minf(ancho, largo)
 		for s in range(cantidad_rocas_satelite):
-			var ang_sat = (float(s) / float(cantidad_rocas_satelite)) * TAU + rng.randf_range(-0.35, 0.35)
+			var ang_sat = (float(s) / float(cantidad_rocas_satelite)) * TAU + rng_roca.randf_range(-0.35, 0.35)
 			var pico_ref = picos[s % picos.size()]
 
 			# Tamaño escalado y proporcional al tamaño de la isla (evita rocas gigantes desproporcionadas)
-			var tam_sat = clampf(dim_min * rng.randf_range(0.045, 0.075), 0.18, 0.60)
+			var tam_sat = clampf(dim_min * rng_roca.randf_range(0.045, 0.075), 0.18, 0.60)
 
 			var dist_sat: float
 			var y_sat: float
 
 			if s % 2 == 0:
 				# Flotando suspendida en el aire debajo del pico inferior (abismo, 100% fuera de la malla)
-				y_sat = pico_ref.y - rng.randf_range(0.50 + tam_sat, maxf(profundidad_roca * 0.28, 1.2) + tam_sat)
-				dist_sat = rng.randf_range(0.15, maxf(dim_min * 0.08, 0.55))
+				y_sat = pico_ref.y - rng_roca.randf_range(0.50 + tam_sat, maxf(profundidad_roca * 0.28, 1.2) + tam_sat)
+				dist_sat = rng_roca.randf_range(0.15, maxf(dim_min * 0.08, 0.55))
 			else:
 				# Flotando suspendida en el aire en el perímetro exterior con holgura segura
-				var t_h = rng.randf_range(0.35, 0.75)
+				var t_h = rng_roca.randf_range(0.35, 0.75)
 				y_sat = -t_h * profundidad_roca
 				var radio_cuerpo_aprox = (dim_min * 0.5) * lerpf(0.85, 0.30, t_h)
-				dist_sat = radio_cuerpo_aprox + tam_sat + rng.randf_range(0.9, 1.8)
+				dist_sat = radio_cuerpo_aprox + tam_sat + rng_roca.randf_range(0.9, 1.8)
 
 			var centro_sat = Vector3(
 				pico_ref.x + cos(ang_sat) * dist_sat,
 				y_sat,
 				pico_ref.z + sin(ang_sat) * dist_sat
 			)
-			_generar_roca_satelite_mesh(st_roca, rng, centro_sat, tam_sat, s)
+			_generar_roca_satelite_mesh(st_roca, rng_roca, centro_sat, tam_sat, s)
 
 	# 4. Finalizar mallas con materiales asignados y suavizado automático por secciones (Auto Smooth)
 	if suavizado_automatico_roca and not _tris_roca_buffer.is_empty():
 		_procesar_suavizado_automatico_roca(st_roca)
 	st_roca.index()
-	var mat_roca = material_roca if material_roca != null else MAT_ROCA_DEFAULT
+	var mat_roca = material_roca if material_roca != null else (MAT_ROCA_DEFAULT if (generar_pasto and pasto_distancia) else MAT_ROCA_PURA)
 	st_roca.set_material(mat_roca)
 
-	if generar_pasto:
-		st_pasto.index()
-		var mat_pasto = material_hierba if material_hierba != null else MAT_HIERBA_DEFAULT
-		st_pasto.set_material(mat_pasto)
-		mesh = st_pasto.commit()
-		st_roca.commit(mesh)
-	else:
-		mesh = st_roca.commit()
+	mesh = st_roca.commit()
 
 	_mesh_instance.mesh = mesh
 	_actualizar_materiales()
@@ -1504,7 +1495,7 @@ func regenerar() -> void:
 
 	# 7. Generar decoración procedural si está habilitada
 	if not _esculpiendo_activo:
-		_actualizar_decoracion(rng, perimetro_pts, perimetro_radios)
+		_actualizar_decoracion(rng_decoracion, perimetro_pts, perimetro_radios)
 
 	# 8. Sincronizar y adaptar generadores de pasto sobre esta isla
 	if _ultimo_trazo_radio > 0.0 and _ultimo_trazo_pos.x != INF:
@@ -1542,36 +1533,43 @@ func _actualizar_materiales() -> void:
 
 	var es_fant := _detectar_es_fantasma()
 	var estado_actual := 1 if es_fant else 0
-	if _ultimo_estado_fantasma_mat == estado_actual and _mesh_instance != null and _mesh_instance.get_surface_override_material(0) != null:
-		return
 	_ultimo_estado_fantasma_mat = estado_actual
 
 	var mat_roca: Material
 	var mat_pasto: Material
 
 	if es_fant:
-		if material_roca_fantasma != null:
+		if not generar_pasto:
+			mat_roca = MAT_ROCA_FANTASMA_PURA if (material_roca_fantasma == null or material_roca_fantasma == MAT_ROCA_FANTASMA_DEFAULT) else material_roca_fantasma
+		elif material_roca_fantasma != null:
 			mat_roca = material_roca_fantasma
 		else:
 			mat_roca = MAT_ROCA_FANTASMA_DEFAULT if pasto_distancia else MAT_ROCA_FANTASMA_PURA
 		mat_pasto = material_hierba_fantasma if material_hierba_fantasma != null else MAT_HIERBA_FANTASMA_DEFAULT
 	else:
-		if material_roca != null:
+		if not generar_pasto:
+			mat_roca = MAT_ROCA_PURA if (material_roca == null or material_roca == MAT_ROCA_DEFAULT) else material_roca
+		elif material_roca != null:
 			mat_roca = material_roca
 		else:
 			mat_roca = MAT_ROCA_DEFAULT if pasto_distancia else MAT_ROCA_PURA
 		mat_pasto = material_hierba if material_hierba != null else MAT_HIERBA_DEFAULT
 
-	if generar_pasto:
-		if _mesh_instance.get_surface_override_material(0) != mat_pasto:
-			_mesh_instance.set_surface_override_material(0, mat_pasto)
-		if _mesh_instance.get_surface_override_material(1) != mat_roca:
-			_mesh_instance.set_surface_override_material(1, mat_roca)
-	else:
+	if _mesh_instance.mesh.get_surface_count() == 1:
 		if _mesh_instance.get_surface_override_material(0) != mat_roca:
 			_mesh_instance.set_surface_override_material(0, mat_roca)
-		if _mesh_instance.mesh.get_surface_count() > 1 and _mesh_instance.get_surface_override_material(1) != null:
-			_mesh_instance.set_surface_override_material(1, null)
+	else:
+		if generar_pasto:
+			if _mesh_instance.get_surface_override_material(0) != mat_pasto:
+				_mesh_instance.set_surface_override_material(0, mat_pasto)
+			if _mesh_instance.get_surface_override_material(1) != mat_roca:
+				_mesh_instance.set_surface_override_material(1, mat_roca)
+		else:
+			if _mesh_instance.get_surface_override_material(0) != mat_roca:
+				_mesh_instance.set_surface_override_material(0, mat_roca)
+			if _mesh_instance.mesh.get_surface_count() > 1 and _mesh_instance.get_surface_override_material(1) != null:
+				_mesh_instance.set_surface_override_material(1, null)
+				_mesh_instance.set_surface_override_material(1, null)
 
 
 func _actualizar_colision(caras: PackedVector3Array) -> void:
@@ -1609,6 +1607,35 @@ func _anadir_triangulo_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vecto
 	st.set_normal(normal)
 	st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
 	st.set_uv2(Vector2.ZERO)
+	st.add_vertex(b)
+
+
+## Añade un triángulo de pasto low-poly calculando e inyectando en UV2 (x = tierra, y = roca) para Height Blend
+func _anadir_triangulo_pasto_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, color: Color) -> void:
+	var normal = (b - a).cross(c - a).normalized()
+	if normal.length_squared() < 0.0001:
+		return
+
+	var peso_a = _evaluar_peso_camino(Vector2(a.x, a.z))
+	var peso_b = _evaluar_peso_camino(Vector2(b.x, b.z))
+	var peso_c = _evaluar_peso_camino(Vector2(c.x, c.z))
+
+	st.set_color(color)
+	st.set_normal(normal)
+	st.set_uv(Vector2(peso_a.z, peso_a.w))
+	st.set_uv2(Vector2(peso_a.x, peso_a.y))
+	st.add_vertex(a)
+
+	st.set_color(color)
+	st.set_normal(normal)
+	st.set_uv(Vector2(peso_c.z, peso_c.w))
+	st.set_uv2(Vector2(peso_c.x, peso_c.y))
+	st.add_vertex(c)
+
+	st.set_color(color)
+	st.set_normal(normal)
+	st.set_uv(Vector2(peso_b.z, peso_b.w))
+	st.set_uv2(Vector2(peso_b.x, peso_b.y))
 	st.add_vertex(b)
 
 
@@ -1671,7 +1698,7 @@ func _generar_roca_satelite_mesh(st: SurfaceTool, rng: RandomNumberGenerator, ce
 
 ## Añade un triángulo facetado a la malla de roca calculando su sombreado low-poly
 ## (o almacenándolo en el buffer de secciones cuando suavizado_automatico_roca está activo)
-func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator, factor_extra: float = 1.0, es_satelite: bool = false, centro_sat: Vector3 = Vector3.ZERO, sat_idx: int = 0) -> void:
+func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator, factor_extra: float = 1.0, es_satelite: bool = false, centro_sat: Vector3 = Vector3.ZERO, sat_idx: int = 0, es_superficie: bool = false) -> void:
 	var normal = (b - a).cross(c - a).normalized()
 	if normal.length_squared() < 0.0001:
 		return
@@ -1680,7 +1707,7 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 	var jitter_tri = (rng.randf() - 0.5) * 0.28
 
 	if suavizado_automatico_roca:
-		_tris_roca_buffer.append([a, b, c, normal, factor_extra, jitter_tri, es_satelite, centro_sat, sat_idx])
+		_tris_roca_buffer.append([a, b, c, normal, factor_extra, jitter_tri, es_satelite, centro_sat, sat_idx, es_superficie])
 		return
 
 	# 1. Gradiente de profundidad vertical (la roca es más oscura y profunda en la base/puntas)
@@ -1701,7 +1728,7 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 		clampf(COLOR_ROCA_BASE.r * mult, 0.18, 0.78),
 		clampf(COLOR_ROCA_BASE.g * mult * (0.96 if mult < 0.85 else 1.02), 0.14, 0.65),
 		clampf(COLOR_ROCA_BASE.b * mult * (0.90 if mult < 0.85 else 1.04), 0.09, 0.55),
-		fase_sat if es_satelite else 1.0
+		fase_sat if es_satelite else (1.0 if es_superficie else 0.55)
 	)
 
 	st.set_color(col)
@@ -1709,8 +1736,12 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 	if es_satelite:
 		st.set_uv(Vector2(a.y - centro_sat.y, 0.0))
 		st.set_uv2(Vector2(a.x - centro_sat.x, a.z - centro_sat.z))
+	elif es_superficie:
+		var peso_a = _evaluar_peso_camino(Vector2(a.x, a.z))
+		st.set_uv(Vector2(peso_a.z, peso_a.w))
+		st.set_uv2(Vector2(peso_a.x, peso_a.y))
 	else:
-		st.set_uv(Vector2(a.x * 0.1, a.z * 0.1))
+		st.set_uv(Vector2.ZERO)
 		st.set_uv2(Vector2.ZERO)
 	st.add_vertex(a)
 
@@ -1719,8 +1750,12 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 	if es_satelite:
 		st.set_uv(Vector2(c.y - centro_sat.y, 0.0))
 		st.set_uv2(Vector2(c.x - centro_sat.x, c.z - centro_sat.z))
+	elif es_superficie:
+		var peso_c = _evaluar_peso_camino(Vector2(c.x, c.z))
+		st.set_uv(Vector2(peso_c.z, peso_c.w))
+		st.set_uv2(Vector2(peso_c.x, peso_c.y))
 	else:
-		st.set_uv(Vector2(c.x * 0.1, c.z * 0.1))
+		st.set_uv(Vector2.ZERO)
 		st.set_uv2(Vector2.ZERO)
 	st.add_vertex(c)
 
@@ -1729,8 +1764,12 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 	if es_satelite:
 		st.set_uv(Vector2(b.y - centro_sat.y, 0.0))
 		st.set_uv2(Vector2(b.x - centro_sat.x, b.z - centro_sat.z))
+	elif es_superficie:
+		var peso_b = _evaluar_peso_camino(Vector2(b.x, b.z))
+		st.set_uv(Vector2(peso_b.z, peso_b.w))
+		st.set_uv2(Vector2(peso_b.x, peso_b.y))
 	else:
-		st.set_uv(Vector2(b.x * 0.1, b.z * 0.1))
+		st.set_uv(Vector2.ZERO)
 		st.set_uv2(Vector2.ZERO)
 	st.add_vertex(b)
 
@@ -1761,6 +1800,7 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 	var tri_areas: Array[float] = []
 	var tri_factors: Array[float] = []
 	var tri_es_tapa: Array[bool] = []
+	var tri_es_superficie: Array[bool] = []
 	var tri_es_satelite: Array[bool] = []
 	var tri_centros_sat: Array[Vector3] = []
 	var tri_ids_sat: Array[int] = []
@@ -1776,6 +1816,7 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 		var es_sat: bool = item[6] if item.size() > 6 else false
 		var centro_sat: Vector3 = item[7] if item.size() > 7 else Vector3.ZERO
 		var sat_idx: int = item[8] if item.size() > 8 else 0
+		var es_sup: bool = item[9] if item.size() > 9 else false
 
 		var pts := [a, b, c]
 		var vids := [0, 0, 0]
@@ -1809,13 +1850,14 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 			vert_tris[vids[corner]].append([t, w_corners[corner]])
 
 		var y_mid := (a.y + b.y + c.y) / 3.0
-		var es_tapa := (not generar_pasto) and (n.y > 0.82) and (y_mid > altura_superficie - 0.45)
+		var es_tapa := (n.y > 0.82) and (y_mid > altura_superficie - 0.45)
 
 		tri_vids.append(vids)
 		tri_normals.append(n)
 		tri_areas.append(area)
 		tri_factors.append(f_extra)
 		tri_es_tapa.append(es_tapa)
+		tri_es_superficie.append(es_sup)
 		tri_es_satelite.append(es_sat)
 		tri_centros_sat.append(centro_sat)
 		tri_ids_sat.append(sat_idx if es_sat else -1)
@@ -1872,7 +1914,7 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 			var t0: int = t_list[i]
 			for j in range(i + 1, n_list):
 				var t1: int = t_list[j]
-				if tri_es_tapa[t0] != tri_es_tapa[t1] or tri_ids_sat[t0] != tri_ids_sat[t1]:
+				if tri_es_tapa[t0] != tri_es_tapa[t1] or tri_es_superficie[t0] != tri_es_superficie[t1] or tri_ids_sat[t0] != tri_ids_sat[t1]:
 					sharp_adj[t0][t1] = true
 					sharp_adj[t1][t0] = true
 					continue
@@ -1960,7 +2002,7 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
 			var n_tris: Array = edge_to_tris[e_key]
 			for t_nb in n_tris:
-				if t_nb == t or tri_es_tapa[t_nb] != tri_es_tapa[t]:
+				if t_nb == t or tri_es_tapa[t_nb] != tri_es_tapa[t] or tri_es_superficie[t_nb] != tri_es_superficie[t] or tri_ids_sat[t_nb] != tri_ids_sat[t]:
 					continue
 				var r_nb: int = tri_sec[t_nb]
 				while parent[r_nb] != r_nb:
@@ -2159,14 +2201,21 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 			if n_emit.dot(tri_n) < 0.35:
 				n_emit = (n_emit * 0.30 + tri_n * 0.70).normalized()
 
-			st.set_color(sv_data[1])
+			var col_emit := sv_data[1] as Color
+			if not sv_data[2]:
+				col_emit.a = 1.0 if tri_es_superficie[t] else 0.55
+			st.set_color(col_emit)
 			st.set_normal(n_emit)
 			if sv_data[2]:
 				var c_sat_vert: Vector3 = sv_data[3]
 				st.set_uv(Vector2(p_vert.y - c_sat_vert.y, 0.0))
 				st.set_uv2(Vector2(p_vert.x - c_sat_vert.x, p_vert.z - c_sat_vert.z))
+			elif tri_es_superficie[t]:
+				var peso_p: Vector4 = _evaluar_peso_camino(Vector2(p_vert.x, p_vert.z))
+				st.set_uv(Vector2(peso_p.z, peso_p.w))
+				st.set_uv2(Vector2(peso_p.x, peso_p.y))
 			else:
-				st.set_uv(Vector2(p_vert.x * 0.1, p_vert.z * 0.1))
+				st.set_uv(Vector2.ZERO)
 				st.set_uv2(Vector2.ZERO)
 			st.add_vertex(p_vert)
 
@@ -2454,6 +2503,144 @@ func deshacer_ultimo_trazo() -> void:
 		_solicitar_regeneracion(true)
 
 
+## ==============================================================================
+## SISTEMA DE PINTURA DE CAMINOS Y SUPERFICIES (HEIGHT BLEND)
+## ==============================================================================
+func _evaluar_peso_camino(pos_xz: Vector2) -> Vector4:
+	if trazos_pintura_caminos.is_empty():
+		return Vector4.ZERO
+	var peso_tc: float = 0.0
+	var peso_to: float = 0.0
+	var peso_roca: float = 0.0
+	var peso_pasto: float = 0.0
+	for t in trazos_pintura_caminos:
+		var raw_pos = t.get("pos", Vector2.ZERO)
+		var pos_c: Vector2 = Vector2.ZERO
+		if raw_pos is Vector2:
+			pos_c = raw_pos
+		elif raw_pos is Dictionary:
+			pos_c = Vector2(float(raw_pos.get("x", 0.0)), float(raw_pos.get("y", 0.0)))
+		var r: float = float(t.get("radio", 2.0))
+		if r <= 0.0001:
+			continue
+		var dx = pos_xz.x - pos_c.x
+		if abs(dx) >= r:
+			continue
+		var dz = pos_xz.y - pos_c.y
+		if abs(dz) >= r:
+			continue
+		var d2 = dx * dx + dz * dz
+		if d2 >= r * r:
+			continue
+
+		var dist = sqrt(d2)
+		var norm_d = dist / r
+		var falloff = (1.0 - norm_d * norm_d)
+		falloff = falloff * falloff
+		var f: float = float(t.get("fuerza", 0.65))
+		var borrar: bool = bool(t.get("borrar", false))
+		var tipo: int = int(t.get("tipo", 0))
+
+		if borrar or tipo == 4:
+			var factor_borrado: float = clampf(f * 2.5 * falloff, 0.0, 1.0)
+			peso_tc = maxf(0.0, peso_tc * (1.0 - factor_borrado))
+			peso_to = maxf(0.0, peso_to * (1.0 - factor_borrado))
+			peso_roca = maxf(0.0, peso_roca * (1.0 - factor_borrado))
+			peso_pasto = maxf(0.0, peso_pasto * (1.0 - factor_borrado))
+		elif tipo == 0: # TIERRA CLARA
+			var delta = f * falloff
+			peso_tc = clampf(peso_tc + delta, 0.0, 1.0)
+			peso_to = maxf(0.0, peso_to * (1.0 - delta))
+			peso_roca = maxf(0.0, peso_roca * (1.0 - delta))
+			peso_pasto = maxf(0.0, peso_pasto * (1.0 - delta))
+		elif tipo == 1: # TIERRA OSCURA
+			var delta = f * falloff
+			peso_to = clampf(peso_to + delta, 0.0, 1.0)
+			peso_tc = maxf(0.0, peso_tc * (1.0 - delta))
+			peso_roca = maxf(0.0, peso_roca * (1.0 - delta))
+			peso_pasto = maxf(0.0, peso_pasto * (1.0 - delta))
+		elif tipo == 2: # ROCA BASE
+			var delta = f * falloff
+			peso_roca = clampf(peso_roca + delta, 0.0, 1.0)
+			peso_tc = maxf(0.0, peso_tc * (1.0 - delta))
+			peso_to = maxf(0.0, peso_to * (1.0 - delta))
+			peso_pasto = maxf(0.0, peso_pasto * (1.0 - delta))
+		elif tipo == 3: # PASTO (CESPED)
+			var delta = f * falloff
+			peso_pasto = clampf(peso_pasto + delta, 0.0, 1.0)
+			peso_tc = maxf(0.0, peso_tc * (1.0 - delta))
+			peso_to = maxf(0.0, peso_to * (1.0 - delta))
+			peso_roca = maxf(0.0, peso_roca * (1.0 - delta))
+
+	return Vector4(clampf(peso_tc, 0.0, 1.0), clampf(peso_to, 0.0, 1.0), clampf(peso_roca, 0.0, 1.0), clampf(peso_pasto, 0.0, 1.0))
+
+
+## Consulta el peso del camino de tierra (máximo entre tierra clara y tierra oscura) (0.0 a 1.0) en una coordenada global
+func calcular_peso_camino_en(pos_mundo: Vector3) -> float:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	var p = _evaluar_peso_camino(Vector2(pos_local.x, pos_local.z))
+	return maxf(p.x, p.y)
+
+
+## Consulta el peso de tierra clara (0.0 a 1.0) en una coordenada global
+func calcular_peso_tierra_clara_en(pos_mundo: Vector3) -> float:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	return _evaluar_peso_camino(Vector2(pos_local.x, pos_local.z)).x
+
+
+## Consulta el peso de tierra oscura (0.0 a 1.0) en una coordenada global
+func calcular_peso_tierra_oscura_en(pos_mundo: Vector3) -> float:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	return _evaluar_peso_camino(Vector2(pos_local.x, pos_local.z)).y
+
+
+## Consulta el peso de la roca base pintada (0.0 a 1.0) en una coordenada global
+func calcular_peso_roca_en(pos_mundo: Vector3) -> float:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	return _evaluar_peso_camino(Vector2(pos_local.x, pos_local.z)).z
+
+
+## Consulta el peso del pasto pintado (0.0 a 1.0) en una coordenada global
+func calcular_peso_pasto_en(pos_mundo: Vector3) -> float:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	return _evaluar_peso_camino(Vector2(pos_local.x, pos_local.z)).w
+
+
+## Consulta los cuatro pesos (x = tierra clara, y = tierra oscura, z = roca, w = pasto) en una coordenada global
+func calcular_pesos_superficie_en(pos_mundo: Vector3) -> Vector4:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	return _evaluar_peso_camino(Vector2(pos_local.x, pos_local.z))
+
+
+func aplicar_trazo_camino(pos_mundo: Vector3, radio: float, fuerza: float, borrar: bool = false, tipo: int = 0) -> void:
+	var pos_local = to_local(pos_mundo) if is_inside_tree() else (pos_mundo - position)
+	var pos_xz = Vector2(pos_local.x, pos_local.z)
+
+	var nuevo_trazo = {
+		"pos": pos_xz,
+		"radio": maxf(radio, 0.2),
+		"fuerza": clampf(fuerza, 0.05, 1.0),
+		"borrar": borrar,
+		"tipo": tipo
+	}
+	trazos_pintura_caminos.append(nuevo_trazo)
+	_ultimo_trazo_pos = pos_xz
+	_ultimo_trazo_radio = maxf(radio, 0.2)
+	_solicitar_regeneracion()
+
+
+func limpiar_caminos() -> void:
+	trazos_pintura_caminos.clear()
+	_necesita_notificar_pasto_completo = true
+	regenerar()
+
+
+func deshacer_ultimo_trazo_camino() -> void:
+	if not trazos_pintura_caminos.is_empty():
+		trazos_pintura_caminos.pop_back()
+		_solicitar_regeneracion(true)
+
+
 ## Genera variaciones sutiles de color ámbar-dorado para las facetas de pasto estilizado.
 ## Calibrado para coincidir con el tono cálido de PastoArea en pantalla (RGB [235-248, 178-195, 60-70]).
 func _color_pasto(rng: RandomNumberGenerator, _indice: int, factor_mult: float = 1.0) -> Color:
@@ -2461,9 +2648,9 @@ func _color_pasto(rng: RandomNumberGenerator, _indice: int, factor_mult: float =
 	var col_base = COLOR_PASTO_TERRENO.lerp(COLOR_PASTO_MECHON, blend)
 	var jitter = (rng.randf() - 0.5) * 0.035
 	return Color(
-		clampf(col_base.r * factor_mult + jitter, 0.22, 0.44),
-		clampf(col_base.g * factor_mult + jitter * 0.75, 0.14, 0.32),
-		clampf(col_base.b * factor_mult + jitter * 0.20, 0.02, 0.07),
+		clampf(col_base.r * factor_mult + jitter, 0.35, 0.75),
+		clampf(col_base.g * factor_mult + jitter * 0.75, 0.22, 0.58),
+		clampf(col_base.b * factor_mult + jitter * 0.20, 0.03, 0.12),
 		1.0
 	)
 
@@ -2559,8 +2746,10 @@ func _actualizar_decoracion(rng: RandomNumberGenerator, perimetro_pts: Array[Vec
 		instancia.scale = Vector3.ONE * escala_var
 
 		_decoracion_nodo.add_child(instancia)
-		if Engine.is_editor_hint():
-			instancia.owner = get_tree().edited_scene_root if get_tree() else null
+		if Engine.is_editor_hint() and is_inside_tree() and get_tree():
+			var root = get_tree().edited_scene_root
+			if root != null and root.is_ancestor_of(instancia):
+				instancia.owner = root
 
 		# Garantizar que las fuentes de luz decorativas proyecten sombras y no traspasen la roca
 		for hijo_luz in instancia.find_children("*", "Light3D", true, false):
