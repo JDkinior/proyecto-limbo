@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.18` (Build Code `19`)  
+**Versión Actual:** `1.0.20` (Build Code `21`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 4 de Noviembre de 2026  
+**Última Actualización:** 6 de Noviembre de 2026  
 
 # Documentación Central y GDD - Proyecto Limbo
 
@@ -42,6 +42,28 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.20 (6 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Generador y Pincel de Senderos Procedurales en Islas Flotantes (`isla_flotante.gd`, `addons/escultor-islas/plugin.gd`)**:
+    *   **Sistema de Caminos de Roca y Tierra**: Integración de senderos en las mallas de las islas (`trazar_camino()`, `limpiar_caminos()`, splines y máscaras de blending).
+    *   **Pincel de Caminos en Escultor**: Nuevo modo de dibujo y edición en tiempo real de caminos sobre la superficie poligonal desde el plugin del editor.
+    *   **Materiales y Shaders de Terreno**: Nuevos recursos `m_camino_rocas.tres`, `ruido_terreno.tres` y `ruido_terreno_normal.tres`. Actualización de `isla_vivo.gdshader` e `isla_fantasma.gdshader` con triplanar, máscaras y desaturación controlada.
+    *   **Suite de Tests de Caminos**: Incorporación de `tests/test_isla_flotante_caminos.gd`.
+*   **Modelos 3D y Elementos de Entorno (Cristales, Rocas y Caminos)**:
+    *   **Fuentes Blender y GLBs Modulares**: Modelado y exportación de `camino_rocas.blend`, `cristales.blend`, `rocas_entorno.blend`, `rocas_grandes.blend`.
+    *   **Clústeres de Cristales Luminosos**: Generación de `cristal_individual.glb`, `cristales_cluster_principal.glb`, `cristales_cluster_trio.glb`, `cristales_formacion_baja.glb` y material emisivo `m_cristal_luminoso.tres`.
+    *   **Escenas Reutilizables de Entorno**: Creación de escenas modulares en `scenes/entorno/cristales/` y `scenes/entorno/caminos/`.
+*   **Expansión y Optimización Masiva del Nivel 1 ("El Despertar Separado")**:
+    *   Enriquecimiento visual con senderos de piedra, nuevos clústeres de cristales y rocas decorativas.
+    *   **Compresión de Pasto (-79.5%)**: Optimización y compactación del recurso binario `pasto_nivel_1___el_despertar_separado_datos.res` de 8.20 MB a 1.68 MB manteniendo cobertura y densidad visual completas.
+*   **Ajustes en Enemigo Espectral y Escenarios de Prueba**:
+    *   Refinamiento de shaders de distorsión espectral (`distorsion_espectral_mat.tres`, `enemigo_espectral.gdshader`, `enemigo_espectral_mat.tres`).
+    *   Ampliación de la arena de pruebas `scenes/levels/prueba_enemigos_shorts.tscn` y nuevos casos de prueba en `tests/test_enemigo_espectral.gd`.
+*   **Actualización del Addon Godot AI**:
+    *   Integración de clientes de IA adicionales (`qoder.gd`, `qoder_cn.gd`, `client_configurator.gd`).
+    *   Nuevos controladores para AnimationTree (`animation_tree_handler.gd`), buses de audio (`audio_bus_handler.gd`), constructores de recursos (`resource_builders.gd`) y políticas de resolución UV.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.18 (4 de Noviembre de 2026)
 
