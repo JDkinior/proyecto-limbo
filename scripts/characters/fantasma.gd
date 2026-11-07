@@ -125,11 +125,9 @@ func _ready():
 	_configurar_animaciones()
 	_configurar_particulas_lowpoly_fantasma()
 	
-	# Pre-inicializar entorno espiritual y cámara para pre-hornear radiancia del cielo al inicio
-	_entorno_fantasma_cache = obtener_entorno_personaje()
 	var cam = obtener_camara()
 	if cam:
-		cam.environment = _entorno_fantasma_cache
+		cam.environment = ENTORNO_FANTASMA
 		cam.cull_mask = obtener_cull_mask_personaje()
 
 	var arm = obtener_spring_arm()
@@ -139,12 +137,10 @@ func _ready():
 func _on_aura_estado_cambiado(activo: bool, progreso_cooldown: float):
 	aura_estado_actualizado.emit(activo, progreso_cooldown)
 
-var _entorno_fantasma_cache: Environment = null
+const ENTORNO_FANTASMA = preload("res://assets/materiales/entorno/entorno_fantasma.tres")
 
 func obtener_entorno_personaje() -> Environment:
-	if _entorno_fantasma_cache == null:
-		_entorno_fantasma_cache = _crear_entorno_fantasma()
-	return _entorno_fantasma_cache
+	return ENTORNO_FANTASMA
 
 func obtener_cull_mask_personaje() -> int:
 	# Ver todas las capas excepto la Capa 2 (aviso de silueta translúcida exclusivo para el Vivo)
@@ -162,55 +158,6 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	if arm:
 		arm.collision_mask = (1 << 0) | (1 << 2)
 
-const CIELO_FANTASMA_MAT = preload("res://shaders/entorno/cielo/cielo_fantasma_mat.tres")
-
-func _crear_entorno_fantasma() -> Environment:
-	var env = Environment.new()
-	env.background_mode = Environment.BG_SKY
-	
-	var sky = Sky.new()
-	sky.sky_material = CIELO_FANTASMA_MAT
-	sky.radiance_size = Sky.RADIANCE_SIZE_128
-	env.sky = sky
-	
-	# Iluminación ambiental MÍSTICA Y ETÉREA (turquesa/cian suave sobre piedra)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.24, 0.42, 0.58) # Azul cian/pizarra místico luminoso
-	env.ambient_light_energy = 1.18
-	
-	# Mapeo de tonos Filmic / ACES optimizado para colores fríos y highlights definidos
-	env.tonemap_mode = 3 # Filmic
-	env.tonemap_exposure = 1.06
-	env.tonemap_white = 1.20
-	
-	# Glow espectral envolvente para cristales, runas y elementos brillantes
-	env.glow_enabled = true
-	env.glow_intensity = 0.80
-	env.glow_strength = 1.02
-	env.glow_bloom = 0.16
-	env.glow_hdr_threshold = 0.95
-	env.glow_hdr_scale = 1.2
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	
-	# Niebla mística etérea sincronizada con #1669BA que se funde suavemente con el horizonte
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	env.fog_light_color = Color(0.0863, 0.4118, 0.7294) # Sincronizado a #1669BA
-	env.fog_light_energy = 1.02
-	env.fog_sun_scatter = 0.12
-	env.fog_density = 0.010 # Densidad atmosférica suave sin empastar las estructuras cercanas
-	env.fog_aerial_perspective = 0.45
-	env.fog_sky_affect = 0.35
-	env.fog_height = 0.0
-	env.fog_height_density = 1.0
-	
-	# Ajustes de color para tonos limpios, suaves y celestialmente armoniosos
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.06
-	env.adjustment_contrast = 1.03
-	env.adjustment_brightness = 1.02
-	
-	return env
 
 func _physics_process(delta):
 	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():

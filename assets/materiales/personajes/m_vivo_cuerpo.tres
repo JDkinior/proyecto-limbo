@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://b3l32vaw5gf4c"]
+
+[ext_resource type="Shader" path="res://shaders/characters/vivo_cuerpo.gdshader" id="1_vivo_sh"]
+
+[resource]
+resource_name = "M_Vivo_Cuerpo"
+render_priority = 0
+shader = ExtResource("1_vivo_sh")
+shader_parameter/color_luz = Color(0.86, 0.805, 0.23, 1)
+shader_parameter/color_sombra = Color(0.862, 0.716, 0.242, 1)
+shader_parameter/umbral_luz = 0.05
+shader_parameter/suavizado_transicion = 0.35
+shader_parameter/specular = 0.5
+shader_parameter/roughness = 0.35
+shader_parameter/rim = 0.2
+shader_parameter/rim_tint = 0.4
+shader_parameter/dir_sol_mundo = Vector3(-0.25, 0.8660254, -0.4330127)

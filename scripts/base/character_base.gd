@@ -1403,6 +1403,24 @@ func _aplicar_silueta_recursiva(nodo: Node) -> void:
 					mat_clon.stencil_mode = BaseMaterial3D.STENCIL_MODE_DISABLED
 					mat_clon.next_pass = null
 				nodo.set_surface_override_material(s, mat_clon)
+			elif mat is ShaderMaterial:
+				var mat_clon_sh := mat.duplicate() as ShaderMaterial
+				if silueta_activa:
+					var np := StandardMaterial3D.new()
+					np.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					np.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					np.no_depth_test = true
+					np.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+					np.cull_mode = BaseMaterial3D.CULL_DISABLED
+					np.albedo_color = color_silueta
+					np.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
+					np.stencil_flags = BaseMaterial3D.STENCIL_FLAG_READ
+					np.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_NOT_EQUAL
+					np.stencil_reference = 1
+					mat_clon_sh.next_pass = np
+				else:
+					mat_clon_sh.next_pass = null
+				nodo.set_surface_override_material(s, mat_clon_sh)
 
 	for hijo in nodo.get_children():
 		_aplicar_silueta_recursiva(hijo)

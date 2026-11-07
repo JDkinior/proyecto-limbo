@@ -1,6 +1,8 @@
 extends CharacterBase
 class_name Jugador
 
+const MAT_VIVO_CUERPO = preload("res://assets/materiales/personajes/m_vivo_cuerpo.tres")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # JUGADOR VIVO — Habilidad Física: Accionar Mecanismos y Embate Rompedor
 # ─────────────────────────────────────────────────────────────────────────────
@@ -160,16 +162,16 @@ func _ready():
 			signf(modelo_vivo.scale.y) if modelo_vivo.scale.y != 0.0 else 1.0,
 			signf(modelo_vivo.scale.z) if modelo_vivo.scale.z != 0.0 else -1.0
 		)
+		_aplicar_material_cuerpo()
 	_pos_anterior_remoto = global_position
 
 	_configurar_animaciones()
 	_configurar_particulas_lowpoly()
 	
-	# Pre-inicializar entorno físico y cámara para pre-hornear radiancia del cielo al inicio
-	_entorno_vivo_cache = obtener_entorno_personaje()
 	var cam = obtener_camara()
 	if cam:
-		cam.environment = _entorno_vivo_cache
+		# En Godot, cam.environment = null hace que la cámara use el WorldEnvironment del nivel de forma natural.
+		cam.environment = null
 		cam.cull_mask = obtener_cull_mask_personaje()
 
 	var arm = obtener_spring_arm()
@@ -281,7 +283,7 @@ func _physics_process(delta: float):
 		# Indicador visual dinámico: pulso de luz dorada enérgica que indica oportunidad de súper rebote
 		if is_instance_valid(luz_vivo):
 			var factor_pulso = sin(_tiempo_ventana_salto_ground_pound * 26.0) * 0.5 + 0.5
-			luz_vivo.light_energy = lerpf(1.6, 3.2, factor_pulso)
+			luz_vivo.light_energy = lerpf(1.2, 2.8, factor_pulso)
 			luz_vivo.omni_range = lerpf(4.5, 6.0, factor_pulso)
 
 		if es_activo() and not entrada_bloqueada() and (Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("ui_accept")):
@@ -303,7 +305,7 @@ func _physics_process(delta: float):
 				vib_mgr.vibrar_impacto_fuerte()
 	else:
 		if is_instance_valid(luz_vivo) and luz_vivo.light_energy > 1.65:
-			luz_vivo.light_energy = lerpf(luz_vivo.light_energy, 1.6, 8.0 * delta)
+			luz_vivo.light_energy = lerpf(luz_vivo.light_energy, 1.2, 8.0 * delta)
 			luz_vivo.omni_range = lerpf(luz_vivo.omni_range, 4.5, 8.0 * delta)
 
 	if en_canon:
@@ -560,12 +562,9 @@ func _emitir_efectos_embate() -> void:
 # ENTORNO VISUAL Y CULL MASK
 # ─────────────────────────────────────────────────────────────────────────────
 
-var _entorno_vivo_cache: Environment = null
-
 func obtener_entorno_personaje() -> Environment:
-	if _entorno_vivo_cache == null:
-		_entorno_vivo_cache = _crear_entorno_vivo()
-	return _entorno_vivo_cache
+	# Vivo hereda el WorldEnvironment de la escena actual
+	return null
 
 func obtener_cull_mask_personaje() -> int:
 	return 1048575 & ~(1 << 2)
@@ -576,52 +575,10 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	var camera = obtener_camara()
 	if es_mio and camera:
 		camera.cull_mask = obtener_cull_mask_personaje()
-		camera.environment = obtener_entorno_personaje()
+		camera.environment = null
 	var arm = obtener_spring_arm()
 	if arm:
 		arm.collision_mask = (1 << 0) | (1 << 1)
-
-const CIELO_VIVO_MAT = preload("res://shaders/entorno/cielo/cielo_vivo_mat.tres")
-
-func _crear_entorno_vivo() -> Environment:
-	var env = Environment.new()
-	env.background_mode = Environment.BG_SKY
-	
-	var sky = Sky.new()
-	sky.sky_material = CIELO_VIVO_MAT
-	sky.radiance_size = Sky.RADIANCE_SIZE_128
-	env.sky = sky
-	
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.96, 0.82, 0.52)
-	env.ambient_light_energy = 1.15
-	
-	env.tonemap_mode = 2
-	env.tonemap_exposure = 1.04
-	env.tonemap_white = 1.12
-	
-	env.glow_enabled = true
-	env.glow_intensity = 0.65
-	env.glow_strength = 1.02
-	env.glow_bloom = 0.12
-	
-	env.fog_enabled = true
-	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	env.fog_light_color = Color(0.96, 0.80, 0.48)
-	env.fog_light_energy = 1.05
-	env.fog_sun_scatter = 0.20
-	env.fog_density = 0.018
-	env.fog_aerial_perspective = 0.45
-	env.fog_sky_affect = 0.85
-	env.fog_height = 0.0
-	env.fog_height_density = 1.0
-	
-	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.15
-	env.adjustment_contrast = 1.05
-	env.adjustment_brightness = 1.02
-	
-	return env
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ANIMACIONES E INCLINACIÓN
@@ -1187,7 +1144,7 @@ func _al_resetear_estados() -> void:
 	_offset_y_squash_vivo = 0.0
 	_vel_y_remoto_anterior_vivo = 0.0
 	if is_instance_valid(luz_vivo):
-		luz_vivo.light_energy = 1.6
+		luz_vivo.light_energy = 1.2
 		luz_vivo.omni_range = 4.5
 	if is_instance_valid(modelo_vivo):
 		modelo_vivo.rotation = _rotacion_inicial_modelo_vivo
@@ -1249,3 +1206,12 @@ func ajustar_factor_escala_canon(factor: float) -> void:
 			_escala_base_vivo.y * factor * squash_y * _signo_escala_vivo.y,
 			_escala_base_vivo.z * factor * squash_z * _signo_escala_vivo.z
 		)
+
+func _aplicar_material_cuerpo() -> void:
+	if not is_instance_valid(modelo_vivo):
+		return
+	var mesh_cuerpo: MeshInstance3D = modelo_vivo.get_node_or_null("Esqueleto/Skeleton3D/Cubo_024")
+	if not is_instance_valid(mesh_cuerpo):
+		mesh_cuerpo = modelo_vivo.find_child("Cubo*", true, false)
+	if is_instance_valid(mesh_cuerpo) and MAT_VIVO_CUERPO != null:
+		mesh_cuerpo.set_surface_override_material(1, MAT_VIVO_CUERPO)
