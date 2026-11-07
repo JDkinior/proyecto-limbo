@@ -22,6 +22,7 @@ render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specula
 group_uniforms Apariencia;
 uniform sampler2D textura_albedo : source_color, filter_linear;
 uniform vec4 color_albedo : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform float brillo_autiluminado : hint_range(0.0, 0.20) = 0.0;
 uniform float umbral_alfa : hint_range(0.0, 1.0) = 0.35;
 uniform float rugosidad : hint_range(0.0, 1.0) = 0.90;
 uniform float especular : hint_range(0.0, 1.0) = 0.50;
@@ -112,6 +113,7 @@ void fragment() {
 	ALPHA_SCISSOR_THRESHOLD = umbral_alfa;
 
 	ALBEDO = albedo_final.rgb;
+	EMISSION = albedo_final.rgb * brillo_autiluminado;
 	ROUGHNESS = rugosidad;
 	SPECULAR = especular;
 }

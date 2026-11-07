@@ -9,12 +9,17 @@ stencil_mode write, compare_always, 1;
 // ==========================================
 
 group_uniforms Colores;
-uniform vec4 color_base : source_color = vec4(0.38, 0.24, 0.02, 1.0);
-uniform vec4 color_punta : source_color = vec4(0.66, 0.49, 0.07, 1.0);
+uniform vec4 color_base : source_color = vec4(0.56, 0.34, 0.14, 1.0);
+uniform vec4 color_punta : source_color = vec4(0.83, 0.65, 0.25, 1.0);
+uniform vec4 color_base_secundario : source_color = vec4(0.50, 0.29, 0.10, 1.0);
+uniform vec4 color_punta_secundario : source_color = vec4(0.76, 0.56, 0.17, 1.0);
+uniform float variacion_macro_escala : hint_range(0.01, 1.0) = 0.12;
+uniform float variacion_brizna_fuerza : hint_range(0.0, 1.0) = 0.45;
 uniform float suavizado_gradiente : hint_range(0.1, 1.0) = 0.78;
 uniform float curva_gradiente : hint_range(0.2, 4.0) = 1.30;
-uniform float saturacion : hint_range(0.0, 1.0) = 0.85;
-uniform float brillo_puntas : hint_range(0.0, 1.0) = 0.02;
+uniform float saturacion : hint_range(0.0, 1.0) = 0.90;
+uniform float brillo_autiluminado : hint_range(0.0, 0.30) = 0.0;
+uniform float brillo_puntas : hint_range(0.0, 1.0) = 0.03;
 uniform float translucidencia : hint_range(0.0, 1.0) = 0.06;
 uniform float oclusion_base : hint_range(0.0, 1.0) = 0.08;
 
@@ -41,6 +46,11 @@ uniform float distancia_fade_inicio : hint_range(10.0, 150.0) = 40.0;
 uniform float distancia_fade_fin : hint_range(10.0, 200.0) = 60.0;
 
 varying float factor_altura;
+varying float v_variacion_brizna;
+
+float hash_pasto_2d(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
 
 void vertex() {
 	// factor_altura: 0.0 en la raíz (suelo), 1.0 en la punta afilada
@@ -50,6 +60,11 @@ void vertex() {
 	vec3 root_mundo = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	vec3 cam_pos_mundo = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	float dist_cam = distance(root_mundo, cam_pos_mundo);
+
+	// Variación sutil entre briznas (mezcla de ondas suaves espaciales + hash por instancia)
+	float macro_onda = sin(root_mundo.x * variacion_macro_escala * 6.2831) * cos(root_mundo.z * variacion_macro_escala * 6.2831) * 0.5 + 0.5;
+	float micro_hash = hash_pasto_2d(floor(root_mundo.xz * 20.0));
+	v_variacion_brizna = mix(macro_onda, micro_hash, 0.65) * variacion_brizna_fuerza;
 	
 	float escala_dist = 1.0;
 	if (desvanecimiento_distancia) {
@@ -129,15 +144,17 @@ void fragment() {
 	// Forzar normal hacia arriba en vista para iluminación consistente y sin caras oscuras de contraplano
 	NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 
-	// Gradiente de color raíz→punta
+	// Gradiente de color raíz→punta con variación sutil entre briznas
+	vec4 base_var = mix(color_base, color_base_secundario, v_variacion_brizna);
+	vec4 punta_var = mix(color_punta, color_punta_secundario, v_variacion_brizna);
 	float factor_t = clamp(factor_altura / max(0.01, suavizado_gradiente), 0.0, 1.0);
 	float factor_color = pow(factor_t, curva_gradiente);
-	vec4 color_final = mix(color_base, color_punta, factor_color);
+	vec4 color_final = mix(base_var, punta_var, factor_color);
 
 	// Brillo sutil en las puntas (contraluz solar)
 	if (brillo_puntas > 0.01) {
 		float brillo = smoothstep(0.75, 1.0, factor_altura) * brillo_puntas;
-		color_final.rgb += color_punta.rgb * (brillo * 0.25);
+		color_final.rgb += punta_var.rgb * (brillo * 0.25);
 	}
 
 	// Desaturación explícita para contrarrestar el ambiente cálido/brillante de la escena
@@ -145,6 +162,8 @@ void fragment() {
 	color_final.rgb = mix(vec3(luma), color_final.rgb, saturacion);
 
 	ALBEDO = color_final.rgb;
+	// Compensa la oclusión densa del campo sin aclarar la iluminación global.
+	EMISSION = color_final.rgb * brillo_autiluminado;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.0;
 

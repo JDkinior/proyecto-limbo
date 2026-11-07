@@ -302,11 +302,8 @@ func _ready() -> void:
 	material_fisico.render_priority = 2
 	material_espiritual.render_priority = 2
 
-	# Asegurar colores exactos e inalterables para cada reino
-	if material_fisico is ShaderMaterial:
-		var mat_fisico := material_fisico as ShaderMaterial
-		mat_fisico.set_shader_parameter("color_base", Color(0.38, 0.24, 0.02, 1.0))
-		mat_fisico.set_shader_parameter("color_punta", Color(0.66, 0.49, 0.07, 1.0))
+	# El material físico conserva los parámetros definidos por la escena, para
+	# que la vista de juego coincida exactamente con la previsualización del editor.
 
 	if material_espiritual is ShaderMaterial:
 		var mat_espiritual := material_espiritual as ShaderMaterial

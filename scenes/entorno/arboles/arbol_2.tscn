@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dxnm72i57ht5d"]
 
 [ext_resource type="PackedScene" uid="uid://dk36xys0fyotd" path="res://assets/modelos/entorno/arboles/arbol_otono_02.glb" id="1_m8xni"]
+[ext_resource type="Material" uid="uid://btroncootono01" path="res://assets/materiales/entorno/m_arbol_tronco.tres" id="2_tronco"]
 [ext_resource type="Material" uid="uid://db45ounoaoutg" path="res://assets/materiales/entorno/m_follaje_base.tres" id="2_base"]
 [ext_resource type="Material" uid="uid://dtxsfbmu1kqp5" path="res://assets/materiales/entorno/m_follaje_hojas.tres" id="3_hojas"]
 [ext_resource type="PackedScene" uid="uid://bcaidahojas001" path="res://scenes/entorno/arboles/caida_hojas.tscn" id="4_leaves"]
@@ -11,6 +12,7 @@ size = Vector3(1.5592651, 5.462433, 1)
 [node name="Arbol_Otono_022" unique_id=1544037306 instance=ExtResource("1_m8xni")]
 
 [node name="Arbol_Otono_02" parent="." index="0"]
+surface_material_override/0 = ExtResource("2_tronco")
 surface_material_override/1 = ExtResource("2_base")
 surface_material_override/2 = ExtResource("3_hojas")
 
