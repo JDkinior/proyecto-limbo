@@ -71,7 +71,10 @@ static func _optimizar_camara(cam: Camera3D) -> void:
 static func _optimizar_luz_direccional(luz: DirectionalLight3D) -> void:
 	if luz.directional_shadow_max_distance > 45.0:
 		luz.directional_shadow_max_distance = 45.0
-	luz.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	if OS.get_name() == "Android" or OS.get_name() == "iOS":
+		luz.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	else:
+		luz.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	luz.directional_shadow_blend_splits = true
 
 static func _optimizar_luz_omni(luz: OmniLight3D) -> void:

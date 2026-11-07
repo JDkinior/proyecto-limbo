@@ -161,7 +161,7 @@ func _precalentar_pipelines_graficos() -> void:
 	await RenderingServer.frame_post_draw
 
 	# FRAME 2: Restaurar configuración y compilar shaders del Reino Vivo
-	cam_activa.environment = env_original if env_original else env_vivo
+	cam_activa.environment = env_original
 	cam_activa.cull_mask = mask_original if mask_original != 0 else (1 << 0) | (1 << 1)
 
 	await RenderingServer.frame_post_draw

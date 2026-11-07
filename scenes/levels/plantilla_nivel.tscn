@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/metas/goal.tscn" id="5_goal"]
 [ext_resource type="Material" uid="uid://c7b63irvr06f4" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="6_cielo_mat"]
 [ext_resource type="PackedScene" uid="uid://pasto_area_001" path="res://scenes/entorno/vegetacion/pasto_area.tscn" id="7_pasto_area"]
+[ext_resource type="Script" uid="uid://controladorentornovisual01" path="res://scripts/entorno/controlador_entorno_visual.gd" id="8_ctrl_env"]
 
 [sub_resource type="Sky" id="Sky_limbo_tpl"]
 sky_material = ExtResource("6_cielo_mat")
@@ -15,15 +16,16 @@ sky_material = ExtResource("6_cielo_mat")
 background_mode = 2
 sky = SubResource("Sky_limbo_tpl")
 ambient_light_source = 2
-ambient_light_color = Color(0.96, 0.82, 0.52, 1)
-ambient_light_energy = 1.15
-tonemap_mode = 2
-tonemap_exposure = 1.04
-tonemap_white = 1.12
+ambient_light_color = Color(0.96, 0.88, 0.70, 1)
+ambient_light_energy = 0.62
+tonemap_mode = 3
+tonemap_exposure = 1.02
+tonemap_white = 1.15
 glow_enabled = true
 glow_intensity = 0.65
 glow_strength = 0.85
-glow_bloom = 0.12
+glow_bloom = 0.04
+glow_hdr_threshold = 1.0
 fog_enabled = true
 fog_light_color = Color(0.96, 0.8, 0.48, 1)
 fog_density = 0.008
@@ -80,11 +82,12 @@ capitulo = 1
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1000000002]
 environment = SubResource("Environment_limbo_tpl")
+script = ExtResource("8_ctrl_env")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1000000003]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.5, 0.8660254, -0.5, 0.75, -0.4330127, 0, 15, 0)
 light_color = Color(1, 0.94, 0.82, 1)
-light_energy = 1.25
+light_energy = 1.05
 shadow_enabled = true
 shadow_bias = 0.04
 shadow_blur = 1.2

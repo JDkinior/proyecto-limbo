@@ -445,6 +445,7 @@ func desconectar(leave_lobby = true):
 		_tween_transicion = null
 	if is_instance_valid(_camara_transicion):
 		_camara_transicion.current = false
+		_camara_transicion.environment = null
 	transicion_en_progreso = false
 
 	es_un_jugador = false
@@ -677,8 +678,8 @@ func _interpolar_transicion_camara(progreso: float, trans_inicio: Transform3D, f
 		var mask_dest = destino.obtener_cull_mask_personaje() if destino.has_method("obtener_cull_mask_personaje") else 1048575
 		var env_dest = destino.obtener_entorno_personaje() if destino.has_method("obtener_entorno_personaje") else null
 		_camara_transicion.cull_mask = mask_dest
-		if env_dest:
-			_camara_transicion.environment = env_dest
+		# Si el destino es Vivo, env_dest es null para restaurar el WorldEnvironment natural
+		_camara_transicion.environment = env_dest
 		reino_cambiado.emit(es_fant)
 
 func _completar_transicion_camara(nuevo_personaje: String, destino: CharacterBase) -> void:
@@ -696,6 +697,7 @@ func _completar_transicion_camara(nuevo_personaje: String, destino: CharacterBas
 
 	if is_instance_valid(_camara_transicion):
 		_camara_transicion.current = false
+		_camara_transicion.environment = null
 
 	transicion_camara_completada.emit(nuevo_personaje)
 	print("[RedManager] Transición de cámara completada sin saltos angulares. Controlando: ", nuevo_personaje)
