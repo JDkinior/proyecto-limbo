@@ -3854,6 +3854,3 @@ func _al_iniciar_posesion() -> void:
 
 func _al_terminar_posesion() -> void:
 	pass
-
-
-

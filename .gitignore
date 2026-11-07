@@ -11,3 +11,4 @@ debug.log
 *.blend1
 *.original_backup
 *.bak
+scratch/

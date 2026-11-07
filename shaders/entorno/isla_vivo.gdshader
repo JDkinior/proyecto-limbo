@@ -17,17 +17,17 @@ uniform float balanceo_levitacion : hint_range(0.0, 0.2, 0.005) = 0.035;
 
 group_uniforms FalsoPastoDistancia;
 uniform bool habilitar_pasto_distancia = true;
-// Paleta cercana (coincide con el follaje dorado brillante de las puntas del pasto)
-uniform vec4 color_pasto_cerca_base : source_color = vec4(0.46, 0.32, 0.06, 1.0);
-uniform vec4 color_pasto_cerca_punta : source_color = vec4(0.66, 0.49, 0.07, 1.0);
-// Paleta lejana (donde no hay pasto 3D: coincide con el follaje dorado brillante de las puntas)
-uniform vec4 color_pasto_lejos_base : source_color = vec4(0.46, 0.32, 0.06, 1.0);
-uniform vec4 color_pasto_lejos_punta : source_color = vec4(0.66, 0.49, 0.07, 1.0);
+// Paleta cercana (coincide con la base y la punta de la brizna de pasto 3D)
+uniform vec4 color_pasto_cerca_base : source_color = vec4(0.56, 0.34, 0.14, 1.0);
+uniform vec4 color_pasto_cerca_punta : source_color = vec4(0.83, 0.65, 0.25, 1.0);
+// Paleta lejana (donde no hay pasto 3D: coincide con la base y la punta de la brizna)
+uniform vec4 color_pasto_lejos_base : source_color = vec4(0.56, 0.34, 0.14, 1.0);
+uniform vec4 color_pasto_lejos_punta : source_color = vec4(0.83, 0.65, 0.25, 1.0);
 // Rango de transición por distancia a la cámara
 uniform float distancia_transicion_inicio : hint_range(0.0, 100.0) = 20.0;
 uniform float distancia_transicion_fin : hint_range(10.0, 150.0) = 48.0;
 
-uniform float saturacion_pasto : hint_range(0.0, 1.0) = 0.85;
+uniform float saturacion_pasto : hint_range(0.0, 1.0) = 0.90;
 uniform float rugosidad_pasto : hint_range(0.0, 1.0) = 0.96;
 uniform float umbral_pendiente_pasto : hint_range(0.0, 1.0) = 0.45;
 uniform float suavizado_pendiente_pasto : hint_range(0.01, 0.5) = 0.15;
@@ -36,6 +36,7 @@ group_uniforms TexturaTerreno;
 uniform sampler2D textura_ruido_terreno : hint_default_white, repeat_enable;
 uniform sampler2D textura_normal_terreno : hint_normal, repeat_enable;
 uniform float escala_ruido_terreno : hint_range(0.01, 2.0) = 0.22;
+uniform float escala_ruido_pasto_corto : hint_range(0.5, 8.0) = 3.2;
 uniform float fuerza_variacion_pasto : hint_range(0.0, 1.0) = 0.45;
 uniform bool usar_normal_ruido = true;
 uniform float fuerza_normal_terreno : hint_range(0.0, 1.0) = 0.15;
@@ -43,8 +44,8 @@ uniform float fuerza_normal_terreno : hint_range(0.0, 1.0) = 0.15;
 group_uniforms CaminosYPintura;
 uniform bool habilitar_caminos = true;
 // Tierra Clara (Sendero cálido arenoso/arcilloso inicial)
-uniform vec4 color_tierra_clara_base : source_color = vec4(0.68, 0.48, 0.26, 1.0);
-uniform vec4 color_tierra_clara_resalte : source_color = vec4(0.78, 0.58, 0.34, 1.0);
+uniform vec4 color_tierra_clara_base : source_color = vec4(0.695, 0.495, 0.275, 1.0);
+uniform vec4 color_tierra_clara_resalte : source_color = vec4(0.735, 0.535, 0.305, 1.0);
 // Tierra Oscura (Tierra fértil/húmeda profunda)
 uniform vec4 color_tierra_oscura_base : source_color = vec4(0.34, 0.27, 0.24, 1.0);
 uniform vec4 color_tierra_oscura_resalte : source_color = vec4(0.40, 0.33, 0.29, 1.0);
@@ -52,7 +53,7 @@ uniform vec4 color_tierra_oscura_resalte : source_color = vec4(0.40, 0.33, 0.29,
 uniform vec4 color_roca_base_pintada : source_color = vec4(0.459, 0.463, 0.616, 1.0);
 uniform vec4 color_roca_resalte_pintada : source_color = vec4(0.514, 0.518, 0.690, 1.0);
 // Pasto / Césped adicional (Variación tonal cálida dorada)
-uniform vec4 color_pasto_resalte : source_color = vec4(0.85, 0.68, 0.18, 1.0);
+uniform vec4 color_pasto_resalte : source_color = vec4(0.83, 0.65, 0.25, 1.0);
 uniform float rugosidad_tierra : hint_range(0.0, 1.0) = 0.94;
 uniform float contraste_borde_camino : hint_range(0.1, 5.0) = 1.6;
 uniform float nitidez_borde_camino : hint_range(0.01, 0.5) = 0.06;
@@ -120,7 +121,7 @@ void vertex() {
 
 void fragment() {
 	// Color base de roca a partir del color por vértice procedural (conserva variación low-poly pura)
-	vec3 col_roca = COLOR.rgb * tinte_roca.rgb;
+	vec3 col_roca = mix(COLOR.rgb * tinte_roca.rgb, tinte_roca.rgb, 0.72);
 	
 	// Luminosidad del color por vértice para modular la gradación del pasto con facetas
 	float lum = dot(COLOR.rgb, vec3(0.299, 0.587, 0.114));
@@ -159,25 +160,32 @@ void fragment() {
 		vec2 uv_oleo = uv_ruido + vec2(ruido_guia - 0.5, 0.5 - ruido_guia) * 0.18;
 		float ruido_oleo = texture(textura_ruido_terreno, uv_oleo).r;
 
-		// 1. Textura y color de Pasto (dorado cálido de otoño)
-		vec3 col_cerca = mix(color_pasto_cerca_base.rgb, color_pasto_cerca_punta.rgb, t);
-		vec3 col_lejos = mix(color_pasto_lejos_base.rgb, color_pasto_lejos_punta.rgb, t);
+		// Ruido de pasto más pequeño y denso para simular césped corto en el suelo
+		vec2 uv_pasto = v_pos_mundo.xz * (escala_ruido_terreno * escala_ruido_pasto_corto);
+		float guia_pasto = texture(textura_ruido_terreno, uv_pasto * 0.7).r;
+		vec2 uv_pasto_oleo = uv_pasto + vec2(guia_pasto - 0.5, 0.5 - guia_pasto) * 0.14;
+		float ruido_pasto_corto = texture(textura_ruido_terreno, uv_pasto_oleo).r;
+		float ruido_pasto_detalle = texture(textura_ruido_terreno, uv_pasto_oleo * 2.15 + vec2(0.37, 0.61)).r;
+		float patron_pasto = mix(ruido_pasto_corto, ruido_pasto_detalle, 0.42);
+
+		// 1. Textura y color de Pasto (usa los colores de base y punta de la brizna en mechones pequeños)
+		float factor_ruido_pasto = smoothstep(0.30, 0.68, patron_pasto);
+		float factor_brizna = clamp(mix(factor_ruido_pasto, t, 0.15), 0.0, 1.0);
+		vec3 col_cerca = mix(color_pasto_cerca_base.rgb, color_pasto_cerca_punta.rgb, factor_brizna);
+		vec3 col_lejos = mix(color_pasto_lejos_base.rgb, color_pasto_lejos_punta.rgb, factor_brizna);
 		float dist_cam = length(VERTEX);
 		float factor_dist = smoothstep(distancia_transicion_inicio, distancia_transicion_fin, dist_cam);
 		vec3 col_pasto = mix(col_cerca, col_lejos, factor_dist);
 		float luma_pasto = dot(col_pasto, vec3(0.299, 0.587, 0.114));
 		col_pasto = mix(vec3(luma_pasto), col_pasto, saturacion_pasto);
 
-		// 1. Textura y color de Pasto (dorado cálido de otoño con variación tonal enriquecida)
-		float factor_ruido_pasto = smoothstep(0.28, 0.72, ruido_oleo);
-		vec3 col_pasto_tonal = mix(col_pasto, color_pasto_resalte.rgb, factor_ruido_pasto * 0.40);
-		vec3 col_pasto_oleo = mix(col_pasto_tonal * 0.92, col_pasto_tonal * 1.08, factor_ruido_pasto);
-		vec3 col_pasto_textura = mix(col_pasto, col_pasto_oleo, fuerza_variacion_pasto * 0.65);
+		vec3 col_pasto_tonal = mix(col_pasto, color_pasto_resalte.rgb, factor_ruido_pasto * 0.25);
+		vec3 col_pasto_textura = mix(color_pasto_cerca_punta.rgb, col_pasto_tonal, clamp(fuerza_variacion_pasto * 2.2, 0.0, 1.0));
 		float rough_pasto_textura = mix(rugosidad_pasto, rugosidad_pasto * 0.96, factor_ruido_pasto);
 
 		// 2. Textura y color de Tierra Clara (sendero inicial arenoso/arcilloso cálido)
-		float factor_tc_oleo = smoothstep(0.30, 0.70, ruido_oleo);
-		vec3 col_tc_textura = mix(color_tierra_clara_base.rgb, color_tierra_clara_resalte.rgb, factor_tc_oleo * 0.40);
+		float factor_tc_oleo = smoothstep(0.28, 0.72, ruido_oleo);
+		vec3 col_tc_textura = mix(color_tierra_clara_base.rgb, color_tierra_clara_resalte.rgb, factor_tc_oleo);
 		float rough_tc_textura = mix(rugosidad_tierra, rugosidad_tierra * 0.94, factor_tc_oleo);
 
 		// 3. Textura y color de Tierra Oscura (tierra fértil/húmeda profunda)
@@ -301,7 +309,8 @@ void fragment() {
 		}
 
 		if (usar_normal_ruido) {
-			vec3 norm_map = texture(textura_normal_terreno, uv_oleo).rgb * 2.0 - 1.0;
+			vec2 uv_norm = mix(uv_oleo, uv_pasto_oleo, factor_pasto);
+			vec3 norm_map = texture(textura_normal_terreno, uv_norm).rgb * 2.0 - 1.0;
 			
 			// Gradiente de relieve físico 3D para la forma de la textura y orillas de caminos
 			float perfil_h = (factor_tc * -0.35 + factor_to * -0.40 + factor_roca_p * -0.25 + factor_pasto_p * 0.35);
