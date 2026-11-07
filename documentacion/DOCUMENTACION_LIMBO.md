@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.20` (Build Code `21`)  
+**Versión Actual:** `1.0.21` (Build Code `22`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 6 de Noviembre de 2026  
+**Última Actualización:** 7 de Noviembre de 2026  
 
 # Documentación Central y GDD - Proyecto Limbo
 
@@ -42,6 +42,26 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.21 (7 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Rediseño Atmosférico Integral y Controlador de Entorno Visual (`controlador_entorno_visual.gd`, `entorno_fantasma.tres`)**:
+    *   **Conmutación Dinámica de Planos**: Nuevo nodo `ControladorEntornoVisual` que adapta en tiempo real la iluminación solar, niebla volumétrica y ajustes visuales según la perspectiva activa del personaje (Vivo o Fantasma).
+    *   **Cielo Estilizado Procedural**: Shader `cielo_estilizado_nubes.gdshader` y recursos `cielo_vivo_mat.tres` / `cielo_limbo_mat.tres` completamente renovados con horizonte gradual, sol/luna calibrados y capas de nubes estilizadas con movimiento natural.
+*   **Shader y Material Exclusivo del Personaje Vivo (`vivo_cuerpo.gdshader`, `m_vivo_cuerpo.tres`, `jugador.tscn`)**:
+    *   Shader espacial dedicado para el cuerpo del Vivo con compensación de sombreado suave y preservación de tonos cálidos, logrando total coherencia estética con la nueva atmósfera.
+*   **Remodelación de Follaje, Viento y Vegetación Estilizada**:
+    *   Actualización de `follaje_viento.gdshader` y árboles (`arbol_1.tscn` a `arbol_4.tscn`) con balanceo armónico del viento.
+    *   Calibración de shaders de pasto (`pasto_estilizado.gdshader`, `pasto_fisico_mat.tres`, `pasto_espiritual_mat.tres`) y optimización del generador.
+*   **Armonización de Materiales de Islas y Terreno**:
+    *   Calibración tonal de `m_isla_hierba.tres`, `m_isla_roca.tres` y `m_isla_roca_pura.tres`. Refinamiento de gradientes y faldón en `isla_vivo.gdshader`.
+*   **Actualización Masiva del Nivel 1 y Limpieza de Escenas**:
+    *   `Nivel 1 _ El Despertar Separado.tscn` actualizado integralmente con la nueva atmósfera, iluminación, árboles y nuevo horneado de pasto (`pasto_nivel_1___el_despertar_separado_datos.res`).
+    *   Sincronización de `plantilla_nivel.tscn` con la nueva arquitectura visual.
+    *   Depuración y retiro de la escena sandbox obsoleta `mundo_pruebas.tscn`.
+*   **Ajustes de Movimiento y Game Feel**:
+    *   Refinamientos en `jugador.gd`, `fantasma.gd` y `character_base.gd` para caídas suaves, transiciones cinemáticas y respuesta física al suelo.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.20 (6 de Noviembre de 2026)
 
