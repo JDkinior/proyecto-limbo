@@ -68,6 +68,10 @@ var datos_pasto_pintado: Array[Transform3D] = []
 var _datos_modificados: bool = false
 var _inicializado: bool = false
 var _indices_por_isla: Dictionary = {}
+var _buffer_pintado: PackedFloat32Array = PackedFloat32Array()
+const GRID_CELL_SIZE: float = 2.0
+var _grid_instancias: Dictionary = {}
+var _grid_valido: bool = false
 
 func _cargar_recurso_datos() -> void:
 	if archivo_datos_pasto.is_empty():
@@ -94,6 +98,7 @@ func _asegurar_datos_editables() -> void:
 		var datos = obtener_datos_pintados()
 		if not datos.is_empty():
 			datos_pasto_pintado = (datos as Array[Transform3D]).duplicate()
+			_grid_valido = false
 
 
 @export_group("Filtro de Objetos a Pintar")
@@ -701,14 +706,179 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 		nuevas_instancias.append(t)
 
 	if not nuevas_instancias.is_empty():
-		_indices_por_isla.clear()
 		_datos_modificados = true
+		_anadir_instancias_incrementales(nuevas_instancias)
+
+
+func _escribir_instancia_en_buffer(buf: PackedFloat32Array, index: int, t: Transform3D, c: Color) -> void:
+	var base: int = index * 16
+	# Fila 0
+	buf[base + 0] = t.basis.x.x
+	buf[base + 1] = t.basis.y.x
+	buf[base + 2] = t.basis.z.x
+	buf[base + 3] = t.origin.x
+	# Fila 1
+	buf[base + 4] = t.basis.x.y
+	buf[base + 5] = t.basis.y.y
+	buf[base + 6] = t.basis.z.y
+	buf[base + 7] = t.origin.y
+	# Fila 2
+	buf[base + 8] = t.basis.x.z
+	buf[base + 9] = t.basis.y.z
+	buf[base + 10] = t.basis.z.z
+	buf[base + 11] = t.origin.z
+	# Fila 3 (Curvatura y dirección al borde)
+	buf[base + 12] = c.r
+	buf[base + 13] = c.g
+	buf[base + 14] = c.b
+	buf[base + 15] = c.a
+
+
+func _copiar_instancia_en_buffer(buf: PackedFloat32Array, dest_index: int, src_index: int) -> void:
+	var dest_base: int = dest_index * 16
+	var src_base: int = src_index * 16
+	for k in range(16):
+		buf[dest_base + k] = buf[src_base + k]
+
+
+func _reconstruir_grid_espacial() -> void:
+	_grid_instancias.clear()
+	var total: int = datos_pasto_pintado.size()
+	for i in range(total):
+		var pos: Vector3 = datos_pasto_pintado[i].origin
+		var cx: int = int(floor(pos.x / GRID_CELL_SIZE))
+		var cz: int = int(floor(pos.z / GRID_CELL_SIZE))
+		var key := Vector2i(cx, cz)
+		if not _grid_instancias.has(key):
+			_grid_instancias[key] = []
+		_grid_instancias[key].append(i)
+	_grid_valido = true
+
+
+func _agregar_instancia_a_grid(idx: int, pos: Vector3) -> void:
+	if not _grid_valido:
+		return
+	var cx: int = int(floor(pos.x / GRID_CELL_SIZE))
+	var cz: int = int(floor(pos.z / GRID_CELL_SIZE))
+	var key := Vector2i(cx, cz)
+	if not _grid_instancias.has(key):
+		_grid_instancias[key] = []
+	_grid_instancias[key].append(idx)
+
+
+func _actualizar_indice_en_grid(viejo_idx: int, nuevo_idx: int, pos: Vector3) -> void:
+	if not _grid_valido:
+		return
+	var cx: int = int(floor(pos.x / GRID_CELL_SIZE))
+	var cz: int = int(floor(pos.z / GRID_CELL_SIZE))
+	var key := Vector2i(cx, cz)
+	if _grid_instancias.has(key):
+		var arr: Array = _grid_instancias[key]
+		var pos_in_arr: int = arr.find(viejo_idx)
+		if pos_in_arr != -1:
+			arr[pos_in_arr] = nuevo_idx
+
+
+func _remover_indice_de_grid(idx: int, pos: Vector3) -> void:
+	if not _grid_valido:
+		return
+	var cx: int = int(floor(pos.x / GRID_CELL_SIZE))
+	var cz: int = int(floor(pos.z / GRID_CELL_SIZE))
+	var key := Vector2i(cx, cz)
+	if _grid_instancias.has(key):
+		var arr: Array = _grid_instancias[key]
+		var pos_in_arr: int = arr.find(idx)
+		if pos_in_arr != -1:
+			arr.remove_at(pos_in_arr)
+
+
+func obtener_posiciones_en_radio(centro_local: Vector3, radio: float) -> Array[Vector3]:
+	var res: Array[Vector3] = []
+	var total: int = datos_pasto_pintado.size()
+	if total == 0:
+		return res
+	if not _grid_valido:
+		_reconstruir_grid_espacial()
+
+	var min_cx: int = int(floor((centro_local.x - radio) / GRID_CELL_SIZE))
+	var max_cx: int = int(floor((centro_local.x + radio) / GRID_CELL_SIZE))
+	var min_cz: int = int(floor((centro_local.z - radio) / GRID_CELL_SIZE))
+	var max_cz: int = int(floor((centro_local.z + radio) / GRID_CELL_SIZE))
+	var r2: float = radio * radio
+
+	var vistos: Dictionary = {}
+	for cx in range(min_cx, max_cx + 1):
+		for cz in range(min_cz, max_cz + 1):
+			var key := Vector2i(cx, cz)
+			if _grid_instancias.has(key):
+				for idx in _grid_instancias[key]:
+					if not vistos.has(idx) and idx < total:
+						vistos[idx] = true
+						var p: Vector3 = datos_pasto_pintado[idx].origin
+						var dx: float = p.x - centro_local.x
+						var dz: float = p.z - centro_local.z
+						if (dx * dx + dz * dz) <= r2:
+							res.append(p)
+	return res
+
+
+func _sincronizar_buffer_desde_multimesh_o_datos() -> void:
+	var total: int = datos_pasto_pintado.size()
+	if multimesh != null and multimesh.use_custom_data and multimesh.instance_count == total and multimesh.buffer.size() == total * 16:
+		_buffer_pintado = multimesh.buffer.duplicate()
+	else:
 		_actualizar_multimesh_pintado()
+		return
+	if not _grid_valido:
+		_reconstruir_grid_espacial()
 
 
-func _anadir_instancias_incrementales(_nuevas: Array[Transform3D]) -> void:
+func _anadir_instancias_incrementales(nuevas: Array[Transform3D]) -> void:
+	if nuevas.is_empty():
+		return
+	_datos_modificados = true
 	_indices_por_isla.clear()
-	_actualizar_multimesh_pintado()
+
+	if not Engine.is_editor_hint():
+		_actualizar_multimesh_pintado()
+		return
+
+	if multimesh == null:
+		generar()
+		return
+
+	if not multimesh.use_custom_data:
+		_actualizar_multimesh_pintado()
+		return
+
+	var total_actual: int = datos_pasto_pintado.size()
+	var k: int = nuevas.size()
+	var count_anterior: int = total_actual - k
+
+	if _buffer_pintado.size() != count_anterior * 16:
+		_sincronizar_buffer_desde_multimesh_o_datos()
+		if _buffer_pintado.size() == total_actual * 16:
+			return
+
+	if not _grid_valido:
+		_reconstruir_grid_espacial()
+
+	# Calcular curvatura SOLO para las K nuevas instancias (ultrarrápido O(K))
+	var custom_nuevas: PackedColorArray = _calcular_custom_data_bordes(nuevas)
+
+	# Ampliar buffer y escribir las nuevas instancias
+	_buffer_pintado.resize(total_actual * 16)
+	for i in range(k):
+		var dest_idx: int = count_anterior + i
+		var t: Transform3D = nuevas[i]
+		_escribir_instancia_en_buffer(_buffer_pintado, dest_idx, t, custom_nuevas[i])
+		_agregar_instancia_a_grid(dest_idx, t.origin)
+		custom_aabb = custom_aabb.expand(t.origin)
+
+	# Actualizar MultiMesh en una única llamada C++
+	multimesh.instance_count = total_actual
+	multimesh.buffer = _buffer_pintado
+	multimesh.custom_aabb = custom_aabb
 
 
 ## Pinta un conjunto de briznas según la forma del pincel (Círculo, Cuadrado, Triángulo)
@@ -751,16 +921,15 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 	var cell_size = maxf(0.15, dist_min)
 	var grid_local: Dictionary = {}
 	if evitar_repintar and not datos_pasto_pintado.is_empty():
-		var r_query_sq = (radio + dist_min + 0.5) * (radio + dist_min + 0.5)
-		for t_existente in datos_pasto_pintado:
-			var d2 = Vector2(t_existente.origin.x - local_center.x, t_existente.origin.z - local_center.z).length_squared()
-			if d2 <= r_query_sq:
-				var cx = int(floor(t_existente.origin.x / cell_size))
-				var cz = int(floor(t_existente.origin.z / cell_size))
-				var key = Vector2i(cx, cz)
-				if not grid_local.has(key):
-					grid_local[key] = []
-				grid_local[key].append(Vector2(t_existente.origin.x, t_existente.origin.z))
+		var r_query = radio + dist_min + 0.5
+		var existentes_cercanas = obtener_posiciones_en_radio(local_center, r_query)
+		for p in existentes_cercanas:
+			var cx = int(floor(p.x / cell_size))
+			var cz = int(floor(p.z / cell_size))
+			var key = Vector2i(cx, cz)
+			if not grid_local.has(key):
+				grid_local[key] = []
+			grid_local[key].append(Vector2(p.x, p.z))
 
 	var rad_max_pend = deg_to_rad(pendiente_maxima)
 	var nuevas_instancias: Array[Transform3D] = []
@@ -837,22 +1006,74 @@ func borrar_en_posicion(pos_mundo: Vector3, radio_borrado: float) -> void:
 	if modo_distribucion != 0:
 		return
 	_asegurar_datos_editables()
-	if datos_pasto_pintado.is_empty():
+	var total_actual: int = datos_pasto_pintado.size()
+	if total_actual == 0:
 		return
 
-	var local_center = to_local(pos_mundo)
-	var datos_filtrados: Array[Transform3D] = []
+	if not _grid_valido:
+		_reconstruir_grid_espacial()
 
-	for t in datos_pasto_pintado:
-		var offset = Vector2(t.origin.x - local_center.x, t.origin.z - local_center.z)
-		if not _esta_dentro_de_forma(offset, radio_borrado, forma_pincel):
-			datos_filtrados.append(t)
+	if _buffer_pintado.size() != total_actual * 16:
+		_sincronizar_buffer_desde_multimesh_o_datos()
 
-	if datos_filtrados.size() != datos_pasto_pintado.size():
-		datos_pasto_pintado = datos_filtrados
-		_indices_por_isla.clear()
-		_datos_modificados = true
-		_actualizar_multimesh_pintado()
+	var local_center: Vector3 = to_local(pos_mundo)
+	var min_cx: int = int(floor((local_center.x - radio_borrado) / GRID_CELL_SIZE))
+	var max_cx: int = int(floor((local_center.x + radio_borrado) / GRID_CELL_SIZE))
+	var min_cz: int = int(floor((local_center.z - radio_borrado) / GRID_CELL_SIZE))
+	var max_cz: int = int(floor((local_center.z + radio_borrado) / GRID_CELL_SIZE))
+
+	var candidatos_set: Dictionary = {}
+	for cx in range(min_cx, max_cx + 1):
+		for cz in range(min_cz, max_cz + 1):
+			var key := Vector2i(cx, cz)
+			if _grid_instancias.has(key):
+				for idx in _grid_instancias[key]:
+					candidatos_set[idx] = true
+
+	if candidatos_set.is_empty():
+		return
+
+	var indices_a_borrar: Array[int] = []
+	for idx in candidatos_set.keys():
+		if idx >= total_actual:
+			continue
+		var t: Transform3D = datos_pasto_pintado[idx]
+		var offset := Vector2(t.origin.x - local_center.x, t.origin.z - local_center.z)
+		if _esta_dentro_de_forma(offset, radio_borrado, forma_pincel):
+			indices_a_borrar.append(idx)
+
+	if indices_a_borrar.is_empty():
+		return
+
+	indices_a_borrar.sort()
+	var current_count: int = total_actual
+
+	for i in range(indices_a_borrar.size() - 1, -1, -1):
+		var idx: int = indices_a_borrar[i]
+		var last_idx: int = current_count - 1
+		var pos_borrada: Vector3 = datos_pasto_pintado[idx].origin
+		_remover_indice_de_grid(idx, pos_borrada)
+
+		if idx < last_idx:
+			var t_last: Transform3D = datos_pasto_pintado[last_idx]
+			datos_pasto_pintado[idx] = t_last
+			_copiar_instancia_en_buffer(_buffer_pintado, idx, last_idx)
+			_actualizar_indice_en_grid(last_idx, idx, t_last.origin)
+
+		current_count -= 1
+
+	datos_pasto_pintado.resize(current_count)
+	_buffer_pintado.resize(current_count * 16)
+	_indices_por_isla.clear()
+	_datos_modificados = true
+
+	if multimesh != null:
+		multimesh.instance_count = current_count
+		if current_count > 0:
+			multimesh.buffer = _buffer_pintado
+		else:
+			multimesh.custom_aabb = AABB()
+			custom_aabb = AABB()
 
 
 ## Elimina automáticamente todas las briznas que hayan quedado pintadas en paredes verticales, esquinas o riscos.
@@ -1285,6 +1506,9 @@ func _esta_dentro_de_forma(offset: Vector2, radio: float, forma: int) -> bool:
 func limpiar_pasto_pintado() -> void:
 	modo_distribucion = 0
 	datos_pasto_pintado.clear()
+	_buffer_pintado.clear()
+	_grid_instancias.clear()
+	_grid_valido = false
 	_indices_por_isla.clear()
 	recurso_datos = null
 	archivo_datos_pasto = ""
@@ -1302,9 +1526,46 @@ func actualizar_multimesh_pintado() -> void:
 var _snapshots_undo: Dictionary = {}
 var _siguiente_snapshot_id: int = 1
 
+func _limpiar_historial_undo_viejo() -> void:
+	if _snapshots_undo.size() > 20:
+		var min_id = 999999999
+		for k in _snapshots_undo.keys():
+			if k < min_id:
+				min_id = k
+		_snapshots_undo.erase(min_id)
+
+## Almacena una copia instantánea completa en RAM (transforms + buffer nativo GPU + AABB)
+## Retorna un ID ligero de 4 bytes para que UndoRedo no congele ni transmita megabytes.
+func guardar_snapshot_actual() -> int:
+	var id = _siguiente_snapshot_id
+	_siguiente_snapshot_id += 1
+	var total = datos_pasto_pintado.size()
+	var buf_copy = PackedFloat32Array()
+	if _buffer_pintado.size() == total * 16:
+		buf_copy = _buffer_pintado.duplicate()
+	elif multimesh != null and multimesh.use_custom_data and multimesh.instance_count == total and multimesh.buffer.size() == total * 16:
+		buf_copy = multimesh.buffer.duplicate()
+
+	_snapshots_undo[id] = {
+		"transforms": datos_pasto_pintado.duplicate(),
+		"buffer": buf_copy,
+		"aabb": custom_aabb
+	}
+	_limpiar_historial_undo_viejo()
+	return id
+
+## Retorna la cantidad de briznas registradas en un snapshot dado
+func obtener_cantidad_en_snapshot(id: int) -> int:
+	if _snapshots_undo.has(id):
+		var snap = _snapshots_undo[id]
+		if snap is Dictionary and snap.has("transforms"):
+			return (snap["transforms"] as Array).size()
+		elif snap is Array:
+			return snap.size()
+	return 0
+
 ## Almacena una copia de los datos en memoria y retorna un ID numérico ligero para el historial Undo/Redo.
-## Esto evita enviar arrays gigantescos (de >4MB) por el canal TCP del debugger de Godot,
-## previniendo el error "core/debugger/remote_debugger_peer.cpp:116".
+## Esto evita enviar arrays gigantescos por el canal TCP del debugger de Godot.
 func guardar_snapshot_undo(datos: Array) -> int:
 	var id = _siguiente_snapshot_id
 	_siguiente_snapshot_id += 1
@@ -1312,20 +1573,59 @@ func guardar_snapshot_undo(datos: Array) -> int:
 	for item in datos:
 		if item is Transform3D:
 			arr.append(item)
-	_snapshots_undo[id] = arr
-	# Mantener un historial en RAM acotado a los últimos 20 trazos
-	if _snapshots_undo.size() > 20:
-		var min_id = 999999999
-		for k in _snapshots_undo.keys():
-			if k < min_id:
-				min_id = k
-		_snapshots_undo.erase(min_id)
+
+	var buf_copy = PackedFloat32Array()
+	if _buffer_pintado.size() == arr.size() * 16:
+		buf_copy = _buffer_pintado.duplicate()
+	elif multimesh != null and multimesh.use_custom_data and multimesh.instance_count == arr.size() and multimesh.buffer.size() == arr.size() * 16:
+		buf_copy = multimesh.buffer.duplicate()
+
+	_snapshots_undo[id] = {
+		"transforms": arr,
+		"buffer": buf_copy,
+		"aabb": custom_aabb
+	}
+	_limpiar_historial_undo_viejo()
 	return id
 
-## Restaura el snapshot correspondiente al ID (invocado por Undo/Redo con carga de red de solo 4 bytes)
+## Restaura el snapshot correspondiente al ID en tiempo O(1) restaurando el buffer GPU directamente
 func restaurar_snapshot_undo(id: int, ruta_archivo: String = "") -> void:
-	if _snapshots_undo.has(id):
-		asignar_datos_pintados(_snapshots_undo[id], ruta_archivo)
+	if not _snapshots_undo.has(id):
+		return
+	var snap = _snapshots_undo[id]
+	if snap is Dictionary and snap.has("transforms"):
+		var arr: Array[Transform3D] = (snap["transforms"] as Array[Transform3D]).duplicate()
+		datos_pasto_pintado = arr
+		_indices_por_isla.clear()
+		_datos_modificados = true
+		archivo_datos_pasto = ruta_archivo
+		_grid_valido = false
+
+		if arr.is_empty():
+			recurso_datos = null
+			_buffer_pintado.clear()
+			_grid_instancias.clear()
+			if multimesh:
+				multimesh.instance_count = 0
+				multimesh.custom_aabb = AABB()
+			custom_aabb = AABB()
+		else:
+			var buf: PackedFloat32Array = snap.get("buffer", PackedFloat32Array())
+			if buf.size() == arr.size() * 16 and multimesh != null:
+				# Restauración instantánea directa a MultiMesh (0.1 ms sin recálculo de mallas ni islas)
+				_buffer_pintado = buf.duplicate()
+				multimesh.instance_count = arr.size()
+				multimesh.buffer = _buffer_pintado
+				var snap_aabb: AABB = snap.get("aabb", AABB())
+				if snap_aabb.size != Vector3.ZERO:
+					custom_aabb = snap_aabb
+					multimesh.custom_aabb = snap_aabb
+			else:
+				# Fallback por si el snapshot no contenía buffer
+				_actualizar_multimesh_pintado()
+		notify_property_list_changed()
+	elif snap is Array:
+		asignar_datos_pintados(snap, ruta_archivo)
 
 ## Asigna y actualiza directamente el arreglo de briznas pintadas (utilizado por Undo/Redo)
 func asignar_datos_pintados(nuevos_datos: Array, ruta_archivo: String = "") -> void:
@@ -1337,8 +1637,11 @@ func asignar_datos_pintados(nuevos_datos: Array, ruta_archivo: String = "") -> v
 	_indices_por_isla.clear()
 	_datos_modificados = true
 	archivo_datos_pasto = ruta_archivo
+	_grid_valido = false
 	if arr.is_empty():
 		recurso_datos = null
+		_buffer_pintado.clear()
+		_grid_instancias.clear()
 		if multimesh:
 			multimesh.instance_count = 0
 			multimesh.custom_aabb = AABB()
@@ -1515,14 +1818,13 @@ func _actualizar_multimesh_pintado() -> void:
 
 	var total = datos.size()
 	var custom_bordes: PackedColorArray = _calcular_custom_data_bordes(datos)
-	multimesh.instance_count = total
+	_buffer_pintado.resize(total * 16)
 	var min_pos = Vector3(999999.0, 999999.0, 999999.0)
 	var max_pos = Vector3(-999999.0, -999999.0, -999999.0)
 
 	for i in range(total):
 		var t = datos[i]
-		multimesh.set_instance_transform(i, t)
-		multimesh.set_instance_custom_data(i, custom_bordes[i])
+		_escribir_instancia_en_buffer(_buffer_pintado, i, t, custom_bordes[i])
 		var ox = t.origin.x
 		var oy = t.origin.y
 		var oz = t.origin.z
@@ -1533,7 +1835,9 @@ func _actualizar_multimesh_pintado() -> void:
 		if oz < min_pos.z: min_pos.z = oz
 		if oz > max_pos.z: max_pos.z = oz
 
+	multimesh.instance_count = total
 	if total > 0:
+		multimesh.buffer = _buffer_pintado
 		var alt_extra = (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 1.0
 		min_pos -= Vector3(1.0, 0.5, 1.0)
 		max_pos += Vector3(1.0, alt_extra, 1.0)
@@ -1543,6 +1847,8 @@ func _actualizar_multimesh_pintado() -> void:
 	else:
 		multimesh.custom_aabb = AABB()
 		custom_aabb = AABB()
+
+	_reconstruir_grid_espacial()
 
 ## Exporta las instancias pintadas actuales a un archivo de recurso binario (.res)
 ## y limpia el arreglo en escena para dejar el archivo .tscn ultraligero.

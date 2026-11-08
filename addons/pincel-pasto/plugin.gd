@@ -33,6 +33,7 @@ var _pinceles_personalizados: Dictionary = {}
 
 # Control de trazo para Deshacer / Rehacer (Ctrl+Z)
 var _trazo_en_curso: bool = false
+var _id_snapshot_antes_del_trazo: int = -1
 var _datos_antes_del_trazo: Array[Transform3D] = []
 var _modo_antes_del_trazo: int = 0
 var _era_borrado: bool = false
@@ -124,7 +125,9 @@ func _iniciar_trazo(es_borrado: bool) -> void:
 		return
 	_trazo_en_curso = true
 	_era_borrado = es_borrado
-	if _nodo_pasto.has_method("obtener_datos_pintados"):
+	if _nodo_pasto.has_method("guardar_snapshot_actual"):
+		_id_snapshot_antes_del_trazo = _nodo_pasto.guardar_snapshot_actual()
+	elif _nodo_pasto.has_method("obtener_datos_pintados"):
 		_datos_antes_del_trazo = (_nodo_pasto.obtener_datos_pintados() as Array[Transform3D]).duplicate()
 	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
 		_datos_antes_del_trazo = _nodo_pasto.datos_pasto_pintado.duplicate()
@@ -161,6 +164,7 @@ func _finalizar_trazo() -> void:
 		_borrando = false
 		_ultima_pos_pintada = Vector3.INF
 		_datos_antes_del_trazo = []
+		_id_snapshot_antes_del_trazo = -1
 		return
 
 	_trazo_en_curso = false
@@ -174,7 +178,13 @@ func _finalizar_trazo() -> void:
 	elif "datos_pasto_pintado" in _nodo_pasto and _nodo_pasto.datos_pasto_pintado != null:
 		datos_actuales = _nodo_pasto.datos_pasto_pintado
 
-	var cambio_datos: bool = (datos_actuales.size() != _datos_antes_del_trazo.size())
+	var cant_antes: int = 0
+	if _id_snapshot_antes_del_trazo != -1 and _nodo_pasto.has_method("obtener_cantidad_en_snapshot"):
+		cant_antes = _nodo_pasto.obtener_cantidad_en_snapshot(_id_snapshot_antes_del_trazo)
+	else:
+		cant_antes = _datos_antes_del_trazo.size()
+
+	var cambio_datos: bool = (datos_actuales.size() != cant_antes)
 	var modo_actual: int = _nodo_pasto.modo_distribucion if "modo_distribucion" in _nodo_pasto else 0
 	var cambio_modo: bool = (modo_actual != _modo_antes_del_trazo)
 
@@ -187,7 +197,13 @@ func _finalizar_trazo() -> void:
 			if cambio_modo:
 				ur.add_do_property(_nodo_pasto, "modo_distribucion", modo_actual)
 				ur.add_undo_property(_nodo_pasto, "modo_distribucion", _modo_antes_del_trazo)
-			if _nodo_pasto.has_method("guardar_snapshot_undo") and _nodo_pasto.has_method("restaurar_snapshot_undo"):
+
+			if _id_snapshot_antes_del_trazo != -1 and _nodo_pasto.has_method("guardar_snapshot_actual") and _nodo_pasto.has_method("restaurar_snapshot_undo"):
+				var id_do = _nodo_pasto.guardar_snapshot_actual()
+				var id_undo = _id_snapshot_antes_del_trazo
+				ur.add_do_method(_nodo_pasto, "restaurar_snapshot_undo", id_do, archivo_actual)
+				ur.add_undo_method(_nodo_pasto, "restaurar_snapshot_undo", id_undo, archivo_actual)
+			elif _nodo_pasto.has_method("guardar_snapshot_undo") and _nodo_pasto.has_method("restaurar_snapshot_undo"):
 				var id_do = _nodo_pasto.guardar_snapshot_undo(datos_actuales)
 				var id_undo = _nodo_pasto.guardar_snapshot_undo(_datos_antes_del_trazo)
 				ur.add_do_method(_nodo_pasto, "restaurar_snapshot_undo", id_do, archivo_actual)
@@ -198,6 +214,7 @@ func _finalizar_trazo() -> void:
 			ur.commit_action(false)
 
 	_datos_antes_del_trazo = []
+	_id_snapshot_antes_del_trazo = -1
 
 # ==============================================================================
 # PROCESAMIENTO DE ENTRADA EN EL VISOR 3D
@@ -253,8 +270,12 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 				return AFTER_GUI_INPUT_STOP
 
 			if _borrando:
-				if _nodo_pasto.has_method("borrar_en_posicion"):
-					_nodo_pasto.borrar_en_posicion(hit.position, radio)
+				var dist_b = _ultima_pos_pintada.distance_to(hit.position)
+				var dist_paso_b = clampf(radio * 0.20, 0.1, 0.5)
+				if _ultima_pos_pintada == Vector3.INF or dist_b >= dist_paso_b:
+					if _nodo_pasto.has_method("borrar_en_posicion"):
+						_nodo_pasto.borrar_en_posicion(hit.position, radio)
+					_ultima_pos_pintada = hit.position
 				return AFTER_GUI_INPUT_STOP
 		else:
 			_ocultar_cursor()
@@ -289,6 +310,7 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 					_pintando = false
 					if not hit.is_empty() and _nodo_pasto.has_method("borrar_en_posicion"):
 						_nodo_pasto.borrar_en_posicion(hit.position, radio)
+						_ultima_pos_pintada = hit.position
 					return AFTER_GUI_INPUT_STOP
 				else:
 					# Clic Izquierdo = Pintar con comprobación de superficie
@@ -316,6 +338,7 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 				_pintando = false
 				if not hit.is_empty() and _nodo_pasto.has_method("borrar_en_posicion"):
 					_nodo_pasto.borrar_en_posicion(hit.position, radio)
+					_ultima_pos_pintada = hit.position
 				return AFTER_GUI_INPUT_STOP
 			else:
 				if _trazo_en_curso:
@@ -350,6 +373,13 @@ func _asegurar_grid_local(centro_local: Vector3, radio_mundo: float) -> void:
 
 	if not is_instance_valid(_nodo_pasto):
 		return
+
+	if _nodo_pasto.has_method("obtener_posiciones_en_radio"):
+		var cercanas: Array[Vector3] = _nodo_pasto.obtener_posiciones_en_radio(centro_local, r_margen)
+		for pos in cercanas:
+			_agregar_a_grid(pos)
+		return
+
 	var datos: Array = []
 	if _nodo_pasto.has_method("obtener_datos_pintados"):
 		datos = _nodo_pasto.obtener_datos_pintados()

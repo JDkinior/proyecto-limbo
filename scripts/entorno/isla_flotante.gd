@@ -603,49 +603,49 @@ var limpiar_caminos_boton: bool = false:
 @export var generar_decoracion: bool = false:
 	set(valor):
 		generar_decoracion = valor
-		_solicitar_regeneracion()
+		_solicitar_actualizacion_decoracion()
 
 ## Densidad de objetos decorativos sobre la isla.
 @export_range(0.0, 1.0, 0.05) var densidad_decoracion: float = 0.4:
 	set(valor):
 		densidad_decoracion = clampf(valor, 0.0, 1.0)
 		if generar_decoracion:
-			_solicitar_regeneracion()
+			_solicitar_actualizacion_decoracion()
 
 ## Incluir árboles estilizados otoñales en la decoración.
 @export var incluir_arboles: bool = true:
 	set(valor):
 		incluir_arboles = valor
 		if generar_decoracion:
-			_solicitar_regeneracion()
+			_solicitar_actualizacion_decoracion()
 
 ## Incluir monolitos de cristales luminosos.
 @export var incluir_cristales: bool = true:
 	set(valor):
 		incluir_cristales = valor
 		if generar_decoracion:
-			_solicitar_regeneracion()
+			_solicitar_actualizacion_decoracion()
 
 ## Incluir faroles cálidos.
 @export var incluir_faroles: bool = false:
 	set(valor):
 		incluir_faroles = valor
 		if generar_decoracion:
-			_solicitar_regeneracion()
+			_solicitar_actualizacion_decoracion()
 
 ## Margen mínimo desde el borde exterior para no colocar objetos al filo del precipicio.
 @export_range(0.5, 5.0, 0.1) var margen_borde: float = 1.5:
 	set(valor):
 		margen_borde = valor
 		if generar_decoracion:
-			_solicitar_regeneracion()
+			_solicitar_actualizacion_decoracion()
 
 ## Radio despejado en el centro para dar espacio libre al jugador y mecánicas.
 @export_range(0.0, 6.0, 0.2) var radio_despeje_centro: float = 1.2:
 	set(valor):
 		radio_despeje_centro = valor
 		if generar_decoracion:
-			_solicitar_regeneracion()
+			_solicitar_actualizacion_decoracion()
 
 @export_group("Materiales")
 ## Material estilizado para la superficie superior de hierba dorada (Reino Vivo).
@@ -700,6 +700,7 @@ var _decoracion_nodo: Node3D = null
 
 # Control de regeneración diferida
 var _regeneracion_pendiente: bool = false
+var _decoracion_actualizacion_pendiente: bool = false
 var _aplicando_preset: bool = false
 var _esculpiendo_activo: bool = false
 var _ultimo_trazo_pos: Vector2 = Vector2.INF
@@ -998,6 +999,41 @@ func _ejecutar_regeneracion_diferida() -> void:
 	_regeneracion_pendiente = false
 	if is_inside_tree():
 		regenerar()
+
+
+func _solicitar_actualizacion_decoracion() -> void:
+	if not is_inside_tree():
+		return
+	if _decoracion_actualizacion_pendiente:
+		return
+	_decoracion_actualizacion_pendiente = true
+	call_deferred("_ejecutar_actualizacion_decoracion_diferida")
+
+
+func _ejecutar_actualizacion_decoracion_diferida() -> void:
+	_decoracion_actualizacion_pendiente = false
+	if is_inside_tree():
+		_regenerar_solo_decoracion()
+
+
+func _regenerar_solo_decoracion() -> void:
+	_asegurar_nodos_hijos()
+	if _decoracion_nodo == null:
+		return
+
+	if not generar_decoracion:
+		for hijo in _decoracion_nodo.get_children():
+			hijo.queue_free()
+			_decoracion_nodo.remove_child(hijo)
+		return
+
+	if _perimetro_pts_cache.is_empty():
+		regenerar()
+		return
+
+	var rng_decoracion = RandomNumberGenerator.new()
+	rng_decoracion.seed = semilla + 303
+	_actualizar_decoracion(rng_decoracion, _perimetro_pts_cache, [])
 
 
 func _asegurar_nodos_hijos() -> void:
@@ -2760,17 +2796,17 @@ func _actualizar_decoracion(rng: RandomNumberGenerator, perimetro_pts: Array[Vec
 		if muy_cerca:
 			continue
 
+		# Comprobar pendiente y normal ANTES de instanciar la escena
+		var norm = calcular_normal_superficie_en(pos_xz)
+		if norm.y < 0.72:
+			continue
+
+		var pos_y = calcular_altura_en(pos_xz)
 		puntos_ocupados.append(pos_xz)
 
 		var escena_elegida = pool_escenas[rng.randi() % pool_escenas.size()]
 		var instancia = escena_elegida.instantiate() as Node3D
 		if instancia == null:
-			continue
-
-		var pos_y = calcular_altura_en(pos_xz)
-		var norm = calcular_normal_superficie_en(pos_xz)
-		if norm.y < 0.72:
-			instancia.queue_free()
 			continue
 
 		instancia.position = Vector3(pos_xz.x, pos_y, pos_xz.y)
@@ -2786,15 +2822,16 @@ func _actualizar_decoracion(rng: RandomNumberGenerator, perimetro_pts: Array[Vec
 				instancia.owner = root
 
 		# Garantizar que las fuentes de luz decorativas proyecten sombras y no traspasen la roca
-		for hijo_luz in instancia.find_children("*", "Light3D", true, false):
-			var luz = hijo_luz as Light3D
-			if luz != null:
-				luz.shadow_enabled = true
-				luz.shadow_bias = 0.05
-				luz.shadow_normal_bias = 1.0
-				if luz is OmniLight3D:
-					var omni = luz as OmniLight3D
-					omni.omni_range = minf(omni.omni_range, maxf(ancho, largo) * 0.75 + 1.2)
+		if escena_elegida == ESCENA_FAROL or escena_elegida == ESCENA_CRISTALES:
+			for hijo_luz in instancia.find_children("*", "Light3D", true, false):
+				var luz = hijo_luz as Light3D
+				if luz != null:
+					luz.shadow_enabled = true
+					luz.shadow_bias = 0.05
+					luz.shadow_normal_bias = 1.0
+					if luz is OmniLight3D:
+						var omni = luz as OmniLight3D
+						omni.omni_range = minf(omni.omni_range, maxf(ancho, largo) * 0.75 + 1.2)
 
 
 func _estimar_radio_en_angulo(ang: float, perimetro_pts: Array[Vector3]) -> float:
