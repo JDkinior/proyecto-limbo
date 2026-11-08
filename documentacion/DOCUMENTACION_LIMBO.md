@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.22` (Build Code `23`)  
+**Versión Actual:** `1.0.23` (Build Code `24`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 7 de Noviembre de 2026  
+**Última Actualización:** 8 de Noviembre de 2026  
 
 # Documentación Central y GDD - Proyecto Limbo
 
@@ -42,6 +42,24 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.23 (8 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Mecánicas Cooperativas y Rebote Asimétrico (`jugador.gd`, `fantasma.gd`, `character_base.gd`)**:
+    *   **Rebote Cooperativo de Vivo sobre Fantasma**: Detección dinámica y tolerante de pies de Vivo con la coronilla del Fantasma (`ALTURA_CIMA_FANTASMA`, `ALTURA_PIES_VIVO_LOCAL`). Activa squash & stretch reactivo en el Fantasma (`recibir_pisada_de_companero()`) y catapulta verticalmente a Vivo con impulso amplificado.
+    *   **Exclusión de SpringArm para Enemigos Espectrales**: Configuración en `CharacterBase` para ignorar los colisionadores de enemigos en el `SpringArm3D`, evitando tirones y zooms involuntarios de cámara durante el combate.
+*   **Mecánica de Pisotón y Gestión de Packs en Enemigos Espectrales (`enemigo_espectral.gd`, `enemigo_espectral.tscn`, `grietas_espectrales.gdshader`)**:
+    *   **Impacto Letal por Pisotón (`recibir_impacto_pisoton`)**: Soporte de eliminación tanto en el aire como por colisión física frontal-superior. El enemigo sufre compresión anclada al suelo y se disuelve, liberando un anillo expansivo de partículas de muerte desacoplado del nodo (`reparent`).
+    *   **Sincronización de Packs de Spawns**: Formaciones de líderes y clones (`_pack_enemigos`) donde el suelo agrietado y las partículas de brasas espectrales se desvanecen suavemente solo tras la aniquilación de todos los integrantes del grupo.
+    *   **Ajuste de Cápsula de Colisión**: Radio de 0.36m y altura de 0.88m optimizados para colisiones precisas y justas.
+*   **Optimización de Alto Rendimiento en Vegetación y Pincel de Pasto (`generador_pasto.gd`, `plugin.gd`)**:
+    *   **Indexación Espacial Grid (`GRID_CELL_SIZE = 2.0m`)**: Sistema de celdas 2D para búsqueda y borrado instantáneo en radio (`obtener_posiciones_en_radio()`) con coste algorítmico O(1).
+    *   **Edición Incremental en Memoria de Buffer**: Escritura directa en `multimesh.buffer` (`PackedFloat32Array`) sin regenerar colecciones de objetos `Transform3D`.
+    *   **Snapshots Ligeros de Undo/Redo**: Integración con el plugin de editor para registrar únicamente deltas de instancias en el historial sin saturar la memoria ni congelar la interfaz de Godot.
+*   **Regeneración Exclusiva de Decoración en `IslaFlotante`**:
+    *   Nuevo método `_solicitar_actualizacion_decoracion()` para refrescar elementos decorativos sin recalcular la malla geométrica ni los colliders de la isla.
+    *   Filtrado de pendiente y normal previo a la instanciación de escenas decorativas.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.22 (7 de Noviembre de 2026)
 
