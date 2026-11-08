@@ -251,19 +251,21 @@ var radio_maximo_vuelo: float:
 	set(valor):
 		preset = valor
 		_aplicar_preset(valor)
+		if is_node_ready():
+			_solicitar_regeneracion(true)
 
 @export_group("Dimensiones de la Isla")
 ## Ancho total aproximado de la isla en el eje X (metros).
 @export_range(2.0, 80.0, 0.5, "or_greater") var ancho: float = 12.0:
 	set(valor):
 		ancho = maxf(valor, 2.0)
-		_marcar_cambio_manual()
+		_marcar_cambio_manual(is_node_ready())
 
 ## Largo total aproximado de la isla en el eje Z (metros).
 @export_range(2.0, 80.0, 0.5, "or_greater") var largo: float = 14.0:
 	set(valor):
 		largo = maxf(valor, 2.0)
-		_marcar_cambio_manual()
+		_marcar_cambio_manual(is_node_ready())
 
 ## Profundidad vertical del cuerpo rocoso hacia abajo en el eje Y (metros).
 @export_range(1.0, 60.0, 0.5, "or_greater") var profundidad_roca: float = 8.5:
@@ -276,13 +278,13 @@ var radio_maximo_vuelo: float:
 @export_range(0.0, 1.0, 0.02) var irregularidad_contorno: float = 0.38:
 	set(valor):
 		irregularidad_contorno = clampf(valor, 0.0, 1.0)
-		_marcar_cambio_manual()
+		_marcar_cambio_manual(is_node_ready())
 
 ## Cantidad de subdivisiones angulares del perímetro exterior.
 @export_range(12, 64, 1) var segmentos_perimetro: int = 24:
 	set(valor):
 		segmentos_perimetro = clampi(valor, 12, 64)
-		_marcar_cambio_manual()
+		_marcar_cambio_manual(is_node_ready())
 
 ## Cantidad de niveles verticales en el cuerpo rocoso inferior.
 @export_range(3, 16, 1) var anillos_roca: int = 6:
@@ -300,13 +302,13 @@ var radio_maximo_vuelo: float:
 @export_range(0.0, 1.0, 0.02) var intensidad_variacion: float = 0.42:
 	set(valor):
 		intensidad_variacion = clampf(valor, 0.0, 1.0)
-		_marcar_cambio_manual()
+		_marcar_cambio_manual(is_node_ready())
 
 ## Semilla pseudoaleatoria. Mismo valor = exactamente la misma geometría y distribución.
 @export var semilla: int = 12345:
 	set(valor):
 		semilla = valor
-		_solicitar_regeneracion()
+		_solicitar_regeneracion(is_node_ready())
 
 @export_group("Picos y Morfología Rocosa")
 ## Cantidad de picos/estalactitas inferiores (1 = punta única, 2-3 = múltiples picos asimétricos con grietas).
@@ -703,11 +705,16 @@ var _esculpiendo_activo: bool = false
 var _ultimo_trazo_pos: Vector2 = Vector2.INF
 var _ultimo_trazo_radio: float = -1.0
 var _necesita_notificar_pasto_completo: bool = false
+var _silueta_modificada_por_usuario: bool = false
 var _col_caras_cache: PackedVector3Array = PackedVector3Array()
 var _perimetro_pts_cache: Array[Vector3] = []
+var _perimetro_pts_anterior: Array[Vector3] = []
+var _anillos_sup_cache: Array[Array] = []
+var _vertice_centro_cache: Vector3 = Vector3.ZERO
 var _global_transform_anterior: Transform3D = Transform3D.IDENTITY
 var _tris_roca_buffer: Array = []
 var _ultimo_estado_fantasma_mat: int = -1
+var _borde_uv_actualizado_v2: bool = false
 
 # Preload de materiales y decoración por defecto
 const MAT_HIERBA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba.tres")
@@ -958,6 +965,9 @@ func _notificar_movimiento_pasto(ant: Transform3D, act: Transform3D) -> void:
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
+		if not _borde_uv_actualizado_v2:
+			_borde_uv_actualizado_v2 = true
+			regenerar()
 		return
 	if tipo_comportamiento == TipoComportamiento.COLAPSO:
 		_procesar_fisica_colapso(delta)
@@ -965,15 +975,17 @@ func _physics_process(delta: float) -> void:
 		_procesar_fisica_posesion(delta)
 
 
-func _marcar_cambio_manual() -> void:
+func _marcar_cambio_manual(cambio_silueta: bool = false) -> void:
 	if not _aplicando_preset and preset != PresetTamano.PERSONALIZADA:
 		preset = PresetTamano.PERSONALIZADA
-	_solicitar_regeneracion()
+	_solicitar_regeneracion(cambio_silueta)
 
 
 func _solicitar_regeneracion(notificar_todo_el_pasto: bool = false) -> void:
 	if notificar_todo_el_pasto:
 		_necesita_notificar_pasto_completo = true
+		if is_node_ready():
+			_silueta_modificada_por_usuario = true
 	if not is_inside_tree():
 		return
 	if _regeneracion_pendiente:
@@ -1093,6 +1105,7 @@ func _aplicar_preset(tipo: PresetTamano) -> void:
 
 ## Reconstruye completamente la geometría, colisiones y decoración de la isla.
 func regenerar() -> void:
+	_borde_uv_actualizado_v2 = true
 	_ultimo_estado_fantasma_mat = -1
 	_asegurar_nodos_hijos()
 	
@@ -1146,6 +1159,8 @@ func regenerar() -> void:
 		perimetro_pts.append(Vector3(px, py, pz))
 		perimetro_radios.append(Vector2(px, pz).length())
 
+	if not _perimetro_pts_cache.is_empty():
+		_perimetro_pts_anterior = _perimetro_pts_cache.duplicate()
 	_perimetro_pts_cache = perimetro_pts
 
 	# 3. Construir la malla como una única superficie monolítica
@@ -1179,6 +1194,9 @@ func regenerar() -> void:
 			var py = _calcular_altura_superficie_interna(pos_xz)
 			pts_anillo.append(Vector3(px, py, pz))
 		anillos_sup_pts.append(pts_anillo)
+
+	_vertice_centro_cache = vertice_centro
+	_anillos_sup_cache = anillos_sup_pts
 
 	var cos_corte_roca = cos(deg_to_rad(angulo_corte_roca))
 
@@ -1497,14 +1515,15 @@ func regenerar() -> void:
 	if not _esculpiendo_activo:
 		_actualizar_decoracion(rng_decoracion, perimetro_pts, perimetro_radios)
 
-	# 8. Sincronizar y adaptar generadores de pasto sobre esta isla
-	if _ultimo_trazo_radio > 0.0 and _ultimo_trazo_pos.x != INF:
-		_notificar_generadores_pasto(_ultimo_trazo_pos, _ultimo_trazo_radio)
-		_ultimo_trazo_radio = -1.0
-		_ultimo_trazo_pos = Vector2.INF
-	elif _necesita_notificar_pasto_completo:
-		_necesita_notificar_pasto_completo = false
-		_notificar_generadores_pasto()
+	# 8. Sincronizar y adaptar generadores de pasto sobre esta isla (solo en editor al editar)
+	if Engine.is_editor_hint():
+		if _ultimo_trazo_radio > 0.0 and _ultimo_trazo_pos.x != INF:
+			_notificar_generadores_pasto(_ultimo_trazo_pos, _ultimo_trazo_radio)
+			_ultimo_trazo_radio = -1.0
+			_ultimo_trazo_pos = Vector2.INF
+		else:
+			_necesita_notificar_pasto_completo = false
+			_notificar_generadores_pasto()
 
 
 func _actualizar_materiales() -> void:
@@ -1696,6 +1715,21 @@ func _generar_roca_satelite_mesh(st: SurfaceTool, rng: RandomNumberGenerator, ce
 		_anadir_triangulo_roca_lowpoly(st, v_bot, r_down[i], r_down[next_i], rng, 0.82, true, centro, sat_idx)
 
 
+## Devuelve la distancia vertical (en metros) por debajo del borde superior del acantilado en (x, z) + 1.0 (offset > 0 para distinguir de mallas sin UV)
+func _obtener_profundidad_borde_acantilado(pos: Vector3) -> float:
+	var n_pts: int = _perimetro_pts_cache.size()
+	if n_pts == 0:
+		return 1.0 + maxf(-pos.y, 0.0)
+	var ang: float = fposmod(atan2(pos.z / maxf(largo, 0.01), pos.x / maxf(ancho, 0.01)), TAU)
+	var f_idx: float = (ang / TAU) * float(n_pts)
+	var idx_base: int = int(floorf(f_idx))
+	var i0: int = idx_base % n_pts
+	var i1: int = (i0 + 1) % n_pts
+	var frac: float = f_idx - float(idx_base)
+	var rim_y: float = lerpf(_perimetro_pts_cache[i0].y, _perimetro_pts_cache[i1].y, frac)
+	return 1.0 + maxf(rim_y - pos.y, 0.0)
+
+
 ## Añade un triángulo facetado a la malla de roca calculando su sombreado low-poly
 ## (o almacenándolo en el buffer de secciones cuando suavizado_automatico_roca está activo)
 func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator, factor_extra: float = 1.0, es_satelite: bool = false, centro_sat: Vector3 = Vector3.ZERO, sat_idx: int = 0, es_superficie: bool = false) -> void:
@@ -1741,7 +1775,7 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 		st.set_uv(Vector2(peso_a.z, peso_a.w))
 		st.set_uv2(Vector2(peso_a.x, peso_a.y))
 	else:
-		st.set_uv(Vector2.ZERO)
+		st.set_uv(Vector2(_obtener_profundidad_borde_acantilado(a), 0.0))
 		st.set_uv2(Vector2.ZERO)
 	st.add_vertex(a)
 
@@ -1755,7 +1789,7 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 		st.set_uv(Vector2(peso_c.z, peso_c.w))
 		st.set_uv2(Vector2(peso_c.x, peso_c.y))
 	else:
-		st.set_uv(Vector2.ZERO)
+		st.set_uv(Vector2(_obtener_profundidad_borde_acantilado(c), 0.0))
 		st.set_uv2(Vector2.ZERO)
 	st.add_vertex(c)
 
@@ -1769,7 +1803,7 @@ func _anadir_triangulo_roca_lowpoly(st: SurfaceTool, a: Vector3, b: Vector3, c: 
 		st.set_uv(Vector2(peso_b.z, peso_b.w))
 		st.set_uv2(Vector2(peso_b.x, peso_b.y))
 	else:
-		st.set_uv(Vector2.ZERO)
+		st.set_uv(Vector2(_obtener_profundidad_borde_acantilado(b), 0.0))
 		st.set_uv2(Vector2.ZERO)
 	st.add_vertex(b)
 
@@ -2215,7 +2249,7 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 				st.set_uv(Vector2(peso_p.z, peso_p.w))
 				st.set_uv2(Vector2(peso_p.x, peso_p.y))
 			else:
-				st.set_uv(Vector2.ZERO)
+				st.set_uv(Vector2(_obtener_profundidad_borde_acantilado(p_vert), 0.0))
 				st.set_uv2(Vector2.ZERO)
 			st.add_vertex(p_vert)
 
@@ -2764,18 +2798,176 @@ func _actualizar_decoracion(rng: RandomNumberGenerator, perimetro_pts: Array[Vec
 
 
 func _estimar_radio_en_angulo(ang: float, perimetro_pts: Array[Vector3]) -> float:
-	var n = perimetro_pts.size()
+	var n: int = perimetro_pts.size()
 	if n == 0:
 		return 1.0
-	var ang_norm = fposmod(ang, TAU)
-	var fracc = (ang_norm / TAU) * float(n)
-	var idx = int(fracc) % n
-	var next_idx = (idx + 1) % n
-	var t = fracc - float(int(fracc))
+	var dir_rayo := Vector2(cos(ang), sin(ang))
+	# Los vértices del perímetro usan el ángulo paramétrico elíptico atan2(z / largo, x / ancho)
+	var ang_param: float = fposmod(atan2(dir_rayo.y / maxf(largo, 0.01), dir_rayo.x / maxf(ancho, 0.01)), TAU)
+	var fracc: float = (ang_param / TAU) * float(n)
+	var idx_base: int = int(floorf(fracc))
+	var idx: int = idx_base % n
+	var next_idx: int = (idx + 1) % n
 	
-	var r1 = Vector2(perimetro_pts[idx].x, perimetro_pts[idx].z).length()
-	var r2 = Vector2(perimetro_pts[next_idx].x, perimetro_pts[next_idx].z).length()
-	return lerpf(r1, r2, t)
+	var p0 := Vector2(perimetro_pts[idx].x, perimetro_pts[idx].z)
+	var p1 := Vector2(perimetro_pts[next_idx].x, perimetro_pts[next_idx].z)
+	var edge: Vector2 = p1 - p0
+	# Intersección exacta del rayo desde el origen con la cuerda recta del polígono (p0 -> p1)
+	var denom: float = dir_rayo.x * edge.y - dir_rayo.y * edge.x
+	var num: float = p0.x * edge.y - p0.y * edge.x
+	if absf(denom) > 0.00001:
+		var r_cuerda: float = num / denom
+		if r_cuerda > 0.01:
+			return r_cuerda
+
+	var t: float = fracc - float(idx_base)
+	return lerpf(p0.length(), p1.length(), t)
+
+
+## Evalúa en una sola pasada geométrica la altura exacta sobre la cara triangular real de la malla,
+## la normal de esa faceta, la distancia exacta a la cuerda del borde exterior y la normal saliente del borde.
+## Retorna Dictionary o llena valores para posicionar y curvar el pasto con 0mm de error respecto a la malla low-poly.
+func evaluar_punto_malla_superficie(pos_xz: Vector2) -> Dictionary:
+	if _perimetro_pts_cache.is_empty() or _anillos_sup_cache.is_empty():
+		regenerar()
+	var n_seg: int = _perimetro_pts_cache.size()
+	var n_anillos: int = _anillos_sup_cache.size()
+	if n_seg == 0 or n_anillos == 0:
+		var h_fb: float = _calcular_altura_superficie_interna(pos_xz)
+		var norm_fb: Vector3 = calcular_normal_superficie_en(pos_xz)
+		var r_fb: float = pos_xz.length()
+		var dir_fb: Vector2 = (pos_xz / r_fb) if r_fb > 0.001 else Vector2(1.0, 0.0)
+		return {
+			"altura": h_fb,
+			"normal": norm_fb,
+			"dist_borde": 1.0,
+			"t_radial": 0.5,
+			"r_cuerda": maxf(r_fb, 1.0),
+			"dir_afuera": dir_fb
+		}
+
+	var r_actual: float = pos_xz.length()
+	# Ángulo paramétrico elíptico exacto con el que se construyeron los sectores en regenerar()
+	var ang_param: float = fposmod(atan2(pos_xz.y / maxf(largo, 0.01), pos_xz.x / maxf(ancho, 0.01)), TAU) if r_actual > 0.0001 else 0.0
+	var fracc_ang: float = (ang_param / TAU) * float(n_seg)
+	var idx_base: int = int(floorf(fracc_ang))
+	var i0: int = idx_base % n_seg
+	var i1: int = (i0 + 1) % n_seg
+
+	var b0: Vector3 = _perimetro_pts_cache[i0]
+	var b1: Vector3 = _perimetro_pts_cache[i1]
+	var b0_xz := Vector2(b0.x, b0.z)
+	var b1_xz := Vector2(b1.x, b1.z)
+
+	# Coordenadas baricéntricas (u, v) de pos_xz respecto al sector triangular (Origen, b0_xz, b1_xz):
+	# pos_xz = u * b0_xz + v * b1_xz
+	var det: float = b0_xz.x * b1_xz.y - b0_xz.y * b1_xz.x
+	var u_sec: float = 0.0
+	var v_sec: float = 0.0
+	if absf(det) > 0.00001 and r_actual > 0.0001:
+		u_sec = (pos_xz.x * b1_xz.y - pos_xz.y * b1_xz.x) / det
+		v_sec = (b0_xz.x * pos_xz.y - b0_xz.y * pos_xz.x) / det
+		u_sec = maxf(u_sec, 0.0)
+		v_sec = maxf(v_sec, 0.0)
+
+	# Fracción radial exacta (0 en el centro -> 1.0 en la cuerda recta del borde exterior b0..b1)
+	var t_radial: float = u_sec + v_sec
+	var s_ang: float = (v_sec / t_radial) if t_radial > 0.00001 else (fracc_ang - float(idx_base))
+	s_ang = clampf(s_ang, 0.0, 1.0)
+
+	var punto_borde_xz: Vector2 = b0_xz.lerp(b1_xz, s_ang)
+	var r_cuerda: float = punto_borde_xz.length()
+	var dist_borde: float = (1.0 - t_radial) * r_cuerda
+
+	# Dirección perpendicular saliente de la arista del borde mezclada con la dirección radial
+	var edge_xz: Vector2 = b1_xz - b0_xz
+	var norm_arista := Vector2(edge_xz.y, -edge_xz.x)
+	if norm_arista.dot(b0_xz + b1_xz) < 0.0:
+		norm_arista = -norm_arista
+	if norm_arista.length_squared() > 0.00001:
+		norm_arista = norm_arista.normalized()
+	else:
+		norm_arista = (punto_borde_xz / maxf(r_cuerda, 0.001))
+	var dir_radial: Vector2 = (punto_borde_xz / maxf(r_cuerda, 0.001))
+	var dir_afuera: Vector2 = (norm_arista * 0.65 + dir_radial * 0.35).normalized()
+
+	# Evaluar el triángulo exacto de la malla superior en el anillo correspondiente
+	var t_clamped: float = clampf(t_radial, 0.0, 1.0)
+	var esc_anillo: float = t_clamped * float(n_anillos)
+	var an_idx: int = clampi(int(floorf(esc_anillo)), 0, n_anillos - 1)
+	var u_ring: float = clampf(esc_anillo - float(an_idx), 0.0, 1.0)
+
+	var altura_malla: float = _vertice_centro_cache.y
+	var normal_malla: Vector3 = Vector3.UP
+
+	if an_idx == 0:
+		# Tapa central: triángulo (v0 = centro, v1 = ring0[i0], v2 = ring0[i1])
+		var ring0: Array = _anillos_sup_cache[0]
+		var v0: Vector3 = _vertice_centro_cache
+		var v1: Vector3 = ring0[i0]
+		var v2: Vector3 = ring0[i1]
+		var w1: float = u_ring * (1.0 - s_ang)
+		var w2: float = u_ring * s_ang
+		var w0: float = 1.0 - u_ring
+		altura_malla = w0 * v0.y + w1 * v1.y + w2 * v2.y
+		var n_tri: Vector3 = (v2 - v0).cross(v1 - v0)
+		if n_tri.length_squared() > 0.000001:
+			normal_malla = n_tri.normalized()
+	else:
+		# Anillo trapezoidal entre r_in (an_idx - 1) y r_out (an_idx):
+		# Resolvemos las coordenadas baricéntricas 2D exactas dentro del trapecio real
+		var r_in: Array = _anillos_sup_cache[an_idx - 1]
+		var r_out: Array = _anillos_sup_cache[an_idx]
+		var p_in0: Vector3 = r_in[i0]
+		var p_in1: Vector3 = r_in[i1]
+		var p_out0: Vector3 = r_out[i0]
+		var p_out1: Vector3 = r_out[i1]
+
+		var t_in: float = float(an_idx) / float(n_anillos)
+		var t_out: float = float(an_idx + 1) / float(n_anillos)
+		var u_c: float = t_clamped * (1.0 - s_ang)
+		var v_c: float = t_clamped * s_ang
+
+		# En regenerar(), cada quad se divide por la diagonal (p_in0 -> p_out1).
+		# La ecuación exacta de la diagonal en coordenadas sectoriales (u_c, v_c) es:
+		# (u_c / t_in) + (v_c / t_out) = 1.0
+		var diag_val: float = (u_c / t_in) + (v_c / t_out)
+		if diag_val >= 1.0:
+			# Triángulo 1: (p_in0, p_out1, p_out0)
+			var w_out1: float = clampf(v_c / t_out, 0.0, 1.0)
+			var w_out0: float = clampf((u_c - t_in * (1.0 - w_out1)) / maxf(t_out - t_in, 0.00001), 0.0, 1.0 - w_out1)
+			var w_in0: float = 1.0 - w_out0 - w_out1
+			altura_malla = w_in0 * p_in0.y + w_out0 * p_out0.y + w_out1 * p_out1.y
+			var n_t1: Vector3 = (p_out1 - p_in0).cross(p_out0 - p_in0)
+			if n_t1.length_squared() > 0.000001:
+				normal_malla = n_t1.normalized()
+		else:
+			# Triángulo 2: (p_in0, p_in1, p_out1)
+			var w_in0_2: float = clampf(u_c / t_in, 0.0, 1.0)
+			var w_out1_2: float = clampf((v_c - t_in * (1.0 - w_in0_2)) / maxf(t_out - t_in, 0.00001), 0.0, 1.0 - w_in0_2)
+			var w_in1_2: float = 1.0 - w_in0_2 - w_out1_2
+			altura_malla = w_in0_2 * p_in0.y + w_in1_2 * p_in1.y + w_out1_2 * p_out1.y
+			var n_t2: Vector3 = (p_in1 - p_in0).cross(p_out1 - p_in0)
+			if n_t2.length_squared() > 0.000001:
+				normal_malla = n_t2.normalized()
+
+	# Normal continua y suave de la superficie para que la vegetación mantenga una orientación armónica
+	# y no se abra en direcciones opuestas entre triángulos low-poly adyacentes formando surcos.
+	var norm_suave: Vector3 = calcular_normal_superficie_en(pos_xz)
+	if norm_suave.y < 0.0:
+		norm_suave = -norm_suave
+	if norm_suave.length_squared() > 0.0001:
+		normal_malla = norm_suave
+
+	return {
+		"altura": altura_malla,
+		"normal": normal_malla,
+		"dist_borde": dist_borde,
+		"t_radial": t_radial,
+		"r_cuerda": r_cuerda,
+		"dir_afuera": dir_afuera,
+		"punto_borde_xz": punto_borde_xz
+	}
 
 
 ## Comprueba si una coordenada local XZ se encuentra sobre la superficie superior de la isla

@@ -35,6 +35,11 @@ uniform float saturacion_pasto : hint_range(0.0, 1.0) = 0.90;
 uniform float rugosidad_pasto : hint_range(0.0, 1.0) = 0.96;
 uniform float umbral_pendiente_pasto : hint_range(0.0, 1.0) = 0.45;
 uniform float suavizado_pendiente_pasto : hint_range(0.01, 0.5) = 0.15;
+uniform bool habilitar_borde_pasto_colgante = false;
+uniform float longitud_borde_pasto : hint_range(0.05, 1.5, 0.01) = 0.28;
+uniform float irregularidad_borde_pasto : hint_range(0.1, 1.5, 0.05) = 0.78;
+uniform float escala_mechones_borde : hint_range(0.5, 8.0, 0.1) = 3.2;
+uniform float nitidez_borde_pasto : hint_range(0.005, 0.25, 0.005) = 0.025;
 
 group_uniforms TexturaTerreno;
 uniform sampler2D textura_ruido_terreno : hint_default_white, repeat_enable;
@@ -63,12 +68,18 @@ uniform float nitidez_borde_camino : hint_range(0.01, 0.5) = 0.06;
 uniform float relieve_profundidad_camino : hint_range(0.0, 2.0) = 0.60;
 
 varying flat float v_es_superficie;
+varying float v_profundidad_borde;
+varying float v_y_local;
+varying vec3 v_pos_local;
 varying vec3 v_pos_mundo;
 varying vec4 v_mascara_camino;
 
 void vertex() {
+	v_pos_local = VERTEX;
 	v_pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_y_local = VERTEX.y;
 	v_es_superficie = (COLOR.a > 0.85) ? 1.0 : 0.0;
+	v_profundidad_borde = (COLOR.a > 0.5 && COLOR.a <= 0.85) ? UV.x : 99.0;
 	if (v_es_superficie > 0.5) {
 		// x = Tierra Clara, y = Tierra Oscura, z = Roca Base, w = Pasto
 		v_mascara_camino = vec4(UV2.x, UV2.y, UV.x, UV.y);
@@ -150,18 +161,39 @@ void fragment() {
 		// La base superior tiene COLOR.a = 1.0 y v_es_superficie = 1.0.
 		// El acantilado tiene COLOR.a <= 0.55 y los satélites COLOR.a < 0.50.
 		float factor_superficie = 0.0;
+		float factor_borde_colgante = 0.0;
+		float t_altura_borde = 0.0;
 		if (v_es_superficie > 0.5 && COLOR.a > 0.85) {
 			factor_superficie = smoothstep(
 				umbral_pendiente_pasto - suavizado_pendiente_pasto,
 				umbral_pendiente_pasto + suavizado_pendiente_pasto,
 				world_normal.y
 			);
+		} else if (habilitar_borde_pasto_colgante && COLOR.a > 0.5 && COLOR.a <= 0.85) {
+			float prof_borde = (v_profundidad_borde >= 0.99 && v_profundidad_borde < 50.0) ? (v_profundidad_borde - 1.0) : max(-v_y_local, 0.0);
+			if (prof_borde < longitud_borde_pasto * (1.0 + irregularidad_borde_pasto) + 0.20) {
+				float ang_perim = atan(v_pos_local.z, v_pos_local.x);
+				float r_medio_isla = max(length(v_pos_local.xz), 3.0);
+				float arco_perim = ang_perim * r_medio_isla * (escala_ruido_terreno * escala_mechones_borde * 0.55);
+				vec2 uv_borde = vec2(arco_perim, cos(ang_perim * 2.0) * 0.35 + sin(ang_perim * 3.0) * 0.25);
+				float r_macro = texture(textura_ruido_terreno, uv_borde * 0.55).r;
+				float r_med = texture(textura_ruido_terreno, uv_borde * 1.45 + vec2(0.31, 0.57)).r;
+				float r_fino = texture(textura_ruido_terreno, uv_borde * 3.10 + vec2(0.73, 0.19)).r;
+				float onda_mechon = clamp(r_macro * 0.38 + r_med * 0.38 + r_fino * 0.24, 0.0, 1.0);
+				float gotas = abs(sin(arco_perim * 14.0 + r_macro * 6.2831)) * 0.65 + abs(sin(arco_perim * 27.0 + r_med * 6.2831)) * 0.35;
+				float perfil_mechon = mix(onda_mechon, gotas, 0.52);
+				float alcance_borde = longitud_borde_pasto * mix(1.0 - irregularidad_borde_pasto * 0.72, 1.0 + irregularidad_borde_pasto * 0.60, perfil_mechon);
+				factor_borde_colgante = 1.0 - smoothstep(alcance_borde - nitidez_borde_pasto, alcance_borde + nitidez_borde_pasto, prof_borde);
+				t_altura_borde = clamp(prof_borde / max(alcance_borde, 0.01), 0.0, 1.0);
+				factor_superficie = factor_borde_colgante;
+			}
 		}
 		factor_pasto = factor_superficie;
 		
-		// Modulación facetada cerca y lejos
-		vec3 col_cerca = mix(color_pasto_cerca_base.rgb, color_pasto_cerca_punta.rgb, t);
-		vec3 col_lejos = mix(color_pasto_lejos_base.rgb, color_pasto_lejos_punta.rgb, t);
+		// Modulación facetada cerca y lejos (en el borde colgante predomina el color claro con ligeras variaciones del oscuro)
+		float t_pasto = (factor_borde_colgante > 0.001) ? mix(0.78, 1.0, t) : t;
+		vec3 col_cerca = mix(color_pasto_cerca_base.rgb, color_pasto_cerca_punta.rgb, t_pasto);
+		vec3 col_lejos = mix(color_pasto_lejos_base.rgb, color_pasto_lejos_punta.rgb, t_pasto);
 		
 		// Transición suave según la distancia euclidiana a la cámara
 		float dist_cam = length(VERTEX);
@@ -321,6 +353,11 @@ void fragment() {
 			);
 			vec3 norm_vista = (VIEW_MATRIX * vec4(normalize(norm_mundo), 0.0)).xyz;
 			NORMAL = normalize(mix(NORMAL, norm_vista, 0.25 * factor_pasto));
+		}
+
+		if (factor_borde_colgante > 0.001) {
+			vec3 norm_up_vista = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+			NORMAL = normalize(mix(NORMAL, norm_up_vista, 0.95 * factor_borde_colgante));
 		}
 
 		col_final = mix(col_roca, col_superficie, factor_pasto);

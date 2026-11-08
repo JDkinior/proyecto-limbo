@@ -31,6 +31,11 @@ uniform float saturacion_pasto : hint_range(0.0, 1.0) = 0.90;
 uniform float rugosidad_pasto : hint_range(0.0, 1.0) = 0.96;
 uniform float umbral_pendiente_pasto : hint_range(0.0, 1.0) = 0.45;
 uniform float suavizado_pendiente_pasto : hint_range(0.01, 0.5) = 0.15;
+uniform bool habilitar_borde_pasto_colgante = false;
+uniform float longitud_borde_pasto : hint_range(0.05, 1.5, 0.01) = 0.28;
+uniform float irregularidad_borde_pasto : hint_range(0.1, 1.5, 0.05) = 0.78;
+uniform float escala_mechones_borde : hint_range(0.5, 8.0, 0.1) = 3.2;
+uniform float nitidez_borde_pasto : hint_range(0.005, 0.25, 0.005) = 0.025;
 
 group_uniforms TexturaTerreno;
 uniform sampler2D textura_ruido_terreno : hint_default_white, repeat_enable;
@@ -60,12 +65,18 @@ uniform float nitidez_borde_camino : hint_range(0.01, 0.5) = 0.06;
 uniform float relieve_profundidad_camino : hint_range(0.0, 2.0) = 0.60;
 
 varying flat float v_es_superficie;
+varying float v_profundidad_borde;
+varying float v_y_local;
+varying vec3 v_pos_local;
 varying vec3 v_pos_mundo;
 varying vec4 v_mascara_camino;
 
 void vertex() {
+	v_pos_local = VERTEX;
 	v_pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_y_local = VERTEX.y;
 	v_es_superficie = (COLOR.a > 0.85) ? 1.0 : 0.0;
+	v_profundidad_borde = (COLOR.a > 0.5 && COLOR.a <= 0.85) ? UV.x : 99.0;
 	if (v_es_superficie > 0.5) {
 		// x = Tierra Clara, y = Tierra Oscura, z = Roca Base, w = Pasto
 		v_mascara_camino = vec4(UV2.x, UV2.y, UV.x, UV.y);
@@ -144,12 +155,36 @@ void fragment() {
 	// Si un fragmento no pertenece con certeza absoluta a la base superior (COLOR.a <= 0.85 o v_es_superficie <= 0.5),
 	// factor_superficie se fija estrictamente a 0.0, eliminando cualquier degradado o mezcla en el acantilado.
 	float factor_superficie = 0.0;
+	float factor_borde_colgante = 0.0;
+	float prof_borde_actual = 0.0;
 	if (v_es_superficie > 0.5 && COLOR.a > 0.85) {
 		factor_superficie = smoothstep(
 			umbral_pendiente_pasto - suavizado_pendiente_pasto,
 			umbral_pendiente_pasto + suavizado_pendiente_pasto,
 			world_normal.y
 		);
+	} else if (habilitar_borde_pasto_colgante && habilitar_pasto_distancia && COLOR.a > 0.5 && COLOR.a <= 0.85) {
+		// Borde de pasto colgante estilo fleco/mechones sobre la pared superior del acantilado
+		// Si la malla tiene codificada la profundidad con offset +1.0 en UV.x la usamos; si no, usamos -v_y_local (espacio local real de la isla)
+		float prof_borde = (v_profundidad_borde >= 0.99 && v_profundidad_borde < 50.0) ? (v_profundidad_borde - 1.0) : max(-v_y_local, 0.0);
+		prof_borde_actual = prof_borde;
+		if (prof_borde < longitud_borde_pasto * (1.0 + irregularidad_borde_pasto) + 0.20) {
+			// Coordenada tangencial uniforme alrededor del perímetro de la isla para que los mechones nunca se estiren en diagonal
+			float ang_perim = atan(v_pos_local.z, v_pos_local.x);
+			float r_medio_isla = max(length(v_pos_local.xz), 3.0);
+			float arco_perim = ang_perim * r_medio_isla * (escala_ruido_terreno * escala_mechones_borde * 0.55);
+			vec2 uv_borde = vec2(arco_perim, cos(ang_perim * 2.0) * 0.35 + sin(ang_perim * 3.0) * 0.25);
+			float r_macro = texture(textura_ruido_terreno, uv_borde * 0.55).r;
+			float r_med = texture(textura_ruido_terreno, uv_borde * 1.45 + vec2(0.31, 0.57)).r;
+			float r_fino = texture(textura_ruido_terreno, uv_borde * 3.10 + vec2(0.73, 0.19)).r;
+			// Perfil dentado de mechones verticales redondeados que caen irregularmente como en la referencia
+			float onda_mechon = clamp(r_macro * 0.38 + r_med * 0.38 + r_fino * 0.24, 0.0, 1.0);
+			float gotas = abs(sin(arco_perim * 14.0 + r_macro * 6.2831)) * 0.65 + abs(sin(arco_perim * 27.0 + r_med * 6.2831)) * 0.35;
+			float perfil_mechon = mix(onda_mechon, gotas, 0.52);
+			float alcance_borde = longitud_borde_pasto * mix(1.0 - irregularidad_borde_pasto * 0.72, 1.0 + irregularidad_borde_pasto * 0.60, perfil_mechon);
+			factor_borde_colgante = 1.0 - smoothstep(alcance_borde - nitidez_borde_pasto, alcance_borde + nitidez_borde_pasto, prof_borde);
+			factor_superficie = factor_borde_colgante;
+		}
 	}
 
 	if (factor_superficie > 0.0001) {
@@ -171,6 +206,14 @@ void fragment() {
 		// 1. Textura y color de Pasto (usa los colores de base y punta de la brizna en mechones pequeños)
 		float factor_ruido_pasto = smoothstep(0.30, 0.68, patron_pasto);
 		float factor_brizna = clamp(mix(factor_ruido_pasto, t, 0.15), 0.0, 1.0);
+		if (factor_borde_colgante > 0.001) {
+			// Predomina el color claro de la punta con ligeras variaciones suaves hacia el tono oscuro
+			float ang_b = atan(v_pos_local.z, v_pos_local.x);
+			float r_b = max(length(v_pos_local.xz), 3.0);
+			float u_b = ang_b * r_b * (escala_ruido_terreno * escala_ruido_pasto_corto * 0.45);
+			float var_borde = texture(textura_ruido_terreno, vec2(u_b, prof_borde_actual * 0.65)).r;
+			factor_brizna = mix(0.76, 1.0, smoothstep(0.25, 0.75, var_borde));
+		}
 		vec3 col_cerca = mix(color_pasto_cerca_base.rgb, color_pasto_cerca_punta.rgb, factor_brizna);
 		vec3 col_lejos = mix(color_pasto_lejos_base.rgb, color_pasto_lejos_punta.rgb, factor_brizna);
 		float dist_cam = length(VERTEX);
@@ -180,7 +223,7 @@ void fragment() {
 		col_pasto = mix(vec3(luma_pasto), col_pasto, saturacion_pasto);
 
 		vec3 col_pasto_tonal = mix(col_pasto, color_pasto_resalte.rgb, factor_ruido_pasto * 0.25);
-		vec3 col_pasto_textura = mix(color_pasto_cerca_punta.rgb, col_pasto_tonal, clamp(fuerza_variacion_pasto * 2.2, 0.0, 1.0));
+		vec3 col_pasto_textura = (factor_borde_colgante > 0.001) ? col_pasto : mix(color_pasto_cerca_punta.rgb, col_pasto_tonal, clamp(fuerza_variacion_pasto * 2.2, 0.0, 1.0));
 		float rough_pasto_textura = mix(rugosidad_pasto, rugosidad_pasto * 0.96, factor_ruido_pasto);
 
 		// 2. Textura y color de Tierra Clara (sendero inicial arenoso/arcilloso cálido)
@@ -312,7 +355,7 @@ void fragment() {
 			vec2 uv_norm = mix(uv_oleo, uv_pasto_oleo, factor_pasto);
 			vec3 norm_map = texture(textura_normal_terreno, uv_norm).rgb * 2.0 - 1.0;
 			
-			// Gradiente de relieve físico 3D para la forma de la textura y orillas de caminos
+			// Gradiente de relieve físico 3D para la forma de la textura, orillas de caminos y mechones del borde
 			float perfil_h = (factor_tc * -0.35 + factor_to * -0.40 + factor_roca_p * -0.25 + factor_pasto_p * 0.35);
 			vec2 grad_borde = vec2(dFdx(perfil_h), dFdy(perfil_h)) * (relieve_profundidad_camino * 3.5);
 			
@@ -323,6 +366,17 @@ void fragment() {
 			);
 			vec3 norm_vista = (VIEW_MATRIX * vec4(normalize(norm_mundo), 0.0)).xyz;
 			NORMAL = normalize(mix(NORMAL, norm_vista, 0.25 * factor_superficie));
+		}
+
+		if (factor_borde_colgante > 0.001) {
+			// Alinear la normal del borde colgante hacia arriba (0, 1, 0) igual que pasto_estilizado.gdshader
+			// para que reciba exactamente la misma luz solar que la superficie y las briznas 3D, sin costura oscura en el filo
+			vec3 norm_up_vista = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+			NORMAL = normalize(mix(NORMAL, norm_up_vista, 0.95 * factor_borde_colgante));
+		} else if (factor_pasto > 0.001) {
+			// Alinear también suavemente la normal del pasto de la superficie hacia arriba para fundirse con el borde y las briznas 3D
+			vec3 norm_up_vista = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+			NORMAL = normalize(mix(NORMAL, norm_up_vista, 0.65 * factor_pasto));
 		}
 
 		col_final = mix(col_roca, col_superficie, factor_superficie);
