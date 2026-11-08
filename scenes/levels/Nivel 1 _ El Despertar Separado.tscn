@@ -77,21 +77,25 @@ shader_parameter/usar_textura_ruido = false
 shader_parameter/desvanecimiento_distancia = true
 shader_parameter/distancia_fade_inicio = 40.0
 shader_parameter/distancia_fade_fin = 60.0
+shader_parameter/habilitar_caida_borde = true
+shader_parameter/caida_borde_vertical = 0.34
+shader_parameter/empuje_borde_exterior = 0.16
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_33yto"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.26250046, 0.29917035),
-"attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT/NzAw/AAAAAAAAAACamVk/zcwMP5qZGT7NzAw/mpkZPs3MDD+amVk/zcwMPwAAAD8AAIA/"),
+"attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT8pXI8+AAAAAAAAAACamVk/KVyPPpqZGT4pXI8+AAAAAClcjz4AAIA/KVyPPpqZWT8pXA8/AAAAAClcjz6amVk/KVwPP5qZGT4pXA8/AAAAAClcDz8AAIA/KVwPP5qZWT/NzEw/AAAAAClcDz+amVk/zcxMP5qZGT7NzEw/mpkZPs3MTD+amVk/zcxMPwAAAD8AAIA/"),
 "format": 34359738391,
 "primitive": 3,
 "uv_scale": Vector4(0, 0, 0, 0),
-"vertex_count": 9,
-"vertex_data": PackedByteArray("YKU2vAAAAADbLBm+YKU2PAAAAADbLBk+jTxJPRvXEz40vMA9YKU2vAAAAADbLBm+jTxJPRvXEz40vMA9Z+ANPRvXEz46hc29Z+ANPRvXEz46hc29jTxJPRvXEz40vMA9GXLWPXZmhj5xtP+75bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT")
+"vertex_count": 21,
+"vertex_data": PackedByteArray("YKU2vAAAAADbLBm+YKU2PAAAAADbLBk+8KDNPDyHlj35iwI+YKU2vAAAAADbLBm+8KDNPDyHlj35iwI+XjbCOzyHlj0l6gS+XjbCOzyHlj0l6gS+8KDNPDyHlj35iwI+/vRQPTyHFj7xXb09XjbCOzyHlj0l6gS+/vRQPTyHFj7xXb09ooIWPTyHFj75wsq9ooIWPTyHFj75wsq9/vRQPTyHFj7xXb09EjWhPVYKVz6Gcjk9ooIWPTyHFj75wsq9EjWhPVYKVz6Gcjk9sq6RPVYKVz5yMGe9sq6RPVYKVz5yMGe9EjWhPVYKVz6Gcjk9GXLWPXZmhj5xtP+75bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT5bB90gk8+tPlsH3SCTz60+WwfdIJPPrT")
 }]
 
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
-custom_aabb = AABB(-50.020645, -0.7114808, -81.984795, 62.62307, 7.2095976, 129.18846)
+use_custom_data = true
+custom_aabb = AABB(-49.988125, -0.7046531, -82.02243, 62.581863, 7.201389, 129.22363)
 mesh = SubResource("ArrayMesh_33yto")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h141t"]
@@ -123,6 +127,9 @@ shader_parameter/usar_textura_ruido = false
 shader_parameter/desvanecimiento_distancia = true
 shader_parameter/distancia_fade_inicio = 40.0
 shader_parameter/distancia_fade_fin = 60.0
+shader_parameter/habilitar_caida_borde = true
+shader_parameter/caida_borde_vertical = 0.34
+shader_parameter/empuje_borde_exterior = 0.16
 
 [node name="Nivel1ElDespertarSeparado" type="Node3D" unique_id=2020589322]
 script = ExtResource("16_nivel_base")
@@ -2538,14 +2545,13 @@ deformaciones_escultura = Array[Dictionary]([{
 [node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
 transform = Transform3D(0.9506353, 0, -0.31031018, 0, 1, 0, 0.31031018, 0, 0.9506353, 9.139502, 0, 1.6056328)
 material_override = SubResource("ShaderMaterial_btu23")
-custom_aabb = AABB(-50.020645, -0.7114808, -81.984795, 62.62307, 7.2095976, 129.18846)
+custom_aabb = AABB(-49.988125, -0.7046531, -82.02243, 62.581863, 7.201389, 129.22363)
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
-radio_pincel = 3.3000000000000007
+radio_pincel = 25.59999999999994
 densidad_pincel = 200
-pendiente_maxima = 43.0
-forma_pincel = 4
+pendiente_maxima = 41.0
 evitar_repintar = true
 archivo_datos_pasto = "res://scenes/levels/pasto_nivel_1___el_despertar_separado_datos.res"
 solo_pintar_en_objetos = Array[NodePath]([NodePath("../Isla Inicio"), NodePath("../Isla Salto 1"), NodePath("../Isla Boton"), NodePath("../Isla Previa Salto"), NodePath("../Isla_F_Llegada"), NodePath("../Montaña"), NodePath("../Isla Fantasma"), NodePath("../Isla Previa Salto2"), NodePath("../Isla Previa Salto3"), NodePath("../Isla Previa Salto4"), NodePath("../Isla Previa Salto5"), NodePath("../Isla_F_Llegada2"), NodePath("../Isla_F_Llegada3")])
