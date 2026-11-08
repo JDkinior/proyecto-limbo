@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges2" path="res://scenes/components/mecanismos/interruptor_aura.tscn" id="6_interruptor"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqgeta" path="res://scenes/components/mecanismos/puerta_interactiva.tscn" id="7_puerta"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges5" path="res://scenes/components/coleccionables/moneda_vivo.tscn" id="8_moneda_vivo"]
+[ext_resource type="PackedScene" uid="uid://b0f1k4r7x30aq" path="res://scenes/components/peligros/enemigo_espectral.tscn" id="9_33yto"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges6" path="res://scenes/components/coleccionables/moneda_fantasma.tscn" id="9_moneda_fantasma"]
 [ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/metas/goal.tscn" id="11_goal"]
 [ext_resource type="PackedScene" uid="uid://b2w7sve5fbqiy" path="res://scenes/entorno/iluminacion/farol.tscn" id="16_0m24d"]
@@ -48,7 +49,7 @@ fog_density = 0.008
 fog_sky_affect = 0.35
 fog_height_density = 1.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_btu23"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_33yto"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.56, 0.34, 0.14, 1)
@@ -65,8 +66,8 @@ shader_parameter/brillo_puntas = 0.03
 shader_parameter/translucidencia = 0.06
 shader_parameter/oclusion_base = 0.08
 shader_parameter/direccion_viento = Vector2(1, 0.4)
-shader_parameter/velocidad_viento = 2.0
-shader_parameter/fuerza_viento = 0.082
+shader_parameter/velocidad_viento = 2.2
+shader_parameter/fuerza_viento = 0.25
 shader_parameter/escala_onda = 2.5
 shader_parameter/turbulencia = 0.35
 shader_parameter/posicion_jugador = Vector3(0, 9999, 0)
@@ -81,7 +82,7 @@ shader_parameter/habilitar_caida_borde = true
 shader_parameter/caida_borde_vertical = 0.34
 shader_parameter/empuje_borde_exterior = 0.16
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_33yto"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_h141t"]
 _surfaces = [{
 "aabb": AABB(-0.011147827, 0, -0.14958517, 0.11585764, 0.26250046, 0.29917035),
 "attribute_data": PackedByteArray("AAAAAAAAAAAAAIA/AAAAAJqZWT8pXI8+AAAAAAAAAACamVk/KVyPPpqZGT4pXI8+AAAAAClcjz4AAIA/KVyPPpqZWT8pXA8/AAAAAClcjz6amVk/KVwPP5qZGT4pXA8/AAAAAClcDz8AAIA/KVwPP5qZWT/NzEw/AAAAAClcDz+amVk/zcxMP5qZGT7NzEw/mpkZPs3MTD+amVk/zcxMPwAAAD8AAIA/"),
@@ -95,10 +96,10 @@ _surfaces = [{
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
 use_custom_data = true
-custom_aabb = AABB(-49.988125, -0.7046531, -82.02243, 62.581863, 7.201389, 129.22363)
-mesh = SubResource("ArrayMesh_33yto")
+custom_aabb = AABB(-49.98963, -0.70252156, -82.015656, 62.576397, 7.199257, 129.2208)
+mesh = SubResource("ArrayMesh_h141t")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_h141t"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vdlxj"]
 render_priority = 2
 shader = ExtResource("19_b8igg")
 shader_parameter/color_base = Color(0.02, 0.16, 0.36, 1)
@@ -114,9 +115,9 @@ shader_parameter/brillo_autiluminado = 0.0
 shader_parameter/brillo_puntas = 0.03
 shader_parameter/translucidencia = 0.05
 shader_parameter/oclusion_base = 0.38
-shader_parameter/direccion_viento = Vector2(0.8, 0.6)
-shader_parameter/velocidad_viento = 2.0
-shader_parameter/fuerza_viento = 0.18
+shader_parameter/direccion_viento = Vector2(1, 0.4)
+shader_parameter/velocidad_viento = 2.2
+shader_parameter/fuerza_viento = 0.25
 shader_parameter/escala_onda = 2.5
 shader_parameter/turbulencia = 0.35
 shader_parameter/posicion_jugador = Vector3(0, 9999, 0)
@@ -191,7 +192,16 @@ disparador_objetivo = NodePath("../BotonPresion")
 [node name="ZonaReunionFinal" type="Node3D" parent="." unique_id=822277863]
 
 [node name="Goal" parent="ZonaReunionFinal" unique_id=1234241907 instance=ExtResource("11_goal")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0597787, 0, -46.1873)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3980384, 0, -62.513897)
+
+[node name="EnemigoEspectral" parent="ZonaReunionFinal/Goal" unique_id=208018234 node_paths=PackedStringArray("plataforma_asignada") instance=ExtResource("9_33yto")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.602964, 0.91138566, 84.117935)
+radio_zona_peligro = 6.0
+plataforma_asignada = NodePath("../../../Isla Inicio")
+tiempo_anticipacion_ataque = 0.75
+altura_flotacion = 0.85
+cantidad_enemigos = 8
+tiempo_entre_spawns = 0.2
 
 [node name="Coleccionables" type="Node3D" parent="." unique_id=720165543]
 
@@ -2412,8 +2422,10 @@ deformaciones_escultura = Array[Dictionary]([{
 }])
 cantidad_rocas_satelite = 6
 generar_decoracion = true
+densidad_decoracion = 0.85
+incluir_cristales = false
 margen_borde = 2.0
-radio_despeje_centro = 1.8
+radio_despeje_centro = 2.4
 
 [node name="Isla Fantasma" parent="." unique_id=28966886 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(0.91710246, 0, 0.39865232, 0, 1, 0, -0.39865232, 0, 0.91710246, 6.6033564, 0, 22.797836)
@@ -2544,12 +2556,12 @@ deformaciones_escultura = Array[Dictionary]([{
 
 [node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
 transform = Transform3D(0.9506353, 0, -0.31031018, 0, 1, 0, 0.31031018, 0, 0.9506353, 9.139502, 0, 1.6056328)
-material_override = SubResource("ShaderMaterial_btu23")
-custom_aabb = AABB(-49.988125, -0.7046531, -82.02243, 62.581863, 7.201389, 129.22363)
+material_override = SubResource("ShaderMaterial_33yto")
+custom_aabb = AABB(-49.98963, -0.70252156, -82.015656, 62.576397, 7.199257, 129.2208)
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
-radio_pincel = 25.59999999999994
+radio_pincel = 0.7999999999999987
 densidad_pincel = 200
 pendiente_maxima = 41.0
 evitar_repintar = true
@@ -2559,8 +2571,8 @@ cantidad_instancias = 20000
 alto_pasto = 0.25
 ancho_pasto = 0.30000000000000004
 briznas_por_manojo = 1
-material_fisico = SubResource("ShaderMaterial_btu23")
-material_espiritual = SubResource("ShaderMaterial_h141t")
+material_fisico = SubResource("ShaderMaterial_33yto")
+material_espiritual = SubResource("ShaderMaterial_vdlxj")
 
 [node name="Isla Previa Salto2" parent="." unique_id=762570022 instance=ExtResource("22_qh0qo")]
 transform = Transform3D(-0.9985479, 0, 0.053871363, 0, 1, 0, -0.053871363, 0, -0.9985479, -32.794174, 2.6227148, 15.541754)
@@ -2582,7 +2594,7 @@ margen_borde = 1.0
 radio_despeje_centro = 0.8
 
 [node name="Isla Previa Salto3" parent="." unique_id=1504499532 instance=ExtResource("22_qh0qo")]
-transform = Transform3D(-0.6150719, 0, 0.7884711, 0, 1, 0, -0.7884711, 0, -0.6150719, -26.603168, 1.3012636, 23.333431)
+transform = Transform3D(-0.6150719, 0, 0.7884711, 0, 1, 0, -0.7884711, 0, -0.6150719, -29.710474, 1.3012636, 23.333431)
 preset = 0
 ancho = 2.0
 largo = 2.0
