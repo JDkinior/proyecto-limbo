@@ -22,7 +22,7 @@ uniform float profundidad_metros : hint_range(0.1, 1.5) = 0.52;
 uniform float radio_zona : hint_range(1.0, 15.0) = 5.0;
 uniform float max_desplazamiento : hint_range(0.02, 1.5) = 0.9;
 uniform float fuerza_emision : hint_range(1.0, 12.0) = 4.2;
-uniform float grosor_grietas : hint_range(0.5, 2.5) = 1.0;
+uniform float grosor_grietas : hint_range(0.0, 2.5) = 1.0;
 uniform float velocidad_pulso : hint_range(0.0, 6.0) = 2.2;
 
 varying vec3 v_pos_local;
@@ -133,7 +133,7 @@ float eval_grietas(vec2 p_coord, float detalle) {
 		} else {
 			taper = clamp((1.0 - h) / 0.42, 0.25, 1.0);
 		}
-		float d_norm = d / (ANCHOS[i] * grosor_grietas * taper);
+		float d_norm = d / (ANCHOS[i] * max(grosor_grietas, 0.001) * taper);
 		if (d_norm < min_d) {
 			min_d = d_norm;
 		}

@@ -4,7 +4,7 @@ class_name EnemigoEspectral
 
 ## ==============================================================================
 ## ENEMIGO ESPECTRAL (PROYECTO LIMBO)
-## Sombra fantasmal que acecha al Jugador Vivo en el plano espiritual.
+## Sombra fantasmal que acecha al Jugador Vivo en el plano espiritual. Listo.
 ## - Permanece oculto y dormido fuera de su Zona de Peligro.
 ## - Marcador visual: la zona de spawn emite brasas espectrales moradas.
 ## - Solo se manifiesta cuando el Vivo ingresa a su territorio.
@@ -110,20 +110,38 @@ var _fase_anticipacion_terminada: bool = false
 var _esta_tangible: bool = false
 var _tiempo_acumulado: float = 0.0
 var _mat_cuerpo: Material = null
+const ALTURA_BASE_ENEMIGO: float = 0.63
+const ALTURA_CIMA_ENEMIGO: float = 0.46
+const ALTURA_PIES_VIVO_LOCAL: float = 0.54
 var _escala_base_visual: Vector3 = Vector3.ONE
 var _pos_base_visual: Vector3 = Vector3.ZERO
 var _animando_transicion_vertical: bool = false
+var _en_compresion_pisoton: bool = false
 var _tween_vertical: Tween = null
 var _pos_base_glb_mano_izq: Vector3 = Vector3(-1.44, -0.15, 0.25)
 var _pos_base_glb_mano_der: Vector3 = Vector3(1.44, -0.15, 0.25)
+
+func esta_en_fase_compresion_pisada() -> bool:
+	return _en_compresion_pisoton
+
+func obtener_altura_cabeza_global() -> float:
+	var pos_base_y: float = global_position.y if is_inside_tree() else position.y
+	if is_instance_valid(nodo_visual):
+		var s_y: float = absf(nodo_visual.scale.y) / _escala_base_visual.y if _escala_base_visual.y > 0.001 else 1.0
+		return pos_base_y + nodo_visual.position.y + (ALTURA_CIMA_ENEMIGO * s_y)
+	return pos_base_y + ALTURA_CIMA_ENEMIGO
 
 ## Estado de clonación y spawns múltiples
 var es_clon: bool = false
 var _clones_activos: Array[Node] = []
 var _secuencia_spawn_activa: bool = false
+var _spawns_restantes: int = 0
 var _lider_ref: EnemigoEspectral = null  ## Referencia al líder (solo para clones)
 var _indice_clon: int = 0  ## Índice del enemigo en la formación (0=líder, 1..N=clones)
 var _lider_derrotado: bool = false  ## True cuando el líder ha sido eliminado
+var _pack_enemigos: Array[EnemigoEspectral] = []
+var _grietas_suelo_ref: MeshInstance3D = null
+var _particulas_zona_ref: CPUParticles3D = null
 
 func _ready() -> void:
 	_posicion_origen = global_position if is_inside_tree() else position
@@ -135,7 +153,8 @@ func _ready() -> void:
 		nodo_visual.position = Vector3.ZERO
 		_pos_base_visual = Vector3.ZERO
 	if is_instance_valid(colision_cuerpo):
-		colision_cuerpo.position = Vector3.ZERO
+		colision_cuerpo.position = Vector3(0.0, -0.08, 0.0)
+	call_deferred("_excluir_de_camaras_jugadores")
 	
 	_cachear_materiales()
 	_configurar_capas_iniciales()
@@ -150,15 +169,48 @@ func _ready() -> void:
 		if is_instance_valid(grietas_suelo_spawn):
 			grietas_suelo_spawn.queue_free()
 	else:
+		_pack_enemigos = [self]
 		_asegurar_nodo_grietas_suelo()
 		_anclar_particulas_zona_spawn()
+		call_deferred("_independizar_zona_ambiental")
 
 	_resolver_plataforma_inicial.call_deferred()
-	
+
+	# Configuración de manifestación / ocultación inicial para todos (líder y clones)
 	if activar_solo_en_zona:
 		_desvanecer_a_origen(false)
 	else:
 		_manifestar_en_zona()
+
+func _independizar_zona_ambiental() -> void:
+	if es_clon or not is_inside_tree():
+		return
+	var p = get_parent()
+	if not is_instance_valid(p):
+		return
+	if is_instance_valid(grietas_suelo_spawn) and grietas_suelo_spawn.get_parent() == self:
+		var pos_g = grietas_suelo_spawn.global_position
+		grietas_suelo_spawn.reparent(p)
+		grietas_suelo_spawn.global_position = pos_g
+	if is_instance_valid(particulas_zona_spawn) and particulas_zona_spawn.get_parent() == self:
+		var pos_g = particulas_zona_spawn.global_position
+		particulas_zona_spawn.reparent(p)
+		particulas_zona_spawn.global_position = pos_g
+
+func _excluir_de_camaras_jugadores() -> void:
+	if not is_inside_tree() or get_tree() == null:
+		return
+	var rid_enemigo = get_rid()
+	for j in get_tree().get_nodes_in_group("jugadores"):
+		if is_instance_valid(j) and j.has_method("obtener_spring_arm"):
+			var arm: SpringArm3D = j.obtener_spring_arm()
+			if is_instance_valid(arm):
+				arm.add_excluded_object(rid_enemigo)
+	for f in get_tree().get_nodes_in_group("fantasmas"):
+		if is_instance_valid(f) and f.has_method("obtener_spring_arm"):
+			var arm: SpringArm3D = f.obtener_spring_arm()
+			if is_instance_valid(arm):
+				arm.add_excluded_object(rid_enemigo)
 
 func _asegurar_nodo_grietas_suelo() -> void:
 	if es_clon:
@@ -171,6 +223,7 @@ func _asegurar_nodo_grietas_suelo() -> void:
 		grietas_suelo_spawn.position = Vector3(0, -0.71, 0)
 		grietas_suelo_spawn.layers = 7
 		add_child(grietas_suelo_spawn)
+	grietas_suelo_spawn.add_to_group("grietas_espectrales")
 	if grietas_suelo_spawn.material_override == null:
 		grietas_suelo_spawn.material_override = load("res://shaders/components/peligros/grietas_espectrales_mat.tres")
 	_asegurar_luz_grietas()
@@ -569,6 +622,15 @@ func procesar_ciclo_ia(delta: float) -> void:
 	_actualizar_comportamiento_ia(vivo, delta)
 	if is_inside_tree():
 		move_and_slide()
+		if estado_actual != Estado.DERROTADO and estado_actual != Estado.GOLPE_LETAL:
+			for i in get_slide_collision_count():
+				var col = get_slide_collision(i)
+				var collider = col.get_collider()
+				if collider != null and collider.is_in_group("jugadores"):
+					# Normal con y < -0.35 significa que el jugador impacta o se para sobre el enemigo desde arriba
+					if col.get_normal().y < -0.35:
+						recibir_impacto_pisoton(collider as CharacterBody3D)
+						break
 
 ## ─────────────────────────────────────────────────────────────────────────────
 ## VERIFICACIÓN DE PERMANENCIA EN LA MISMA PLATAFORMA
@@ -835,23 +897,22 @@ func _animar_emergencia_grietas() -> void:
 	)
 
 func _iniciar_secuencia_spawns() -> void:
+	if not is_inside_tree() or get_tree() == null:
+		return
 	if _secuencia_spawn_activa:
 		return
 	_secuencia_spawn_activa = true
+	_spawns_restantes = max(cantidad_enemigos - 1, 0)
 	_limpiar_clones()
 
 	for i in range(1, cantidad_enemigos):
-		if is_inside_tree() and get_tree():
-			await get_tree().create_timer(tiempo_entre_spawns).timeout
-
-		# Comprobar si durante la espera la zona se desactivó, el Vivo murió o el líder fue derrotado
-		if not is_inside_tree() or estado_actual == Estado.INACTIVO_OCULTO or estado_actual == Estado.DERROTADO:
-			_secuencia_spawn_activa = false
-			return
-
-		_spawnear_clon(i)
-
-	_secuencia_spawn_activa = false
+		var tiempo_espera: float = tiempo_entre_spawns * float(i)
+		get_tree().create_timer(tiempo_espera).timeout.connect(func():
+			if not is_inside_tree() or not _secuencia_spawn_activa:
+				return
+			_spawnear_clon(i)
+			_spawns_restantes = max(_spawns_restantes - 1, 0)
+		)
 
 func _spawnear_clon(indice: int) -> void:
 	var escena = load("res://scenes/components/peligros/enemigo_espectral.tscn")
@@ -874,6 +935,11 @@ func _spawnear_clon(indice: int) -> void:
 	clon.tiempo_anticipacion_spawn = tiempo_anticipacion_spawn
 	clon._lider_ref = self
 	clon._indice_clon = indice
+	clon._grietas_suelo_ref = grietas_suelo_spawn if (is_instance_valid(grietas_suelo_spawn) and not grietas_suelo_spawn.is_queued_for_deletion()) else _grietas_suelo_ref
+	clon._particulas_zona_ref = particulas_zona_spawn if (is_instance_valid(particulas_zona_spawn) and not particulas_zona_spawn.is_queued_for_deletion()) else _particulas_zona_ref
+	clon._pack_enemigos = _pack_enemigos
+	_pack_enemigos.append(clon)
+	clon.call_deferred("_excluir_de_camaras_jugadores")
 
 	# Offset radial para que emerjan en distintos puntos de la zona contaminada
 	var angulo = (float(indice) / float(cantidad_enemigos)) * TAU
@@ -890,8 +956,6 @@ func _spawnear_clon(indice: int) -> void:
 		clon.jugador_eliminado.connect(func(jugador):
 			_al_clon_eliminar_jugador(clon, jugador)
 		)
-		# La señal enemigo_golpeado se conecta pero ya no borra del array aquí;
-		# la limpieza la hace _al_ser_derrotado() del propio clon.
 		clon.enemigo_golpeado.connect(func(_j): pass)
 
 func _al_clon_eliminar_jugador(_clon: Node, jugador: Node3D) -> void:
@@ -900,42 +964,166 @@ func _al_clon_eliminar_jugador(_clon: Node, jugador: Node3D) -> void:
 
 func _limpiar_clones() -> void:
 	_secuencia_spawn_activa = false
+	_spawns_restantes = 0
 	for clon in _clones_activos:
 		if is_instance_valid(clon):
 			clon.queue_free()
 	_clones_activos.clear()
 
 ## Lógica que ejecuta cada enemigo al ser derrotado individualmente.
-## NO limpia a los hermanos: el Vivo debe matar a TODOS para despejar la zona.
 func _al_ser_derrotado() -> void:
-	if es_clon and is_instance_valid(_lider_ref):
-		# Notificar al líder que este clon murió
-		_lider_ref._clones_activos.erase(self)
-		_lider_ref._verificar_zona_despejada()
-	else:
-		# El líder fue derrotado
+	estado_actual = Estado.DERROTADO
+	if not es_clon:
 		_lider_derrotado = true
-		# Notificar a los clones supervivientes que el líder cayó
 		for clon in _clones_activos:
 			if is_instance_valid(clon) and clon is EnemigoEspectral:
-				(clon as EnemigoEspectral)._lider_derrotado = true
-		_verificar_zona_despejada()
+				clon._lider_derrotado = true
+	_verificar_fin_manada()
 
-## Verifica si TODOS los enemigos de la zona fueron eliminados.
-## Solo cuando el líder Y todos los clones están muertos se despeja la zona.
-func _verificar_zona_despejada() -> void:
-	var clones_vivos: int = 0
-	for clon in _clones_activos:
-		if is_instance_valid(clon) and clon is EnemigoEspectral:
-			var e := clon as EnemigoEspectral
-			if e.estado_actual != Estado.DERROTADO:
-				clones_vivos += 1
-	if _lider_derrotado and clones_vivos == 0:
-		# Zona despejada: limpiar efectos visuales de la zona
-		if is_instance_valid(particulas_zona_spawn):
-			particulas_zona_spawn.emitting = false
-		if is_instance_valid(grietas_suelo_spawn):
-			grietas_suelo_spawn.visible = false
+## Verifica si TODOS los enemigos de la manada/zona fueron eliminados.
+## Solo cuando todos están muertos se sella la zona con la animación de cierre de grietas.
+func _verificar_fin_manada() -> void:
+	var hay_otro_vivo: bool = false
+	
+	# 1. Comprobar clones directos si somos el líder
+	if not es_clon:
+		for clon in _clones_activos:
+			if is_instance_valid(clon) and clon is EnemigoEspectral:
+				if clon.estado_actual != Estado.DERROTADO:
+					hay_otro_vivo = true
+					break
+	elif is_instance_valid(_lider_ref):
+		if _lider_ref.estado_actual != Estado.DERROTADO:
+			hay_otro_vivo = true
+		if not hay_otro_vivo:
+			for clon in _lider_ref._clones_activos:
+				if is_instance_valid(clon) and clon != self and clon is EnemigoEspectral:
+					if clon.estado_actual != Estado.DERROTADO:
+						hay_otro_vivo = true
+						break
+
+	# 2. Consultar en el árbol de escena por si hay múltiples instancias en la misma isla o zona
+	if not hay_otro_vivo and is_inside_tree() and get_tree():
+		var enemigos = get_tree().get_nodes_in_group("enemigos_espectrales")
+		for e in enemigos:
+			if is_instance_valid(e) and e != self and not e.is_queued_for_deletion() and e is EnemigoEspectral:
+				var es_asociado: bool = false
+				if (e in _pack_enemigos) or (es_clon and e == _lider_ref) or (not es_clon and e in _clones_activos):
+					es_asociado = true
+				elif is_instance_valid(plataforma_asignada) and e.plataforma_asignada == plataforma_asignada:
+					es_asociado = true
+				elif is_instance_valid(_plataforma_detectada) and is_instance_valid(e._plataforma_detectada) and _plataforma_detectada == e._plataforma_detectada:
+					es_asociado = true
+				elif e.global_position.distance_to(_posicion_origen) <= (radio_zona_peligro * 4.0) or e._posicion_origen.distance_to(_posicion_origen) <= (radio_zona_peligro * 4.0):
+					es_asociado = true
+				
+				if es_asociado and e.estado_actual != Estado.DERROTADO:
+					hay_otro_vivo = true
+					break
+
+	if not hay_otro_vivo and _secuencia_spawn_activa and _spawns_restantes > 0:
+		hay_otro_vivo = true
+
+	if not hay_otro_vivo:
+		_cerrar_todas_las_grietas_de_zona()
+
+func _cerrar_todas_las_grietas_de_zona() -> void:
+	var lista_grietas: Array = []
+	
+	if is_instance_valid(grietas_suelo_spawn) and not grietas_suelo_spawn.is_queued_for_deletion():
+		lista_grietas.append(grietas_suelo_spawn)
+	if is_instance_valid(_grietas_suelo_ref) and not _grietas_suelo_ref.is_queued_for_deletion() and not _grietas_suelo_ref in lista_grietas:
+		lista_grietas.append(_grietas_suelo_ref)
+
+	if is_instance_valid(_lider_ref):
+		if is_instance_valid(_lider_ref.grietas_suelo_spawn) and not _lider_ref.grietas_suelo_spawn.is_queued_for_deletion() and not _lider_ref.grietas_suelo_spawn in lista_grietas:
+			lista_grietas.append(_lider_ref.grietas_suelo_spawn)
+		if is_instance_valid(_lider_ref._grietas_suelo_ref) and not _lider_ref._grietas_suelo_ref.is_queued_for_deletion() and not _lider_ref._grietas_suelo_ref in lista_grietas:
+			lista_grietas.append(_lider_ref._grietas_suelo_ref)
+
+	if is_inside_tree() and get_tree():
+		for g in get_tree().get_nodes_in_group("grietas_espectrales"):
+			if is_instance_valid(g) and not g.is_queued_for_deletion() and g.is_inside_tree():
+				if g.global_position.distance_to(_posicion_origen) <= (radio_zona_peligro * 4.0):
+					if not g in lista_grietas:
+						lista_grietas.append(g)
+
+	# Apagar partículas de spawn (propias, de líder o referencias)
+	var lista_particulas: Array = []
+	if is_instance_valid(particulas_zona_spawn) and not particulas_zona_spawn.is_queued_for_deletion():
+		lista_particulas.append(particulas_zona_spawn)
+	if is_instance_valid(_particulas_zona_ref) and not _particulas_zona_ref.is_queued_for_deletion() and not _particulas_zona_ref in lista_particulas:
+		lista_particulas.append(_particulas_zona_ref)
+
+	if is_instance_valid(_lider_ref):
+		if is_instance_valid(_lider_ref.particulas_zona_spawn) and not _lider_ref.particulas_zona_spawn.is_queued_for_deletion() and not _lider_ref.particulas_zona_spawn in lista_particulas:
+			lista_particulas.append(_lider_ref.particulas_zona_spawn)
+		if is_instance_valid(_lider_ref._particulas_zona_ref) and not _lider_ref._particulas_zona_ref.is_queued_for_deletion() and not _lider_ref._particulas_zona_ref in lista_particulas:
+			lista_particulas.append(_lider_ref._particulas_zona_ref)
+
+	for p in lista_particulas:
+		if is_instance_valid(p) and not p.is_queued_for_deletion():
+			p.emitting = false
+
+	# Animar el sellado de cada grieta válida
+	for g in lista_grietas:
+		if is_instance_valid(g) and not g.is_queued_for_deletion():
+			_animar_cierre_grieta_individual(g)
+
+func _animar_cierre_grietas(_nodo_grietas: Variant = null, _nodo_particulas: Variant = null) -> void:
+	_cerrar_todas_las_grietas_de_zona()
+
+func _animar_cierre_grieta_individual(grietas: Variant) -> void:
+	if not is_instance_valid(grietas) or not (grietas is MeshInstance3D):
+		return
+	if grietas.is_queued_for_deletion() or not grietas.is_inside_tree():
+		return
+
+	if grietas.has_meta("cerrando_grieta"):
+		return
+	grietas.set_meta("cerrando_grieta", true)
+
+	var parent_actual = get_parent()
+	if grietas.get_parent() == self and is_instance_valid(parent_actual):
+		grietas.reparent(parent_actual)
+
+	var mat = grietas.material_override
+	if mat is ShaderMaterial:
+		mat = mat.duplicate()
+	grietas.material_override = mat
+
+	var grosor_inicial: float = 0.70
+	if mat is ShaderMaterial:
+		var p_val = mat.get_shader_parameter("grosor_grietas")
+		if p_val != null:
+			grosor_inicial = float(p_val)
+
+	var tween_cierre = grietas.create_tween()
+	# 1. Animar el grosor de las grietas cerrándose hasta 0 (se sella el suelo físicamente)
+	if mat is ShaderMaterial:
+		tween_cierre.tween_method(func(g: float):
+			if is_instance_valid(mat):
+				mat.set_shader_parameter("grosor_grietas", g)
+		, grosor_inicial, 0.0, 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+		# 2. Desvanecer la emisión ardiente del magma a 0 en paralelo
+		var emision_ini: float = float(mat.get_shader_parameter("fuerza_emision")) if mat.get_shader_parameter("fuerza_emision") != null else 4.2
+		tween_cierre.parallel().tween_method(func(e: float):
+			if is_instance_valid(mat):
+				mat.set_shader_parameter("fuerza_emision", e)
+		, emision_ini, 0.0, 0.85).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	# 3. Desvanecer las luces omnidireccionales de las grietas en paralelo
+	for i in range(4):
+		var luz := grietas.get_node_or_null("LuzGrieta%d" % i) as OmniLight3D
+		if is_instance_valid(luz):
+			tween_cierre.parallel().tween_property(luz, "light_energy", 0.0, 0.75).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	# 4. Eliminar los nodos al terminar la animación de sellado
+	tween_cierre.tween_callback(func():
+		if is_instance_valid(grietas) and not grietas.is_queued_for_deletion():
+			grietas.queue_free()
+	)
 
 func _finalizar_desvanecimiento_a_origen() -> void:
 	_animando_transicion_vertical = false
@@ -1191,6 +1379,10 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 			# Permanece completamente VISIBLE y VULNERABLE antes de desvanecerse
 			_temporizador_permanencia -= delta
 
+			# Si durante la permanencia el Vivo salta sobre él o lo embiste: contraataque exitoso
+			if _verificar_contraataque_vivo(vivo):
+				return
+
 			# Si durante la permanencia el Vivo choca lateralmente con el espectro a nivel de cuerpo: contacto letal
 			if dist_h <= (distancia_ataque + 0.15) and diff_y < 0.40 and diff_y > -1.2:
 				_resolver_contacto_con_vivo(vivo)
@@ -1334,31 +1526,26 @@ func _verificar_contraataque_vivo(vivo: Node3D) -> bool:
 		return true
 
 	# 2. Contraataque saltando sobre el enemigo (pisotón desde arriba)
-	var esta_en_suelo: bool = false
 	var vel_y_vivo: float = 0.0
 	if vivo is CharacterBody3D:
 		var cb := vivo as CharacterBody3D
-		esta_en_suelo = cb.is_on_floor() if cb.is_inside_tree() else false
 		vel_y_vivo = cb.velocity.y
 
-	# Un pisotón requiere que el Vivo esté en el aire (no en el suelo), descendiendo y sobre el enemigo
-	var es_pisoton: bool = (not esta_en_suelo) and (diff_y >= 0.45) and (diff_y <= 1.80) and (vel_y_vivo <= 0.8)
-	if dist_h <= 1.05 and es_pisoton:
-		if vivo is CharacterBody3D:
-			# Alinear los pies del Vivo en contacto físico inmediato con la coronilla del fantasma
-			var pos_contacto_y: float = pos_propia.y + 0.98
-			if vivo.is_inside_tree() and vivo.global_position.y > pos_contacto_y:
-				vivo.global_position.y = pos_contacto_y
-			elif not vivo.is_inside_tree() and vivo.position.y > pos_contacto_y:
-				vivo.position.y = pos_contacto_y
+	# Medir contacto físico estricto: los pies del Vivo contra la cima del espectro
+	var alt_cabeza: float = obtener_altura_cabeza_global()
+	var mis_pies: float = pos_vivo.y - ALTURA_PIES_VIVO_LOCAL
+	var diff_contacto: float = mis_pies - alt_cabeza
 
-			var fuerza_rebote: float = 8.5
-			if "FUERZA_SALTO" in vivo:
-				fuerza_rebote = float(vivo.get("FUERZA_SALTO")) * 0.9
-			(vivo as CharacterBody3D).velocity.y = fuerza_rebote
-			if "saltos_realizados" in vivo:
-				vivo.set("saltos_realizados", 1)
-		recibir_impacto(vivo)
+	# Un pisotón requiere:
+	# - Descendiendo o en el punto más alto del salto / aterrizando (vel_y_vivo <= 0.8)
+	# - Directamente encima en plano horizontal (dist_h <= 1.05)
+	# - Contacto físico: diff_y entre 0.10 y 1.80 (o diff_contacto entre -0.80 y 0.45)
+	var es_pisoton: bool = (vel_y_vivo <= 0.8) and (dist_h <= 1.05) and (diff_y >= 0.40 and diff_y <= 1.80) and (diff_contacto <= 0.45 and diff_contacto >= -0.80)
+	if es_pisoton:
+		if vivo is CharacterBody3D:
+			recibir_impacto_pisoton(vivo as CharacterBody3D)
+		else:
+			recibir_impacto(vivo)
 		return true
 
 	return false
@@ -1395,6 +1582,156 @@ func _resolver_contacto_con_vivo(vivo: Node3D) -> void:
 ## ─────────────────────────────────────────────────────────────────────────────
 ## CONTRATO DE COMBATE: IMPACTO POR EMBATE DEL VIVO (recibir_impacto)
 ## ─────────────────────────────────────────────────────────────────────────────
+## ─────────────────────────────────────────────────────────────────────────────
+## CONTRATO DE COMBATE: PISOTÓN DESDE ARRIBA DEL VIVO (recibir_impacto_pisoton)
+## ─────────────────────────────────────────────────────────────────────────────
+## El Vivo desciende acompañando la compresión elástica del fantasma hasta su máxima deformación,
+## CONTRATO DE COMBATE: PISOTÓN DESDE ARRIBA DEL VIVO (recibir_impacto_pisoton)
+## El espectro se aplasta sincrónicamente hacia el suelo real como una masa de gelatina / panqueque,
+## deformándose estrictamente desde la base (la base permanece anclada al suelo).
+## Al alcanzar la compresión total (deformado como panqueque), aparecen las partículas en círculo
+## del salto bomba, el fantasma desaparece directamente en ese estado deformado (sin estirarse arriba),
+## y el Vivo recibe el impulso de un salto normal (no doble salto para no salirse de la cámara).
+func recibir_impacto_pisoton(vivo: CharacterBody3D) -> void:
+	if estado_actual == Estado.DERROTADO:
+		return
+
+	if _tween_vertical != null and _tween_vertical.is_valid():
+		_tween_vertical.kill()
+	_animando_transicion_vertical = false
+
+	estado_actual = Estado.DERROTADO
+	estado_cambiado.emit(estado_actual)
+	if is_instance_valid(vivo):
+		enemigo_golpeado.emit(vivo)
+
+	velocity = Vector3.ZERO
+	collision_layer = 0
+	collision_mask = 0
+	if is_instance_valid(colision_cuerpo):
+		colision_cuerpo.set_deferred("disabled", true)
+
+	if not is_inside_tree() or not is_instance_valid(nodo_visual):
+		if is_instance_valid(vivo):
+			vivo.velocity.y = 7.5
+			if not vivo.is_inside_tree():
+				vivo.position.y = position.y + ALTURA_CIMA_ENEMIGO + ALTURA_PIES_VIVO_LOCAL
+		_al_ser_derrotado()
+		queue_free()
+		return
+
+	# 1. Detectar la distancia exacta al suelo debajo del espectro para anclar el aplastamiento al SUELO REAL
+	var dist_suelo: float = altura_flotacion
+	if get_world_3d() != null:
+		var espacio = get_world_3d().direct_space_state
+		if espacio:
+			var p_origen = global_position + Vector3.UP * 0.3
+			var p_fin = global_position + Vector3.DOWN * 6.0
+			var q = PhysicsRayQueryParameters3D.create(p_origen, p_fin, 1) # Layer 1 = suelo
+			q.exclude = [get_rid()]
+			if is_instance_valid(vivo):
+				q.exclude.append(vivo.get_rid())
+			var hit = espacio.intersect_ray(q)
+			if hit and not hit.is_empty():
+				var hit_pos: Vector3 = hit.get("position")
+				dist_suelo = maxf(global_position.y - hit_pos.y, 0.05)
+
+	# La superficie del suelo en coordenadas locales del enemigo
+	var y_superficie_suelo: float = -dist_suelo
+	var dur_compresion: float = 0.15
+
+	# Centrar horizontalmente al Vivo sobre el espectro y activar fase de compresión sincronizada
+	_en_compresion_pisoton = true
+	if is_instance_valid(vivo):
+		if vivo.is_inside_tree():
+			vivo.global_position.x = global_position.x
+			vivo.global_position.z = global_position.z
+		if vivo.has_method("iniciar_rebote_sobre_entidad"):
+			vivo.iniciar_rebote_sobre_entidad(self)
+		elif vivo.has_method("_iniciar_rebote_sobre_fantasma"):
+			vivo._iniciar_rebote_sobre_fantasma(self)
+		else:
+			vivo.velocity.y = 7.5
+			if is_inside_tree():
+				vivo.global_position.y = obtener_altura_cabeza_global() + ALTURA_PIES_VIVO_LOCAL
+			else:
+				vivo.position.y = position.y + ALTURA_CIMA_ENEMIGO + ALTURA_PIES_VIVO_LOCAL
+
+	var tween_derrota = create_tween()
+
+	# FASE 1: El fantasma se aplasta anclando su base estrictamente en el suelo
+	# nodo_visual.position.y se posiciona en: y_superficie_suelo + (ALTURA_BASE_ENEMIGO * s_y)
+	# para que la base del modelo quede exactamente en el suelo real en todo frame mientras el Vivo desciende con él
+	tween_derrota.tween_method(func(prog: float):
+		var s_y = lerpf(1.0, 0.10, prog)
+		var s_xz = lerpf(1.0, 1.85, prog)
+		nodo_visual.scale = Vector3(s_xz, s_y, s_xz) * _escala_base_visual
+		nodo_visual.position.y = y_superficie_suelo + (ALTURA_BASE_ENEMIGO * s_y)
+	, 0.0, 1.0, dur_compresion).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	# FASE 2: Máxima compresión alcanzada (fantasma plano en el suelo):
+	# 1. Ráfaga de partículas en círculo (salto bomba) alrededor de la base aplastada en el suelo.
+	# 2. El fantasma se oculta inmediatamente.
+	# 3. Se desactiva _en_compresion_pisoton para que el Jugador ejecute su rebote de salto normal.
+	tween_derrota.tween_callback(func():
+		_emitir_particulas_anillo_pisoton(y_superficie_suelo)
+		if is_instance_valid(nodo_visual):
+			nodo_visual.visible = false
+		_en_compresion_pisoton = false
+		_al_ser_derrotado()
+		queue_free()
+	)
+
+## ─────────────────────────────────────────────────────────────────────────────
+func _emitir_particulas_anillo_pisoton(pos_local_y: float) -> void:
+	if not is_instance_valid(particulas_muerte):
+		return
+	var malla: ArrayMesh = Jugador._crear_malla_nube_lowpoly(0.14) if ClassDB.class_exists("Jugador") or ("_crear_malla_nube_lowpoly" in Jugador) else null
+	if malla != null:
+		particulas_muerte.mesh = malla
+	
+	var pos_global = global_position + Vector3(0.0, pos_local_y + 0.05, 0.0)
+	var parent_actual = get_parent()
+	# Reparentar para que las partículas no sean destruidas de golpe con queue_free() del enemigo
+	if particulas_muerte.get_parent() == self and is_instance_valid(parent_actual):
+		particulas_muerte.reparent(parent_actual)
+
+	particulas_muerte.global_position = pos_global
+	particulas_muerte.amount = 18
+	particulas_muerte.lifetime = 0.55
+	particulas_muerte.explosiveness = 0.98
+	particulas_muerte.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	particulas_muerte.emission_ring_axis = Vector3(0.0, 1.0, 0.0)
+	particulas_muerte.emission_ring_height = 0.04
+	particulas_muerte.emission_ring_radius = 0.38
+	particulas_muerte.emission_ring_inner_radius = 0.24
+	particulas_muerte.direction = Vector3(0.0, 1.0, 0.0)
+	particulas_muerte.spread = 15.0
+	particulas_muerte.flatness = 0.0
+	particulas_muerte.initial_velocity_min = 0.15
+	particulas_muerte.initial_velocity_max = 0.35
+	particulas_muerte.radial_accel_min = 16.0
+	particulas_muerte.radial_accel_max = 22.0
+	particulas_muerte.gravity = Vector3(0.0, 0.4, 0.0)
+	particulas_muerte.damping_min = 6.5
+	particulas_muerte.damping_max = 8.5
+	particulas_muerte.scale_amount_min = 1.05
+	particulas_muerte.scale_amount_max = 1.75
+	particulas_muerte.one_shot = true
+	particulas_muerte.color = Color(1.0, 1.0, 1.0, 1.0)
+	particulas_muerte.color_ramp = null
+	particulas_muerte.restart()
+	particulas_muerte.emitting = true
+
+	# Auto-destrucción al terminar su tiempo natural
+	get_tree().create_timer(particulas_muerte.lifetime + 0.1).timeout.connect(func():
+		if is_instance_valid(particulas_muerte):
+			particulas_muerte.queue_free()
+	)
+
+## ─────────────────────────────────────────────────────────────────────────────
+## CONTRATO DE COMBATE: IMPACTO POR EMBATE DEL VIVO (recibir_impacto)
+## ─────────────────────────────────────────────────────────────────────────────
 func recibir_impacto(jugador: Node3D) -> void:
 	if estado_actual == Estado.DERROTADO:
 		return
@@ -1416,12 +1753,14 @@ func recibir_impacto(jugador: Node3D) -> void:
 		particulas_muerte.emitting = true
 
 	if is_inside_tree() and is_instance_valid(nodo_visual):
+		var y_base_suelo: float = _pos_base_visual.y - ALTURA_BASE_ENEMIGO
 		var tween_derrota = create_tween()
-		# Mantener la coronilla aplastada en contacto exacto con los pies del Vivo al recibir el pisotón
-		tween_derrota.tween_property(nodo_visual, "scale", Vector3(1.7, 0.25, 1.7), 0.12).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-		tween_derrota.parallel().tween_property(nodo_visual, "position:y", _pos_base_visual.y + 0.18, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween_derrota.tween_property(nodo_visual, "scale", Vector3(0.01, 2.2, 0.01), 0.20)
-		tween_derrota.parallel().tween_property(nodo_visual, "position:y", _pos_base_visual.y + 1.5, 0.20)
+		# Compresión anclada a la base al recibir embate
+		tween_derrota.tween_property(nodo_visual, "scale", Vector3(1.7, 0.25, 1.7) * _escala_base_visual, 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween_derrota.parallel().tween_property(nodo_visual, "position:y", y_base_suelo + (ALTURA_BASE_ENEMIGO * 0.25), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		# Desaparición plana sin estirarse hacia arriba
+		tween_derrota.tween_property(nodo_visual, "scale", Vector3(0.0, 0.0, 0.0), 0.10).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween_derrota.parallel().tween_property(nodo_visual, "position:y", y_base_suelo, 0.10)
 		tween_derrota.tween_callback(func():
 			_al_ser_derrotado()
 			queue_free()
