@@ -45,6 +45,11 @@ uniform bool desvanecimiento_distancia = true;
 uniform float distancia_fade_inicio : hint_range(10.0, 150.0) = 40.0;
 uniform float distancia_fade_fin : hint_range(10.0, 200.0) = 60.0;
 
+group_uniforms CaidaBordeIsla;
+uniform bool habilitar_caida_borde = true;
+uniform float caida_borde_vertical : hint_range(0.0, 1.5, 0.01) = 0.34;
+uniform float empuje_borde_exterior : hint_range(0.0, 1.0, 0.01) = 0.16;
+
 varying float factor_altura;
 varying float v_variacion_brizna;
 
@@ -76,8 +81,38 @@ void vertex() {
 	VERTEX.y *= escala_dist;
 	VERTEX.xz *= escala_dist;
 
-	// Posición global de la instancia y vértice
-	vec3 pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// Curvatura natural hacia abajo en los bordes de las islas (codificada en INSTANCE_CUSTOM.rgb desde GeneradorPasto)
+	vec3 pos_mundo;
+	if (habilitar_caida_borde && INSTANCE_CUSTOM.b > 0.001) {
+		vec2 dir_afuera = INSTANCE_CUSTOM.rg * 2.0 - 1.0;
+		float peso_borde = INSTANCE_CUSTOM.b;
+		float len_dir = length(dir_afuera);
+		dir_afuera = len_dir > 0.001 ? dir_afuera / len_dir : vec2(1.0, 0.0);
+
+		// Extraer la escala y altura real de la brizna para doblarla en un arco circular continuo
+		// sin que jamás se pliegue sobre sí misma ni quede invertida bajo su raíz
+		float escala_inst = length(MODEL_MATRIX[1].xyz);
+		float h_vert = max(VERTEX.y, 0.0);
+		vec3 v_base = vec3(VERTEX.x, 0.0, VERTEX.z);
+		vec3 pos_base_mundo = (MODEL_MATRIX * vec4(v_base, 1.0)).xyz;
+		vec3 up_inst = normalize(MODEL_MATRIX[1].xyz);
+
+		// Ángulo progresivo de doblado desde la raíz (0 rad) hasta la punta (hasta ~108° en el filo extremo)
+		float ang_max = (1.15 + clamp(caida_borde_vertical, 0.0, 1.2) * 0.85) * peso_borde;
+		float theta = pow(factor_altura, 1.15) * ang_max;
+
+		// Integración analítica suave de arco: mantiene la longitud de la brizna sin aplastarla ni invertirla
+		float reach_up = h_vert * escala_inst * (sin( max(theta, 0.05) ) / max(theta, 0.05));
+		float reach_out = h_vert * escala_inst * ((1.0 - cos(theta)) / max(theta, 0.05)) * (1.0 + empuje_borde_exterior * 1.4);
+		// Caída adicional suave solo en el tramo final de la punta cuando asoma por el precipicio
+		float caida_punta = pow(factor_altura, 2.0) * h_vert * escala_inst * (0.42 * clamp(caida_borde_vertical / 0.34, 0.2, 2.0)) * smoothstep(0.35, 1.0, peso_borde);
+
+		pos_mundo = pos_base_mundo
+			+ up_inst * (reach_up - caida_punta)
+			+ vec3(dir_afuera.x, 0.0, dir_afuera.y) * reach_out;
+	} else {
+		pos_mundo = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	}
 
 	// 1. Simulación de Viento suave
 	float len_viento_sq = dot(direccion_viento, direccion_viento);

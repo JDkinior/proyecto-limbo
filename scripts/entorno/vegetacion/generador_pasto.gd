@@ -152,6 +152,31 @@ func _asegurar_datos_editables() -> void:
 		curvatura_puntas = valor
 		_solicitar_regeneracion()
 
+## Activa la curvatura automática hacia abajo de las briznas cuando se acercan al borde de las islas.
+@export var curvar_en_bordes_isla: bool = true:
+	set(valor):
+		curvar_en_bordes_isla = valor
+		_actualizar_parametro_shader("habilitar_caida_borde", valor)
+		_solicitar_regeneracion()
+
+## Distancia desde el borde de la isla (en metros) donde las briznas comienzan a curvarse hacia abajo.
+@export_range(0.1, 2.5, 0.05) var margen_curvatura_borde: float = 0.72:
+	set(valor):
+		margen_curvatura_borde = valor
+		_solicitar_regeneracion()
+
+## Cuánto caen verticalmente las puntas de las briznas en el borde de la isla (en metros).
+@export_range(0.0, 1.5, 0.02) var caida_vertical_borde: float = 0.34:
+	set(valor):
+		caida_vertical_borde = valor
+		_actualizar_parametro_shader("caida_borde_vertical", valor)
+
+## Cuánto se asoman las briznas hacia afuera del borde al curvarse hacia abajo (en metros).
+@export_range(0.0, 1.0, 0.02) var empuje_exterior_borde: float = 0.16:
+	set(valor):
+		empuje_exterior_borde = valor
+		_actualizar_parametro_shader("empuje_borde_exterior", valor)
+
 ## Variación aleatoria de escala (Mínimo, Máximo) para dar naturalidad.
 @export var variacion_escala: Vector2 = Vector2(0.65, 1.25):
 	set(valor):
@@ -229,6 +254,9 @@ var _pos_fantasma_ant: Vector3 = Vector3(0, 9999, 0)
 var _tiempo_reintento_busqueda: float = 0.0
 var _shader_mat: ShaderMaterial = null
 var _chunks: Array[MultiMeshInstance3D] = []
+var _curvatura_borde_editor_sincronizada: bool = false
+var _curvatura_borde_editor_v2: bool = false
+var _curvatura_borde_editor_v3: bool = false
 const TAMANO_CHUNK: float = 8.0
 
 func _actualizar_parametro_shader(param: String, valor: Variant) -> void:
@@ -471,9 +499,10 @@ func generar() -> void:
 	if multimesh == null:
 		multimesh = MultiMesh.new()
 
-	if multimesh.transform_format != MultiMesh.TRANSFORM_3D:
+	if multimesh.transform_format != MultiMesh.TRANSFORM_3D or not multimesh.use_custom_data:
 		multimesh.instance_count = 0
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.use_custom_data = true
 
 	multimesh.mesh = mesh_a_usar
 
@@ -547,9 +576,11 @@ func generar() -> void:
 			transforms_generados[i] = t
 
 	if Engine.is_editor_hint():
+		var custom_borde_auto: PackedColorArray = _calcular_custom_data_bordes(transforms_generados)
 		multimesh.instance_count = count
 		for i in range(count):
 			multimesh.set_instance_transform(i, transforms_generados[i])
+			multimesh.set_instance_custom_data(i, custom_borde_auto[i])
 		var aabb_calc = AABB(Vector3(-half_x - 1.0, -1.0, -half_z - 1.0), Vector3(area.x + 2.0, (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 2.0, area.y + 2.0))
 		multimesh.custom_aabb = aabb_calc
 		custom_aabb = aabb_calc
@@ -559,6 +590,63 @@ func generar() -> void:
 # ==============================================================================
 # MÉTODOS DEL PINCEL 3D (Pintar, Borrar, Limpiar)
 # ==============================================================================
+
+## Obtiene la altura y normal exacta sobre la cara triangular de la isla bajo una coordenada de mundo.
+## Garantiza que lo que se pinta en el visor 3D se asiente en la superficie con 0 mm de error.
+func _obtener_info_superficie_en(pos_mundo: Vector3, normal_defecto: Vector3) -> Dictionary:
+	var islas: Array[Node] = _obtener_islas_escena()
+	var mejor_isla: Node = null
+	var menor_dist_vert: float = 99999.0
+	var mejor_info: Dictionary = {}
+
+	for isla in islas:
+		if not is_instance_valid(isla) or not isla.is_inside_tree():
+			continue
+		var p_loc: Vector3 = isla.global_transform.affine_inverse() * pos_mundo
+		var pos_xz := Vector2(p_loc.x, p_loc.z)
+		if isla.has_method("tiene_punto_en_superficie") and isla.tiene_punto_en_superficie(pos_xz):
+			var h_calc: float = 0.0
+			var norm_isla: Vector3 = Vector3.UP
+			var dist_borde: float = 999.0
+			var dir_afuera := Vector2(1.0, 0.0)
+
+			if isla.has_method("evaluar_punto_malla_superficie"):
+				var info: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
+				dist_borde = float(info.get("dist_borde", 999.0))
+				if dist_borde < -0.15:
+					continue
+				h_calc = float(info.get("altura", p_loc.y))
+				norm_isla = info.get("normal", Vector3.UP)
+				dir_afuera = info.get("dir_afuera", Vector2(1.0, 0.0))
+			elif isla.has_method("calcular_altura_en"):
+				h_calc = float(isla.calcular_altura_en(pos_xz))
+				norm_isla = isla.calcular_normal_superficie_en(pos_xz) if isla.has_method("calcular_normal_superficie_en") else Vector3.UP
+
+			var pt_mundo: Vector3 = isla.global_transform * Vector3(pos_xz.x, h_calc, pos_xz.y)
+			var d_vert: float = absf(pos_mundo.y - pt_mundo.y)
+			if d_vert < menor_dist_vert:
+				menor_dist_vert = d_vert
+				mejor_isla = isla
+				var norm_mundo: Vector3 = (isla.global_transform.basis * norm_isla).normalized()
+				mejor_info = {
+					"isla": isla,
+					"pos_mundo": pt_mundo,
+					"normal_mundo": norm_mundo,
+					"dist_borde": dist_borde,
+					"dir_afuera": dir_afuera
+				}
+
+	if mejor_isla != null and menor_dist_vert < 3.5:
+		return mejor_info
+
+	return {
+		"isla": null,
+		"pos_mundo": pos_mundo,
+		"normal_mundo": normal_defecto,
+		"dist_borde": 999.0,
+		"dir_afuera": Vector2(1.0, 0.0)
+	}
+
 
 ## Agrega un conjunto de briznas con posiciones y normales ya verificadas en superficie
 func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mundo: Array[Vector3]) -> void:
@@ -572,6 +660,7 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 	rng.randomize()
 
 	var cos_max = cos(deg_to_rad(pendiente_maxima))
+	var rad_max_pend = deg_to_rad(pendiente_maxima)
 	var nuevas_instancias: Array[Transform3D] = []
 
 	var inv_xf_pasto = global_transform.affine_inverse()
@@ -584,6 +673,11 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 			continue
 
 		var pos_m = posiciones_mundo[i]
+		var info_sup = _obtener_info_superficie_en(pos_m, norm_m)
+		if info_sup.isla != null:
+			pos_m = info_sup.pos_mundo
+			norm_m = info_sup.normal_mundo
+
 		var local_pos = inv_xf_pasto * pos_m
 		var local_norm = (inv_basis * norm_m).normalized() if alinear_con_superficie else Vector3.UP
 
@@ -593,8 +687,9 @@ func agregar_instancias_pintadas(posiciones_mundo: Array[Vector3], normales_mund
 
 		var t = Transform3D()
 		if alinear_con_superficie and abs(local_norm.dot(Vector3.UP)) < 0.999:
-			var eje_rot = Vector3.UP.cross(local_norm).normalized()
-			var angulo_rot = Vector3.UP.angle_to(local_norm)
+			var norm_suave: Vector3 = local_norm.lerp(Vector3.UP, 0.35).normalized()
+			var eje_rot = Vector3.UP.cross(norm_suave).normalized()
+			var angulo_rot = minf(Vector3.UP.angle_to(norm_suave), rad_max_pend * 0.65)
 			if eje_rot.length_squared() > 0.001:
 				t = t.rotated(eje_rot, angulo_rot)
 
@@ -647,8 +742,6 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 	var rng = RandomNumberGenerator.new()
 	rng.randomize()
 
-	var local_normal = (global_transform.basis.inverse() * normal_mundo).normalized() if alinear_con_superficie else Vector3.UP
-
 	var dist_min = distancia_minima_repintar
 	if dist_min <= 0.0:
 		dist_min = clampf(0.85 / sqrt(maxf(1.0, float(densidad))), 0.02, 1.5)
@@ -669,11 +762,22 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 					grid_local[key] = []
 				grid_local[key].append(Vector2(t_existente.origin.x, t_existente.origin.z))
 
+	var rad_max_pend = deg_to_rad(pendiente_maxima)
 	var nuevas_instancias: Array[Transform3D] = []
 
 	for _i in range(cantidad):
 		var offset_2d = _generar_offset_forma(rng, radio, forma_pincel)
 		var pos_instancia = local_center + Vector3(offset_2d.x, 0.0, offset_2d.y)
+		var pos_m = to_global(pos_instancia)
+		var norm_m = normal_mundo
+
+		# Asentar directamente sobre la malla triangular exacta de la isla
+		var info_sup = _obtener_info_superficie_en(pos_m, norm_m)
+		if info_sup.isla == null:
+			continue # Ignorar puntos que caen en el vacío fuera de la isla
+		pos_m = info_sup.pos_mundo
+		norm_m = info_sup.normal_mundo
+		pos_instancia = to_local(pos_m)
 
 		if evitar_repintar and not grid_local.is_empty():
 			var cx = int(floor(pos_instancia.x / cell_size))
@@ -694,14 +798,17 @@ func pintar_en_posicion(pos_mundo: Vector3, normal_mundo: Vector3) -> void:
 			if ocupado:
 				continue
 
+		var local_normal = (global_transform.basis.inverse() * norm_m).normalized() if alinear_con_superficie else Vector3.UP
+
 		var rot_y = rng.randf_range(0.0, TAU)
 		var factor_esc = rng.randf_range(esc_range.x, esc_range.y)
 		var escala = Vector3(factor_esc, factor_esc, factor_esc)
 
 		var t = Transform3D()
 		if alinear_con_superficie and abs(local_normal.dot(Vector3.UP)) < 0.999:
-			var eje_rot = Vector3.UP.cross(local_normal).normalized()
-			var angulo_rot = Vector3.UP.angle_to(local_normal)
+			var norm_suave: Vector3 = local_normal.lerp(Vector3.UP, 0.35).normalized()
+			var eje_rot = Vector3.UP.cross(norm_suave).normalized()
+			var angulo_rot = minf(Vector3.UP.angle_to(norm_suave), rad_max_pend * 0.65)
 			if eje_rot.length_squared() > 0.001:
 				t = t.rotated(eje_rot, angulo_rot)
 
@@ -829,32 +936,56 @@ func _obtener_indices_de_isla(isla: Node) -> Array:
 	else:
 		mat_pasto_a_isla = isla.transform.affine_inverse() * transform
 
-	var radio_x = (isla.ancho * 0.5 * 1.25) if ("ancho" in isla) else 50.0
-	var radio_z = (isla.largo * 0.5 * 1.25) if ("largo" in isla) else 50.0
-	var rx_sq = radio_x * radio_x
-	var rz_sq = radio_z * radio_z
-	var prof_roca = isla.profundidad_roca if ("profundidad_roca" in isla) else 10.0
-	var alt_sup = isla.altura_superficie if ("altura_superficie" in isla) else 0.0
-	var alt_max = isla.altura_montana if ("altura_montana" in isla) else 10.0
-	var tiene_calc_h = isla.has_method("calcular_altura_en")
+	var perim_ant: Array = isla._perimetro_pts_anterior if ("_perimetro_pts_anterior" in isla) else []
+	var max_r_ant: float = 0.0
+	for p_ant in perim_ant:
+		var r_a: float = Vector2(p_ant.x, p_ant.z).length()
+		if r_a > max_r_ant:
+			max_r_ant = r_a
+
+	var radio_x: float = maxf((float(isla.ancho) * 0.5 * 1.35) if ("ancho" in isla) else 50.0, max_r_ant * 1.25)
+	var radio_z: float = maxf((float(isla.largo) * 0.5 * 1.35) if ("largo" in isla) else 50.0, max_r_ant * 1.25)
+	var rx_sq: float = radio_x * radio_x
+	var rz_sq: float = radio_z * radio_z
+	var prof_roca: float = float(isla.profundidad_roca) if ("profundidad_roca" in isla) else 10.0
+	var alt_sup: float = float(isla.altura_superficie) if ("altura_superficie" in isla) else 0.0
+	var alt_max: float = float(isla.altura_montana) if ("altura_montana" in isla) else 10.0
+	var tiene_calc_h: bool = isla.has_method("calcular_altura_en")
+	var tiene_estimar: bool = isla.has_method("_estimar_radio_en_angulo")
+
+	var tiene_eval_malla: bool = isla.has_method("evaluar_punto_malla_superficie")
 
 	for i in range(datos_pasto_pintado.size()):
-		var t = datos_pasto_pintado[i]
-		var p_isla = mat_pasto_a_isla * t.origin
-		if abs(p_isla.x) > radio_x or abs(p_isla.z) > radio_z:
+		var t: Transform3D = datos_pasto_pintado[i]
+		var p_isla: Vector3 = mat_pasto_a_isla * t.origin
+		if absf(p_isla.x) > radio_x or absf(p_isla.z) > radio_z:
 			continue
-		var pos_xz = Vector2(p_isla.x, p_isla.z)
+		var pos_xz := Vector2(p_isla.x, p_isla.z)
+		var dentro: bool = false
 		if isla.has_method("tiene_punto_en_superficie"):
-			if not isla.tiene_punto_en_superficie(pos_xz):
-				continue
-		else:
-			if (pos_xz.x * pos_xz.x) / rx_sq + (pos_xz.y * pos_xz.y) / rz_sq > 1.15:
-				continue
-		if p_isla.y < -prof_roca * 0.7 or p_isla.y > alt_sup + alt_max + 12.0:
+			dentro = isla.tiene_punto_en_superficie(pos_xz)
+		elif not perim_ant.is_empty() and tiene_estimar:
+			var ang_p: float = atan2(pos_xz.y, pos_xz.x)
+			var r_ant: float = float(isla._estimar_radio_en_angulo(ang_p, perim_ant))
+			if pos_xz.length() <= r_ant + 0.15:
+				dentro = true
+		elif (pos_xz.x * pos_xz.x) / rx_sq + (pos_xz.y * pos_xz.y) / rz_sq <= 1.0:
+			dentro = true
+		if not dentro:
 			continue
-		if tiene_calc_h:
-			var h = isla.calcular_altura_en(pos_xz)
-			if abs(p_isla.y - h) > 4.5:
+		if p_isla.y < -prof_roca * 0.7 or p_isla.y > alt_sup + alt_max + 15.0:
+			continue
+		if tiene_eval_malla:
+			var info_chk: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
+			var d_borde: float = float(info_chk.get("dist_borde", 999.0))
+			if d_borde < -0.15:
+				continue
+			var h_malla: float = float(info_chk.get("altura", 0.0))
+			if absf(p_isla.y - h_malla) > 1.25:
+				continue
+		elif tiene_calc_h:
+			var h: float = float(isla.calcular_altura_en(pos_xz))
+			if absf(p_isla.y - h) > 1.25:
 				continue
 		indices.append(i)
 
@@ -896,8 +1027,8 @@ func mover_pasto_con_isla(isla: Node, ant: Transform3D, act: Transform3D) -> int
 	return indices.size()
 
 
-## Adapta dinámicamente la altura (Y) y orientación de las briznas pintadas a la deformación del terreno de una isla.
-## Optimizado analíticamente sin raycasts físicos ni bloqueos de I/O para ejecución en <1ms.
+## Adapta dinámicamente la altura (Y), el radio perimetral y la orientación de las briznas pintadas
+## a la malla triangular real y forma/tamaño de una isla, actualizando también la curvatura de sus bordes.
 func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.INF, radio_afectado: float = -1.0) -> int:
 	if modo_distribucion != 0:
 		return 0
@@ -907,7 +1038,11 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 	if not is_instance_valid(isla) or not isla.has_method("calcular_altura_en"):
 		return 0
 
-	var indices = _obtener_indices_de_isla(isla)
+	var usar_filtro_trazo: bool = (radio_afectado > 0.0 and centro_afectado.x != INF)
+	if not usar_filtro_trazo:
+		_indices_por_isla.erase(isla)
+
+	var indices: Array = _obtener_indices_de_isla(isla)
 	if indices.is_empty():
 		return 0
 
@@ -920,104 +1055,176 @@ func adaptar_a_superficie_isla(isla: Node, centro_afectado: Vector2 = Vector2.IN
 	else:
 		mat_pasto_a_isla = isla.transform.affine_inverse() * transform
 	var mat_isla_a_pasto: Transform3D = mat_pasto_a_isla.affine_inverse()
+	var basis_isla_a_mundo: Basis = isla.global_transform.basis if (is_inside_tree() and isla.is_inside_tree()) else isla.transform.basis
 
-	# Filtro espacial de pincel localizado O(K)
-	var usar_filtro_trazo = (radio_afectado > 0.0 and centro_afectado.x != INF)
-	var r_stroke_margen = radio_afectado + 0.6
-	var r_stroke_sq = r_stroke_margen * r_stroke_margen
+	var r_stroke_margen: float = radio_afectado + 0.6
+	var r_stroke_sq: float = r_stroke_margen * r_stroke_margen
 
-	# Pre-calcular caja envolvente en espacio del pasto para filtrado O(1) de 2 floats sin matrix multiplication
-	var min_pasto_x = -INF
-	var max_pasto_x = INF
-	var min_pasto_z = -INF
-	var max_pasto_z = INF
+	var min_pasto_x: float = -INF
+	var max_pasto_x: float = INF
+	var min_pasto_z: float = -INF
+	var max_pasto_z: float = INF
 	if usar_filtro_trazo:
-		var c_pasto = mat_isla_a_pasto * Vector3(centro_afectado.x, 0.0, centro_afectado.y)
+		var c_pasto: Vector3 = mat_isla_a_pasto * Vector3(centro_afectado.x, 0.0, centro_afectado.y)
 		min_pasto_x = c_pasto.x - r_stroke_margen
 		max_pasto_x = c_pasto.x + r_stroke_margen
 		min_pasto_z = c_pasto.z - r_stroke_margen
 		max_pasto_z = c_pasto.z + r_stroke_margen
 
-	var rot_isla_a_pasto_basis = mat_isla_a_pasto.basis
-	var rad_max_pend = deg_to_rad(pendiente_maxima)
-	var eps = 0.35
-	var adaptadas = 0
+	# Detectar si la silueta o tamaño de la isla fue modificada explícitamente por el usuario
+	var perim_ant: Array = isla._perimetro_pts_anterior if ("_perimetro_pts_anterior" in isla) else []
+	var perim_act: Array = isla._perimetro_pts_cache if ("_perimetro_pts_cache" in isla) else []
+	var tiene_estimar: bool = isla.has_method("_estimar_radio_en_angulo")
+	var tiene_eval_malla: bool = isla.has_method("evaluar_punto_malla_superficie")
+	var silueta_modificada_usr: bool = bool(isla._silueta_modificada_por_usuario) if ("_silueta_modificada_por_usuario" in isla) else false
+	var silueta_cambio: bool = false
+	if silueta_modificada_usr and not usar_filtro_trazo and not perim_ant.is_empty() and not perim_act.is_empty():
+		if perim_ant.size() != perim_act.size():
+			silueta_cambio = true
+		else:
+			for k in range(perim_act.size()):
+				var p_a: Vector3 = perim_ant[k]
+				var p_b: Vector3 = perim_act[k]
+				if absf(p_a.x - p_b.x) > 0.005 or absf(p_a.z - p_b.z) > 0.005:
+					silueta_cambio = true
+					break
+
+	var rot_isla_a_pasto_basis: Basis = mat_isla_a_pasto.basis
+	var rad_max_pend: float = deg_to_rad(pendiente_maxima)
+	var margen_curva: float = maxf(margen_curvatura_borde, 0.15)
+	var eps: float = 0.35
+	var adaptadas: int = 0
 
 	for idx in indices:
-		var t = datos_pasto_pintado[idx]
+		var t: Transform3D = datos_pasto_pintado[idx]
 
-		# Filtro A ultrarrápido: Descarte O(1) con 4 floats en espacio local de pasto
 		if usar_filtro_trazo:
 			if t.origin.x < min_pasto_x or t.origin.x > max_pasto_x or t.origin.z < min_pasto_z or t.origin.z > max_pasto_z:
 				continue
 
-		# Transformar origen de la brizna al espacio local de la isla O(1)
-		var pos_loc_isla = mat_pasto_a_isla * t.origin
+		var pos_loc_isla: Vector3 = mat_pasto_a_isla * t.origin
 
-		# Filtro B: Radio radial circular del trazo
 		if usar_filtro_trazo:
-			var dx_s = pos_loc_isla.x - centro_afectado.x
-			var dz_s = pos_loc_isla.z - centro_afectado.y
+			var dx_s: float = pos_loc_isla.x - centro_afectado.x
+			var dz_s: float = pos_loc_isla.z - centro_afectado.y
 			if (dx_s * dx_s + dz_s * dz_s) > r_stroke_sq:
 				continue
 
-		var px = pos_loc_isla.x
-		var pz = pos_loc_isla.z
-		var pos_xz = Vector2(px, pz)
+		var pos_xz := Vector2(pos_loc_isla.x, pos_loc_isla.z)
 
-		# 2. Calcular la nueva altura analítica exacta con 3 muestras forward (60% más rápido)
-		var h_calc = isla.calcular_altura_en(pos_xz)
-		var h_x1 = isla.calcular_altura_en(pos_xz + Vector2(eps, 0.0))
-		var h_z1 = isla.calcular_altura_en(pos_xz + Vector2(0.0, eps))
-		var dx = (h_x1 - h_calc) / eps
-		var dz = (h_z1 - h_calc) / eps
-		var nueva_norm_isla = Vector3(-dx, 1.0, -dz).normalized()
-		var pos_sup_isla = Vector3(px, h_calc, pz)
+		# Si cambió el tamaño o la forma de la isla en el Inspector, escalar proporcionalmente la posición radial de la brizna
+		if silueta_cambio and tiene_estimar and pos_xz.length_squared() > 0.0001:
+			var ang_r: float = atan2(pos_xz.y, pos_xz.x)
+			var r_ant: float = float(isla._estimar_radio_en_angulo(ang_r, perim_ant))
+			var r_nue: float = float(isla._estimar_radio_en_angulo(ang_r, perim_act))
+			if r_ant > 0.05 and r_nue > 0.05:
+				pos_xz *= (r_nue / r_ant)
 
-		# Aplicar enterramiento de raíz perpendicular a la superficie
-		var pt_isla_enraizado = pos_sup_isla - nueva_norm_isla * enterramiento_raiz
+		var h_calc: float = 0.0
+		var nueva_norm_isla: Vector3 = Vector3.UP
+		var dist_al_borde: float = 999.0
+		var dir_afuera_isla := Vector2(1.0, 0.0)
 
-		# Convertir la nueva posición al espacio local de este GeneradorPasto
-		var nueva_pos_local = mat_isla_a_pasto * pt_isla_enraizado
+		if tiene_eval_malla:
+			var info_malla: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
+			var t_rad: float = float(info_malla.get("t_radial", 0.5))
+			# Solo si la silueta cambió y una brizna quedó fuera de la cuerda, reubicarla dentro del borde
+			if silueta_cambio and t_rad > 0.992:
+				var jitter_borde: float = float((idx * 73) % 29) / 29.0
+				var t_objetivo: float = 0.955 + jitter_borde * 0.032
+				pos_xz *= (t_objetivo / maxf(t_rad, 0.001))
+				info_malla = isla.evaluar_punto_malla_superficie(pos_xz)
 
-		# Solo actualizar si la altura o posición cambió
-		var delta_pos_sq = (nueva_pos_local - t.origin).length_squared()
-		if delta_pos_sq > 0.000004 or abs(pos_loc_isla.y - pt_isla_enraizado.y) > 0.01:
-			var local_norm = (rot_isla_a_pasto_basis * nueva_norm_isla).normalized()
-			var escala_actual = t.basis.get_scale()
+			h_calc = float(info_malla.get("altura", 0.0))
+			nueva_norm_isla = info_malla.get("normal", Vector3.UP)
+			dist_al_borde = float(info_malla.get("dist_borde", 999.0))
+			if dist_al_borde < -0.15:
+				continue
+			if absf(pos_loc_isla.y - h_calc) > 1.25:
+				continue
+			# Micro-variación radial determinista para que la transición de curvatura no forme una línea rígida
+			var jitter_curva: float = (float((idx * 53) % 37) / 37.0 - 0.5) * (margen_curva * 0.28)
+			dist_al_borde += jitter_curva
+		else:
+			h_calc = float(isla.calcular_altura_en(pos_xz))
+			if absf(pos_loc_isla.y - h_calc) > 1.25:
+				continue
+			var h_x1: float = float(isla.calcular_altura_en(pos_xz + Vector2(eps, 0.0)))
+			var h_z1: float = float(isla.calcular_altura_en(pos_xz + Vector2(0.0, eps)))
+			var dx: float = (h_x1 - h_calc) / eps
+			var dz: float = (h_z1 - h_calc) / eps
+			nueva_norm_isla = Vector3(-dx, 1.0, -dz).normalized()
 
-			# Extraer azimut horizontal original proyectado al plano XZ
-			var fwd_x = t.basis.z.x
-			var fwd_z = t.basis.z.z
-			if fwd_x * fwd_x + fwd_z * fwd_z < 0.0001:
-				fwd_x = t.basis.x.z
-				fwd_z = -t.basis.x.x
-			var ang_yaw = atan2(fwd_x, fwd_z)
+		var pos_sup_isla := Vector3(pos_xz.x, h_calc, pos_xz.y)
+		var pt_isla_enraizado: Vector3 = pos_sup_isla - nueva_norm_isla * enterramiento_raiz
+		var nueva_pos_local: Vector3 = mat_isla_a_pasto * pt_isla_enraizado
 
-			# Construir orientación limpia sin distorsión
-			var t_nuevo = Transform3D()
-			if alinear_con_superficie and abs(local_norm.dot(Vector3.UP)) < 0.999:
-				var eje_tilt = Vector3.UP.cross(local_norm).normalized()
-				var ang_tilt = Vector3.UP.angle_to(local_norm)
-				ang_tilt = minf(ang_tilt, rad_max_pend)
-				if eje_tilt.length_squared() > 0.001:
-					t_nuevo = t_nuevo.rotated(eje_tilt, ang_tilt)
+		var local_norm: Vector3 = (rot_isla_a_pasto_basis * nueva_norm_isla).normalized()
+		var escala_actual: Vector3 = t.basis.get_scale()
 
-			t_nuevo = t_nuevo.rotated_local(Vector3.UP, ang_yaw)
-			t_nuevo = t_nuevo.scaled_local(escala_actual)
-			t_nuevo.origin = nueva_pos_local
+		var fwd_x: float = t.basis.z.x
+		var fwd_z: float = t.basis.z.z
+		if fwd_x * fwd_x + fwd_z * fwd_z < 0.0001:
+			fwd_x = t.basis.x.z
+			fwd_z = -t.basis.x.x
+		var ang_yaw: float = atan2(fwd_x, fwd_z)
 
+		var t_nuevo := Transform3D()
+		if alinear_con_superficie and absf(local_norm.dot(Vector3.UP)) < 0.999:
+			var norm_suave: Vector3 = local_norm.lerp(Vector3.UP, 0.35).normalized()
+			var eje_tilt: Vector3 = Vector3.UP.cross(norm_suave).normalized()
+			var ang_tilt: float = minf(Vector3.UP.angle_to(norm_suave), rad_max_pend * 0.65)
+			if eje_tilt.length_squared() > 0.001:
+				t_nuevo = t_nuevo.rotated(eje_tilt, ang_tilt)
+
+		t_nuevo = t_nuevo.rotated_local(Vector3.UP, ang_yaw)
+		t_nuevo = t_nuevo.scaled_local(escala_actual)
+		t_nuevo.origin = nueva_pos_local
+
+		var delta_pos_sq: float = (nueva_pos_local - t.origin).length_squared()
+		if delta_pos_sq > 0.000001 or absf(pos_loc_isla.y - pt_isla_enraizado.y) > 0.001 or silueta_cambio:
 			datos_pasto_pintado[idx] = t_nuevo
 			adaptadas += 1
-
-			# Actualizar instancia en el MultiMesh inmediatamente
 			if multimesh != null and idx < multimesh.instance_count:
 				multimesh.set_instance_transform(idx, t_nuevo)
+
+		# Actualizar también el custom_data de curvatura de borde de esta instancia en vivo
+		if multimesh != null and multimesh.use_custom_data and idx < multimesh.instance_count:
+			var col_borde := Color(0.5, 0.5, 0.0, 0.0)
+			if curvar_en_bordes_isla and dist_al_borde <= margen_curva and dist_al_borde >= -0.35:
+				var t_b: float = clampf(1.0 - (maxf(dist_al_borde, 0.0) / margen_curva), 0.0, 1.0)
+				var peso_b: float = t_b * t_b * (3.0 - 2.0 * t_b)
+				if peso_b > 0.001:
+					var dir_m: Vector3 = basis_isla_a_mundo * Vector3(dir_afuera_isla.x, 0.0, dir_afuera_isla.y)
+					var dir_m_xz := Vector2(dir_m.x, dir_m.z)
+					if dir_m_xz.length_squared() > 0.0001:
+						dir_m_xz = dir_m_xz.normalized()
+					else:
+						dir_m_xz = dir_afuera_isla
+					col_borde = Color(
+						clampf(dir_m_xz.x * 0.5 + 0.5, 0.0, 1.0),
+						clampf(dir_m_xz.y * 0.5 + 0.5, 0.0, 1.0),
+						peso_b,
+						1.0
+					)
+			multimesh.set_instance_custom_data(idx, col_borde)
+
+	if not usar_filtro_trazo and isla in _islas_con_perimetro_anterior_procesado(isla):
+		pass
 
 	if adaptadas > 0:
 		_datos_modificados = true
 
 	return adaptadas
+
+
+func _islas_con_perimetro_anterior_procesado(isla: Node) -> Array:
+	if is_instance_valid(isla):
+		if "_perimetro_pts_anterior" in isla and "_perimetro_pts_cache" in isla:
+			isla._perimetro_pts_anterior = isla._perimetro_pts_cache.duplicate()
+		if "_silueta_modificada_por_usuario" in isla:
+			isla._silueta_modificada_por_usuario = false
+	return []
 
 
 ## Genera un desplazamiento 2D aleatorio uniforme según la forma elegida
@@ -1159,6 +1366,136 @@ func _ajustar_profundidad_raiz(diff: float) -> void:
 	if not archivo_datos_pasto.is_empty():
 		guardar_a_recurso_binario(archivo_datos_pasto)
 
+func _obtener_islas_escena() -> Array[Node]:
+	var islas: Array[Node] = []
+	var tree: SceneTree = get_tree() if is_inside_tree() else null
+	var root_node: Node = tree.root if tree != null else null
+	var n_actual: Node = get_parent()
+	while n_actual != null and n_actual != root_node:
+		if n_actual.has_method("calcular_altura_en"):
+			islas.append(n_actual)
+			break
+		n_actual = n_actual.get_parent()
+	if islas.is_empty() and tree != null:
+		for n in tree.get_nodes_in_group("islas"):
+			if is_instance_valid(n) and n.has_method("calcular_altura_en") and not islas.has(n):
+				islas.append(n)
+	if get_parent() != null:
+		for hijo in get_parent().get_children():
+			if is_instance_valid(hijo) and hijo.has_method("calcular_altura_en") and not islas.has(hijo):
+				islas.append(hijo)
+	return islas
+
+
+## Calcula para cada brizna su cercanía y dirección radial hacia el borde de su isla:
+## - R, G: dirección horizontal hacia afuera del borde en espacio global (codificada en 0..1)
+## - B: peso de curvatura hacia abajo (0.0 en el interior de la isla -> 1.0 en el filo del borde)
+func _calcular_custom_data_bordes(datos: Array[Transform3D]) -> PackedColorArray:
+	var total: int = datos.size()
+	var resultado: PackedColorArray = PackedColorArray()
+	resultado.resize(total)
+	var color_neutro := Color(0.5, 0.5, 0.0, 0.0)
+	for i in range(total):
+		resultado[i] = color_neutro
+
+	if not curvar_en_bordes_isla or total == 0:
+		return resultado
+
+	var islas: Array[Node] = _obtener_islas_escena()
+	if islas.is_empty():
+		return resultado
+
+	var margen: float = maxf(margen_curvatura_borde, 0.15)
+	var usar_global: bool = is_inside_tree()
+
+	for isla in islas:
+		if not is_instance_valid(isla):
+			continue
+		if "_perimetro_pts_cache" in isla and isla._perimetro_pts_cache.is_empty() and isla.has_method("regenerar"):
+			isla.regenerar()
+
+		var mat_pasto_a_isla: Transform3D
+		if usar_global and isla.is_inside_tree():
+			mat_pasto_a_isla = isla.global_transform.affine_inverse() * global_transform
+		elif get_parent() == isla:
+			mat_pasto_a_isla = transform
+		else:
+			mat_pasto_a_isla = isla.transform.affine_inverse() * transform
+
+		var basis_isla_a_mundo: Basis = isla.global_transform.basis if (usar_global and isla.is_inside_tree()) else isla.transform.basis
+		var ancho_isla: float = float(isla.ancho) if ("ancho" in isla) else 10.0
+		var largo_isla: float = float(isla.largo) if ("largo" in isla) else 10.0
+		var radio_x: float = ancho_isla * 0.5 * 1.35
+		var radio_z: float = largo_isla * 0.5 * 1.35
+		var prof_roca: float = float(isla.profundidad_roca) if ("profundidad_roca" in isla) else 10.0
+		var alt_sup: float = float(isla.altura_superficie) if ("altura_superficie" in isla) else 0.0
+		var alt_max: float = float(isla.altura_montana) if ("altura_montana" in isla) else 10.0
+		var tiene_eval_malla: bool = isla.has_method("evaluar_punto_malla_superficie")
+		var perim_pts: Array = isla._perimetro_pts_cache if ("_perimetro_pts_cache" in isla) else []
+		var tiene_estimar: bool = isla.has_method("_estimar_radio_en_angulo") and not perim_pts.is_empty()
+
+		for i in range(total):
+			if resultado[i].b > 0.001:
+				continue
+			var p_isla: Vector3 = mat_pasto_a_isla * datos[i].origin
+			if absf(p_isla.x) > radio_x or absf(p_isla.z) > radio_z:
+				continue
+			if p_isla.y < -prof_roca * 0.7 or p_isla.y > alt_sup + alt_max + 15.0:
+				continue
+
+			var pos_xz := Vector2(p_isla.x, p_isla.z)
+			var r_actual: float = pos_xz.length()
+			if r_actual < 0.01:
+				continue
+
+			var dist_al_borde: float = 999.0
+			var dir_local_xz := Vector2(pos_xz.x / r_actual, pos_xz.y / r_actual)
+
+			if tiene_eval_malla:
+				var info_b: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
+				dist_al_borde = float(info_b.get("dist_borde", 999.0))
+				dir_local_xz = info_b.get("dir_afuera", dir_local_xz)
+				var jitter_c: float = (float((i * 53) % 37) / 37.0 - 0.5) * (margen * 0.28)
+				dist_al_borde += jitter_c
+			else:
+				var ang: float = atan2(pos_xz.y, pos_xz.x)
+				var r_borde: float = 0.0
+				if tiene_estimar:
+					r_borde = float(isla._estimar_radio_en_angulo(ang, perim_pts))
+				else:
+					var ca: float = cos(ang)
+					var sa: float = sin(ang)
+					var rx_b: float = ancho_isla * 0.5
+					var rz_b: float = largo_isla * 0.5
+					r_borde = (rx_b * rz_b) / maxf(sqrt(rx_b * rx_b * sa * sa + rz_b * rz_b * ca * ca), 0.01)
+				dist_al_borde = r_borde - r_actual
+
+			if dist_al_borde < -0.35 or dist_al_borde > margen:
+				continue
+
+			var t_borde: float = clampf(1.0 - (maxf(dist_al_borde, 0.0) / margen), 0.0, 1.0)
+			var peso: float = t_borde * t_borde * (3.0 - 2.0 * t_borde)
+			if peso <= 0.001:
+				continue
+
+			var dir_local := Vector3(dir_local_xz.x, 0.0, dir_local_xz.y)
+			var dir_mundo: Vector3 = (basis_isla_a_mundo * dir_local)
+			var dir_xz := Vector2(dir_mundo.x, dir_mundo.z)
+			if dir_xz.length_squared() > 0.0001:
+				dir_xz = dir_xz.normalized()
+			else:
+				dir_xz = dir_local_xz
+
+			resultado[i] = Color(
+				clampf(dir_xz.x * 0.5 + 0.5, 0.0, 1.0),
+				clampf(dir_xz.y * 0.5 + 0.5, 0.0, 1.0),
+				peso,
+				1.0
+			)
+
+	return resultado
+
+
 func _actualizar_multimesh_pintado() -> void:
 	var datos = obtener_datos_pintados()
 	if not Engine.is_editor_hint():
@@ -1172,7 +1509,12 @@ func _actualizar_multimesh_pintado() -> void:
 		generar()
 		return
 
+	if not multimesh.use_custom_data:
+		multimesh.instance_count = 0
+		multimesh.use_custom_data = true
+
 	var total = datos.size()
+	var custom_bordes: PackedColorArray = _calcular_custom_data_bordes(datos)
 	multimesh.instance_count = total
 	var min_pos = Vector3(999999.0, 999999.0, 999999.0)
 	var max_pos = Vector3(-999999.0, -999999.0, -999999.0)
@@ -1180,6 +1522,7 @@ func _actualizar_multimesh_pintado() -> void:
 	for i in range(total):
 		var t = datos[i]
 		multimesh.set_instance_transform(i, t)
+		multimesh.set_instance_custom_data(i, custom_bordes[i])
 		var ox = t.origin.x
 		var oy = t.origin.y
 		var oz = t.origin.z
@@ -1249,21 +1592,27 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 			multimesh.instance_count = 0
 		return
 
-	# Agrupar las transformaciones en una cuadrícula espacial (X, Z) de TAMANO_CHUNK (12m x 12m)
+	# Agrupar las transformaciones y sus datos de borde en una cuadrícula espacial (X, Z) de TAMANO_CHUNK
+	var custom_bordes: PackedColorArray = _calcular_custom_data_bordes(transforms)
 	var celdas: Dictionary = {}
-	for t in transforms:
+	var celdas_custom: Dictionary = {}
+	for idx_t in range(transforms.size()):
+		var t: Transform3D = transforms[idx_t]
 		var cx = int(floor(t.origin.x / TAMANO_CHUNK))
 		var cz = int(floor(t.origin.z / TAMANO_CHUNK))
 		var key = Vector2i(cx, cz)
 		if not celdas.has(key):
 			celdas[key] = []
+			celdas_custom[key] = []
 		celdas[key].append(t)
+		celdas_custom[key].append(custom_bordes[idx_t])
 
 	var h_pasto = alto_pasto if alto_pasto != null else 0.45
 	var mat_actual = material_override if material_override != null else material_fisico
 
 	for key in celdas:
 		var lista: Array = celdas[key]
+		var lista_custom: Array = celdas_custom[key]
 		var total_chunk = lista.size()
 		if total_chunk == 0:
 			continue
@@ -1274,7 +1623,7 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 		for i in range(total_chunk):
 			var t_orig: Transform3D = lista[i]
 			min_p.x = minf(min_p.x, t_orig.origin.x - 0.5)
-			min_p.y = minf(min_p.y, t_orig.origin.y - 0.2)
+			min_p.y = minf(min_p.y, t_orig.origin.y - 0.5)
 			min_p.z = minf(min_p.z, t_orig.origin.z - 0.5)
 			max_p.x = maxf(max_p.x, t_orig.origin.x + 0.5)
 			max_p.y = maxf(max_p.y, t_orig.origin.y + h_pasto + 0.5)
@@ -1290,6 +1639,7 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 
 		var mm = MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
 		mm.mesh = mesh_a_usar
 		mm.instance_count = total_chunk
 
@@ -1297,6 +1647,7 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 			var t: Transform3D = lista[i]
 			t.origin -= chunk_center
 			mm.set_instance_transform(i, t)
+			mm.set_instance_custom_data(i, lista_custom[i] as Color)
 
 		mm.custom_aabb = aabb_local
 		chunk_inst.custom_aabb = aabb_local
@@ -1318,7 +1669,7 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 		multimesh.custom_aabb = AABB()
 	custom_aabb = AABB()
 
-## Crea una malla de briznas afiladas en punta con curvatura y normales hemisféricas estilizadas
+## Crea una malla de briznas afiladas en punta con 4 tramos verticales para una curvatura suave y continua en bordes
 func _crear_malla_pasto_procedural() -> ArrayMesh:
 	var num_briznas: int = max(1, briznas_por_manojo if briznas_por_manojo != null else 4)
 	var h_cfg: float = alto_pasto if (alto_pasto != null and alto_pasto > 0.0) else 0.40
@@ -1331,66 +1682,78 @@ func _crear_malla_pasto_procedural() -> ArrayMesh:
 	var rng = RandomNumberGenerator.new()
 	rng.seed = 12345 # Semilla constante para que la forma base del mechón sea consistente
 
+	var niveles_t: Array[float] = [0.0, 0.28, 0.56, 0.80]
+	var anchos_rel: Array[float] = [0.50, 0.43, 0.32, 0.17]
+
 	for i in range(num_briznas):
-		var angulo_base = i * (TAU / float(num_briznas))
-		var angulo = angulo_base + rng.randf_range(-0.15, 0.15)
-		var cos_a = cos(angulo)
-		var sin_a = sin(angulo)
+		var angulo_base: float = float(i) * (TAU / float(num_briznas))
+		var angulo: float = angulo_base + rng.randf_range(-0.15, 0.15)
+		var cos_a: float = cos(angulo)
+		var sin_a: float = sin(angulo)
 
-		var perp_x = -sin_a
-		var perp_z = cos_a
+		var perp_x: float = -sin_a
+		var perp_z: float = cos_a
 
-		var factor_alto = rng.randf_range(0.85, 1.15)
-		var h_actual = h_cfg * factor_alto
-		var h_mid = h_actual * 0.55
-		var w_base = w_cfg * 0.5
-		var w_mid = w_base * 0.65
-		var curva = curva_cfg * factor_alto
+		var factor_alto: float = rng.randf_range(0.85, 1.15)
+		var h_actual: float = h_cfg * factor_alto
+		var curva: float = curva_cfg * factor_alto
+		var normal: Vector3 = Vector3(cos_a * 0.45, 0.78, sin_a * 0.45).normalized()
 
-		var offset_mid = Vector3(cos_a * curva * 0.4, 0.0, sin_a * curva * 0.4)
-		var offset_tip = Vector3(cos_a * curva, 0.0, sin_a * curva)
+		var pts_l: Array[Vector3] = []
+		var pts_r: Array[Vector3] = []
 
-		var p_bl = Vector3(-perp_x * w_base, 0.0, -perp_z * w_base)
-		var p_br = Vector3(perp_x * w_base, 0.0, perp_z * w_base)
-		var p_ml = Vector3(-perp_x * w_mid, h_mid, -perp_z * w_mid) + offset_mid
-		var p_mr = Vector3(perp_x * w_mid, h_mid, perp_z * w_mid) + offset_mid
-		var p_tip = Vector3(0.0, h_actual, 0.0) + offset_tip
+		for k in range(niveles_t.size()):
+			var tk: float = niveles_t[k]
+			var wk: float = w_cfg * anchos_rel[k]
+			var hk: float = h_actual * tk
+			var off_k: float = curva * pow(tk, 1.5)
+			var centro_k := Vector3(cos_a * off_k, hk, sin_a * off_k)
+			pts_l.append(centro_k + Vector3(-perp_x * wk, 0.0, -perp_z * wk))
+			pts_r.append(centro_k + Vector3(perp_x * wk, 0.0, perp_z * wk))
 
-		var normal = Vector3(cos_a * 0.45, 0.78, sin_a * 0.45).normalized()
+		var p_tip := Vector3(cos_a * curva, h_actual, sin_a * curva)
 
-		# --- Segmento Inferior (Quad) ---
+		for k in range(niveles_t.size() - 1):
+			var t0: float = niveles_t[k]
+			var t1: float = niveles_t[k + 1]
+			var bl: Vector3 = pts_l[k]
+			var br: Vector3 = pts_r[k]
+			var tl: Vector3 = pts_l[k + 1]
+			var tr: Vector3 = pts_r[k + 1]
+
+			st.set_normal(normal)
+			st.set_uv(Vector2(0.0, t0))
+			st.add_vertex(bl)
+
+			st.set_normal(normal)
+			st.set_uv(Vector2(1.0, t0))
+			st.add_vertex(br)
+
+			st.set_normal(normal)
+			st.set_uv(Vector2(0.85, t1))
+			st.add_vertex(tr)
+
+			st.set_normal(normal)
+			st.set_uv(Vector2(0.0, t0))
+			st.add_vertex(bl)
+
+			st.set_normal(normal)
+			st.set_uv(Vector2(0.85, t1))
+			st.add_vertex(tr)
+
+			st.set_normal(normal)
+			st.set_uv(Vector2(0.15, t1))
+			st.add_vertex(tl)
+
+		var last_idx: int = niveles_t.size() - 1
+		var t_last: float = niveles_t[last_idx]
 		st.set_normal(normal)
-		st.set_uv(Vector2(0.0, 0.0))
-		st.add_vertex(p_bl)
+		st.set_uv(Vector2(0.15, t_last))
+		st.add_vertex(pts_l[last_idx])
 
 		st.set_normal(normal)
-		st.set_uv(Vector2(1.0, 0.0))
-		st.add_vertex(p_br)
-
-		st.set_normal(normal)
-		st.set_uv(Vector2(0.85, 0.55))
-		st.add_vertex(p_mr)
-
-		st.set_normal(normal)
-		st.set_uv(Vector2(0.0, 0.0))
-		st.add_vertex(p_bl)
-
-		st.set_normal(normal)
-		st.set_uv(Vector2(0.85, 0.55))
-		st.add_vertex(p_mr)
-
-		st.set_normal(normal)
-		st.set_uv(Vector2(0.15, 0.55))
-		st.add_vertex(p_ml)
-
-		# --- Segmento Superior (Punta) ---
-		st.set_normal(normal)
-		st.set_uv(Vector2(0.15, 0.55))
-		st.add_vertex(p_ml)
-
-		st.set_normal(normal)
-		st.set_uv(Vector2(0.85, 0.55))
-		st.add_vertex(p_mr)
+		st.set_uv(Vector2(0.85, t_last))
+		st.add_vertex(pts_r[last_idx])
 
 		st.set_normal(normal)
 		st.set_uv(Vector2(0.5, 1.0))
@@ -1398,8 +1761,27 @@ func _crear_malla_pasto_procedural() -> ArrayMesh:
 
 	return st.commit()
 
+func _sincronizar_todas_las_islas_y_bordes(recargar_desde_disco: bool = false) -> void:
+	if recargar_desde_disco and not archivo_datos_pasto.is_empty() and ResourceLoader.exists(archivo_datos_pasto):
+		recurso_datos = ResourceLoader.load(archivo_datos_pasto, "", ResourceLoader.CACHE_MODE_REPLACE)
+		if recurso_datos != null and "transforms" in recurso_datos:
+			datos_pasto_pintado = (recurso_datos.transforms as Array[Transform3D]).duplicate()
+			_indices_por_isla.clear()
+			_datos_modificados = false
+	if modo_distribucion == 0:
+		var islas: Array[Node] = _obtener_islas_escena()
+		for isla in islas:
+			if is_instance_valid(isla):
+				if "_silueta_modificada_por_usuario" in isla:
+					isla._silueta_modificada_por_usuario = false
+				adaptar_a_superficie_isla(isla)
+	generar()
+
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
+		if not _curvatura_borde_editor_v3:
+			_curvatura_borde_editor_v3 = true
+			_sincronizar_todas_las_islas_y_bordes(true)
 		return
 
 	if not interactuar_con_personajes:
