@@ -319,6 +319,10 @@ func _ready():
 	var spring_arm = obtener_spring_arm()
 	if spring_arm:
 		spring_arm.add_excluded_object(get_rid())
+		if is_inside_tree() and get_tree():
+			for e in get_tree().get_nodes_in_group("enemigos_espectrales"):
+				if is_instance_valid(e) and e is CollisionObject3D:
+					spring_arm.add_excluded_object(e.get_rid())
 		spring_arm.spring_length = DISTANCIA_CAMARA
 		spring_arm.position.y = ALTURA_SPRING_ARM
 		spring_arm.margin = MARGEN_COLISION_CAMARA
@@ -407,6 +411,10 @@ func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 				var arm = obtener_spring_arm()
 				if arm:
 					arm.add_excluded_object(get_rid())
+					if is_inside_tree() and get_tree():
+						for e in get_tree().get_nodes_in_group("enemigos_espectrales"):
+							if is_instance_valid(e) and e is CollisionObject3D:
+								arm.add_excluded_object(e.get_rid())
 					arm.rotation.x = objetivo_rotacion_x
 					arm.position.y = obtener_altura_spring_arm_deseada()
 					arm.spring_length = obtener_distancia_camara_deseada()

@@ -61,6 +61,13 @@ const ALTURA_PIVOTE_A_SUELO_VIVO: float = 0.67
 var _escala_base_vivo: Vector3 = Vector3(0.5, 0.5, 0.5)
 var _signo_escala_vivo: Vector3 = Vector3(-1.0, 1.0, -1.0)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# REBOTE COOPERATIVO SOBRE EL COMPAÑERO FANTASMA
+# ─────────────────────────────────────────────────────────────────────────────
+var _rebotando_sobre_fantasma: bool = false
+var _fantasma_objetivo_rebote: Node3D = null
+const ALTURA_PIES_VIVO_LOCAL: float = 0.54
+
 # Estado de cañón espiritual
 var en_canon: bool = false
 var _factor_escala_canon: float = 1.0
@@ -314,6 +321,37 @@ func _physics_process(delta: float):
 		_procesar_inclinacion_visual(delta)
 		return
 
+	# Estado de Rebote y sincronización de compresión sobre el Fantasma compañero o Enemigo
+	if _rebotando_sobre_fantasma:
+		if is_instance_valid(_fantasma_objetivo_rebote) and _fantasma_objetivo_rebote.has_method("esta_en_fase_compresion_pisada") and _fantasma_objetivo_rebote.esta_en_fase_compresion_pisada():
+			var alt_cabeza = _fantasma_objetivo_rebote.obtener_altura_cabeza_global()
+			global_position.y = alt_cabeza + ALTURA_PIES_VIVO_LOCAL
+			global_position.x = _fantasma_objetivo_rebote.global_position.x
+			global_position.z = _fantasma_objetivo_rebote.global_position.z
+			velocity = Vector3.ZERO
+			_actualizar_disponibilidad_interaccion()
+			_actualizar_squash_stretch_vivo(delta)
+			_procesar_inclinacion_visual(delta)
+			_actualizar_animaciones(delta)
+			procesar_camara_base(delta)
+			return
+		else:
+			# Fin de la fase de compresión -> rebote normal lanzado (fuerza de salto normal, sin salirse de cámara)
+			_rebotando_sobre_fantasma = false
+			var objetivo_previo = _fantasma_objetivo_rebote
+			_fantasma_objetivo_rebote = null
+			velocity.y = FUERZA_SALTO
+			saltos_realizados = 1
+			_al_realizar_salto(1)
+			_tiempo_despegue_salto_vivo = 0.17
+			_fuerza_despegue_especial = 1.05
+			# Si el objetivo es un enemigo espectral, no duplicamos el anillo de partículas en los pies de Vivo
+			if not (objetivo_previo != null and objetivo_previo.is_in_group("enemigos_espectrales")):
+				_emitir_rafaga_particulas_impacto(true)
+			var vib_mgr = _get_vibration_manager()
+			if es_activo() and is_instance_valid(vib_mgr):
+				vib_mgr.vibrar_salto(1)
+
 	if not es_activo():
 		var red_mgr = _get_red_manager()
 		var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
@@ -380,13 +418,84 @@ func _physics_process(delta: float):
 				_en_dive = false
 
 	procesar_salto_base(delta)
+	_comprobar_contacto_companero_fantasma()
+	_comprobar_pisoton_enemigos()
 	procesar_movimiento_base(delta)
+	_comprobar_colision_pisoton_enemigos()
 	_actualizar_disponibilidad_interaccion()
 	_procesar_input_habilidad()
 	_actualizar_particulas_polvo(vel_y_previa)
 	_actualizar_squash_stretch_vivo(delta)
 	_procesar_inclinacion_visual(delta)
 	_actualizar_animaciones(delta)
+
+## ─────────────────────────────────────────────────────────────────────────────
+## DETECCIÓN Y REBOTE COOPERATIVO SOBRE EL COMPAÑERO FANTASMA O ENEMIGOS
+## ─────────────────────────────────────────────────────────────────────────────
+
+func _comprobar_contacto_companero_fantasma() -> void:
+	if _rebotando_sobre_fantasma or is_on_floor() or velocity.y > 0.5:
+		return
+	var fantasmas = get_tree().get_nodes_in_group("fantasmas")
+	for f in fantasmas:
+		if not is_instance_valid(f) or not f.is_inside_tree() or f == self:
+			continue
+		var dist_xz = Vector2(global_position.x - f.global_position.x, global_position.z - f.global_position.z).length()
+		if dist_xz <= 0.85:
+			var altura_cabeza = f.obtener_altura_cabeza_global() if f.has_method("obtener_altura_cabeza_global") else (f.global_position.y + 0.90)
+			var mis_pies = global_position.y - ALTURA_PIES_VIVO_LOCAL
+			if mis_pies <= (altura_cabeza + 0.32) and mis_pies >= (altura_cabeza - 0.50):
+				_iniciar_rebote_sobre_fantasma(f)
+				break
+
+func _comprobar_pisoton_enemigos() -> void:
+	if _rebotando_sobre_fantasma or velocity.y > 0.8:
+		return
+	var enemigos = get_tree().get_nodes_in_group("enemigos_espectrales")
+	for e in enemigos:
+		if not is_instance_valid(e) or not e.is_inside_tree():
+			continue
+		var est = e.get("estado_actual")
+		if est != null and (int(est) == 5 or int(est) == 6): # GOLPE_LETAL o DERROTADO
+			continue
+		var dist_xz = Vector2(global_position.x - e.global_position.x, global_position.z - e.global_position.z).length()
+		if dist_xz <= 0.85:
+			var alt_cabeza = e.obtener_altura_cabeza_global() if e.has_method("obtener_altura_cabeza_global") else (e.global_position.y + 0.46)
+			var mis_pies = global_position.y - ALTURA_PIES_VIVO_LOCAL
+			var diff_c = mis_pies - alt_cabeza
+			# Tolerancia amplia: contacto de pies con coronilla o cuerpo superior
+			if diff_c <= 0.45 and diff_c >= -0.55:
+				if e.has_method("recibir_impacto_pisoton"):
+					e.recibir_impacto_pisoton(self)
+					break
+
+func _comprobar_colision_pisoton_enemigos() -> void:
+	if _rebotando_sobre_fantasma:
+		return
+	for i in get_slide_collision_count():
+		var col = get_slide_collision(i)
+		var collider = col.get_collider()
+		if collider != null and collider.is_in_group("enemigos_espectrales"):
+			var mis_pies = global_position.y - ALTURA_PIES_VIVO_LOCAL
+			# Si Vivo contacta al enemigo desde arriba (normal hacia arriba o pies en mitad superior del enemigo)
+			if col.get_normal().y > 0.15 or mis_pies >= (collider.global_position.y - 0.25):
+				if collider.has_method("recibir_impacto_pisoton"):
+					collider.recibir_impacto_pisoton(self)
+					break
+
+func iniciar_rebote_sobre_entidad(entidad: Node3D) -> void:
+	_iniciar_rebote_sobre_fantasma(entidad)
+
+func _iniciar_rebote_sobre_fantasma(fantasma: Node3D) -> void:
+	_rebotando_sobre_fantasma = true
+	_fantasma_objetivo_rebote = fantasma
+	if fantasma.has_method("recibir_pisada_de_companero"):
+		fantasma.recibir_pisada_de_companero()
+	if fantasma.has_method("obtener_altura_cabeza_global"):
+		global_position.y = fantasma.obtener_altura_cabeza_global() + ALTURA_PIES_VIVO_LOCAL
+	global_position.x = fantasma.global_position.x
+	global_position.z = fantasma.global_position.z
+	velocity = Vector3.ZERO
 
 func _procesar_input_habilidad() -> void:
 	if movimiento_bloqueado:
@@ -1126,6 +1235,8 @@ func _al_realizar_salto_derrape() -> void:
 func _al_resetear_estados() -> void:
 	_esta_haciendo_embate = false
 	_tiempo_embate = 0.0
+	_rebotando_sobre_fantasma = false
+	_fantasma_objetivo_rebote = null
 	_en_ground_pound = false
 	_tiempo_pausa_ground_pound = 0.0
 	_tiempo_ventana_salto_ground_pound = 0.0

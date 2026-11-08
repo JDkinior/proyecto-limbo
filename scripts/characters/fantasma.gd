@@ -26,6 +26,11 @@ var _pos_anterior_remoto: Vector3 = Vector3.ZERO
 # SQUASH & STRETCH Y RESPUESTA DINÁMICA (EL FANTASMA - ETÉREO Y FLUIDO)
 # ─────────────────────────────────────────────────────────────────────────────
 const ALTURA_BASE_FANTASMA: float = 0.686 # Distancia desde el pivote del modelo hasta la base de la túnica/manto
+const ALTURA_CIMA_FANTASMA: float = 0.706 # Distancia desde el pivote del modelo hasta la coronilla de la cabeza
+var _tiempo_squash_pisada_companero: float = 0.0
+const DURACION_SQUASH_PISADA_COMPANERO: float = 0.32
+const MOMENTO_MAXIMA_COMPRESION_PISADA: float = 0.12 # 0.12s para alcanzar la compresión máxima
+var _en_compresion_pisada: bool = false
 var _signo_escala_fantasma: Vector3 = Vector3(-1.0, 1.0, -1.0)
 
 var _tiempo_impulso_salto_fantasma: float = 0.0
@@ -260,13 +265,6 @@ func obtener_altura_spring_arm_deseada() -> float:
 func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	if not is_instance_valid(modelo_fantasma): return
 
-	if not flotacion_procedural_activa:
-		modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, _pos_y_inicial_fantasma + _offset_y_squash_fantasma, 10.0 * delta)
-		modelo_fantasma.rotation.x = lerpf(modelo_fantasma.rotation.x, _rotacion_inicial_modelo_fantasma.x, 10.0 * delta)
-		modelo_fantasma.rotation.z = lerpf(modelo_fantasma.rotation.z, _rotacion_inicial_modelo_fantasma.z, 10.0 * delta)
-		modelo_fantasma.rotation.y = _rotacion_inicial_modelo_fantasma.y
-		return
-
 	var planeando = esta_planeando()
 	var en_vortice = esta_absorbido_en_vortice()
 	var factor_vel = clampf(vel_horizontal / VELOCIDAD, 0.0, 1.0)
@@ -276,10 +274,8 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 	_vel_osc_actual = lerpf(_vel_osc_actual, vel_osc_objetivo, 4.0 * delta)
 	_tiempo_flotacion += delta * _vel_osc_actual
 
-	# Onda sinusoidal pura y suave con amortiguación continua + offset de deformación vertical
 	var amplitud_objetivo = 0.08 if en_vortice else (0.048 if planeando else (0.030 + factor_vel * 0.012))
-	var y_objetivo = _pos_y_inicial_fantasma + (sin(_tiempo_flotacion) * amplitud_objetivo) + _offset_y_squash_fantasma
-	modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, y_objetivo, 14.0 * delta)
+	var offset_flotacion = (sin(_tiempo_flotacion) * amplitud_objetivo) if flotacion_procedural_activa else 0.0
 
 	# 2. Inclinación en Curvas / Banking (Roll en Z al girar)
 	var diff_ang = wrapf(rotation.y - _rotacion_y_anterior, -PI, PI)
@@ -318,9 +314,17 @@ func _procesar_flotacion_visual(delta: float, vel_horizontal: float):
 		_escala_base_fantasma.y * _squash_stretch_fantasma.y * _signo_escala_fantasma.y,
 		_escala_base_fantasma.z * _squash_stretch_fantasma.z * _signo_escala_fantasma.z
 	)
-	modelo_fantasma.scale = modelo_fantasma.scale.lerp(target_scale, 16.0 * delta)
+	modelo_fantasma.scale = modelo_fantasma.scale.lerp(target_scale, 24.0 * delta)
 
-	# 5. Pulso de luminosidad espectral al moverse, saltar o levitar
+	# 5. ANCLAJE MATEMÁTICO DIRECTO A LA BASE:
+	# La base del manto se mantiene fija en el plano de flotación / reposo.
+	# Toda compresión y estiramiento ocurre estrictamente desde la base (la cabeza y el cuerpo bajan hacia la base):
+	var escala_y_actual = absf(modelo_fantasma.scale.y) / _escala_base_fantasma.y
+	var y_base_fija = _pos_y_inicial_fantasma - ALTURA_BASE_FANTASMA + offset_flotacion
+	var y_pos_anclada = y_base_fija + (ALTURA_BASE_FANTASMA * escala_y_actual)
+	modelo_fantasma.position.y = lerpf(modelo_fantasma.position.y, y_pos_anclada, 26.0 * delta)
+
+	# 6. Pulso de luminosidad espectral al moverse, saltar o levitar
 	if is_instance_valid(luz_fantasma):
 		var energia_objetivo = 1.65 if en_vortice else (1.15 if planeando else (0.80 + factor_vel * 0.20))
 		luz_fantasma.light_energy = lerpf(luz_fantasma.light_energy, energia_objetivo + _pulso_luz_salto, 6.0 * delta)
@@ -497,6 +501,24 @@ func _actualizar_squash_stretch_fantasma(delta: float) -> void:
 		_offset_y_squash_fantasma = 0.0
 		return
 
+	# 0. Pisada de Compañero (Vivo saltando sobre la cabeza del Fantasma para impulsarse)
+	if _tiempo_squash_pisada_companero > 0.0:
+		_tiempo_squash_pisada_companero = maxf(_tiempo_squash_pisada_companero - delta, 0.0)
+		var transcurrido = DURACION_SQUASH_PISADA_COMPANERO - _tiempo_squash_pisada_companero
+		if transcurrido <= MOMENTO_MAXIMA_COMPRESION_PISADA:
+			_en_compresion_pisada = true
+			var t_sub = transcurrido / MOMENTO_MAXIMA_COMPRESION_PISADA
+			escala_y = lerpf(1.0, 0.38, sin(t_sub * (PI * 0.5)))
+		else:
+			_en_compresion_pisada = false
+			var t_reb = (transcurrido - MOMENTO_MAXIMA_COMPRESION_PISADA) / (DURACION_SQUASH_PISADA_COMPANERO - MOMENTO_MAXIMA_COMPRESION_PISADA)
+			if t_reb < 0.45:
+				var t_sub = t_reb / 0.45
+				escala_y = lerpf(0.38, 1.24, sin(t_sub * (PI * 0.5)))
+			else:
+				var t_sub = (t_reb - 0.45) / 0.55
+				escala_y = lerpf(1.24, 1.0, sin(t_sub * (PI * 0.5)))
+
 	# 1. Impulso Instantáneo de Salto Espectral (Lanzamiento explosivo estirándose hacia arriba)
 	if _tiempo_impulso_salto_fantasma > 0.0:
 		_tiempo_impulso_salto_fantasma = maxf(_tiempo_impulso_salto_fantasma - delta, 0.0)
@@ -574,6 +596,25 @@ func _actualizar_squash_stretch_fantasma(delta: float) -> void:
 	_offset_y_squash_fantasma = lerpf(_offset_y_squash_fantasma, offset_y, 28.0 * delta)
 
 static var _malla_nube_lowpoly_fantasma_cache: ArrayMesh = null
+
+## ─────────────────────────────────────────────────────────────────────────────
+## INTERACCIÓN COOPERATIVA: PISADA Y SÚPER REBOTE DEL COMPAÑERO VIVO
+## ─────────────────────────────────────────────────────────────────────────────
+
+func recibir_pisada_de_companero() -> void:
+	_tiempo_squash_pisada_companero = DURACION_SQUASH_PISADA_COMPANERO
+	_en_compresion_pisada = true
+	_pulso_luz_salto = 0.85
+	_emitir_rafaga_particulas_impacto_fantasma(false)
+
+func esta_en_fase_compresion_pisada() -> bool:
+	return _en_compresion_pisada and _tiempo_squash_pisada_companero > (DURACION_SQUASH_PISADA_COMPANERO - MOMENTO_MAXIMA_COMPRESION_PISADA)
+
+func obtener_altura_cabeza_global() -> float:
+	if not is_instance_valid(modelo_fantasma):
+		return global_position.y + 0.90
+	var escala_y_actual = absf(modelo_fantasma.scale.y) / _escala_base_fantasma.y
+	return modelo_fantasma.global_position.y + (ALTURA_CIMA_FANTASMA * escala_y_actual)
 
 static func _crear_malla_nube_lowpoly_fantasma(radio: float = 0.14) -> ArrayMesh:
 	if _malla_nube_lowpoly_fantasma_cache != null:
@@ -767,6 +808,8 @@ func _al_resetear_estados() -> void:
 	_vel_osc_actual = 2.0
 	_tiempo_impulso_salto_fantasma = 0.0
 	_tiempo_aterrizaje_fantasma = 0.0
+	_tiempo_squash_pisada_companero = 0.0
+	_en_compresion_pisada = false
 	_squash_stretch_fantasma = Vector3.ONE
 	_offset_y_squash_fantasma = 0.0
 	_pulso_luz_salto = 0.0
