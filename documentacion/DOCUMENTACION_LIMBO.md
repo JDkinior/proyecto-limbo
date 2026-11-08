@@ -1,6 +1,6 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.21` (Build Code `22`)  
+**Versión Actual:** `1.0.22` (Build Code `23`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
 **Última Actualización:** 7 de Noviembre de 2026  
 
@@ -42,6 +42,21 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.22 (7 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Curvatura Procedural de Briznas en Bordes de Islas (`generador_pasto.gd`, `pasto_estilizado.gdshader`)**:
+    *   **Cálculo Analítico de Arco Circular**: Incorporación de propiedades configurables `curvar_en_bordes_isla`, `margen_curvatura_borde` (0.72m), `caida_vertical_borde` (0.34m) y `empuje_exterior_borde` (0.16m).
+    *   **Codificación en Datos de Instancia**: `GeneradorPasto` calcula la dirección 2D hacia el precipicio y el factor de proximidad al borde en `INSTANCE_CUSTOM.rgb`, permitiendo que el vertex shader doble suavemente las briznas hacia afuera y hacia abajo sin compresión de geometría ni plegados invertidos bajo la superficie.
+    *   **Snapping Topográfico Preciso**: Detección de colisión triangular sobre la malla de la isla para asentar las raíces con tolerancia cero milimétrica en aristas pronunciadas.
+*   **Borde de Pasto Colgante en Shaders de Islas (`isla_vivo.gdshader`, `isla_fantasma.gdshader`)**:
+    *   **Perfil Orgánico Dentado**: Implementación de fleco o faldón de pasto que cae sobre el acantilado superior (`habilitar_borde_pasto_colgante`, `longitud_borde_pasto`, `escala_mechones_borde`).
+    *   **Normales Alineadas al Cenit**: Orientación de las normales del borde hacia arriba (`0.0, 1.0, 0.0`) para igualar la iluminación con la superficie superior plana y las briznas 3D, eliminando sombras duras y cortes visuales en la silueta perimetral.
+*   **Sincronización Reactiva de Silueta en `IslaFlotante`**:
+    *   Detección de modificaciones manuales de silueta (`_silueta_modificada_por_usuario`), refresco de cache de anillos superiores y vértices perimetrales, y notificación a los generadores de pasto en tiempo de diseño.
+*   **Actualización del Nivel 1 ("El Despertar Separado")**:
+    *   Configuración de parámetros de curvatura en las islas de `Nivel 1 _ El Despertar Separado.tscn` y reempaquetado optimizado del buffer de datos `pasto_nivel_1___el_despertar_separado_datos.res` (5.45 MB).
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.21 (7 de Noviembre de 2026)
 
