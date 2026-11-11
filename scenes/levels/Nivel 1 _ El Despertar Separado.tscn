@@ -96,7 +96,7 @@ _surfaces = [{
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
 use_custom_data = true
-custom_aabb = AABB(-49.98963, -0.70252156, -82.015656, 62.576397, 7.199257, 129.2208)
+custom_aabb = AABB(-49.990208, -0.69896454, -82.013115, 62.56997, 7.1957, 129.22482)
 mesh = SubResource("ArrayMesh_h141t")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vdlxj"]
@@ -194,14 +194,17 @@ disparador_objetivo = NodePath("../BotonPresion")
 [node name="Goal" parent="ZonaReunionFinal" unique_id=1234241907 instance=ExtResource("11_goal")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3980384, 0, -62.513897)
 
-[node name="EnemigoEspectral" parent="ZonaReunionFinal/Goal" unique_id=208018234 node_paths=PackedStringArray("plataforma_asignada") instance=ExtResource("9_33yto")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.602964, 0.91138566, 84.117935)
+[node name="EnemigoEspectral" parent="." unique_id=208018234 node_paths=PackedStringArray("plataforma_asignada") instance=ExtResource("9_33yto")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.204926, 0.9113859, 21.604038)
 radio_zona_peligro = 6.0
-plataforma_asignada = NodePath("../../../Isla Inicio")
+plataforma_asignada = NodePath("../Isla Inicio")
 tiempo_anticipacion_ataque = 0.75
 altura_flotacion = 0.85
 cantidad_enemigos = 8
 tiempo_entre_spawns = 0.2
+duracion_hit_stop = null
+intensidad_shake_camara = null
+ventana_combo = null
 
 [node name="Coleccionables" type="Node3D" parent="." unique_id=720165543]
 
@@ -498,6 +501,7 @@ deformaciones_escultura = Array[Dictionary]([{
 "radio": 4.3
 }])
 activar_pincel_camino = true
+modo_accion_camino = 2
 radio_pincel_camino = 1.7
 fuerza_pincel_camino = 0.6
 trazos_pintura_caminos = Array[Dictionary]([{
@@ -2557,7 +2561,7 @@ deformaciones_escultura = Array[Dictionary]([{
 [node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
 transform = Transform3D(0.9506353, 0, -0.31031018, 0, 1, 0, 0.31031018, 0, 0.9506353, 9.139502, 0, 1.6056328)
 material_override = SubResource("ShaderMaterial_33yto")
-custom_aabb = AABB(-49.98963, -0.70252156, -82.015656, 62.576397, 7.199257, 129.2208)
+custom_aabb = AABB(-49.990208, -0.69896454, -82.013115, 62.56997, 7.1957, 129.22482)
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
