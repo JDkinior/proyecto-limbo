@@ -325,9 +325,13 @@ func _physics_process(delta: float):
 	if _rebotando_sobre_fantasma:
 		if is_instance_valid(_fantasma_objetivo_rebote) and _fantasma_objetivo_rebote.has_method("esta_en_fase_compresion_pisada") and _fantasma_objetivo_rebote.esta_en_fase_compresion_pisada():
 			var alt_cabeza = _fantasma_objetivo_rebote.obtener_altura_cabeza_global()
-			global_position.y = alt_cabeza + ALTURA_PIES_VIVO_LOCAL
-			global_position.x = _fantasma_objetivo_rebote.global_position.x
-			global_position.z = _fantasma_objetivo_rebote.global_position.z
+			# Atracción suave y ágil hacia el centro del enemigo
+			var k_xz: float = 1.0 - exp(-22.0 * delta)
+			var k_y: float = 1.0 - exp(-32.0 * delta)
+			var objetivo_c: Vector3 = _fantasma_objetivo_rebote.global_position
+			global_position.y = lerpf(global_position.y, alt_cabeza + ALTURA_PIES_VIVO_LOCAL, k_y)
+			global_position.x = lerpf(global_position.x, objetivo_c.x, k_xz)
+			global_position.z = lerpf(global_position.z, objetivo_c.z, k_xz)
 			velocity = Vector3.ZERO
 			_actualizar_disponibilidad_interaccion()
 			_actualizar_squash_stretch_vivo(delta)
@@ -456,7 +460,7 @@ func _comprobar_pisoton_enemigos() -> void:
 		if not is_instance_valid(e) or not e.is_inside_tree():
 			continue
 		var est = e.get("estado_actual")
-		if est != null and (int(est) == 5 or int(est) == 6): # GOLPE_LETAL o DERROTADO
+		if est != null and int(est) != 3 and int(est) != 4: # Solo ANTICIPANDO_ATAQUE o TANGIBLE_VULNERABLE (visibles)
 			continue
 		var dist_xz = Vector2(global_position.x - e.global_position.x, global_position.z - e.global_position.z).length()
 		if dist_xz <= 0.85:
@@ -476,6 +480,9 @@ func _comprobar_colision_pisoton_enemigos() -> void:
 		var col = get_slide_collision(i)
 		var collider = col.get_collider()
 		if collider != null and collider.is_in_group("enemigos_espectrales"):
+			var est_c = collider.get("estado_actual")
+			if est_c != null and int(est_c) != 3 and int(est_c) != 4:
+				continue
 			var mis_pies = global_position.y - ALTURA_PIES_VIVO_LOCAL
 			# Si Vivo contacta al enemigo desde arriba (normal hacia arriba o pies en mitad superior del enemigo)
 			if col.get_normal().y > 0.15 or mis_pies >= (collider.global_position.y - 0.25):
@@ -491,10 +498,6 @@ func _iniciar_rebote_sobre_fantasma(fantasma: Node3D) -> void:
 	_fantasma_objetivo_rebote = fantasma
 	if fantasma.has_method("recibir_pisada_de_companero"):
 		fantasma.recibir_pisada_de_companero()
-	if fantasma.has_method("obtener_altura_cabeza_global"):
-		global_position.y = fantasma.obtener_altura_cabeza_global() + ALTURA_PIES_VIVO_LOCAL
-	global_position.x = fantasma.global_position.x
-	global_position.z = fantasma.global_position.z
 	velocity = Vector3.ZERO
 
 func _procesar_input_habilidad() -> void:
@@ -880,8 +883,12 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 	var es_offline_o_solo = is_instance_valid(red_mgr) and (red_mgr.es_un_jugador or multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 	var en_suelo = is_on_floor() if (es_activo() or es_offline_o_solo) else true
 
+	# 0. Pisotón sobre un enemigo: compresión elástica con los pies anclados en su cabeza
+	if _rebotando_sobre_fantasma:
+		escala_y = 0.58
+		offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
 	# 1. Fase de Impacto y Resorte de Salto Bomba (Ground Pound - Rebote rápido de gelatina sin pausa estática)
-	if _tiempo_squash_ground_pound > 0.0:
+	elif _tiempo_squash_ground_pound > 0.0:
 		_tiempo_squash_ground_pound = maxf(_tiempo_squash_ground_pound - delta, 0.0)
 		var p = 1.0 - (_tiempo_squash_ground_pound / DURACION_SQUASH_GROUND_POUND)
 		if p < 0.22:
