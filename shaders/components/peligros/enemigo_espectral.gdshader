@@ -21,6 +21,9 @@ group_uniforms DeformacionOndulante;
 uniform float ondulacion_colas : hint_range(0.0, 0.2) = 0.04;
 uniform float velocidad_colas : hint_range(0.5, 8.0) = 3.5;
 
+group_uniforms Fade;
+uniform float fade : hint_range(0.0, 1.0) = 0.0;
+
 group_uniforms Tangibilidad;
 uniform float factor_tangible : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 color_tangible_destello : source_color = vec4(0.3, 0.85, 1.0, 1.0);
@@ -66,5 +69,5 @@ void fragment() {
 	ROUGHNESS = rugosidad;
 	METALLIC = metalico;
 	SPECULAR = especular;
-	ALPHA = color_cuerpo.a;
+	ALPHA = color_cuerpo.a * (1.0 - fade);
 }
