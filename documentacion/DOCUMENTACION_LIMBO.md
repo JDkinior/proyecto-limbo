@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.23` (Build Code `24`)  
+**Versión Actual:** `1.0.24` (Build Code `25`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 8 de Noviembre de 2026  
+**Última Actualización:** 10 de Noviembre de 2026  
 
 # Documentación Central y GDD - Proyecto Limbo
 
@@ -42,6 +42,21 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.24 (10 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Juice, Feedback Audiovisual y Dinámica de Combate en `EnemigoEspectral`**:
+    *   **Feedback Cinemático de Derrota**: Incorporación de hit-stop configurable (`duracion_hit_stop`), temblor de cámara dependiente de distancia (`_sacudir_camara`), ráfagas de partículas con curvas orbitales y escala ascendente de pitch de audio por combo (`ventana_combo`).
+    *   **Secuencia de Muerte y Respawn Cinemático del Vivo**: Al sufrir contacto mortal, se activa flash de pantalla rojo, sacudida con zoom dramático de FOV (`fov - 8.0`), compresión/disolución rápida del modelo y reaparición en checkpoint con impulso de rebote vertical (`velocity.y = 4.8`) sin pausa brusca.
+    *   **Vulnerabilidad e Intangibilidad Condicionada**: Los espectros solo pueden ser eliminados mediante pisotón o embate cuando están visibles y vulnerables (`ANTICIPANDO_ATAQUE` o revelados en `TANGIBLE_VULNERABLE`).
+    *   **Control Anti-Elevación e Histéresis de Plataforma**: Implementación de `_y_objetivo` para prevenir que enemigos apilados ganen altura infinita, y ventana de gracia (`TIEMPO_GRACIA_FUERA_PLATAFORMA = 1.6s`) que evita que se desvanezcan al realizar saltos cortos al borde.
+    *   **Fade Paramétrico en Shader (`enemigo_espectral.gdshader`)**: Uniform `fade` integrado para transiciones de disolución y opacidad progresivas sin artefactos de renderizado.
+*   **Ajuste y Magnetismo Suave en Pisotón del Jugador Vivo (`jugador.gd`)**:
+    *   Atracción ágil exponencial en los ejes X/Z e Y (`lerpf` amortiguado) hacia la coronilla del espectro durante la compresión.
+    *   Squash visual adaptativo del Vivo (`escala_y = 0.58`) durante el impacto contra la cabeza del enemigo antes del impulso catapultado.
+*   **Actualizaciones de Nivel 1 ("El Despertar Separado")**:
+    *   Sincronización de parámetros de enemigos espectrales y datos binarios en `scenes/levels/Nivel 1 _ El Despertar Separado.tscn` y `pasto_nivel_1___el_despertar_separado_datos.res`.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.23 (8 de Noviembre de 2026)
 
