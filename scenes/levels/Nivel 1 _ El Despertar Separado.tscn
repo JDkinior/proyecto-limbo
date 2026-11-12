@@ -96,7 +96,7 @@ _surfaces = [{
 [sub_resource type="MultiMesh" id="MultiMesh_qh0qo"]
 transform_format = 1
 use_custom_data = true
-custom_aabb = AABB(-49.990208, -0.69896454, -82.013115, 62.56997, 7.1957, 129.22482)
+custom_aabb = AABB(-49.990585, -0.69754016, -82.01143, 62.565666, 7.194276, 129.22577)
 mesh = SubResource("ArrayMesh_h141t")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vdlxj"]
@@ -202,9 +202,6 @@ tiempo_anticipacion_ataque = 0.75
 altura_flotacion = 0.85
 cantidad_enemigos = 8
 tiempo_entre_spawns = 0.2
-duracion_hit_stop = null
-intensidad_shake_camara = null
-ventana_combo = null
 
 [node name="Coleccionables" type="Node3D" parent="." unique_id=720165543]
 
@@ -2561,7 +2558,7 @@ deformaciones_escultura = Array[Dictionary]([{
 [node name="PastoArea" parent="." unique_id=1863511703 instance=ExtResource("17_pasto_area")]
 transform = Transform3D(0.9506353, 0, -0.31031018, 0, 1, 0, 0.31031018, 0, 0.9506353, 9.139502, 0, 1.6056328)
 material_override = SubResource("ShaderMaterial_33yto")
-custom_aabb = AABB(-49.990208, -0.69896454, -82.013115, 62.56997, 7.1957, 129.22482)
+custom_aabb = AABB(-49.990585, -0.69754016, -82.01143, 62.565666, 7.194276, 129.22577)
 multimesh = SubResource("MultiMesh_qh0qo")
 modo_distribucion = 0
 activar_pincel = true
