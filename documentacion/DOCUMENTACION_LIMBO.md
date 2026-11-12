@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.24` (Build Code `25`)  
+**Versión Actual:** `1.0.25` (Build Code `26`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 10 de Noviembre de 2026  
+**Última Actualización:** 11 de Noviembre de 2026  
 
 # Documentación Central y GDD - Proyecto Limbo
 
@@ -42,6 +42,22 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.25 (11 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Gamefeel y Dinámicas de Movimiento del Vivo (`jugador.gd`)**:
+    *   **Disponibilidad Continua de Dash/Embate**: El botón de acción y habilidad de embate (`puede_accionar = true`) permanece disponible permanentemente en tierra y aire sin bloqueos restrictivos.
+    *   **Inclinación Aerodinámica y Dinámica de Carrera**: Inclinación hacia adelante unificada para embate y clavado (`0.42 rad`), con mayor ángulo frontal en carrera rápida (`factor_vel * 0.13`).
+    *   **Micro-Squash Elástico en Pisadas**: Incorporación de pulso elástico de impacto en cada paso (`_pulso_paso_vivo`) que deforma y asienta suavemente el cuerpo con rebote vertical (`0.045m`), conservando volumen lateral ensanchado.
+    *   **Estructura para Giro 360° en Doble Salto**: Lógica preparada y desacoplada mediante `HABILITAR_GIRO_DOBLE_SALTO`.
+*   **Oclusión de Silueta Stencil en Partículas (`character_base.gd`, `jugador.gd`, `enemigo_espectral.gd`)**:
+    *   Marcado de máscara stencil (`STENCIL_MODE_CUSTOM`, ref 1) en las partículas de polvo del Vivo y partículas de muerte/agarre de enemigos espectrales.
+    *   Render priority ajustada a 20 en el shader de silueta X-Ray para dibujarse con posterioridad y evitar transparencias incorrectas sobre los efectos visuales volumétricos.
+*   **Comportamiento Coordinado de Manada en `EnemigoEspectral`**:
+    *   **Propagación de Hundimiento en Grupo (`_propagar_hundimiento`)**: Cuando el líder o un miembro de la manada se desvanece por abandono de plataforma o consume un golpe letal, toda la manada conectada se repliega y hunde sincronizadamente en el suelo.
+*   **Ajustes de Escena en Nivel 1 ("El Despertar Separado")**:
+    *   Saneamiento de propiedades de feedback en instancias de enemigos y actualización de límites del AABB multimesh de pasto.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.24 (10 de Noviembre de 2026)
 
