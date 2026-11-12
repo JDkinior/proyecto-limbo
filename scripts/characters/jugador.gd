@@ -52,6 +52,11 @@ var _pos_anterior_remoto: Vector3 = Vector3.ZERO
 var _pos_y_inicial_vivo: float = 0.129
 var _tiempo_paso_vivo: float = 0.0
 var _balanceo_paso_actual: float = 0.0
+## Desactivado por ahora: poner en true para reactivar el frontflip del doble salto
+const HABILITAR_GIRO_DOBLE_SALTO: bool = false
+const DURACION_GIRO_DOBLE_SALTO: float = 0.46
+var _tiempo_giro_doble_salto: float = 0.0 # Giro (twirl) exclusivo del doble salto
+var _pulso_paso_vivo: float = 0.0 # 0..1: impacto de cada pisada (para squash al caminar)
 var _rotacion_inicial_modelo_vivo: Vector3 = Vector3(0.0, PI, 0.0)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -222,7 +227,8 @@ func _actualizar_disponibilidad_interaccion() -> void:
 	if not es_activo():
 		return
 	var previo = puede_accionar
-	puede_accionar = _evaluar_objetos_interactuables_en_frente() or not is_on_floor()
+	# El dash (embate en suelo / dive en aire) está siempre disponible, no solo al saltar
+	puede_accionar = true
 	if puede_accionar != previo:
 		estado_interaccion_actualizado.emit(puede_accionar)
 		if is_instance_valid(controles_tactiles) and controles_tactiles.has_method("actualizar_boton_vivo"):
@@ -823,17 +829,22 @@ func _procesar_inclinacion_visual(delta: float):
 	if esta_derrapando:
 		objetivo_inclinacion = -0.12 # Inclinación suave y controlada hacia atrás
 	elif _en_dive:
-		objetivo_inclinacion = 0.52 # Inclinación aerodinámica de clavado frontal en el aire
+		objetivo_inclinacion = 0.42 # Misma inclinación que el dash del suelo de clavado frontal en el aire
 	elif _en_ground_pound:
 		objetivo_inclinacion = 0.0 # Posición erguida de bólido vertical
 	elif _esta_haciendo_embate:
-		objetivo_inclinacion = 0.24 # Inclinación frontal al hacer tackle
+		objetivo_inclinacion = 0.42 # Inclinación frontal al hacer tackle
 	elif en_suelo and vel_horizontal > 0.5:
-		objetivo_inclinacion = factor_vel * 0.07
+		objetivo_inclinacion = factor_vel * 0.13 # Inclinación hacia adelante más marcada al correr
 	var vel_lerp_inclinacion = 16.0 if (_en_dive or _esta_haciendo_embate) else 11.0
 	_inclinacion_actual = lerpf(_inclinacion_actual, objetivo_inclinacion, vel_lerp_inclinacion * delta)
 	modelo_vivo.rotation.x = _rotacion_inicial_modelo_vivo.x + _inclinacion_actual
 	modelo_vivo.rotation.y = _rotacion_inicial_modelo_vivo.y
+	# Frontflip de 360° exclusivo del doble salto (arranca rápido y frena suave)
+	if _tiempo_giro_doble_salto > 0.0:
+		_tiempo_giro_doble_salto = maxf(_tiempo_giro_doble_salto - delta, 0.0)
+		var p_giro: float = 1.0 - (_tiempo_giro_doble_salto / DURACION_GIRO_DOBLE_SALTO)
+		modelo_vivo.rotation.x += TAU * (1.0 - pow(1.0 - p_giro, 3.0)) # Frontflip (giro vertical hacia adelante)
 
 	# 2. Amortiguación, caminata y desplazamiento vertical por Squash & Stretch
 	if en_suelo and vel_horizontal > 0.35:
@@ -848,14 +859,15 @@ func _procesar_inclinacion_visual(delta: float):
 		# Curva suave y continua (sin impactos abruptos en los extremos)
 		var fase_paso = fmod((t_anim / dur) * 2.0, 1.0)
 		var curva_suave = (1.0 - cos(fase_paso * TAU)) * 0.5
-		var rebote_y = curva_suave * 0.018 * factor_vel
+		var rebote_y = curva_suave * 0.045 * factor_vel # Rebote de paso más notorio
+		_pulso_paso_vivo = lerpf(_pulso_paso_vivo, 1.0 - curva_suave, 20.0 * delta) * factor_vel
 		
 		# Sumar rebote de paso + compresión/extensión de squash & stretch
 		var target_y = _pos_y_inicial_vivo + rebote_y + _offset_y_squash_vivo
 		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, target_y, 18.0 * delta)
 		
 		# Balanceo lateral mínimo y orgánico
-		var balanceo_objetivo = sin((t_anim / dur) * TAU) * 0.008 * factor_vel
+		var balanceo_objetivo = sin((t_anim / dur) * TAU) * 0.034 * factor_vel # Bamboleo lateral de pingüino
 		_balanceo_paso_actual = lerpf(_balanceo_paso_actual, balanceo_objetivo, 14.0 * delta)
 		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 	else:
@@ -863,6 +875,7 @@ func _procesar_inclinacion_visual(delta: float):
 		var target_y = _pos_y_inicial_vivo + _offset_y_squash_vivo
 		modelo_vivo.position.y = lerpf(modelo_vivo.position.y, target_y, 18.0 * delta)
 		_balanceo_paso_actual = lerpf(_balanceo_paso_actual, 0.0, 12.0 * delta)
+		_pulso_paso_vivo = lerpf(_pulso_paso_vivo, 0.0, 14.0 * delta)
 		modelo_vivo.rotation.z = _rotacion_inicial_modelo_vivo.z + _balanceo_paso_actual
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -894,23 +907,36 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 		if p < 0.22:
 			# Sub-fase A: Impact Squash elástico y veloz contra el suelo (pies anclados a la base)
 			var sub_p = p / 0.22
-			escala_y = lerpf(1.0, 0.62, sin(sub_p * (PI * 0.5)))
+			escala_y = lerpf(1.0, 0.40, sin(sub_p * (PI * 0.5)))
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
 		elif p < 0.55:
 			# Sub-fase B: Rebote inmediato de gelatina hacia arriba (Overshoot Stretch)
 			var sub_p = (p - 0.22) / 0.33
-			escala_y = lerpf(0.62, 1.22, sin(sub_p * (PI * 0.5)))
+			escala_y = lerpf(0.40, 1.48, sin(sub_p * (PI * 0.5)))
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
 		elif p < 0.80:
 			# Sub-fase C: Segundo mini-rebote elástico de compresión
 			var sub_p = (p - 0.55) / 0.25
-			escala_y = lerpf(1.22, 0.91, sin(sub_p * (PI * 0.5)))
+			escala_y = lerpf(1.48, 0.80, sin(sub_p * (PI * 0.5)))
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
 		else:
 			# Sub-fase D: Asentamiento final al reposo
 			var sub_p = (p - 0.80) / 0.20
-			escala_y = lerpf(0.91, 1.0, sin(sub_p * (PI * 0.5)))
+			escala_y = lerpf(0.80, 1.0, sin(sub_p * (PI * 0.5)))
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
+
+	# 1b. Dash (embate): compresión de anticipación y estirón explosivo de gelatina
+	elif _esta_haciendo_embate or _en_dive:
+		# El dash aéreo (dive) usa exactamente la misma animación y velocidad que el del suelo
+		var t_trans: float = (0.22 - _tiempo_embate) if _esta_haciendo_embate else (DURACION_DIVE - _tiempo_dive)
+		var p_e = clampf(t_trans / 0.22, 0.0, 1.0)
+		if p_e < 0.25:
+			escala_y = lerpf(1.0, 0.72, sin((p_e / 0.25) * (PI * 0.5)))
+		elif p_e < 0.6:
+			escala_y = lerpf(0.72, 1.20, sin(((p_e - 0.25) / 0.35) * (PI * 0.5)))
+		else:
+			escala_y = lerpf(1.20, 1.0, sin(((p_e - 0.6) / 0.4) * (PI * 0.5)))
+		offset_y = ALTURA_PIVOTE_A_SUELO_VIVO * (escala_y - 1.0)
 
 	# 2. Fase de Derrape / Frenado en el Suelo (Aplanamiento elástico en la dirección de inercia)
 	elif esta_derrapando:
@@ -924,11 +950,11 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 		var factor_curva = sin(p * PI)
 		if _es_segundo_salto_vivo:
 			# Doble salto aéreo: encogimiento atlético en el aire (tuck)
-			escala_y = lerpf(1.0, 0.78, factor_curva)
+			escala_y = lerpf(1.0, 0.60, factor_curva) # Doble salto: se enrolla como bolita en el aire
 			offset_y = 0.0
 		else:
 			# Salto desde el suelo: compresión contra el piso con plantas de los pies ancladas
-			escala_y = lerpf(1.0, 0.72, factor_curva)
+			escala_y = lerpf(1.0, 0.64, factor_curva) # Salto simple: agazapado profundo cargando impulso
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
 
 	# 4. Fase de Despegue Explosivo (Salto estirándose hacia arriba y estrechándose en los lados)
@@ -936,7 +962,7 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 		_tiempo_despegue_salto_vivo = maxf(_tiempo_despegue_salto_vivo - delta, 0.0)
 		var p = 1.0 - (_tiempo_despegue_salto_vivo / _duracion_despegue_vivo)
 		var factor_estiramiento = sin(clampf(p * 1.4, 0.0, 1.0) * PI)
-		var stretch_max = _fuerza_despegue_especial if _fuerza_despegue_especial > 1.0 else (1.36 if _es_segundo_salto_vivo else 1.32)
+		var stretch_max = _fuerza_despegue_especial if _fuerza_despegue_especial > 1.0 else (1.58 if _es_segundo_salto_vivo else 1.44)
 		escala_y = lerpf(1.0, stretch_max, factor_estiramiento)
 		if not _es_segundo_salto_vivo:
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y) * (1.0 - p)
@@ -945,19 +971,20 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 	elif not en_suelo:
 		if _en_ground_pound:
 			if _tiempo_pausa_ground_pound > 0.0:
-				escala_y = 0.76 # Encogido como resorte concentrado
+				escala_y = 0.58 # Encogido como resorte muy concentrado
 			else:
-				escala_y = 1.38 # ¡Alargarse verticalmente al caer como una gota de gelatina!
-			offset_y = 0.0
+				escala_y = 1.75 # ¡Alargarse exageradamente al caer como una gota de gelatina!
+			# Pies anclados: al estirarse el modelo se eleva para que los pies no atraviesen el suelo
+			offset_y = ALTURA_PIVOTE_A_SUELO_VIVO * (escala_y - 1.0)
 		elif _en_dive:
-			escala_y = 0.84 # Perfil de torpedo aerodinámico alargado hacia el frente
+			escala_y = 0.76 # Perfil de torpedo aerodinámico alargado hacia el frente
 			offset_y = 0.0
 		else:
 			var vel_y = velocity.y if (es_activo() or es_offline_o_solo) else 0.0
 			if vel_y > 1.5:
 				# Ascenso: alargamiento sostenido proporcional a la velocidad
 				var factor_subida = clampf(vel_y / FUERZA_SALTO, 0.0, 1.0)
-				escala_y = 1.0 + (factor_subida * 0.18)
+				escala_y = 1.0 + (factor_subida * (0.38 if _es_segundo_salto_vivo else 0.18)) # Doble salto: ascenso muy estirado
 				offset_y = 0.0
 			elif absf(vel_y) <= 1.5:
 				# Ápice: normalización suave con relajación momentánea
@@ -967,7 +994,7 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 				# Caída rápida: estiramiento descendente hacia el suelo anticipando el impacto
 				var factor_caida = clampf(-vel_y / VELOCIDAD_MAX_CAIDA, 0.0, 1.0)
 				escala_y = 1.0 + (factor_caida * 0.22)
-				offset_y = 0.0
+				offset_y = ALTURA_PIVOTE_A_SUELO_VIVO * (escala_y - 1.0)
 
 	# 6. Fase de Aterrizaje Normal (Impacto rápido, rebote de gelatina y asentamiento con pies en la base)
 	elif _tiempo_aterrizaje_vivo > 0.0:
@@ -995,14 +1022,15 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 			escala_y = lerpf(overshoot, 1.0, sin(sub_t * (PI * 0.5)))
 			offset_y = -ALTURA_PIVOTE_A_SUELO_VIVO * (1.0 - escala_y)
 	else:
-		escala_y = 1.0
-		offset_y = 0.0
+		# Squash sutil en cada pisada al caminar (gelatina que se asienta en cada paso)
+		escala_y = 1.0 - 0.05 * _pulso_paso_vivo
+		offset_y = ALTURA_PIVOTE_A_SUELO_VIVO * (escala_y - 1.0)
 		_fuerza_despegue_especial = 0.0
 
 	# Principio de conservación elástica tipo gelatina:
 	# Al comprimirse verticalmente se ensancha lateralmente, y al estirarse verticalmente se estrecha en los lados
 	var delta_y = escala_y - 1.0
-	var escala_xz = clampf(1.0 - (delta_y * 0.50), 0.80, 1.25)
+	var escala_xz = clampf(1.0 - (delta_y * 0.55), 0.62, 1.55)
 	var escala_objetivo = Vector3(escala_xz, escala_y, escala_xz)
 
 	_squash_stretch_vivo = _squash_stretch_vivo.lerp(escala_objetivo, 32.0 * delta)
@@ -1017,6 +1045,7 @@ func _actualizar_squash_stretch_vivo(delta: float) -> void:
 
 func _iniciar_animacion_salto_vivo(numero_salto: int) -> void:
 	_es_segundo_salto_vivo = (numero_salto > 1)
+	_tiempo_giro_doble_salto = DURACION_GIRO_DOBLE_SALTO if (HABILITAR_GIRO_DOBLE_SALTO and numero_salto > 1) else 0.0
 	_tiempo_anticipacion_salto_vivo = _duracion_anticipacion_vivo
 	_tiempo_despegue_salto_vivo = _duracion_despegue_vivo
 	_tiempo_aterrizaje_vivo = 0.0
@@ -1097,6 +1126,11 @@ static func _crear_malla_nube_lowpoly(radio: float = 0.16) -> ArrayMesh:
 	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+	# Marca stencil (ref 1): el X-Ray del personaje no se dibuja sobre las partículas
+	mat.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
+	mat.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
+	mat.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
+	mat.stencil_reference = 1
 	st.set_material(mat)
 
 	_malla_nube_lowpoly_cache = st.commit()
