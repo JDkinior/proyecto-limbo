@@ -1425,6 +1425,8 @@ func _aplicar_silueta_recursiva(nodo: Node) -> void:
 					np.stencil_flags = BaseMaterial3D.STENCIL_FLAG_READ
 					np.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_NOT_EQUAL
 					np.stencil_reference = 1
+					# Se dibuja DESPUÉS de las partículas para respetar su stencil
+					np.render_priority = 20
 					mat_clon_sh.next_pass = np
 				else:
 					mat_clon_sh.next_pass = null

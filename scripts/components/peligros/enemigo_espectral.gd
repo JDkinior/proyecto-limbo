@@ -1173,6 +1173,7 @@ func _finalizar_desvanecimiento_a_origen() -> void:
 	_fase_anticipacion_terminada = false
 	_tiempo_fuera_plataforma = 0.0
 	_tiempo_visible_restante = 0.0
+	_desvaneciendo = false
 	_visible_vivo_actual = false
 	if _tween_fade != null and _tween_fade.is_valid():
 		_tween_fade.kill()
@@ -1195,7 +1196,21 @@ func _finalizar_desvanecimiento_a_origen() -> void:
 
 	_limpiar_clones()
 
+var _desvaneciendo: bool = false
+
+## Hace que el resto de la manada se hunda en el suelo junto con este espectro.
+func _propagar_hundimiento() -> void:
+	for e in _pack_enemigos:
+		if is_instance_valid(e) and e != self and not e.is_queued_for_deletion() and not e._desvaneciendo:
+			if e.estado_actual != Estado.DERROTADO and e.estado_actual != Estado.INACTIVO_OCULTO and e.estado_actual != Estado.GOLPE_LETAL:
+				e._desvanecer_a_origen(true)
+
 func _desvanecer_a_origen(animado: bool = true) -> void:
+	if animado and _desvaneciendo:
+		return
+	_desvaneciendo = true
+	if animado:
+		_propagar_hundimiento()
 	velocity = Vector3.ZERO
 	collision_layer = 0
 	collision_mask = 0
@@ -1383,6 +1398,11 @@ func _crear_material_particula(color: Color) -> StandardMaterial3D:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.vertex_color_use_as_albedo = true
 	mat.albedo_color = color
+	# Marca stencil (ref 1): el X-Ray del personaje no se dibuja sobre las partículas
+	mat.stencil_mode = BaseMaterial3D.STENCIL_MODE_CUSTOM
+	mat.stencil_flags = BaseMaterial3D.STENCIL_FLAG_WRITE
+	mat.stencil_compare = BaseMaterial3D.STENCIL_COMPARE_ALWAYS
+	mat.stencil_reference = 1
 	return mat
 
 func _crear_gradiente_desvanecer() -> Gradient:
@@ -1908,6 +1928,8 @@ func _extender_manos_agarre(prog: float) -> void:
 
 func _consumar_golpe_letal(vivo: Node3D) -> void:
 	jugador_eliminado.emit(vivo)
+	_desvaneciendo = true
+	_propagar_hundimiento()
 	_hundir_en_tierra_y_desvanecer(true)
 	if not is_instance_valid(vivo):
 		return
