@@ -32,20 +32,30 @@ extends Control
 
 # Nodos de Opciones
 @onready var volume_slider = $PanelOpciones/VBoxContainer/VolumeSlider
-@onready var btn_fullscreen = $PanelOpciones/VBoxContainer/BtnFullscreen
 @onready var btn_vibracion = $PanelOpciones/VBoxContainer/BtnVibracion
-@onready var btn_mostrar_fps = $PanelOpciones/VBoxContainer/BtnMostrarFPS
+@onready var btn_ajustes_controles = get_node_or_null("PanelOpciones/VBoxContainer/BtnAjustesControles")
 @onready var btn_ajustes_video = $PanelOpciones/VBoxContainer.get_node_or_null("BtnAjustesVideo")
+@onready var btn_grabacion_shorts = get_node_or_null("PanelOpciones/VBoxContainer/BtnGrabacionShorts")
+@onready var btn_logs_eos = get_node_or_null("PanelOpciones/VBoxContainer/BtnLogsEOS")
+
+@onready var panel_ajustes_controles = get_node_or_null("PanelAjustesControles")
+@onready var btn_mapear_control = get_node_or_null("PanelAjustesControles/VBoxContainer/BtnMapearControl")
+@onready var btn_ajustar_hud = get_node_or_null("PanelAjustesControles/VBoxContainer/BtnAjustarHUD")
+@onready var slider_tamano_hud = get_node_or_null("PanelAjustesControles/VBoxContainer/SliderTamanoHUD")
+@onready var slider_tamano_joy = get_node_or_null("PanelAjustesControles/VBoxContainer/SliderTamanoJoy")
+@onready var btn_volver_controles = get_node_or_null("PanelAjustesControles/VBoxContainer/BtnVolverControles")
+
 @onready var panel_ajustes_video = get_node_or_null("PanelAjustesVideo")
-@onready var btn_guia_shorts = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnGuiaShorts")
-@onready var btn_ocultar_controles = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnOcultarControles")
+@onready var btn_fullscreen = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnFullscreen")
+@onready var btn_mostrar_fps = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnMostrarFPS")
 @onready var btn_escala_render = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnEscalaRender")
 @onready var btn_limite_fps = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnLimiteFPS")
 @onready var btn_volver_video = get_node_or_null("PanelAjustesVideo/VBoxContainer/BtnVolverVideo")
-@onready var btn_ajustar_hud = $PanelOpciones/VBoxContainer/BtnAjustarHUD
-@onready var btn_mapear_control = $PanelOpciones/VBoxContainer/BtnMapearControl
-@onready var slider_tamano_hud = $PanelOpciones/VBoxContainer/SliderTamanoHUD
-@onready var slider_tamano_joy = $PanelOpciones/VBoxContainer/SliderTamanoJoy
+
+@onready var panel_grabacion_shorts = get_node_or_null("PanelGrabacionShorts")
+@onready var btn_guia_shorts = get_node_or_null("PanelGrabacionShorts/VBoxContainer/BtnGuiaShorts")
+@onready var btn_ocultar_controles = get_node_or_null("PanelGrabacionShorts/VBoxContainer/BtnOcultarControles")
+@onready var btn_volver_grabacion = get_node_or_null("PanelGrabacionShorts/VBoxContainer/BtnVolverGrabacion")
 
 # --- NUEVOS NODOS: Creados por código para mantener compatibilidad con TSCN ---
 var panel_modos: Panel
@@ -89,6 +99,7 @@ var label_3d_fantasma: Label3D
 var amigos_dict: Dictionary = {}
 var autoconectando: bool = false
 var btn_reconectar: Button = null
+var ventana_logs: Window = null
 
 # Overlay de Color Ambiental de Pantalla
 var ambient_overlay: ColorRect = null
@@ -188,8 +199,12 @@ func _obtener_panel_activo_actual() -> Panel:
 		return panel_modos
 	if is_instance_valid(panel_amigos) and panel_amigos.visible:
 		return panel_amigos
+	if is_instance_valid(panel_ajustes_controles) and panel_ajustes_controles.visible:
+		return panel_ajustes_controles
 	if is_instance_valid(panel_ajustes_video) and panel_ajustes_video.visible:
 		return panel_ajustes_video
+	if is_instance_valid(panel_grabacion_shorts) and panel_grabacion_shorts.visible:
+		return panel_grabacion_shorts
 	if is_instance_valid(panel_opciones) and panel_opciones.visible:
 		return panel_opciones
 	if is_instance_valid(panel_principal) and panel_principal.visible:
@@ -232,7 +247,13 @@ func volver_panel_atras() -> bool:
 		if is_instance_valid(amigos_opciones_ctrl):
 			amigos_opciones_ctrl._on_btn_volver_amigos_pressed()
 		return true
+	if is_instance_valid(panel_ajustes_controles) and panel_ajustes_controles.visible:
+		mostrar_panel(panel_opciones)
+		return true
 	if is_instance_valid(panel_ajustes_video) and panel_ajustes_video.visible:
+		mostrar_panel(panel_opciones)
+		return true
+	if is_instance_valid(panel_grabacion_shorts) and panel_grabacion_shorts.visible:
 		mostrar_panel(panel_opciones)
 		return true
 	if is_instance_valid(panel_opciones) and panel_opciones.visible:
@@ -294,13 +315,7 @@ func _crear_ventana_logs() -> void:
 	
 	add_child(debug_window)
 	debug_window.hide()
-	
-	var btn_show_logs = Button.new()
-	btn_show_logs.text = "📜 Mostrar Logs"
-	btn_show_logs.custom_minimum_size = Vector2(160, 40)
-	btn_show_logs.position = Vector2(10, 10)
-	btn_show_logs.pressed.connect(func(): debug_window.popup())
-	add_child(btn_show_logs)
+	ventana_logs = debug_window
 	
 	var eos_m = get_tree().root.get_node_or_null("EosManager")
 	if eos_m:

@@ -135,6 +135,12 @@ func mostrar_panel(panel_activo: Panel):
 	menu.panel_lobby.visible = (panel_activo == menu.panel_lobby)
 	menu.panel_amigos.visible = (panel_activo == menu.panel_amigos)
 	menu.panel_opciones.visible = (panel_activo == menu.panel_opciones)
+	if is_instance_valid(menu.panel_ajustes_controles):
+		menu.panel_ajustes_controles.visible = (panel_activo == menu.panel_ajustes_controles)
+	if is_instance_valid(menu.panel_ajustes_video):
+		menu.panel_ajustes_video.visible = (panel_activo == menu.panel_ajustes_video)
+	if is_instance_valid(menu.panel_grabacion_shorts):
+		menu.panel_grabacion_shorts.visible = (panel_activo == menu.panel_grabacion_shorts)
 	
 	if is_instance_valid(menu.panel_modos):
 		menu.panel_modos.visible = (panel_activo == menu.panel_modos)
@@ -176,7 +182,13 @@ func enfocar_primer_control_en_panel(panel_activo: Panel) -> void:
 	elif panel_activo == menu.panel_amigos:
 		control_a_enfocar = menu.get_node_or_null("PanelAmigos/VBoxContainer/BtnVolver")
 	elif panel_activo == menu.panel_opciones:
-		control_a_enfocar = menu.btn_mapear_control if is_instance_valid(menu.btn_mapear_control) else menu.btn_fullscreen
+		control_a_enfocar = menu.btn_ajustes_controles if is_instance_valid(menu.btn_ajustes_controles) else menu.btn_vibracion
+	elif is_instance_valid(menu.panel_ajustes_controles) and panel_activo == menu.panel_ajustes_controles:
+		control_a_enfocar = menu.btn_mapear_control if is_instance_valid(menu.btn_mapear_control) else menu.btn_volver_controles
+	elif is_instance_valid(menu.panel_ajustes_video) and panel_activo == menu.panel_ajustes_video:
+		control_a_enfocar = menu.btn_fullscreen if (is_instance_valid(menu.btn_fullscreen) and menu.btn_fullscreen.visible) else menu.btn_escala_render
+	elif is_instance_valid(menu.panel_grabacion_shorts) and panel_activo == menu.panel_grabacion_shorts:
+		control_a_enfocar = menu.btn_guia_shorts if is_instance_valid(menu.btn_guia_shorts) else menu.btn_volver_grabacion
 		
 	if is_instance_valid(control_a_enfocar) and control_a_enfocar.is_visible_in_tree() and (not (control_a_enfocar is Button) or not control_a_enfocar.disabled):
 		control_a_enfocar.grab_focus()

@@ -30,10 +30,20 @@ func _conectar_senales():
 		menu.btn_vibracion.toggled.connect(_on_btn_vibracion_toggled)
 	if is_instance_valid(menu.btn_mostrar_fps):
 		menu.btn_mostrar_fps.toggled.connect(_on_btn_mostrar_fps_toggled)
+	if is_instance_valid(menu.btn_ajustes_controles):
+		menu.btn_ajustes_controles.pressed.connect(_on_btn_ajustes_controles_pressed)
+	if is_instance_valid(menu.btn_volver_controles):
+		menu.btn_volver_controles.pressed.connect(_on_btn_volver_submenu_opciones_pressed)
 	if is_instance_valid(menu.btn_ajustes_video):
 		menu.btn_ajustes_video.pressed.connect(_on_btn_ajustes_video_pressed)
 	if is_instance_valid(menu.btn_volver_video):
 		menu.btn_volver_video.pressed.connect(_on_btn_volver_video_pressed)
+	if is_instance_valid(menu.btn_grabacion_shorts):
+		menu.btn_grabacion_shorts.pressed.connect(_on_btn_grabacion_shorts_pressed)
+	if is_instance_valid(menu.btn_volver_grabacion):
+		menu.btn_volver_grabacion.pressed.connect(_on_btn_volver_submenu_opciones_pressed)
+	if is_instance_valid(menu.btn_logs_eos):
+		menu.btn_logs_eos.pressed.connect(_on_btn_logs_eos_pressed)
 	if is_instance_valid(menu.btn_guia_shorts):
 		menu.btn_guia_shorts.toggled.connect(_on_btn_guia_shorts_toggled)
 	if is_instance_valid(menu.btn_ocultar_controles):
@@ -135,6 +145,34 @@ func _on_btn_guia_shorts_toggled(button_pressed: bool):
 		var vm = menu.get_node_or_null("/root/VibrationManager")
 		if is_instance_valid(vm):
 			vm.vibrar_click()
+
+func _on_btn_ajustes_controles_pressed():
+	if is_instance_valid(menu.panel_ajustes_controles):
+		menu.mostrar_panel(menu.panel_ajustes_controles)
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.vibrar_click()
+
+func _on_btn_grabacion_shorts_pressed():
+	if is_instance_valid(menu.panel_grabacion_shorts):
+		menu.mostrar_panel(menu.panel_grabacion_shorts)
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.vibrar_click()
+
+func _on_btn_logs_eos_pressed():
+	if is_instance_valid(menu.ventana_logs):
+		menu.ventana_logs.popup()
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.vibrar_click()
+
+func _on_btn_volver_submenu_opciones_pressed():
+	if is_instance_valid(menu.panel_opciones):
+		menu.mostrar_panel(menu.panel_opciones)
+	var vm = menu.get_node_or_null("/root/VibrationManager")
+	if is_instance_valid(vm):
+		vm.vibrar_click()
 
 func _on_btn_ajustes_video_pressed():
 	if is_instance_valid(menu.panel_ajustes_video):

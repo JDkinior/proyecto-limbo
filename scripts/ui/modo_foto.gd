@@ -894,9 +894,11 @@ func salir_modo_foto() -> void:
 			lf.light_energy = _luz_fantasma_energia_original
 			lf.visible = true
 
-	# 3. Restaurar cámara original del jugador
+	# 3. Restaurar cámara original del jugador y sincronizar vista de reino
 	if is_instance_valid(_camara_original):
 		_camara_original.current = true
+	if is_instance_valid(RedManager) and RedManager.has_method("aplicar_vista_reino_visual"):
+		RedManager.aplicar_vista_reino_visual()
 	if is_instance_valid(_camara_foto):
 		_camara_foto.queue_free()
 		_camara_foto = null
