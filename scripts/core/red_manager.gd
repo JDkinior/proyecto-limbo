@@ -12,6 +12,7 @@ signal personaje_solo_cambiado(nuevo_personaje: String)
 signal transicion_camara_iniciada(origen: String, destino: String, duracion: float)
 signal transicion_camara_completada(nuevo_personaje: String)
 signal reino_cambiado(es_fantasma: bool)
+signal vista_reino_modo_cambiado(modo: String)
 
 const PORT = 7000
 const EOS_P2P_SOCKET_ID = "limbop2pv1"
@@ -19,6 +20,10 @@ const ONLINE_CONNECTION_TIMEOUT_SECONDS := 60.0
 const P2P_REQUEST_AUTHORIZATION_TIMEOUT_SECONDS := 12.0
 const P2P_RELAY_COORDINATION_WAIT_SECONDS := 3.0
 const DURACION_TRANSICION_CAMARA := 0.65
+const VISTA_REINO_AUTO := "auto"
+const VISTA_REINO_VIVO := "vivo"
+const VISTA_REINO_FANTASMA := "fantasma"
+const ENTORNO_FANTASMA_RECURSO: Environment = preload("res://assets/materiales/entorno/entorno_fantasma.tres")
 const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
 
 var NIVELES: Array[String]:
@@ -41,18 +46,124 @@ var nivel_actual_index: int = 0
 var es_un_jugador: bool = false
 var personaje_activo_solo: String = "jugador" # "jugador" | "fantasma"
 var reino_espiritual_activo: bool = false
+var vista_reino_modo: String = VISTA_REINO_AUTO # "auto" | "vivo" | "fantasma"
+var _siguiente_vista_ciclo_pendiente: String = ""
 var transicion_en_progreso: bool = false
 var _paso_mitad_transicion: bool = false
 var _camara_transicion: Camera3D = null
 var _tween_transicion: Tween = null
 
-func es_reino_espiritual_activo() -> bool:
+func _es_fantasma_controlado_local() -> bool:
 	if es_un_jugador:
-		return reino_espiritual_activo
-	var mi_id = get_mi_peer_id()
+		return personaje_activo_solo == "fantasma"
+	var mi_id := get_mi_peer_id()
 	if peer_personajes.has(mi_id):
 		return peer_personajes[mi_id] == "fantasma"
 	return false
+
+func _es_personaje_fantasma(personaje: Node) -> bool:
+	if not is_instance_valid(personaje):
+		return _es_fantasma_controlado_local()
+	return personaje.is_in_group("fantasmas") or personaje.name.to_lower().contains("fantasma")
+
+func tiene_vista_reino_fija() -> bool:
+	return vista_reino_modo != VISTA_REINO_AUTO
+
+func calcular_reino_espiritual_visual(es_fantasma_controlado: bool) -> bool:
+	match vista_reino_modo:
+		VISTA_REINO_FANTASMA:
+			return true
+		VISTA_REINO_VIVO:
+			return false
+		_:
+			return es_fantasma_controlado
+
+func es_reino_espiritual_activo() -> bool:
+	if vista_reino_modo == VISTA_REINO_FANTASMA:
+		return true
+	if vista_reino_modo == VISTA_REINO_VIVO:
+		return false
+	if es_un_jugador:
+		return reino_espiritual_activo
+	var mi_id := get_mi_peer_id()
+	if peer_personajes.has(mi_id):
+		return peer_personajes[mi_id] == "fantasma"
+	return false
+
+func obtener_entorno_visual_actual(personaje_ref: Node = null) -> Environment:
+	var es_fant_visual := calcular_reino_espiritual_visual(_es_personaje_fantasma(personaje_ref))
+	return ENTORNO_FANTASMA_RECURSO if es_fant_visual else null
+
+func obtener_cull_mask_visual_actual(personaje_ref: Node = null) -> int:
+	var es_fant_visual := calcular_reino_espiritual_visual(_es_personaje_fantasma(personaje_ref))
+	return (1048575 & ~(1 << 1)) if es_fant_visual else (1048575 & ~(1 << 2))
+
+func configurar_camara_segun_vista(cam: Camera3D, personaje_ref: Node = null) -> void:
+	if not is_instance_valid(cam):
+		return
+	cam.environment = obtener_entorno_visual_actual(personaje_ref)
+	cam.cull_mask = obtener_cull_mask_visual_actual(personaje_ref)
+
+func aplicar_vista_reino_visual() -> void:
+	var es_fant_visual := calcular_reino_espiritual_visual(_es_fantasma_controlado_local())
+	reino_espiritual_activo = es_fant_visual
+
+	if transicion_en_progreso and is_instance_valid(_camara_transicion) and _camara_transicion.current:
+		var origen_trans := jugador_vivo if personaje_activo_solo == "jugador" else fantasma
+		var destino_trans := fantasma if personaje_activo_solo == "jugador" else jugador_vivo
+		configurar_camara_segun_vista(_camara_transicion, destino_trans if _paso_mitad_transicion else origen_trans)
+	else:
+		if is_instance_valid(jugador_vivo):
+			configurar_camara_segun_vista(jugador_vivo.obtener_camara(), jugador_vivo)
+		if is_instance_valid(fantasma):
+			configurar_camara_segun_vista(fantasma.obtener_camara(), fantasma)
+		if (not is_instance_valid(jugador_vivo) or not jugador_vivo.es_activo()) and (not is_instance_valid(fantasma) or not fantasma.es_activo()):
+			var vp := get_viewport() if is_inside_tree() else null
+			var cam_vp := vp.get_camera_3d() if vp else null
+			if is_instance_valid(cam_vp) and cam_vp.name != "CamaraModoFoto":
+				configurar_camara_segun_vista(cam_vp, null)
+
+	reino_cambiado.emit(es_fant_visual)
+
+func establecer_vista_reino_modo(nuevo_modo: String, limpiar_pendiente: bool = true) -> void:
+	var modo_normalizado := nuevo_modo.strip_edges().to_lower()
+	if modo_normalizado not in [VISTA_REINO_AUTO, VISTA_REINO_VIVO, VISTA_REINO_FANTASMA]:
+		modo_normalizado = VISTA_REINO_AUTO
+	if limpiar_pendiente:
+		_siguiente_vista_ciclo_pendiente = ""
+	vista_reino_modo = modo_normalizado
+	aplicar_vista_reino_visual()
+	vista_reino_modo_cambiado.emit(vista_reino_modo)
+	print("[RedManager] Vista visual del escenario: ", vista_reino_modo)
+
+func alternar_vista_reino_independiente() -> String:
+	if vista_reino_modo == VISTA_REINO_AUTO:
+		var es_fant_actual := _es_fantasma_controlado_local()
+		var vista_actual := VISTA_REINO_FANTASMA if es_fant_actual else VISTA_REINO_VIVO
+		var otra_vista := VISTA_REINO_VIVO if es_fant_actual else VISTA_REINO_FANTASMA
+		_siguiente_vista_ciclo_pendiente = otra_vista
+		establecer_vista_reino_modo(vista_actual, false)
+	elif not _siguiente_vista_ciclo_pendiente.is_empty():
+		var siguiente := _siguiente_vista_ciclo_pendiente
+		_siguiente_vista_ciclo_pendiente = ""
+		establecer_vista_reino_modo(siguiente, false)
+	else:
+		establecer_vista_reino_modo(VISTA_REINO_AUTO, true)
+	return vista_reino_modo
+
+func restablecer_vista_reino_automatica() -> void:
+	if vista_reino_modo == VISTA_REINO_AUTO and _siguiente_vista_ciclo_pendiente.is_empty():
+		return
+	establecer_vista_reino_modo(VISTA_REINO_AUTO, true)
+
+func obtener_etiqueta_vista_reino() -> String:
+	match vista_reino_modo:
+		VISTA_REINO_VIVO:
+			return "FIJA: VIVO (Colores mundo vivo)"
+		VISTA_REINO_FANTASMA:
+			return "FIJA: FANTASMA (Colores espectrales)"
+		_:
+			return "AUTOMÁTICA (Según personaje)"
 
 var ultima_conexion_ip: String = ""
 var ultimo_personaje: String = ""
@@ -145,12 +256,64 @@ func _ready():
 		_camara_transicion.cull_mask = 1048575 & ~(1 << 2)
 		add_child(_camara_transicion)
 
+func _puede_procesar_input_juego_solo() -> bool:
+	if not is_inside_tree():
+		return false
+	var tree := get_tree()
+	if not tree or tree.paused or not tree.current_scene:
+		return false
+	if tree.current_scene.name == "MenuInicio" or tree.current_scene.name.to_lower().contains("menu"):
+		return false
+	if tree.current_scene.has_node("CanvasResultados") or tree.current_scene.has_node("PantallaResultados"):
+		return false
+	if tree.current_scene is NivelBase and tree.current_scene.intro_en_curso:
+		return false
+	var score_mgr := tree.root.get_node_or_null("ScoreManager") if tree.root else null
+	if is_instance_valid(score_mgr) and not score_mgr.cronometro_activo and score_mgr.tiempo_transcurrido > 0.0:
+		return false
+	for ui in tree.get_nodes_in_group("ui_tactil"):
+		if is_instance_valid(ui) and ui.has_method("esta_bloqueado_para_juego") and ui.esta_bloqueado_para_juego():
+			return false
+	return true
+
+func _boton_libre_para_vista_reino(boton: JoyButton) -> bool:
+	var tree := get_tree() if is_inside_tree() else null
+	if tree and tree.root and tree.root.has_node("GamepadManager"):
+		var gm := tree.root.get_node("GamepadManager")
+		if gm.get("mapeos_actuales") is Dictionary:
+			for id_act in gm.mapeos_actuales.keys():
+				if str(id_act) == "alternar_vista_reino":
+					continue
+				var data = gm.mapeos_actuales[id_act]
+				if data is Dictionary and data.get("tipo") == "button" and int(data.get("indice", -1)) == int(boton):
+					return false
+			var map_vista = gm.mapeos_actuales.get("alternar_vista_reino", {})
+			if map_vista is Dictionary and (map_vista.get("tipo") != "button" or int(map_vista.get("indice", -1)) != int(boton)):
+				return false
+	return true
+
+func _es_evento_alternar_vista_reino(event: InputEvent) -> bool:
+	if InputMap.has_action("alternar_vista_reino") and event.is_action_pressed("alternar_vista_reino"):
+		return true
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_RIGHT_STICK:
+		return _boton_libre_para_vista_reino(JOY_BUTTON_RIGHT_STICK)
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+		return not InputMap.has_action("alternar_vista_reino")
+	return false
+
 func _input(event: InputEvent) -> void:
 	var es_offline = (multiplayer.multiplayer_peer == null or multiplayer.multiplayer_peer is OfflineMultiplayerPeer)
 	if es_un_jugador or es_offline:
 		if event.is_action_pressed("cambiar_personaje") or (event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_TAB or event.keycode == KEY_C or event.keycode == KEY_T)):
 			if not transicion_en_progreso:
 				alternar_personaje_un_jugador()
+			get_viewport().set_input_as_handled()
+		elif _es_evento_alternar_vista_reino(event) and _puede_procesar_input_juego_solo():
+			alternar_vista_reino_independiente()
+			var tree_notif := get_tree() if is_inside_tree() else null
+			var cam_mgr_notif := tree_notif.root.get_node_or_null("CamaraConfigManager") if (tree_notif and tree_notif.root) else null
+			if is_instance_valid(cam_mgr_notif) and cam_mgr_notif.has_method("mostrar_notificacion_camara"):
+				cam_mgr_notif.mostrar_notificacion_camara("🎨 Vista del Escenario: " + obtener_etiqueta_vista_reino())
 			get_viewport().set_input_as_handled()
 
 func _process(_delta):
@@ -215,7 +378,7 @@ func _intentar_asignar_autoridades(preservar_rotacion: bool = false):
 		jugador_vivo.actualizar_visibilidad_local(preservar_rotacion)
 		fantasma.actualizar_visibilidad_local(preservar_rotacion)
 		_actualizar_interfaz_local()
-		reino_espiritual_activo = not es_jugador_activo
+		reino_espiritual_activo = calcular_reino_espiritual_visual(not es_jugador_activo)
 		reino_cambiado.emit(reino_espiritual_activo)
 		personaje_solo_cambiado.emit(personaje_activo_solo)
 		print("[RedManager] Modo Un Jugador - Controlando: ", personaje_activo_solo)
@@ -450,6 +613,10 @@ func desconectar(leave_lobby = true):
 
 	es_un_jugador = false
 	personaje_activo_solo = "jugador"
+	reino_espiritual_activo = false
+	vista_reino_modo = VISTA_REINO_AUTO
+	_siguiente_vista_ciclo_pendiente = ""
+	vista_reino_modo_cambiado.emit(vista_reino_modo)
 	_conectando = false
 	_timer_conexion.stop()
 	detener_lan_broadcaster()
@@ -522,24 +689,23 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 	var cam_mgr = CamaraConfigManager if is_instance_valid(CamaraConfigManager) else (origen_char._get_camara_config_manager() if origen_char else null)
 	if is_instance_valid(cam_mgr) and cam_mgr.has_method("esta_camara_estatica") and cam_mgr.esta_camara_estatica():
 		personaje_activo_solo = nuevo_personaje_str
-		reino_espiritual_activo = (nuevo_personaje_str == "fantasma")
+		reino_espiritual_activo = calcular_reino_espiritual_visual(nuevo_personaje_str == "fantasma")
 
 		# Asignar posición y orientación estática al pivote de destino sin ningún movimiento relativo
-		if is_instance_valid(destino_char.pivote_camara):
+		if destino_char.has_method("_aplicar_pose_camara_estatica_base"):
+			destino_char._aplicar_pose_camara_estatica_base(cam_mgr, true)
+		elif is_instance_valid(destino_char.pivote_camara):
 			destino_char.pivote_camara.top_level = true
 			destino_char.pivote_camara.global_position = cam_mgr.obtener_posicion_camara_estatica()
-			destino_char.pivote_camara.rotation = cam_mgr.obtener_rotacion_camara_estatica()
-			var arm_dest = destino_char.obtener_spring_arm()
-			if is_instance_valid(arm_dest):
-				arm_dest.rotation.x = cam_mgr.obtener_rot_x_arm_estatica()
-				arm_dest.position.y = cam_mgr.obtener_altura_spring_arm()
-				arm_dest.spring_length = cam_mgr.obtener_distancia_camara()
-				arm_dest.add_excluded_object(destino_char.get_rid())
-			var cam_dest_pre = destino_char.obtener_camara()
-			if is_instance_valid(cam_dest_pre):
-				cam_dest_pre.v_offset = destino_char.obtener_v_offset_deseado()
+			destino_char.pivote_camara.rotation = Vector3(0.0, cam_mgr.obtener_rotacion_camara_estatica().y, 0.0)
 			destino_char.pivote_camara.force_update_transform()
-			destino_char.pivote_camara.reset_physics_interpolation()
+			destino_char.pivote_camara.propagate_call("reset_physics_interpolation")
+		var arm_dest = destino_char.obtener_spring_arm()
+		if is_instance_valid(arm_dest):
+			arm_dest.add_excluded_object(destino_char.get_rid())
+		var cam_dest_pre = destino_char.obtener_camara()
+		if is_instance_valid(cam_dest_pre):
+			cam_dest_pre.v_offset = destino_char.obtener_v_offset_deseado()
 
 		_intentar_asignar_autoridades(true)
 
@@ -554,27 +720,9 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 		print("[RedManager] Cambio de personaje instantáneo manteniendo cámara estática fija en: ", cam_mgr.obtener_posicion_camara_estatica())
 		return
 
-	# Alinear pivote del personaje destino detrás del personaje para mirar en la dirección hacia donde mira
-	if is_instance_valid(destino_char.pivote_camara):
-		destino_char.pivote_camara.top_level = true
-		var limite_y = destino_char.LIMITE_CAIDA_Y + 4.0
-		if destino_char.global_position.y >= limite_y:
-			destino_char.pivote_camara.global_position = destino_char.global_position
-		else:
-			destino_char.pivote_camara.global_position = Vector3(destino_char.global_position.x, limite_y, destino_char.global_position.z)
-		destino_char.objetivo_rotacion_y = destino_char.rotation.y
-		# Preservar el ángulo vertical (pitch) del jugador para evitar reacomodaciones bruscas
-		destino_char.objetivo_rotacion_x = origen_char.objetivo_rotacion_x
-		destino_char.pivote_camara.rotation.y = destino_char.objetivo_rotacion_y
-		var arm_dest = destino_char.obtener_spring_arm()
-		if is_instance_valid(arm_dest):
-			arm_dest.rotation.x = destino_char.objetivo_rotacion_x
-			arm_dest.position.y = destino_char.obtener_altura_spring_arm_deseada()
-			arm_dest.spring_length = destino_char.obtener_distancia_camara_deseada()
-			arm_dest.add_excluded_object(destino_char.get_rid())
-		var cam_dest_pre = destino_char.obtener_camara()
-		if is_instance_valid(cam_dest_pre):
-			cam_dest_pre.v_offset = destino_char.obtener_v_offset_deseado()
+	# Preparar pivote del personaje destino (cámara inteligente del jefe si está en arena, o detrás del personaje)
+	if destino_char.has_method("preparar_pose_camara_transicion"):
+		destino_char.preparar_pose_camara_transicion(origen_char.objetivo_rotacion_x)
 
 	var transform_inicio: Transform3D = cam_origen.global_transform
 	var fov_inicio: float = cam_origen.fov
@@ -600,7 +748,7 @@ func _ejecutar_transicion_camara_un_jugador() -> void:
 
 	transicion_en_progreso = true
 	_paso_mitad_transicion = false
-	reino_espiritual_activo = (personaje_activo_solo == "fantasma")
+	reino_espiritual_activo = calcular_reino_espiritual_visual(personaje_activo_solo == "fantasma")
 	transicion_camara_iniciada.emit(personaje_activo_solo, nuevo_personaje_str, DURACION_TRANSICION_CAMARA)
 
 	if _tween_transicion and _tween_transicion.is_running():
@@ -624,11 +772,14 @@ func _interpolar_transicion_camara(progreso: float, trans_inicio: Transform3D, f
 		return
 
 	if is_instance_valid(destino.pivote_camara) and destino.pivote_camara.top_level:
-		var limite_y = destino.LIMITE_CAIDA_Y + 4.0
-		if destino.global_position.y >= limite_y:
-			destino.pivote_camara.global_position = destino.global_position
+		if destino.has_method("_calcular_pos_pivote_seguimiento"):
+			destino.pivote_camara.global_position = destino._calcular_pos_pivote_seguimiento()
 		else:
-			destino.pivote_camara.global_position = Vector3(destino.global_position.x, limite_y, destino.global_position.z)
+			var limite_y = destino.LIMITE_CAIDA_Y + 4.0
+			if destino.global_position.y >= limite_y:
+				destino.pivote_camara.global_position = destino.global_position
+			else:
+				destino.pivote_camara.global_position = Vector3(destino.global_position.x, limite_y, destino.global_position.z)
 		destino.pivote_camara.rotation.y = destino.objetivo_rotacion_y
 		var arm = destino.obtener_spring_arm()
 		if is_instance_valid(arm):
@@ -670,21 +821,20 @@ func _interpolar_transicion_camara(progreso: float, trans_inicio: Transform3D, f
 	var fov_base: float = lerpf(fov_inicio, fov_fin, progreso)
 	_camara_transicion.fov = fov_base + sin(progreso * PI) * 5.5
 
-	# Cambio de dimensiones / plano a mitad de trayecto exacto
+	# Cambio de dimensiones / plano a mitad de trayecto exacto (respetando vista fija si está activa)
 	if progreso >= 0.5 and not _paso_mitad_transicion:
 		_paso_mitad_transicion = true
-		var es_fant = destino.is_in_group("fantasmas") or destino.name.to_lower().contains("fantasma")
-		reino_espiritual_activo = es_fant
-		var mask_dest = destino.obtener_cull_mask_personaje() if destino.has_method("obtener_cull_mask_personaje") else 1048575
-		var env_dest = destino.obtener_entorno_personaje() if destino.has_method("obtener_entorno_personaje") else null
-		_camara_transicion.cull_mask = mask_dest
-		# Si el destino es Vivo, env_dest es null para restaurar el WorldEnvironment natural
-		_camara_transicion.environment = env_dest
-		reino_cambiado.emit(es_fant)
+		var es_fant_dest = destino.is_in_group("fantasmas") or destino.name.to_lower().contains("fantasma")
+		var es_fant_visual = calcular_reino_espiritual_visual(es_fant_dest)
+		var cambio_reino_visual = (reino_espiritual_activo != es_fant_visual)
+		reino_espiritual_activo = es_fant_visual
+		configurar_camara_segun_vista(_camara_transicion, destino)
+		if cambio_reino_visual:
+			reino_cambiado.emit(es_fant_visual)
 
 func _completar_transicion_camara(nuevo_personaje: String, destino: CharacterBase) -> void:
 	personaje_activo_solo = nuevo_personaje
-	reino_espiritual_activo = (nuevo_personaje == "fantasma")
+	reino_espiritual_activo = calcular_reino_espiritual_visual(nuevo_personaje == "fantasma")
 	transicion_en_progreso = false
 
 	# Asignar autoridades de red / locales y actualizar HUD PRESERVANDO la rotación de cámara calculada

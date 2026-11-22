@@ -180,11 +180,7 @@ func _ready():
 	_configurar_animaciones()
 	_configurar_particulas_lowpoly()
 	
-	var cam = obtener_camara()
-	if cam:
-		# En Godot, cam.environment = null hace que la cámara use el WorldEnvironment del nivel de forma natural.
-		cam.environment = null
-		cam.cull_mask = obtener_cull_mask_personaje()
+	aplicar_vista_camara_activa()
 
 	var arm = obtener_spring_arm()
 	if arm:
@@ -299,7 +295,7 @@ func _physics_process(delta: float):
 			luz_vivo.light_energy = lerpf(1.2, 2.8, factor_pulso)
 			luz_vivo.omni_range = lerpf(4.5, 6.0, factor_pulso)
 
-		if es_activo() and not entrada_bloqueada() and (Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("ui_accept")):
+		if es_activo() and not entrada_bloqueada() and not esta_en_camara_libre() and (Input.is_action_just_pressed("saltar") or Input.is_action_just_pressed("ui_accept")):
 			velocity.y = FUERZA_SALTO * 1.35 # Súper rebote acrobático potenciado
 			saltos_realizados = 1
 			tiempo_desde_salto = TIEMPO_BUFFER_SALTO + 0.1
@@ -389,7 +385,7 @@ func _physics_process(delta: float):
 			_al_aterrizar_ground_pound(vel_y_previa)
 		else:
 			# Cancelación a Dive tipo Odyssey: si durante la pausa o caída el jugador acciona con dirección
-			if not entrada_bloqueada() and (Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial"))):
+			if not entrada_bloqueada() and not esta_en_camara_libre() and (Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial"))):
 				var dir_input = obtener_direccion_movimiento()
 				if dir_input != Vector3.ZERO and not _dive_realizado_en_aire:
 					_en_ground_pound = false
@@ -507,7 +503,7 @@ func _iniciar_rebote_sobre_fantasma(fantasma: Node3D) -> void:
 	velocity = Vector3.ZERO
 
 func _procesar_input_habilidad() -> void:
-	if movimiento_bloqueado:
+	if movimiento_bloqueado or esta_en_camara_libre():
 		return
 
 	if Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial")):
@@ -689,11 +685,6 @@ func obtener_cull_mask_personaje() -> int:
 
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	super(preservar_rotacion_camara)
-	var es_mio = es_activo()
-	var camera = obtener_camara()
-	if es_mio and camera:
-		camera.cull_mask = obtener_cull_mask_personaje()
-		camera.environment = null
 	var arm = obtener_spring_arm()
 	if arm:
 		arm.collision_mask = (1 << 0) | (1 << 1)
@@ -725,6 +716,9 @@ func _configurar_animaciones():
 	if anim_player.has_animation("Idle"):
 		anim_player.play("Idle")
 		_anim_actual = "Idle"
+
+func debe_mostrar_sombra_aterrizaje() -> bool:
+	return super() and not en_canon
 
 func _process(delta: float):
 	super(delta)

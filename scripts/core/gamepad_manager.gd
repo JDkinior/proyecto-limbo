@@ -43,9 +43,23 @@ const ACCIONES_CONFIGURABLES: Array[Dictionary] = [
 		"indice_defecto": JOY_BUTTON_START
 	},
 	{
+		"id": "camara_libre",
+		"nombre": "Cámara Libre (Shorts)",
+		"descripcion": "Activar cámara libre para encuadrar tomas o fijarla estática (mantener para volver a seguimiento)",
+		"tipo_defecto": "button",
+		"indice_defecto": JOY_BUTTON_BACK
+	},
+	{
 		"id": "centrar_camara",
 		"nombre": "Centrar Cámara",
 		"descripcion": "Alinear la cámara inmediatamente tras el personaje",
+		"tipo_defecto": "button",
+		"indice_defecto": JOY_BUTTON_LEFT_STICK
+	},
+	{
+		"id": "alternar_vista_reino",
+		"nombre": "Vista / Colores del Reino",
+		"descripcion": "Fijar los colores y vista de Vivo o Fantasma independiente del personaje controlado",
 		"tipo_defecto": "button",
 		"indice_defecto": JOY_BUTTON_RIGHT_STICK
 	}
@@ -200,6 +214,23 @@ func cargar_config() -> void:
 					"tipo": t,
 					"indice": idx
 				}
+		# Migrar mapeos de versiones previas:
+		# camara_libre -> Vista/Back, centrar_camara -> L3, alternar_vista_reino -> R3
+		if not config_file.has_section_key(SECTION_GAMEPAD, "camara_libre_indice"):
+			var mapa_centrar: Dictionary = mapeos_actuales.get("centrar_camara", {})
+			var idx_centrar: int = int(mapa_centrar.get("indice", -1))
+			if mapa_centrar.get("tipo") == "button" and idx_centrar == JOY_BUTTON_RIGHT_STICK:
+				mapeos_actuales["centrar_camara"] = {
+					"tipo": "button",
+					"indice": JOY_BUTTON_LEFT_STICK
+				}
+		else:
+			var mapa_libre: Dictionary = mapeos_actuales.get("camara_libre", {})
+			var mapa_centrar: Dictionary = mapeos_actuales.get("centrar_camara", {})
+			if mapa_libre.get("tipo") == "button" and int(mapa_libre.get("indice", -1)) == JOY_BUTTON_LEFT_STICK \
+				and mapa_centrar.get("tipo") == "button" and int(mapa_centrar.get("indice", -1)) == JOY_BUTTON_X:
+				mapeos_actuales["camara_libre"] = {"tipo": "button", "indice": JOY_BUTTON_BACK}
+				mapeos_actuales["centrar_camara"] = {"tipo": "button", "indice": JOY_BUTTON_LEFT_STICK}
 
 func guardar_config() -> void:
 	var config_file = ConfigFile.new()
@@ -356,6 +387,8 @@ func _asegurar_teclas_respaldo(id_act: String) -> void:
 		"cambiar_personaje":
 			_asegurar_tecla(id_act, KEY_TAB)
 			_asegurar_tecla(id_act, KEY_C)
+		"alternar_vista_reino":
+			_asegurar_tecla(id_act, KEY_V)
 
 func _asegurar_tecla(accion: String, keycode: Key) -> void:
 	for ev in InputMap.action_get_events(accion):
@@ -432,7 +465,7 @@ static func obtener_texto_boton(tipo: String, indice: int) -> String:
 			JOY_BUTTON_B: return "B / ○ (Círculo)"
 			JOY_BUTTON_X: return "X / □ (Cuadrado)"
 			JOY_BUTTON_Y: return "Y / △ (Triángulo)"
-			JOY_BUTTON_BACK: return "Back / Select / Share"
+			JOY_BUTTON_BACK: return "Vista / Select / Share"
 			JOY_BUTTON_START: return "Start / Options / Menú"
 			JOY_BUTTON_LEFT_STICK: return "L3 (Stick Izq.)"
 			JOY_BUTTON_RIGHT_STICK: return "R3 (Stick Der.)"

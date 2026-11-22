@@ -283,6 +283,9 @@ func _procesar_input_durante_posesion(delta: float) -> void:
 	fantasma.global_position = objeto_poseido_actual.global_position
 	fantasma.velocity = Vector3.ZERO
 	
+	if is_instance_valid(fantasma) and fantasma.has_method("esta_en_camara_libre") and fantasma.esta_en_camara_libre():
+		return
+	
 	# Salir de la posesión con el botón de aura / habilidad especial (el mismo botón usado para entrar)
 	var salir_pulsado = Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial"))
 	if salir_pulsado:

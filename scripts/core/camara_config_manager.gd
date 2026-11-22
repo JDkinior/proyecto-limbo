@@ -17,6 +17,7 @@ signal limite_fps_cambiado(fps: int)
 signal distancia_camara_cambiada(nueva_distancia: float)
 signal altura_camara_cambiada(nueva_altura: float)
 signal camara_estatica_cambiada(activa: bool)
+signal camara_libre_cambiada(activa: bool)
 signal ajustes_camara_revertidos()
 signal boton_rapido_hud_cambiado(activo: bool)
 
@@ -45,6 +46,9 @@ const PITCH_DEFECTO: float = -0.22
 const V_OFFSET: float = -0.15
 const LIMITE_PITCH_MIN: float = -0.75
 const LIMITE_PITCH_MAX: float = 0.25
+const LIMITE_PITCH_LIBRE_MIN: float = -1.48
+const LIMITE_PITCH_LIBRE_MAX: float = 1.48
+const HOLD_L3_SALIR_SEG: float = 0.45
 
 # Constantes predeterminadas y rangos de ajuste libre
 const DISTANCIA_CAMARA_DEFECTO: float = 5.2
@@ -72,10 +76,14 @@ var _limite_fps: int = 60
 var _distancia_camara: float = DISTANCIA_CAMARA_DEFECTO
 var _altura_spring_arm: float = ALTURA_SPRING_ARM_DEFECTO
 var _camara_estatica: bool = false
+var _camara_libre_activa: bool = false
 var _pos_camara_estatica: Vector3 = Vector3.ZERO
 var _rot_camara_estatica: Vector3 = Vector3.ZERO
 var _rot_x_arm_estatica: float = 0.0
 var _mostrar_boton_rapido_hud: bool = false
+var _l3_presionado: bool = false
+var _l3_tiempo_presionado: float = 0.0
+var _l3_puede_salir_por_hold: bool = false
 
 # Nodos de la guía visual 9:16
 var _capa_guia: CanvasLayer = null
@@ -93,6 +101,24 @@ func _ready() -> void:
 		_construir_guia_visual()
 		_construir_toast_notificaciones()
 	cargar_config()
+
+func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	if not _l3_presionado:
+		return
+	if not _puede_procesar_camara_en_gameplay() or not InputMap.has_action("camara_libre") or not Input.is_action_pressed("camara_libre"):
+		_l3_presionado = false
+		_l3_tiempo_presionado = 0.0
+		_l3_puede_salir_por_hold = false
+		return
+	_l3_tiempo_presionado += delta
+	if _l3_puede_salir_por_hold and _l3_tiempo_presionado >= HOLD_L3_SALIR_SEG and _camara_estatica:
+		_l3_presionado = false
+		_l3_tiempo_presionado = 0.0
+		_l3_puede_salir_por_hold = false
+		desactivar_camara_estatica()
+		mostrar_notificacion_camara("📹 Cámara Normal: Siguiendo al personaje")
 
 # -----------------------------------------------------------------------------
 # CONSULTAS Y CONTROL DE MODO SHORTS
@@ -272,15 +298,92 @@ func obtener_limite_pitch_max() -> float:
 func esta_camara_estatica() -> bool:
 	return _camara_estatica
 
+func esta_camara_libre_activa() -> bool:
+	return _camara_estatica and _camara_libre_activa
+
+func _capturar_pose_camara_actual() -> Dictionary:
+	var pos := Vector3.ZERO
+	var rot := Vector3.ZERO
+	var rot_arm := 0.0
+	var cam: Camera3D = null
+	var pj = _obtener_personaje_activo()
+	if is_instance_valid(pj) and pj.has_method("obtener_camara"):
+		cam = pj.obtener_camara()
+	if not is_instance_valid(cam) and is_inside_tree():
+		var vp = get_viewport()
+		if vp:
+			cam = vp.get_camera_3d()
+	if is_instance_valid(cam) and cam.is_inside_tree():
+		var xform: Transform3D = cam.global_transform
+		pos = xform.origin
+		var euler: Vector3 = xform.basis.get_euler(EULER_ORDER_YXZ)
+		rot = Vector3(0.0, euler.y, 0.0)
+		rot_arm = clampf(euler.x, LIMITE_PITCH_LIBRE_MIN, LIMITE_PITCH_LIBRE_MAX)
+	elif is_instance_valid(pj) and pj.has_method("obtener_pivote_camara"):
+		var pivote = pj.obtener_pivote_camara()
+		if is_instance_valid(pivote):
+			pos = pivote.global_position if pivote.is_inside_tree() else pivote.position
+			rot = Vector3(0.0, pivote.rotation.y, 0.0)
+			var arm = pj.obtener_spring_arm() if pj.has_method("obtener_spring_arm") else null
+			if is_instance_valid(arm):
+				rot_arm = clampf(arm.rotation.x, LIMITE_PITCH_LIBRE_MIN, LIMITE_PITCH_LIBRE_MAX)
+	return {"pos": pos, "rot": rot, "rot_arm": rot_arm}
+
 func fijar_camara_estatica(pos: Vector3, rot: Vector3, rot_x_arm: float = 0.0) -> void:
 	_pos_camara_estatica = pos
 	_rot_camara_estatica = rot
-	_rot_x_arm_estatica = rot_x_arm
+	_rot_x_arm_estatica = clampf(rot_x_arm, LIMITE_PITCH_LIBRE_MIN, LIMITE_PITCH_LIBRE_MAX)
+	var cambio_estatica := not _camara_estatica
+	var estaba_libre := _camara_libre_activa
 	_camara_estatica = true
-	camara_estatica_cambiada.emit(true)
-	print("[CamaraConfigManager] Cámara estática fijada en: ", pos, " rot: ", rot)
+	_camara_libre_activa = false
+	if estaba_libre:
+		camara_libre_cambiada.emit(false)
+	if cambio_estatica:
+		camara_estatica_cambiada.emit(true)
+	print("[CamaraConfigManager] Cámara estática fijada en: ", pos, " rot: ", _rot_camara_estatica, " pitch: ", _rot_x_arm_estatica)
+
+func activar_camara_libre() -> void:
+	if not _camara_estatica:
+		var pose := _capturar_pose_camara_actual()
+		_pos_camara_estatica = pose["pos"]
+		_rot_camara_estatica = pose["rot"]
+		_rot_x_arm_estatica = pose["rot_arm"]
+		_camara_estatica = true
+		camara_estatica_cambiada.emit(true)
+	if not _camara_libre_activa:
+		_camara_libre_activa = true
+		camara_libre_cambiada.emit(true)
+	print("[CamaraConfigManager] Cámara libre activada en: ", _pos_camara_estatica)
+
+func fijar_camara_libre_como_estatica() -> void:
+	if not _camara_estatica:
+		var pose := _capturar_pose_camara_actual()
+		fijar_camara_estatica(pose["pos"], pose["rot"], pose["rot_arm"])
+		return
+	if _camara_libre_activa:
+		_camara_libre_activa = false
+		camara_libre_cambiada.emit(false)
+	print("[CamaraConfigManager] Cámara libre fijada como estática en: ", _pos_camara_estatica)
+
+func alternar_camara_libre_l3() -> String:
+	if not _camara_estatica:
+		activar_camara_libre()
+		return "libre"
+	elif _camara_libre_activa:
+		fijar_camara_libre_como_estatica()
+		return "estatica"
+	else:
+		activar_camara_libre()
+		return "libre"
 
 func desactivar_camara_estatica() -> void:
+	_l3_presionado = false
+	_l3_tiempo_presionado = 0.0
+	_l3_puede_salir_por_hold = false
+	if _camara_libre_activa:
+		_camara_libre_activa = false
+		camara_libre_cambiada.emit(false)
 	if _camara_estatica:
 		_camara_estatica = false
 		camara_estatica_cambiada.emit(false)
@@ -289,7 +392,7 @@ func desactivar_camara_estatica() -> void:
 func establecer_camara_estatica(activa: bool) -> void:
 	if activa:
 		if not _camara_estatica:
-			alternar_camara_estatica()
+			fijar_camara_libre_como_estatica()
 	else:
 		if _camara_estatica:
 			desactivar_camara_estatica()
@@ -299,26 +402,7 @@ func alternar_camara_estatica() -> bool:
 		desactivar_camara_estatica()
 		return false
 	else:
-		var pos = Vector3.ZERO
-		var rot = Vector3.ZERO
-		var rot_arm = 0.0
-		var pj = _obtener_personaje_activo()
-		if is_instance_valid(pj) and pj.has_method("obtener_pivote_camara"):
-			var pivote = pj.obtener_pivote_camara()
-			if is_instance_valid(pivote):
-				pos = pivote.global_position
-				rot = pivote.rotation
-				var arm = pj.obtener_spring_arm() if pj.has_method("obtener_spring_arm") else null
-				if is_instance_valid(arm):
-					rot_arm = arm.rotation.x
-		else:
-			var vp = get_viewport()
-			if vp:
-				var cam = vp.get_camera_3d()
-				if is_instance_valid(cam):
-					pos = cam.global_position
-					rot = cam.global_rotation
-		fijar_camara_estatica(pos, rot, rot_arm)
+		fijar_camara_libre_como_estatica()
 		return true
 
 func obtener_posicion_camara_estatica() -> Vector3:
@@ -339,8 +423,15 @@ func mover_posicion_camara_estatica(delta_mundo: Vector3) -> void:
 func establecer_rotacion_camara_estatica(nueva_rot: Vector3) -> void:
 	_rot_camara_estatica = nueva_rot
 
+func rotar_camara_estatica(delta_yaw: float, delta_pitch: float) -> void:
+	_rot_camara_estatica.y = wrapf(_rot_camara_estatica.y + delta_yaw, -PI, PI)
+	_rot_x_arm_estatica = clampf(_rot_x_arm_estatica + delta_pitch, LIMITE_PITCH_LIBRE_MIN, LIMITE_PITCH_LIBRE_MAX)
+
+func rotar_camara_estatica_y(delta_yaw: float) -> void:
+	_rot_camara_estatica.y = wrapf(_rot_camara_estatica.y + delta_yaw, -PI, PI)
+
 func establecer_rot_x_arm_estatica(nuevo_pitch: float) -> void:
-	_rot_x_arm_estatica = clampf(nuevo_pitch, LIMITE_PITCH_MIN, LIMITE_PITCH_MAX)
+	_rot_x_arm_estatica = clampf(nuevo_pitch, LIMITE_PITCH_LIBRE_MIN, LIMITE_PITCH_LIBRE_MAX)
 
 func esta_boton_rapido_hud_activo() -> bool:
 	return _mostrar_boton_rapido_hud
@@ -358,21 +449,40 @@ func alternar_boton_rapido_hud() -> bool:
 func revertir_ajustes_camara() -> void:
 	_distancia_camara = DISTANCIA_CAMARA_DEFECTO
 	_altura_spring_arm = ALTURA_SPRING_ARM_DEFECTO
+	var estaba_libre := _camara_libre_activa
+	_camara_libre_activa = false
 	_camara_estatica = false
+	_l3_presionado = false
+	_l3_tiempo_presionado = 0.0
+	_l3_puede_salir_por_hold = false
+	var tree := get_tree() if is_inside_tree() else null
+	if tree and tree.root and tree.root.has_node("RedManager"):
+		var red_mgr = tree.root.get_node("RedManager")
+		if is_instance_valid(red_mgr) and red_mgr.has_method("restablecer_vista_reino_automatica"):
+			red_mgr.restablecer_vista_reino_automatica()
 	guardar_config()
 	distancia_camara_cambiada.emit(_distancia_camara)
 	altura_camara_cambiada.emit(_altura_spring_arm)
+	if estaba_libre:
+		camara_libre_cambiada.emit(false)
 	camara_estatica_cambiada.emit(false)
 	ajustes_camara_revertidos.emit()
 	print("[CamaraConfigManager] Ajustes de cámara revertidos a valores predeterminados (dist: 5.2, alt: 0.65, estatica: false).")
 
 func es_configuracion_por_defecto() -> bool:
+	var vista_fija := false
+	var tree := get_tree() if is_inside_tree() else null
+	if tree and tree.root and tree.root.has_node("RedManager"):
+		var red_mgr = tree.root.get_node("RedManager")
+		if is_instance_valid(red_mgr) and red_mgr.has_method("tiene_vista_reino_fija"):
+			vista_fija = red_mgr.tiene_vista_reino_fija()
 	return is_equal_approx(_distancia_camara, DISTANCIA_CAMARA_DEFECTO) \
 		and is_equal_approx(_altura_spring_arm, ALTURA_SPRING_ARM_DEFECTO) \
-		and not _camara_estatica
+		and not _camara_estatica \
+		and not vista_fija
 
 func _obtener_personaje_activo() -> Node:
-	var tree = get_tree()
+	var tree := get_tree() if is_inside_tree() else null
 	if not tree:
 		return null
 	var jugadores = tree.get_nodes_in_group("jugadores")
@@ -578,20 +688,42 @@ func mostrar_notificacion_camara(mensaje: String) -> void:
 	_tween_toast.chain().tween_interval(1.4)
 	_tween_toast.chain().tween_property(_panel_toast, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
+func _puede_procesar_camara_en_gameplay() -> bool:
+	if Engine.is_editor_hint():
+		return false
+	if not is_inside_tree():
+		return false
+	var tree := get_tree()
+	if not tree or tree.paused or not tree.current_scene:
+		return false
+	if tree.current_scene.name == "MenuInicio" or tree.current_scene.name.to_lower().contains("menu"):
+		return false
+	if tree.current_scene.has_node("CanvasResultados") or tree.current_scene.has_node("PantallaResultados"):
+		return false
+	if tree.current_scene is NivelBase and tree.current_scene.intro_en_curso:
+		return false
+	var red_mgr = tree.root.get_node_or_null("RedManager") if tree.root else null
+	if is_instance_valid(red_mgr) and red_mgr.get("transicion_en_progreso"):
+		return false
+	for ui in tree.get_nodes_in_group("ui_tactil"):
+		if is_instance_valid(ui) and ui.has_method("esta_bloqueado_para_juego") and ui.esta_bloqueado_para_juego():
+			return false
+	return true
+
 # -----------------------------------------------------------------------------
-# ATAJOS DE TECLADO GLOBALES DURANTE EL GAMEPLAY
+# ATAJOS DE TECLADO Y MANDO DURANTE EL GAMEPLAY
 # -----------------------------------------------------------------------------
 func procesar_input_camara(event: InputEvent) -> bool:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return false
 	
 	# Evitar procesar en pantalla de inicio de juego
-	var tree = get_tree()
+	var tree := get_tree() if is_inside_tree() else null
 	if tree and tree.current_scene and tree.current_scene.name == "MenuInicio":
 		return false
 
 	# Si el foco de la GUI está en un campo de texto, no interceptar teclas
-	var vp = get_viewport()
+	var vp = get_viewport() if is_inside_tree() else null
 	if vp:
 		var foco = vp.gui_get_focus_owner()
 		if foco is LineEdit or foco is TextEdit:
@@ -603,10 +735,15 @@ func procesar_input_camara(event: InputEvent) -> bool:
 		mostrar_notificacion_camara("📱 Proporción 9:16 Shorts: ACTIVADA" if guia_activa else "📱 Proporción 9:16 Shorts: DESACTIVADA")
 		return true
 
-	# K o F6: Alternar cámara estática para tomas de Shorts
+	# K o F6: Alternar Cámara Libre <-> Cámara Fija (solo durante gameplay activo)
 	if event.keycode == KEY_K or event.keycode == KEY_F6:
-		var activa = alternar_camara_estatica()
-		mostrar_notificacion_camara("📹 Cámara Estática: ACTIVADA (Punto Fijo)" if activa else "📹 Cámara Estática: DESACTIVADA (Siguiendo al personaje)")
+		if is_inside_tree() and not _puede_procesar_camara_en_gameplay():
+			return false
+		var estado := alternar_camara_libre_l3()
+		if estado == "libre":
+			mostrar_notificacion_camara("🎥 Cámara Libre: Mueve y encuadra · K/Vista fija la toma")
+		else:
+			mostrar_notificacion_camara("📌 Cámara Fija: Controlas al personaje · K/Vista reajusta · Backspace sale")
 		return true
 	
 	# + (o [ o PageUp): Control de Zoom - Acercar cámara (reducir distancia)
@@ -644,7 +781,44 @@ func procesar_input_camara(event: InputEvent) -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
+	var vp = get_viewport() if is_inside_tree() else null
+	if InputMap.has_action("camara_libre") and event.is_action("camara_libre") and not event.is_echo():
+		if event.is_pressed():
+			if not _puede_procesar_camara_en_gameplay():
+				return
+			var estaba_estatica := _camara_estatica
+			_l3_presionado = true
+			_l3_tiempo_presionado = 0.0
+			_l3_puede_salir_por_hold = estaba_estatica
+			var estado := alternar_camara_libre_l3()
+			if estado == "libre":
+				mostrar_notificacion_camara("🎥 Cámara Libre: Stick L mueve · Stick R rota · Vista fija")
+			else:
+				mostrar_notificacion_camara("📌 Cámara Fija: Controlas al personaje · Vista ajusta · Mantén Vista sale")
+			if vp:
+				vp.set_input_as_handled()
+			return
+		elif event.is_released():
+			if _l3_presionado:
+				_l3_presionado = false
+				_l3_tiempo_presionado = 0.0
+				_l3_puede_salir_por_hold = false
+				if vp:
+					vp.set_input_as_handled()
+				return
+	if esta_camara_libre_activa() and event is InputEventJoypadButton and event.pressed and _puede_procesar_camara_en_gameplay():
+		if event.button_index == JOY_BUTTON_LEFT_SHOULDER:
+			var guia_activa := alternar_guia()
+			mostrar_notificacion_camara("📐 Guía 9:16 Shorts: ACTIVADA" if guia_activa else "📐 Guía 9:16 Shorts: DESACTIVADA")
+			if vp:
+				vp.set_input_as_handled()
+			return
+		elif event.button_index == JOY_BUTTON_RIGHT_SHOULDER:
+			var hud_limpio := alternar_ocultar_controles()
+			mostrar_notificacion_camara("🎬 HUD Limpio (Solo Pausa): ACTIVADO" if hud_limpio else "🎬 HUD Limpio: DESACTIVADO")
+			if vp:
+				vp.set_input_as_handled()
+			return
 	if procesar_input_camara(event):
-		var vp = get_viewport()
 		if vp:
 			vp.set_input_as_handled()

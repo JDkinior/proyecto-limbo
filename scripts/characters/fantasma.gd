@@ -130,10 +130,7 @@ func _ready():
 	_configurar_animaciones()
 	_configurar_particulas_lowpoly_fantasma()
 	
-	var cam = obtener_camara()
-	if cam:
-		cam.environment = ENTORNO_FANTASMA
-		cam.cull_mask = obtener_cull_mask_personaje()
+	aplicar_vista_camara_activa()
 
 	var arm = obtener_spring_arm()
 	if arm:
@@ -153,12 +150,6 @@ func obtener_cull_mask_personaje() -> int:
 
 func actualizar_visibilidad_local(preservar_rotacion_camara: bool = false):
 	super(preservar_rotacion_camara)
-	var es_mio = es_activo()
-	var camera = obtener_camara()
-	if es_mio and camera:
-		# Ver todas las capas (incluyendo plano espiritual)
-		camera.cull_mask = obtener_cull_mask_personaje()
-		camera.environment = obtener_entorno_personaje()
 	var arm = obtener_spring_arm()
 	if arm:
 		arm.collision_mask = (1 << 0) | (1 << 2)
@@ -193,7 +184,7 @@ func _physics_process(delta):
 	_comprobar_aterrizaje_fisico(vel_y_previa)
 	_actualizar_animaciones(delta)
 
-	if Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial")):
+	if not esta_en_camara_libre() and (Input.is_action_just_pressed("interactuar") or (InputMap.has_action("habilidad_especial") and Input.is_action_just_pressed("habilidad_especial"))):
 		activar_habilidad_especial()
 
 func _comprobar_aterrizaje_fisico(vel_y_previa: float) -> void:
@@ -203,11 +194,15 @@ func _comprobar_aterrizaje_fisico(vel_y_previa: float) -> void:
 		_emitir_rafaga_particulas_impacto_fantasma(vel_y_previa < -4.5)
 	_estaba_en_suelo_fantasma = en_suelo
 
+func debe_mostrar_sombra_aterrizaje() -> bool:
+	return super() and not (is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo())
+
 func _process(delta: float):
 	if is_instance_valid(habilidad_posesion) and habilidad_posesion.esta_poseyendo():
 		_pos_anterior_remoto = global_position
 		if es_activo():
 			procesar_camara_base(delta)
+		actualizar_sombra_aterrizaje()
 		return
 
 	super(delta)
