@@ -1,8 +1,8 @@
 # Documentación Completa del Proyecto Limbo
 
-**Versión Actual:** `1.0.25` (Build Code `26`)  
+**Versión Actual:** `1.0.26` (Build Code `27`)  
 **Motor:** Godot Engine 4.7 Mobile / Desktop  
-**Última Actualización:** 11 de Noviembre de 2026  
+**Última Actualización:** 22 de Noviembre de 2026  
 
 # Documentación Central y GDD - Proyecto Limbo
 
@@ -42,6 +42,23 @@ Proyecto Limbo es un juego de plataformas 3D cooperativo asimétrico desarrollad
 ## 🌐 Sistema Multijugador (P2P) y Modo Solitario
 1.  **Multijugador:** Host (ID 1) controla al Vivo; Cliente controla al Fantasma. Sincronización continua de transformadas con `MultiplayerSynchronizer` y llamadas `RPC` para estados mecánicos. Reaparición conjunta en el último checkpoint.
 2.  **Modo Solitario:** Control manual de un personaje mientras el inactivo sigue por el rastro a 2–3 metros. Al topar con un marcador `PuntoCambio` (bloqueo que requiere facultades del compañero), el seguidor se frena y la interfaz solicita alternar sin teletransportes.
+
+## 🛠 Log de Actualizaciones - Versión 1.0.26 (22 de Noviembre de 2026)
+
+### Implementaciones y Optimizaciones:
+*   **Jefe Espectral y Arena del Coliseo (`boss_espectral.gd`, `plataforma_coliseo.gd`, `proyectil_tornado_boss.gd`)**:
+    *   Implementación completa del combate contra el Jefe Espectral (`boss_espectral.tscn`) con armadura, proyectiles de tornado (`proyectil_tornado_boss.gd`), plataformas dinámicas de coliseo (`plataforma_coliseo.tscn`) y pruebas automatizadas (`test_boss_espectral.gd`).
+    *   Integración de assets 3D en Blender y `.glb` (`boss_armadura`, `boss_espectral`, `coliseo_boss`).
+*   **Expansión de Campaña: Niveles 2 al 12 (`catalogo_niveles.gd`, `nivel_base.gd`)**:
+    *   Creación y registro de las escenas de campaña desde `nivel 2.tscn` hasta `nivel_12_el_encuentro_en_el_limbo.tscn`, junto con estructuras de entorno en `scenes/entorno/estructuras/` y actualización de `Nivel 1 _ El Despertar Separado.tscn`.
+*   **Sistemas Core, Red, Cámara y Personajes (`red_manager.gd`, `camara_config_manager.gd`, `character_base.gd`)**:
+    *   Mejoras sustanciales en `CharacterBase`, `Jugador`, `Fantasma`, `habilidad_posesion.gd`, `gamepad_manager.gd`, `camara_config_manager.gd` y `red_manager.gd`.
+    *   Ampliación de suites de pruebas (`test_camara_shorts.gd`, `test_movimiento_odyssey.gd`).
+*   **Entorno, Vegetación y Shaders (`isla_flotante.gd`, `generador_pasto.gd`, `isla_vivo.gdshader`)**:
+    *   Evolución del generador de islas flotantes, sistema de pasto (`recurso_datos_pasto.gd`), shader de nubes (`cielo_estilizado_nubes.gdshader`) y materiales de roca/vórtice.
+*   **Peligros, Mecanismos y UI (`torbellino.gd`, `interruptor_aura.gd`, `puerta_interactiva.gd`, `controles_tactiles.gd`)**:
+    *   Mejoras en `enemigo_espectral.gd`, `torbellino.gd` (`test_torbellino.gd`), `moneda_vivo.gd`, `interruptor_aura.gd`, `puerta_interactiva.gd` y `elemento_interactivo_base.gd`.
+    *   Actualización de interfaz táctil (`controles_tactiles.tscn`), menú de inicio (`menu_inicio.tscn`), modo foto, utilidades en `tools/` y compilado `Proyecto Limbo.apk`.
 
 ## 🛠 Log de Actualizaciones - Versión 1.0.25 (11 de Noviembre de 2026)
 
