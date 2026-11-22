@@ -1,106 +1,422 @@
-[gd_scene format=3 uid="uid://46nfrytmey4l"]
+[gd_scene format=3 uid="uid://bw8xjjuwo7b7o"]
 
-[ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="1_qokjt"]
-[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="2_1q87n"]
-[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="3_1q87n"]
-[ext_resource type="Script" path="res://scripts/core/nivel_base.gd" id="4_wa8a8"]
-[ext_resource type="Material" uid="uid://cielo_limbo_mat_001" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="5_cielo_mat"]
-[ext_resource type="PackedScene" uid="uid://c7t8u3rm7qv21" path="res://scenes/components/peligros/torbellino.tscn" id="6_torbellino"]
-[ext_resource type="PackedScene" uid="uid://cs88ggghqges0" path="res://scenes/components/plataformas/plataforma_espiritual_base.tscn" id="7_plat_esp"]
+[ext_resource type="Script" uid="uid://dp1svyhq4kg4c" path="res://scripts/core/nivel_base.gd" id="1_nivel_base"]
+[ext_resource type="Script" uid="uid://cv3a8t7crqq6r" path="res://scripts/entorno/controlador_entorno_visual.gd" id="2_env_ctrl"]
+[ext_resource type="PackedScene" uid="uid://cs78ggghqges5" path="res://scenes/characters/jugador.tscn" id="3_jugador"]
+[ext_resource type="PackedScene" uid="uid://c0thldihqr588" path="res://scenes/characters/fantasma.tscn" id="4_fantasma"]
+[ext_resource type="PackedScene" uid="uid://dxdselwmt1ljo" path="res://scenes/ui/controles_tactiles.tscn" id="5_ui"]
+[ext_resource type="Material" uid="uid://c7b63irvr06f4" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="6_cielo_limbo"]
+[ext_resource type="PackedScene" uid="uid://cnayqvhumf4io" path="res://scenes/entorno/isla_flotante.tscn" id="7_isla"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/muro_agrietado.tscn" id="8_muro"]
+[ext_resource type="PackedScene" uid="uid://c3e72nfrm5rx2" path="res://scenes/entorno/pilares/pilar_antiguo.tscn" id="9_pilar"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/palanca_interactiva.tscn" id="10_palanca"]
+[ext_resource type="PackedScene" uid="uid://dvaadm8pusiw6" path="res://scenes/components/coleccionables/gema_espiritual.tscn" id="11_gema"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges5" path="res://scenes/components/coleccionables/moneda_vivo.tscn" id="12_moneda_vivo"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges2" path="res://scenes/components/mecanismos/interruptor_aura.tscn" id="13_aura_switch"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/manivela_continua.tscn" id="14_manivela"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqgeta" path="res://scenes/components/mecanismos/puerta_interactiva.tscn" id="15_puerta"]
+[ext_resource type="Material" path="res://assets/materiales/entorno/m_isla_espiritual.tres" id="16_mat_espiritual"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges6" path="res://scenes/components/coleccionables/moneda_fantasma.tscn" id="17_moneda_fantasma"]
+[ext_resource type="PackedScene" uid="uid://c7t8u3rm7qv21" path="res://scenes/components/peligros/torbellino.tscn" id="18_torbellino"]
+[ext_resource type="PackedScene" uid="uid://b0f1k4r7x30aq" path="res://scenes/components/peligros/enemigo_espectral.tscn" id="19_enemigo"]
+[ext_resource type="PackedScene" uid="uid://cs88ggghqges8" path="res://scenes/components/metas/goal.tscn" id="20_goal"]
+[ext_resource type="PackedScene" uid="uid://b2w7sve5fbqiy" path="res://scenes/entorno/iluminacion/farol.tscn" id="21_farol_deco"]
+[ext_resource type="PackedScene" path="res://scenes/components/peligros/plataforma_coliseo.tscn" id="24_im14f"]
+[ext_resource type="PackedScene" uid="uid://bgge3u86gubjn" path="res://scenes/components/peligros/boss_espectral.tscn" id="25_mufuf"]
+[ext_resource type="PackedScene" uid="uid://qwtd7jdl1qc7" path="res://scenes/entorno/estructuras/coliseo_boss.tscn" id="26_coliseo_escenario"]
+[ext_resource type="PackedScene" uid="uid://co65ictc7idvl" path="res://assets/modelos/entorno/estructuras/columna.glb" id="26_gvvpk"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1q87n"]
-albedo_color = Color(0.2, 0.28, 0.35, 1)
-roughness = 0.85
+[sub_resource type="Sky" id="Sky_nivel"]
+sky_material = ExtResource("6_cielo_limbo")
 
-[sub_resource type="BoxMesh" id="BoxMesh_wa8a8"]
-material = SubResource("StandardMaterial3D_1q87n")
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_fthir"]
-
-[sub_resource type="BoxOccluder3D" id="BoxOccluder3D_box"]
-
-[sub_resource type="Sky" id="Sky_l5la3"]
-sky_material = ExtResource("5_cielo_mat")
-
-[sub_resource type="Environment" id="Environment_wa8a8"]
+[sub_resource type="Environment" id="Environment_nivel"]
 background_mode = 2
-sky = SubResource("Sky_l5la3")
+sky = SubResource("Sky_nivel")
+ambient_light_source = 2
+ambient_light_color = Color(0.95, 0.8, 0.54, 1)
+ambient_light_energy = 1.12
 tonemap_mode = 2
+tonemap_exposure = 1.04
 glow_enabled = true
-glow_strength = 1.02
-glow_bloom = 0.15
+glow_intensity = 0.65
+glow_strength = 0.85
+glow_bloom = 0.12
+fog_enabled = true
+fog_light_color = Color(0.93, 0.76, 0.5, 1)
+fog_density = 0.0085
+fog_sky_affect = 0.35
 
-[node name="Nivel2" type="Node3D" unique_id=566491211]
-script = ExtResource("4_wa8a8")
-capitulo = 2
+[node name="Nivel2ElCaminoDelFaro" type="Node3D" unique_id=51989438]
+script = ExtResource("1_nivel_base")
+tiempo_objetivo = 210.0
+titulo_capitulo_personalizado = "El Camino del Faro"
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1630039909]
-environment = SubResource("Environment_wa8a8")
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1125585270]
+environment = SubResource("Environment_nivel")
+script = ExtResource("2_env_ctrl")
+entorno_vivo = SubResource("Environment_nivel")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1500224680]
-transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 15, 0)
-light_color = Color(1, 0.88, 0.58, 1)
-light_energy = 1.8
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1529145408]
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75, -0.433013, 0, 22, 0)
+light_color = Color(1, 0.93, 0.8, 1)
+light_energy = 1.25
 shadow_enabled = true
-directional_shadow_max_distance = 60.0
+shadow_bias = 0.02
+directional_shadow_mode = 1
+directional_shadow_max_distance = 55.0
 
-[node name="Controles_Tactiles" parent="." unique_id=1456756494 instance=ExtResource("3_1q87n")]
+[node name="Jugador" parent="." unique_id=1934220990 instance=ExtResource("3_jugador")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 5.3381042, -55.522392)
+LIMITE_CAIDA_Y = -20.0
 
-[node name="PlataformaSalidaFantasma" type="StaticBody3D" parent="." unique_id=1131606818]
-transform = Transform3D(8, 0, 0, 0, 1.2, 0, 0, 0, 8, 0, 15, 0)
+[node name="Fantasma" parent="." unique_id=757155883 instance=ExtResource("4_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 5.3381042, -55.522392)
+LIMITE_CAIDA_Y = -20.0
+
+[node name="Controles_Tactiles" parent="." unique_id=2023178207 instance=ExtResource("5_ui")]
+
+[node name="Islas" type="Node3D" parent="." unique_id=25210334]
+
+[node name="Isla1_InicioRuinas" parent="Islas" unique_id=995666854 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 40)
+preset = 0
+ancho = 14.0
+profundidad_roca = 8.0
+semilla = 6137
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_cristales = false
+incluir_faroles = true
+radio_despeje_centro = 2.2
+
+[node name="Isla2_EscalonRuina" parent="Islas" unique_id=1033722876 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 25.5)
+preset = 0
+ancho = 11.0
+largo = 11.0
+profundidad_roca = 7.0
+semilla = 6274
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_cristales = false
+incluir_faroles = true
+radio_despeje_centro = 2.2
+
+[node name="Isla3_AntesPuente" parent="Islas" unique_id=1609243886 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 11.5)
+preset = 0
+largo = 10.0
+profundidad_roca = 8.0
+semilla = 6411
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_cristales = false
+radio_despeje_centro = 2.2
+
+[node name="Isla4_EspiritualPuente1" parent="Islas" unique_id=973565506 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.8, 1)
 collision_layer = 4
 collision_mask = 4
+tipo_comportamiento = 2
+disparador_objetivo = NodePath("../../Mecanismos/InterruptorAuraPuente")
+material_espiritual = ExtResource("16_mat_espiritual")
+preset = 0
+ancho = 6.5
+largo = 6.5
+profundidad_roca = 3.5
+semilla = 6548
+generar_pasto = false
+pasto_distancia = false
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PlataformaSalidaFantasma" unique_id=845852166]
-mesh = SubResource("BoxMesh_wa8a8")
+[node name="Isla5_EspiritualPuente2" parent="Islas" unique_id=1961672608 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -7)
+collision_layer = 4
+collision_mask = 4
+tipo_comportamiento = 2
+disparador_objetivo = NodePath("../../Mecanismos/InterruptorAuraPuente")
+material_espiritual = ExtResource("16_mat_espiritual")
+preset = 0
+ancho = 6.5
+largo = 6.5
+profundidad_roca = 3.5
+semilla = 6685
+generar_pasto = false
+pasto_distancia = false
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PlataformaSalidaFantasma" unique_id=78397128]
-shape = SubResource("BoxShape3D_fthir")
+[node name="Isla6_AtalayaFaroles" parent="Islas" unique_id=472426629 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -17)
+preset = 0
+largo = 11.0
+profundidad_roca = 8.0
+semilla = 6822
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_cristales = false
+incluir_faroles = true
+radio_despeje_centro = 2.2
 
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PlataformaSalidaFantasma"]
-occluder = SubResource("BoxOccluder3D_box")
+[node name="Isla7_SenderoVortice" parent="Islas" unique_id=1961300279 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, -31)
+preset = 0
+ancho = 11.0
+largo = 12.0
+profundidad_roca = 7.0
+semilla = 6959
+generar_decoracion = true
+densidad_decoracion = 0.45
+radio_despeje_centro = 2.2
 
-[node name="PlataformasDescenso" type="Node3D" parent="."]
+[node name="Isla8_ArenaCentinela" parent="Islas" unique_id=1428132688 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, -48)
+preset = 0
+ancho = 18.0
+largo = 18.0
+profundidad_roca = 11.0
+semilla = 7096
+habilitar_mesetas_superficie = true
+cantidad_niveles_meseta = 2
+altura_desnivel_mesetas = 1.0
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_cristales = false
+incluir_faroles = true
+radio_despeje_centro = 4.5
 
-[node name="Plataforma1" parent="PlataformasDescenso" instance=ExtResource("7_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 11.5, 2)
+[node name="Isla9_MetaFaro" parent="Islas" unique_id=22093857 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, -99.5)
+preset = 0
+ancho = 13.0
+largo = 13.0
+profundidad_roca = 9.0
+semilla = 7233
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_cristales = false
+incluir_faroles = true
+radio_despeje_centro = 2.2
 
-[node name="Plataforma2" parent="PlataformasDescenso" instance=ExtResource("7_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 7.5, -3)
+[node name="Isla9_ColiseoBoss" parent="Islas" unique_id=1874747314 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.35, -75.5)
+preset = 0
+ancho = 48.5
+largo = 35.5
+profundidad_roca = 13.0
+irregularidad_contorno = 0.0
+semilla = 7249
+radio_despeje_centro = 18.5
 
-[node name="Plataforma3" parent="PlataformasDescenso" instance=ExtResource("7_plat_esp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 4, 1)
+[node name="Mecanismos" type="Node3D" parent="." unique_id=1000939123]
 
-[node name="PlataformaLlegada" type="StaticBody3D" parent="." unique_id=1618494945]
-transform = Transform3D(14, 0, 0, 0, 1, 0, 0, 0, 14, 18, 0, 0)
-collision_layer = 5
-collision_mask = 5
+[node name="MuroAgrietado1" parent="Mecanismos" unique_id=1584903765 instance=ExtResource("8_muro")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 22)
+golpes_requeridos = 2
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="PlataformaLlegada" unique_id=1945116783]
-mesh = SubResource("BoxMesh_wa8a8")
+[node name="PalancaActo1" parent="Mecanismos" unique_id=1797840462 instance=ExtResource("10_palanca")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 1.8, 25.5)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="PlataformaLlegada" unique_id=766424479]
-shape = SubResource("BoxShape3D_fthir")
+[node name="InterruptorAuraPuente" parent="Mecanismos" unique_id=370487738 instance=ExtResource("13_aura_switch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 2.5, 11.5)
 
-[node name="OccluderInstance3D" type="OccluderInstance3D" parent="PlataformaLlegada"]
-occluder = SubResource("BoxOccluder3D_box")
+[node name="ManivelaPuente" parent="Mecanismos" unique_id=461062086 node_paths=PackedStringArray("nodo_controlado") instance=ExtResource("14_manivela")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 2.5, 11.5)
+velocidad_retorno = 0.08
+bloquear_al_completar = true
+nodo_controlado = NodePath("../PuertaLevante1")
+desplazamiento_controlado = Vector3(0, 5.5, 0)
+duracion_estasis = 8.0
 
-[node name="Torbellinos" type="Node3D" parent="."]
+[node name="PuertaLevante1" parent="Mecanismos" unique_id=722624379 instance=ExtResource("15_puerta")]
+transform = Transform3D(1.5, 0, 0, 0, 1.2, 0, 0, 0, 1, 0, 2.5, 7)
 
-[node name="Torbellino1" parent="Torbellinos" instance=ExtResource("6_torbellino")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 10, -0.5)
+[node name="InterruptorAuraDespeje" parent="Mecanismos" unique_id=296032441 instance=ExtResource("13_aura_switch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 3.2, -31)
 
-[node name="Torbellino2" parent="Torbellinos" instance=ExtResource("6_torbellino")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 6.5, -1)
+[node name="PalancaArena" parent="Mecanismos" unique_id=1813595974 instance=ExtResource("10_palanca")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 4.2, -52)
+
+[node name="AuraArena" parent="Mecanismos" unique_id=1468243558 instance=ExtResource("13_aura_switch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 4.2, -52)
+
+[node name="PuertaFinalArena" parent="Mecanismos" unique_id=1798796454 node_paths=PackedStringArray("disparadores_objetivo") instance=ExtResource("15_puerta")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, -57.5)
+condicion_combinacion = 1
+disparadores_objetivo = [NodePath("../PalancaArena"), NodePath("../AuraArena")]
+
+[node name="PuertaSalidaColiseo" parent="Mecanismos" unique_id=902945604 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("15_puerta")]
+transform = Transform3D(1.6, 0, 0, 0, 0.9, 0, 0, 0, 1, 0, 3.5, -88.5)
+disparador_objetivo = NodePath("../../ColiseoBoss/BossEspectral")
+
+[node name="Peligros" type="Node3D" parent="." unique_id=1072182209]
+
+[node name="TorbellinoPatrulla1" parent="Peligros" unique_id=1982310688 instance=ExtResource("18_torbellino")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, -25)
 se_mueve = true
-desplazamiento = Vector3(0, 0, 3.5)
-velocidad_movimiento = 2.0
+desplazamiento = Vector3(5, 0, 0)
+velocidad_movimiento = 2.4
 
-[node name="Torbellino3" parent="Torbellinos" instance=ExtResource("6_torbellino")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5, 2.5, 2)
+[node name="TorbellinoBarrera" parent="Peligros" unique_id=281603588 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("18_torbellino")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.2, -38)
+disparador_objetivo = NodePath("../../Mecanismos/InterruptorAuraDespeje")
+distancia_desplazamiento = 8.0
 
-[node name="Fantasma" parent="." unique_id=1234024380 instance=ExtResource("1_qokjt")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16.5, 0)
+[node name="EnemigoCentinela" parent="Peligros" unique_id=947237915 node_paths=PackedStringArray("plataforma_asignada") instance=ExtResource("19_enemigo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.95, -48)
+radio_zona_peligro = 7.5
+plataforma_asignada = NodePath("../../Islas/Isla8_ArenaCentinela")
+cantidad_enemigos = 2
 
-[node name="Jugador" parent="." unique_id=1234024379 instance=ExtResource("2_1q87n")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 1.5, 0)
+[node name="Coleccionables" type="Node3D" parent="." unique_id=1533527650]
+
+[node name="Gema1_Ruinas" parent="Coleccionables" unique_id=1564762921 instance=ExtResource("11_gema")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8, 3, 25.5)
+
+[node name="MV_A1_1" parent="Coleccionables" unique_id=1868662160 instance=ExtResource("12_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 34)
+
+[node name="MV_A1_2" parent="Coleccionables" unique_id=1986581546 instance=ExtResource("12_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.35, 31.5)
+
+[node name="MV_A1_3" parent="Coleccionables" unique_id=24110268 instance=ExtResource("12_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 29)
+
+[node name="MF_A2_1" parent="Coleccionables" unique_id=1861302610 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 4, 8)
+
+[node name="MF_A2_2" parent="Coleccionables" unique_id=2012768488 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 5.233, 2.667)
+
+[node name="MF_A2_3" parent="Coleccionables" unique_id=16734334 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 5.4, -2.667)
+
+[node name="MF_A2_4" parent="Coleccionables" unique_id=513527261 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 4.5, -8)
+
+[node name="Gema2_Puente" parent="Coleccionables" unique_id=397683004 instance=ExtResource("11_gema")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -3)
+
+[node name="Gema3_Faroles" parent="Coleccionables" unique_id=1200432288 instance=ExtResource("11_gema")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 4.5, -31)
+
+[node name="MV_A3_1" parent="Coleccionables" unique_id=1826968062 instance=ExtResource("12_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -21)
+
+[node name="MV_A3_2" parent="Coleccionables" unique_id=1978400836 instance=ExtResource("12_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, -24.5)
+
+[node name="MV_A3_3" parent="Coleccionables" unique_id=48967890 instance=ExtResource("12_moneda_vivo")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -28)
+
+[node name="Gema4_Arena" parent="Coleccionables" unique_id=666931986 instance=ExtResource("11_gema")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.2, -54)
+
+[node name="MF_Final_1" parent="Coleccionables" unique_id=232081241 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 5, -56)
+
+[node name="MF_Final_2" parent="Coleccionables" unique_id=349968099 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 6, -60)
+
+[node name="MF_Final_3" parent="Coleccionables" unique_id=1675306613 instance=ExtResource("17_moneda_fantasma")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 5, -64)
+
+[node name="Decoraciones" type="Node3D" parent="." unique_id=993023318]
+
+[node name="PilarMarcoMuroIzq" parent="Decoraciones" unique_id=1893078147 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.6, 1.8, 22)
+
+[node name="PilarMarcoMuroDer" parent="Decoraciones" unique_id=744347892 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 1.8, 22)
+
+[node name="PilarPuertaLevIzq" parent="Decoraciones" unique_id=2012215308 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 2.5, 7)
+
+[node name="PilarPuertaLevDer" parent="Decoraciones" unique_id=727987323 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2, 2.5, 7)
+
+[node name="PilarRuina_1" parent="Decoraciones" unique_id=296807612 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2, 0, 40)
+
+[node name="PilarRuina_2" parent="Decoraciones" unique_id=146390278 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.2, 0, 40)
+
+[node name="PilarRuina_3" parent="Decoraciones" unique_id=2143194512 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1.8, 25)
+
+[node name="PilarRuina_4" parent="Decoraciones" unique_id=1641682995 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 3.2, -48)
+
+[node name="PilarRuina_5" parent="Decoraciones" unique_id=383592613 instance=ExtResource("9_pilar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 3.2, -48)
+
+[node name="FarolRuina_1" parent="Decoraciones" unique_id=1354894389 instance=ExtResource("21_farol_deco")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0, 37)
+
+[node name="FarolRuina_2" parent="Decoraciones" unique_id=1238064527 instance=ExtResource("21_farol_deco")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 2.5, 11)
+
+[node name="FarolRuina_3" parent="Decoraciones" unique_id=1053584665 instance=ExtResource("21_farol_deco")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, -103.5)
+
+[node name="ZonaReunionFinal" type="Node3D" parent="." unique_id=2042879989]
+
+[node name="Goal" parent="ZonaReunionFinal" unique_id=1756096360 instance=ExtResource("20_goal")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, -99.5)
+
+[node name="ColiseoBoss" type="Node3D" parent="." unique_id=505215268]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, -75.5)
+
+[node name="Arquitectura" type="Node3D" parent="ColiseoBoss" unique_id=1632630386]
+
+[node name="EscenarioColiseo" parent="ColiseoBoss/Arquitectura" unique_id=1688468420 instance=ExtResource("26_coliseo_escenario")]
+
+[node name="PlataformasCombate" type="Node3D" parent="ColiseoBoss" unique_id=457614816]
+
+[node name="PlataformaColiseo_1" parent="ColiseoBoss/PlataformasCombate" unique_id=736756503 instance=ExtResource("24_im14f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 0.06, 3.6)
+retardo_elevacion = 0.2
+
+[node name="PlataformaColiseo_2" parent="ColiseoBoss/PlataformasCombate" unique_id=77606032 instance=ExtResource("24_im14f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3, 0.06, -1.2)
+altura_elevada = 3.2
+retardo_elevacion = 0.35
+
+[node name="PlataformaColiseo_3" parent="ColiseoBoss/PlataformasCombate" unique_id=174118971 instance=ExtResource("24_im14f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.2, 0.06, -5.4)
+altura_elevada = 4.75
+retardo_elevacion = 0.5
+
+[node name="PlataformaColiseo_4" parent="ColiseoBoss/PlataformasCombate" unique_id=475585823 instance=ExtResource("24_im14f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.06, -5.8)
+altura_elevada = 5.35
+retardo_elevacion = 0.65
+
+[node name="PlataformaColiseo_5" parent="ColiseoBoss/PlataformasCombate" unique_id=1721205649 instance=ExtResource("24_im14f")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0.06, -2.2)
+altura_elevada = 5.85
+retardo_elevacion = 0.8
+
+[node name="BossEspectral" parent="ColiseoBoss" unique_id=1617196673 node_paths=PackedStringArray("plataformas_combate") instance=ExtResource("25_mufuf")]
+plataformas_combate = [NodePath("../PlataformasCombate/PlataformaColiseo_1"), NodePath("../PlataformasCombate/PlataformaColiseo_2"), NodePath("../PlataformasCombate/PlataformaColiseo_3"), NodePath("../PlataformasCombate/PlataformaColiseo_4"), NodePath("../PlataformasCombate/PlataformaColiseo_5")]
+
+[node name="IslaFlotante" parent="." unique_id=361091663 instance=ExtResource("7_isla")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.920197, 11.17003, -84.50351)
+preset = 0
+ancho = 6.0
+largo = 6.0
+profundidad_roca = 3.0
+irregularidad_contorno = 0.1
+segmentos_perimetro = 18
+anillos_roca = 5
+anillos_superficie = 2
+intensidad_variacion = 0.35
+cantidad_picos_rocosos = 1
+dispersion_picos = 0.8
+generar_pasto = false
+variacion_superficie = 1.0
+longitud_faldon_pasto = 0.5
+vuelo_faldon_pasto = 0.3
+cantidad_rocas_satelite = 2
+margen_borde = 1.0
+radio_despeje_centro = 0.8
+
+[node name="columna" parent="." unique_id=489693479 instance=ExtResource("26_gvvpk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.857482, 3.492971, -66.141975)

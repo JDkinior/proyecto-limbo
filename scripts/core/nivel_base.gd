@@ -17,7 +17,7 @@ const CatalogoNiveles = preload("res://scripts/core/catalogo_niveles.gd")
 
 @export_group("Intro del Capítulo")
 @export var mostrar_intro_capitulo: bool = true ## Muestra el rótulo con fade-in al entrar al nivel.
-@export_enum("1", "2", "3", "4") var capitulo: int = 1 ## Número de capítulo que corresponde a este nivel.
+@export_enum("1", "2", "3", "4", "5", "6") var capitulo: int = 1 ## Número de capítulo que corresponde a este nivel.
 @export_multiline var titulo_capitulo_personalizado: String = "" ## Texto personalizado del rótulo. Si se deja vacío usa el nombre por defecto del capítulo.
 @export_range(0.2, 4.0, 0.1) var tiempo_fade_in: float = 1.0
 @export_range(0.5, 10.0, 0.1) var tiempo_visible: float = 2.5
@@ -62,6 +62,8 @@ func _ocultar_hud_inicial() -> void:
 		if is_instance_valid(ui) and ui.has_method("ocultar_para_intro_nivel"):
 			ui.ocultar_para_intro_nivel()
 
+static var _pipelines_precalentados: bool = false
+
 func _precalentar_pipelines_graficos() -> void:
 	# Pre-inicializar y compilar en GPU todos los recursos, entornos y shaders
 	# de ambos reinos (Vivo y Fantasma / Capa 3) durante el arranque del nivel,
@@ -70,6 +72,9 @@ func _precalentar_pipelines_graficos() -> void:
 	if not is_instance_valid(red_mgr):
 		return
 	red_mgr.buscar_personajes_en_escena()
+
+	if _pipelines_precalentados:
+		return
 	
 	var env_fant: Environment = null
 	var env_vivo: Environment = null
@@ -165,6 +170,7 @@ func _precalentar_pipelines_graficos() -> void:
 	cam_activa.cull_mask = mask_original if mask_original != 0 else (1 << 0) | (1 << 1)
 
 	await RenderingServer.frame_post_draw
+	_pipelines_precalentados = true
 
 	# Limpieza
 	if is_instance_valid(prewarm_holder):

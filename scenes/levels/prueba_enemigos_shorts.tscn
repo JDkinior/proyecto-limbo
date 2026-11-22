@@ -42,13 +42,13 @@ shadow_enabled = true
 [node name="Islas" type="Node3D" parent="." unique_id=84671429]
 
 [node name="IslaCamino" parent="Islas" unique_id=1901894858 instance=ExtResource("7_isla")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0188091, 0, -14.130812)
 preset = 0
 ancho = 23.5
 largo = 26.0
 profundidad_roca = 4.5
+irregularidad_contorno = 0.08
 generar_pasto = false
-activar_pincel_terreno = true
 modo_pincel_terreno = 6
 radio_pincel_terreno = 2.0
 fuerza_pincel_terreno = 0.65
@@ -74,8 +74,7 @@ deformaciones_escultura = Array[Dictionary]([{
 "pos": Vector2(-1.0499563, -2.5832424),
 "radio": 2.0
 }])
-activar_pincel_camino = true
-modo_accion_camino = 1
+modo_accion_camino = 4
 trazos_pintura_caminos = Array[Dictionary]([{
 "borrar": false,
 "fuerza": 0.65,
@@ -928,28 +927,370 @@ trazos_pintura_caminos = Array[Dictionary]([{
 "pos": Vector2(8.405689, 5.262062),
 "radio": 2.0,
 "tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.33561945, 10.251722),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.0943532, 9.67363),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(0.37089884, 8.274277),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(2.18168, 6.967545),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(3.2647223, 6.6517525),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(4.616707, 6.4262533),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.5655022, 3.0721),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-0.99124646, 2.633728),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": false,
+"fuerza": 0.65,
+"pos": Vector2(-4.1038485, 2.1133037),
+"radio": 2.0,
+"tipo": 1
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.9948592, 2.0739388),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.830851, 3.232328),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.32404482, 0.6691952),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.1108903, 2.7720659),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.52300656, 4.8683653),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.81523013, 3.8263707),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.863395, -1.676261),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.6044629, -2.621437),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.4892944, -3.500719),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.3802085, -6.5438004),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.3367836, -8.452527),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.1780314, -7.7262917),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.5768363, -5.4974365),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.5903063, -4.1210966),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(3.1117482, -2.585991),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.77738166, -0.16420078),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.452095, 1.343739),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.8203263, 3.1227095),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.820374, 4.2662),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.1892161, 5.151185),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.05929196, 7.4242644),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.7745907, 7.993695),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(5.185746, 7.7113156),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(8.968897, 5.667604),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(9.442474, 5.333394),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(9.895859, 6.546515),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(8.122686, 7.6931434),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(7.1929955, 6.8256073),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(5.9757047, 4.296021),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(6.619114, 4.1357837),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(5.588476, 2.876287),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.4845514, -0.45498657),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(1.3529863, 0.16121817),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.5128596, -1.2900949),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.5860596, -0.619915),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.4240482, 1.6390352),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(4.762518, 2.9457214),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(4.076215, 1.7679024),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(4.075991, 4.164572),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(2.6622336, 5.8679223),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.67836326, 6.165867),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-0.76111627, 6.4742217),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-2.8204188, 5.9975066),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.54814, 3.770697),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-1.1893637, 4.305261),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-4.504174, 8.158325),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(-3.8859153, 7.8381534),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(0.3179748, 6.243166),
+"radio": 2.0,
+"tipo": 3
+}, {
+"borrar": true,
+"fuerza": 0.65,
+"pos": Vector2(6.4024343, 6.552031),
+"radio": 2.0,
+"tipo": 3
 }])
 
-[node name="IslaMeta" parent="Islas" unique_id=851846071 instance=ExtResource("7_isla")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -25)
-preset = 0
-ancho = 7.0
-largo = 7.0
-profundidad_roca = 4.0
-
-[node name="Goal" parent="Islas/IslaMeta" unique_id=55463083 instance=ExtResource("5_goal")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
-
 [node name="Jugador" parent="." unique_id=1033182831 instance=ExtResource("2_vivo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, -3.8941617)
 
 [node name="Fantasma" parent="." unique_id=1789537780 instance=ExtResource("3_fantasma")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 0.8, 4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2, 0.8, -3.8941617)
 
 [node name="EnemigoEspectral" parent="." unique_id=569553707 node_paths=PackedStringArray("plataforma_asignada") instance=ExtResource("6_enemigo")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1994286, 0.8497807, -14.205868)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.1994286, 0.84977305, -14.205868)
 plataforma_asignada = NodePath("../Islas/IslaCamino")
 tiempo_anticipacion_ataque = 0.75
 altura_flotacion = 0.85
 cantidad_enemigos = 2
 tiempo_entre_spawns = 1.8
+
+[node name="Goal" parent="." unique_id=55463083 instance=ExtResource("5_goal")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -25)
+visible = false

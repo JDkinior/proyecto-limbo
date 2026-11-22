@@ -1,0 +1,347 @@
+[gd_scene format=3 uid="uid://lvl_1190748346"]
+
+[ext_resource type="Script" path="res://scripts/core/nivel_base.gd" id="1_nivel_base"]
+[ext_resource type="Script" path="res://scripts/entorno/controlador_entorno_visual.gd" id="2_env_ctrl"]
+[ext_resource type="PackedScene" path="res://scenes/characters/jugador.tscn" id="3_jugador"]
+[ext_resource type="PackedScene" path="res://scenes/characters/fantasma.tscn" id="4_fantasma"]
+[ext_resource type="PackedScene" path="res://scenes/ui/controles_tactiles.tscn" id="5_ui"]
+[ext_resource type="Material" path="res://shaders/entorno/cielo/cielo_limbo_mat.tres" id="6_cielo_limbo"]
+[ext_resource type="PackedScene" path="res://scenes/entorno/isla_flotante.tscn" id="7_isla"]
+[ext_resource type="Material" path="res://assets/materiales/entorno/m_isla_roca_pura.tres" id="8_mat_roca_pura"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/interruptor_aura.tscn" id="9_aura_switch"]
+[ext_resource type="Material" path="res://assets/materiales/entorno/m_isla_espiritual.tres" id="10_mat_espiritual"]
+[ext_resource type="PackedScene" path="res://scenes/components/coleccionables/gema_espiritual.tscn" id="11_gema"]
+[ext_resource type="PackedScene" path="res://scenes/components/coleccionables/moneda_fantasma.tscn" id="12_moneda_fantasma"]
+[ext_resource type="PackedScene" path="res://scenes/components/peligros/torbellino.tscn" id="13_torbellino"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/caja_empujable.tscn" id="14_caja"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/boton_presion.tscn" id="15_boton"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/puerta_interactiva.tscn" id="16_puerta"]
+[ext_resource type="PackedScene" path="res://scenes/components/coleccionables/moneda_vivo.tscn" id="17_moneda_vivo"]
+[ext_resource type="PackedScene" path="res://scenes/components/mecanismos/palanca_interactiva.tscn" id="18_palanca"]
+[ext_resource type="PackedScene" path="res://scenes/components/metas/goal.tscn" id="19_goal"]
+[ext_resource type="PackedScene" path="res://scenes/entorno/cristales/cristales.tscn" id="20_cristales"]
+
+[sub_resource type="Sky" id="Sky_nivel"]
+sky_material = ExtResource("6_cielo_limbo")
+
+[sub_resource type="Environment" id="Environment_nivel"]
+background_mode = 2
+sky = SubResource("Sky_nivel")
+ambient_light_source = 2
+ambient_light_color = Color(0.450, 0.420, 0.850, 1)
+ambient_light_energy = 1.05
+tonemap_mode = 2
+tonemap_exposure = 1.04
+glow_enabled = true
+glow_intensity = 0.65
+glow_strength = 0.85
+glow_bloom = 0.12
+fog_enabled = true
+fog_light_color = Color(0.280, 0.250, 0.580, 1)
+fog_density = 0.0150
+fog_sky_affect = 0.35
+
+[node name="Nivel7LasCavernasResonantes" type="Node3D" unique_id=1871683720]
+script = ExtResource("1_nivel_base")
+tiempo_objetivo = 240.0
+capitulo = 4
+titulo_capitulo_personalizado = "Las Cavernas Resonantes"
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1285856711]
+environment = SubResource("Environment_nivel")
+script = ExtResource("2_env_ctrl")
+entorno_vivo = SubResource("Environment_nivel")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1419207921]
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75, -0.433013, 0, 22, 0)
+light_color = Color(0.700, 0.780, 1.000, 1)
+light_energy = 1.15
+shadow_enabled = true
+shadow_bias = 0.02
+directional_shadow_mode = 1
+directional_shadow_max_distance = 55.0
+
+[node name="Jugador" parent="." unique_id=1327558184 instance=ExtResource("3_jugador")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -2.000, 1.000, 42.000)
+LIMITE_CAIDA_Y = -24.0
+
+[node name="Fantasma" parent="." unique_id=289962173 instance=ExtResource("4_fantasma")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 2.000, 1.000, 42.000)
+LIMITE_CAIDA_Y = -24.0
+
+[node name="Controles_Tactiles" parent="." unique_id=1998893934 instance=ExtResource("5_ui")]
+
+[node name="Islas" type="Node3D" parent="." unique_id=4328583]
+
+[node name="Mecanismos" type="Node3D" parent="." unique_id=130035429]
+
+[node name="Peligros" type="Node3D" parent="." unique_id=58786647]
+
+[node name="Coleccionables" type="Node3D" parent="." unique_id=1729033972]
+
+[node name="Decoraciones" type="Node3D" parent="." unique_id=585107991]
+
+[node name="ZonaReunionFinal" type="Node3D" parent="." unique_id=1168830307]
+
+[node name="Isla1_CavernaInicio" parent="Islas" unique_id=208266466 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 0.000, 40.000)
+tipo_comportamiento = 0
+preset = 0
+ancho = 15.00
+largo = 14.00
+profundidad_roca = 9.00
+semilla = 21137
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = true
+incluir_faroles = false
+radio_despeje_centro = 2.20
+
+[node name="CristalEco1" parent="Mecanismos" unique_id=92915843 instance=ExtResource("9_aura_switch")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 3.800, 0.000, 35.500)
+
+[node name="Isla2_PuenteEco1" parent="Islas" unique_id=736289243 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 0.400, 28.000)
+tipo_comportamiento = 2
+preset = 0
+ancho = 6.50
+largo = 6.50
+profundidad_roca = 3.50
+semilla = 21274
+disparador_objetivo = NodePath("../../Mecanismos/CristalEco1")
+collision_layer = 4
+collision_mask = 4
+opacidad_inactiva = 0.45
+material_espiritual = ExtResource("10_mat_espiritual")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = false
+
+[node name="Isla3_PuenteEco2" parent="Islas" unique_id=693042190 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 0.800, 20.000)
+tipo_comportamiento = 2
+preset = 0
+ancho = 6.50
+largo = 6.50
+profundidad_roca = 3.50
+semilla = 21411
+disparador_objetivo = NodePath("../../Mecanismos/CristalEco1")
+collision_layer = 4
+collision_mask = 4
+opacidad_inactiva = 0.45
+material_espiritual = ExtResource("10_mat_espiritual")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = false
+
+[node name="Gema1_Eco" parent="Coleccionables" unique_id=1253795490 instance=ExtResource("11_gema")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -4.500, 1.800, 24.000)
+
+[node name="MF_Eco_1" parent="Coleccionables" unique_id=1821352105 instance=ExtResource("12_moneda_fantasma")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 3.800, 1.500, 34.000)
+
+[node name="MF_Eco_2" parent="Coleccionables" unique_id=1971777811 instance=ExtResource("12_moneda_fantasma")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 3.367, 2.533, 28.667)
+
+[node name="MF_Eco_3" parent="Coleccionables" unique_id=42058117 instance=ExtResource("12_moneda_fantasma")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 2.933, 2.767, 23.333)
+
+[node name="MF_Eco_4" parent="Coleccionables" unique_id=484791334 instance=ExtResource("12_moneda_fantasma")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 2.500, 2.200, 18.000)
+
+[node name="Isla4_CavernaSenuelo" parent="Islas" unique_id=2001922389 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 1.000, 8.500)
+tipo_comportamiento = 0
+preset = 0
+ancho = 14.00
+largo = 13.00
+profundidad_roca = 9.00
+semilla = 21548
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = true
+incluir_faroles = false
+radio_despeje_centro = 2.20
+
+[node name="CristalSenuelo" parent="Mecanismos" unique_id=711845782 instance=ExtResource("9_aura_switch")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -4.200, 1.000, 8.500)
+
+[node name="Isla4B_PilarCuarzo" parent="Islas" unique_id=2069969910 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 1.100, -1.000)
+tipo_comportamiento = 0
+preset = 0
+ancho = 5.50
+largo = 5.50
+profundidad_roca = 4.50
+semilla = 21685
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = false
+incluir_faroles = false
+radio_despeje_centro = 2.20
+
+[node name="TorbellinoSenuelo" parent="Peligros" unique_id=477499766 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("13_torbellino")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.000, -1.000)
+disparador_objetivo = NodePath("../../Mecanismos/CristalSenuelo")
+distancia_desplazamiento = 9.0
+direccion_desplazamiento = Vector3(-1, 0, 0)
+
+[node name="Isla5_CruceVibracion" parent="Islas" unique_id=2121781483 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 1.200, -10.500)
+tipo_comportamiento = 0
+preset = 0
+ancho = 12.00
+largo = 12.00
+profundidad_roca = 8.00
+semilla = 21822
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = true
+incluir_faroles = false
+radio_despeje_centro = 2.20
+
+[node name="Gema2_Senuelo" parent="Coleccionables" unique_id=654228294 instance=ExtResource("11_gema")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 5.000, 2.500, -1.000)
+
+[node name="Isla6_EscudosCuarzo" parent="Islas" unique_id=1132739946 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 1.500, -26.000)
+tipo_comportamiento = 0
+preset = 0
+ancho = 14.00
+largo = 14.00
+profundidad_roca = 9.00
+semilla = 21959
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = true
+incluir_faroles = false
+radio_despeje_centro = 2.20
+
+[node name="CajaCuarzo" parent="Mecanismos" unique_id=690458855 instance=ExtResource("14_caja")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -3.500, 2.200, -25.000)
+
+[node name="BotonCuarzo" parent="Mecanismos" unique_id=220489182 instance=ExtResource("15_boton")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 3.500, 1.500, -25.000)
+
+[node name="PuertaCuarzo" parent="Mecanismos" unique_id=1591768919 node_paths=PackedStringArray("disparador_objetivo") instance=ExtResource("16_puerta")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 1.500, -32.000)
+disparador_objetivo = NodePath("../BotonCuarzo")
+
+[node name="Gema3_Cuarzo" parent="Coleccionables" unique_id=235034121 instance=ExtResource("11_gema")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -4.800, 3.000, -29.000)
+
+[node name="MV_Cuarzo_1" parent="Coleccionables" unique_id=2132747287 instance=ExtResource("17_moneda_vivo")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.600, -15.000)
+
+[node name="MV_Cuarzo_2" parent="Coleccionables" unique_id=1712747949 instance=ExtResource("17_moneda_vivo")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 3.500, -18.500)
+
+[node name="MV_Cuarzo_3" parent="Coleccionables" unique_id=286344507 instance=ExtResource("17_moneda_vivo")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.800, -22.000)
+
+[node name="Isla7_CamaraEcos" parent="Islas" unique_id=273854816 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.000, -46.000)
+tipo_comportamiento = 0
+preset = 0
+ancho = 18.00
+largo = 18.00
+profundidad_roca = 12.00
+semilla = 22096
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = true
+incluir_faroles = false
+radio_despeje_centro = 5.00
+
+[node name="EcoCamara1" parent="Mecanismos" unique_id=622600672 instance=ExtResource("9_aura_switch")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -5.500, 2.000, -46.000)
+
+[node name="EcoCamara2" parent="Mecanismos" unique_id=1008037978 instance=ExtResource("9_aura_switch")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 5.500, 2.000, -46.000)
+
+[node name="PalancaEco3" parent="Mecanismos" unique_id=318104749 instance=ExtResource("18_palanca")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.000, -51.000)
+
+[node name="Isla8_PuenteColosal1" parent="Islas" unique_id=163569714 node_paths=PackedStringArray("disparadores_objetivo") instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.200, -57.500)
+tipo_comportamiento = 2
+preset = 0
+ancho = 7.00
+largo = 6.50
+profundidad_roca = 4.00
+semilla = 22233
+disparadores_objetivo = Array[NodePath]([NodePath("../../Mecanismos/EcoCamara1"), NodePath("../../Mecanismos/EcoCamara2"), NodePath("../../Mecanismos/PalancaEco3")])
+condicion_combinacion = 1
+collision_layer = 4
+collision_mask = 4
+opacidad_inactiva = 0.45
+material_espiritual = ExtResource("10_mat_espiritual")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = false
+
+[node name="Isla9_MetaCavernas" parent="Islas" unique_id=371467119 instance=ExtResource("7_isla")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.400, -68.000)
+tipo_comportamiento = 0
+preset = 0
+ancho = 13.00
+largo = 13.00
+profundidad_roca = 10.00
+semilla = 22370
+material_roca = ExtResource("8_mat_roca_pura")
+generar_pasto = false
+pasto_distancia = false
+generar_decoracion = true
+densidad_decoracion = 0.45
+incluir_arboles = false
+incluir_cristales = true
+incluir_faroles = false
+radio_despeje_centro = 2.20
+
+[node name="Gema4_CamaraEcos" parent="Coleccionables" unique_id=372756811 instance=ExtResource("11_gema")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 4.200, -57.500)
+
+[node name="Goal" parent="ZonaReunionFinal" unique_id=2080518436 instance=ExtResource("19_goal")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 0.000, 2.400, -68.000)
+
+[node name="CristalCaverna_1" parent="Decoraciones" unique_id=835393600 instance=ExtResource("20_cristales")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -6.000, 0.000, 42.000)
+
+[node name="CristalCaverna_2" parent="Decoraciones" unique_id=683821562 instance=ExtResource("20_cristales")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 6.000, 0.000, 38.000)
+
+[node name="CristalCaverna_3" parent="Decoraciones" unique_id=1606777196 instance=ExtResource("20_cristales")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -6.000, 1.000, 12.000)
+
+[node name="CristalCaverna_4" parent="Decoraciones" unique_id=1101130959 instance=ExtResource("20_cristales")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 6.000, 1.000, -12.000)
+
+[node name="CristalCaverna_5" parent="Decoraciones" unique_id=916905049 instance=ExtResource("20_cristales")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, -7.000, 2.000, -48.000)
+
+[node name="CristalCaverna_6" parent="Decoraciones" unique_id=800034275 instance=ExtResource("20_cristales")]
+transform = Transform3D(1.000000, 0, 0.000000, 0, 1.000000, 0, -0.000000, 0, 1.000000, 7.000, 2.000, -48.000)
