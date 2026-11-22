@@ -257,18 +257,15 @@ void sky() {
 
 	// 4. Cúmulos de Nubes Volumétricos Isótropos (Horizontales y Laterales)
 	if (dir.y > 0.005) {
-		// Proyección Esférica Equirectangular Isótropa Seamless (360 grados sin costuras ni distorsión)
-		float azim = atan(dir.z, dir.x); // [-PI, PI]
-		float elev = asin(clamp(dir.y, 0.0, 1.0)); // [0, PI/2]
-
-		float u_base = (azim / (2.0 * PI) + 0.5) * repeticiones_horizontales;
-		float v_base = (elev / (2.0 * PI)) * repeticiones_horizontales * escala_vertical + 0.08;
+		// Proyección en domo celeste sin costuras (evita el corte de atan() y artefactos de mipmap)
+		float curvatura = 0.25 / max(escala_vertical, 0.2);
+		vec2 uv_base = (dir.xz / (dir.y + curvatura)) * (repeticiones_horizontales * 0.095);
 
 		vec2 dir_viento_norm = length(direccion_viento) > 0.001 ? normalize(direccion_viento) : vec2(1.0, 0.0);
 		float t_viento = TIME * velocidad_viento * 0.02;
 		float t_evol = TIME * velocidad_evolucion * 0.02;
 
-		vec2 uv_nube = (vec2(u_base, v_base) - dir_viento_norm * t_viento) * escala_nubes;
+		vec2 uv_nube = (uv_base - dir_viento_norm * t_viento) * escala_nubes;
 
 		float umbral_densidad = 1.0 - cobertura_nubes;
 

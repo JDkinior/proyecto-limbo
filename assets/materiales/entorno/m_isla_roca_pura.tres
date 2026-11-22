@@ -8,7 +8,7 @@
 resource_name = "m_isla_roca_pura"
 render_priority = 0
 shader = ExtResource("1_isla_shader")
-shader_parameter/tinte_roca = Color(0.76, 0.75, 0.78, 1)
+shader_parameter/tinte_roca = Color(0.52, 0.52, 0.68, 1)
 shader_parameter/rugosidad_roca = 0.9
 shader_parameter/habilitar_levitacion_satelites = true
 shader_parameter/amplitud_levitacion = 0.12

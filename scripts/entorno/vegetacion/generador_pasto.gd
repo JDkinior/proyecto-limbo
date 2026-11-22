@@ -59,7 +59,7 @@ const RecursoDatosPasto = preload("res://scripts/entorno/vegetacion/recurso_dato
 		archivo_datos_pasto = valor
 		if not _datos_modificados:
 			_cargar_recurso_datos()
-			if modo_distribucion == 0 and multimesh != null:
+			if is_inside_tree() and is_node_ready() and modo_distribucion == 0 and multimesh != null:
 				_actualizar_multimesh_pintado()
 
 ## Variables en memoria (NO exportadas para que Godot NUNCA las escriba en texto dentro del .tscn)
@@ -72,12 +72,28 @@ var _buffer_pintado: PackedFloat32Array = PackedFloat32Array()
 const GRID_CELL_SIZE: float = 2.0
 var _grid_instancias: Dictionary = {}
 var _grid_valido: bool = false
+var _multimesh_propio_editor: bool = false
+
+static var _cache_editor_buffer: Dictionary = {}
+static var _recurso_mtimes: Dictionary = {}
 
 func _cargar_recurso_datos() -> void:
 	if archivo_datos_pasto.is_empty():
 		return
 	if ResourceLoader.exists(archivo_datos_pasto):
-		recurso_datos = load(archivo_datos_pasto)
+		var mtime_disco: int = FileAccess.get_modified_time(archivo_datos_pasto)
+		var mtime_prev: int = int(_recurso_mtimes.get(archivo_datos_pasto, -1))
+		if mtime_prev != -1 and mtime_disco != mtime_prev:
+			_cache_editor_buffer.erase(archivo_datos_pasto)
+			_cache_bordes_runtime.erase(archivo_datos_pasto)
+			_cache_chunks_runtime.erase(archivo_datos_pasto)
+			if recurso_datos != null:
+				_cache_editor_buffer.erase(recurso_datos)
+			recurso_datos = ResourceLoader.load(archivo_datos_pasto, "", ResourceLoader.CACHE_MODE_REPLACE)
+		else:
+			recurso_datos = ResourceLoader.load(archivo_datos_pasto)
+		if recurso_datos != null:
+			_recurso_mtimes[archivo_datos_pasto] = mtime_disco
 
 ## Obtiene el conjunto de transformaciones activas (prioriza memoria editada, luego recurso binario).
 func obtener_datos_pintados() -> Array[Transform3D]:
@@ -261,8 +277,13 @@ var _shader_mat: ShaderMaterial = null
 var _chunks: Array[MultiMeshInstance3D] = []
 var _curvatura_borde_editor_sincronizada: bool = false
 var _curvatura_borde_editor_v2: bool = false
-var _curvatura_borde_editor_v3: bool = false
+var _curvatura_borde_editor_v3: bool = true
+var _ultima_firma_bordes: int = 0
 const TAMANO_CHUNK: float = 8.0
+
+static var _cache_bordes_runtime: Dictionary = {}
+static var _cache_chunks_runtime: Dictionary = {}
+static var _mesh_pasto_cache: Dictionary = {}
 
 func _actualizar_parametro_shader(param: String, valor: Variant) -> void:
 	if material_override is ShaderMaterial:
@@ -298,6 +319,9 @@ func _notification(what: int) -> void:
 	elif what == NOTIFICATION_EDITOR_POST_SAVE:
 		if modo_distribucion == 0:
 			_actualizar_multimesh_pintado()
+	elif what == NOTIFICATION_EXIT_TREE:
+		if modo_distribucion == 0 and _multimesh_propio_editor and multimesh != null:
+			multimesh.instance_count = 0
 
 func _auto_guardar_en_recurso_si_es_necesario() -> void:
 	if modo_distribucion != 0:
@@ -501,15 +525,18 @@ func generar() -> void:
 	if mesh_a_usar == null:
 		return
 
-	if multimesh == null:
-		multimesh = MultiMesh.new()
+	if Engine.is_editor_hint() and modo_distribucion == 0:
+		_asegurar_multimesh_editor_propio(mesh_a_usar)
+	else:
+		if multimesh == null:
+			multimesh = MultiMesh.new()
 
-	if multimesh.transform_format != MultiMesh.TRANSFORM_3D or not multimesh.use_custom_data:
-		multimesh.instance_count = 0
-		multimesh.transform_format = MultiMesh.TRANSFORM_3D
-		multimesh.use_custom_data = true
+		if multimesh.transform_format != MultiMesh.TRANSFORM_3D or not multimesh.use_custom_data:
+			multimesh.instance_count = 0
+			multimesh.transform_format = MultiMesh.TRANSFORM_3D
+			multimesh.use_custom_data = true
 
-	multimesh.mesh = mesh_a_usar
+		multimesh.mesh = mesh_a_usar
 
 	# --- MODO 0: PINTADO MANUAL ---
 	if modo_distribucion == 0:
@@ -1100,10 +1127,13 @@ func limpiar_pasto_en_pendientes(angulo_max: float = -1.0) -> int:
 		for n in get_tree().get_nodes_in_group("islas"):
 			if n.has_method("calcular_altura_en"):
 				islas.append(n)
-		if islas.is_empty() and get_parent() != null:
-			for hijo in get_parent().get_children():
-				if hijo.has_method("calcular_altura_en"):
-					islas.append(hijo)
+	if islas.is_empty() and get_parent() != null:
+		for hijo in get_parent().get_children():
+			if hijo.has_method("calcular_altura_en") and not islas.has(hijo):
+				islas.append(hijo)
+		for desc in get_parent().find_children("*", "", true, false):
+			if desc.has_method("calcular_altura_en") and not islas.has(desc):
+				islas.append(desc)
 
 	for t in datos_pasto_pintado:
 		var es_invalida = false
@@ -1176,39 +1206,71 @@ func _obtener_indices_de_isla(isla: Node) -> Array:
 
 	var tiene_eval_malla: bool = isla.has_method("evaluar_punto_malla_superficie")
 
-	for i in range(datos_pasto_pintado.size()):
-		var t: Transform3D = datos_pasto_pintado[i]
-		var p_isla: Vector3 = mat_pasto_a_isla * t.origin
-		if absf(p_isla.x) > radio_x or absf(p_isla.z) > radio_z:
-			continue
-		var pos_xz := Vector2(p_isla.x, p_isla.z)
-		var dentro: bool = false
-		if isla.has_method("tiene_punto_en_superficie"):
-			dentro = isla.tiene_punto_en_superficie(pos_xz)
-		elif not perim_ant.is_empty() and tiene_estimar:
-			var ang_p: float = atan2(pos_xz.y, pos_xz.x)
-			var r_ant: float = float(isla._estimar_radio_en_angulo(ang_p, perim_ant))
-			if pos_xz.length() <= r_ant + 0.15:
-				dentro = true
-		elif (pos_xz.x * pos_xz.x) / rx_sq + (pos_xz.y * pos_xz.y) / rz_sq <= 1.0:
-			dentro = true
-		if not dentro:
-			continue
-		if p_isla.y < -prof_roca * 0.7 or p_isla.y > alt_sup + alt_max + 15.0:
-			continue
-		if tiene_eval_malla:
-			var info_chk: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
-			var d_borde: float = float(info_chk.get("dist_borde", 999.0))
-			if d_borde < -0.15:
+	if not _grid_valido:
+		_reconstruir_grid_espacial()
+
+	var mat_isla_a_pasto: Transform3D = mat_pasto_a_isla.affine_inverse()
+	var y_min_isla: float = -prof_roca * 0.7
+	var y_max_isla: float = alt_sup + alt_max + 15.0
+	var p_min_x: float = INF
+	var p_max_x: float = -INF
+	var p_min_z: float = INF
+	var p_max_z: float = -INF
+	for sx in [-radio_x, radio_x]:
+		for sy in [y_min_isla, y_max_isla]:
+			for sz in [-radio_z, radio_z]:
+				var c_pasto: Vector3 = mat_isla_a_pasto * Vector3(sx, sy, sz)
+				if c_pasto.x < p_min_x: p_min_x = c_pasto.x
+				if c_pasto.x > p_max_x: p_max_x = c_pasto.x
+				if c_pasto.z < p_min_z: p_min_z = c_pasto.z
+				if c_pasto.z > p_max_z: p_max_z = c_pasto.z
+
+	var cx0: int = int(floor(p_min_x / GRID_CELL_SIZE))
+	var cx1: int = int(floor(p_max_x / GRID_CELL_SIZE))
+	var cz0: int = int(floor(p_min_z / GRID_CELL_SIZE))
+	var cz1: int = int(floor(p_max_z / GRID_CELL_SIZE))
+	var tiene_en_sup: bool = isla.has_method("tiene_punto_en_superficie")
+
+	for cx in range(cx0, cx1 + 1):
+		for cz in range(cz0, cz1 + 1):
+			var ck := Vector2i(cx, cz)
+			if not _grid_instancias.has(ck):
 				continue
-			var h_malla: float = float(info_chk.get("altura", 0.0))
-			if absf(p_isla.y - h_malla) > 1.25:
-				continue
-		elif tiene_calc_h:
-			var h: float = float(isla.calcular_altura_en(pos_xz))
-			if absf(p_isla.y - h) > 1.25:
-				continue
-		indices.append(i)
+			var bucket: Array = _grid_instancias[ck]
+			for i_var in bucket:
+				var i: int = int(i_var)
+				var t: Transform3D = datos_pasto_pintado[i]
+				var p_isla: Vector3 = mat_pasto_a_isla * t.origin
+				if absf(p_isla.x) > radio_x or absf(p_isla.z) > radio_z:
+					continue
+				if p_isla.y < y_min_isla or p_isla.y > y_max_isla:
+					continue
+				var pos_xz := Vector2(p_isla.x, p_isla.z)
+				var dentro: bool = false
+				if tiene_en_sup:
+					dentro = isla.tiene_punto_en_superficie(pos_xz)
+				elif not perim_ant.is_empty() and tiene_estimar:
+					var ang_p: float = atan2(pos_xz.y, pos_xz.x)
+					var r_ant: float = float(isla._estimar_radio_en_angulo(ang_p, perim_ant))
+					if pos_xz.length() <= r_ant + 0.15:
+						dentro = true
+				elif (pos_xz.x * pos_xz.x) / rx_sq + (pos_xz.y * pos_xz.y) / rz_sq <= 1.0:
+					dentro = true
+				if not dentro:
+					continue
+				if tiene_eval_malla:
+					var info_chk: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
+					var d_borde: float = float(info_chk.get("dist_borde", 999.0))
+					if d_borde < -0.15:
+						continue
+					var h_malla: float = float(info_chk.get("altura", 0.0))
+					if absf(p_isla.y - h_malla) > 1.25:
+						continue
+				elif tiene_calc_h:
+					var h: float = float(isla.calcular_altura_en(pos_xz))
+					if absf(p_isla.y - h) > 1.25:
+						continue
+				indices.append(i)
 
 	_indices_por_isla[isla] = indices
 	return indices
@@ -1237,12 +1299,21 @@ func mover_pasto_con_isla(isla: Node, ant: Transform3D, act: Transform3D) -> int
 	if indices.is_empty():
 		return 0
 
+	var inv_cell: float = 1.0 / GRID_CELL_SIZE
 	for idx in indices:
-		var t_ant = datos_pasto_pintado[idx]
-		var t_nuevo = delta_local * t_ant
+		var t_ant: Transform3D = datos_pasto_pintado[idx]
+		var t_nuevo: Transform3D = delta_local * t_ant
 		datos_pasto_pintado[idx] = t_nuevo
 		if multimesh != null and idx < multimesh.instance_count:
 			multimesh.set_instance_transform(idx, t_nuevo)
+		if _grid_valido:
+			var cx0: int = int(floor(t_ant.origin.x * inv_cell))
+			var cz0: int = int(floor(t_ant.origin.z * inv_cell))
+			var cx1: int = int(floor(t_nuevo.origin.x * inv_cell))
+			var cz1: int = int(floor(t_nuevo.origin.z * inv_cell))
+			if cx0 != cx1 or cz0 != cz1:
+				_remover_indice_de_grid(idx, t_ant.origin)
+				_agregar_instancia_a_grid(idx, t_nuevo.origin)
 
 	_datos_modificados = true
 	return indices.size()
@@ -1539,7 +1610,8 @@ func _limpiar_historial_undo_viejo() -> void:
 func guardar_snapshot_actual() -> int:
 	var id = _siguiente_snapshot_id
 	_siguiente_snapshot_id += 1
-	var total = datos_pasto_pintado.size()
+	var datos_actuales: Array[Transform3D] = obtener_datos_pintados()
+	var total: int = datos_actuales.size()
 	var buf_copy = PackedFloat32Array()
 	if _buffer_pintado.size() == total * 16:
 		buf_copy = _buffer_pintado.duplicate()
@@ -1547,7 +1619,7 @@ func guardar_snapshot_actual() -> int:
 		buf_copy = multimesh.buffer.duplicate()
 
 	_snapshots_undo[id] = {
-		"transforms": datos_pasto_pintado.duplicate(),
+		"transforms": datos_actuales.duplicate(),
 		"buffer": buf_copy,
 		"aabb": custom_aabb
 	}
@@ -1687,7 +1759,33 @@ func _obtener_islas_escena() -> Array[Node]:
 		for hijo in get_parent().get_children():
 			if is_instance_valid(hijo) and hijo.has_method("calcular_altura_en") and not islas.has(hijo):
 				islas.append(hijo)
+		for desc in get_parent().find_children("*", "", true, false):
+			if is_instance_valid(desc) and desc.has_method("calcular_altura_en") and not islas.has(desc):
+				islas.append(desc)
 	return islas
+
+
+func _calcular_firma_bordes(datos: Array[Transform3D], islas: Array[Node]) -> int:
+	var usar_global: bool = is_inside_tree()
+	var xform_pasto: Transform3D = global_transform if usar_global else transform
+	var acc: Array = [
+		datos.size(),
+		curvar_en_bordes_isla,
+		margen_curvatura_borde,
+		xform_pasto
+	]
+	for isla in islas:
+		if not is_instance_valid(isla):
+			continue
+		var xf_isla: Transform3D = isla.global_transform if (usar_global and isla.is_inside_tree()) else isla.transform
+		acc.append(xf_isla)
+		acc.append(float(isla.ancho) if ("ancho" in isla) else 10.0)
+		acc.append(float(isla.largo) if ("largo" in isla) else 10.0)
+		acc.append(int(isla.semilla) if ("semilla" in isla) else 0)
+		acc.append(float(isla.irregularidad_contorno) if ("irregularidad_contorno" in isla) else 0.0)
+		acc.append(int(isla.segmentos_perimetro) if ("segmentos_perimetro" in isla) else 0)
+		acc.append(float(isla.intensidad_variacion) if ("intensidad_variacion" in isla) else 0.0)
+	return hash(acc)
 
 
 ## Calcula para cada brizna su cercanía y dirección radial hacia el borde de su isla:
@@ -1695,21 +1793,51 @@ func _obtener_islas_escena() -> Array[Node]:
 ## - B: peso de curvatura hacia abajo (0.0 en el interior de la isla -> 1.0 en el filo del borde)
 func _calcular_custom_data_bordes(datos: Array[Transform3D]) -> PackedColorArray:
 	var total: int = datos.size()
+	var color_neutro := Color(0.5, 0.5, 0.0, 0.0)
 	var resultado: PackedColorArray = PackedColorArray()
 	resultado.resize(total)
-	var color_neutro := Color(0.5, 0.5, 0.0, 0.0)
-	for i in range(total):
-		resultado[i] = color_neutro
+	resultado.fill(color_neutro)
 
 	if not curvar_en_bordes_isla or total == 0:
+		_ultima_firma_bordes = _calcular_firma_bordes(datos, ([] as Array[Node]))
 		return resultado
 
 	var islas: Array[Node] = _obtener_islas_escena()
 	if islas.is_empty():
+		_ultima_firma_bordes = _calcular_firma_bordes(datos, islas)
 		return resultado
+
+	var firma: int = _calcular_firma_bordes(datos, islas)
+	_ultima_firma_bordes = firma
+
+	if not _datos_modificados:
+		if recurso_datos != null and "custom_bordes" in recurso_datos and "firma_bordes" in recurso_datos:
+			if int(recurso_datos.firma_bordes) == firma and recurso_datos.custom_bordes.size() == total:
+				return recurso_datos.custom_bordes
+		if not archivo_datos_pasto.is_empty() and _cache_bordes_runtime.has(archivo_datos_pasto):
+			var c_entry: Dictionary = _cache_bordes_runtime[archivo_datos_pasto]
+			if int(c_entry.get("firma", 0)) == firma:
+				var c_data := c_entry.get("data") as PackedColorArray
+				if c_data.size() == total:
+					return c_data
 
 	var margen: float = maxf(margen_curvatura_borde, 0.15)
 	var usar_global: bool = is_inside_tree()
+
+	var usar_grid: bool = total > 256
+	var grid: Dictionary = {}
+	const INV_CELL: float = 0.1 # Celdas de 10m x 10m
+	if usar_grid:
+		for idx_g in range(total):
+			var orig: Vector3 = datos[idx_g].origin
+			var cell_key := Vector2i(int(floorf(orig.x * INV_CELL)), int(floorf(orig.z * INV_CELL)))
+			var bucket: Array
+			if grid.has(cell_key):
+				bucket = grid[cell_key]
+			else:
+				bucket = []
+				grid[cell_key] = bucket
+			bucket.append(idx_g)
 
 	for isla in islas:
 		if not is_instance_valid(isla):
@@ -1724,6 +1852,7 @@ func _calcular_custom_data_bordes(datos: Array[Transform3D]) -> PackedColorArray
 			mat_pasto_a_isla = transform
 		else:
 			mat_pasto_a_isla = isla.transform.affine_inverse() * transform
+		var mat_isla_a_pasto: Transform3D = mat_pasto_a_isla.affine_inverse()
 
 		var basis_isla_a_mundo: Basis = isla.global_transform.basis if (usar_global and isla.is_inside_tree()) else isla.transform.basis
 		var ancho_isla: float = float(isla.ancho) if ("ancho" in isla) else 10.0
@@ -1733,70 +1862,193 @@ func _calcular_custom_data_bordes(datos: Array[Transform3D]) -> PackedColorArray
 		var prof_roca: float = float(isla.profundidad_roca) if ("profundidad_roca" in isla) else 10.0
 		var alt_sup: float = float(isla.altura_superficie) if ("altura_superficie" in isla) else 0.0
 		var alt_max: float = float(isla.altura_montana) if ("altura_montana" in isla) else 10.0
+		var y_min_isla: float = -prof_roca * 0.7
+		var y_max_isla: float = alt_sup + alt_max + 15.0
+
 		var tiene_eval_malla: bool = isla.has_method("evaluar_punto_malla_superficie")
 		var perim_pts: Array = isla._perimetro_pts_cache if ("_perimetro_pts_cache" in isla) else []
-		var tiene_estimar: bool = isla.has_method("_estimar_radio_en_angulo") and not perim_pts.is_empty()
+		var anillos_sup: Array = isla._anillos_sup_cache if ("_anillos_sup_cache" in isla) else []
+		var n_seg: int = perim_pts.size()
+		var usar_sectores_exactos: bool = tiene_eval_malla and n_seg > 0 and not anillos_sup.is_empty()
+		var usar_fallback_malla_vacia: bool = tiene_eval_malla and (n_seg == 0 or anillos_sup.is_empty())
+		var tiene_estimar: bool = (not tiene_eval_malla) and isla.has_method("_estimar_radio_en_angulo") and n_seg > 0
 
-		for i in range(total):
-			if resultado[i].b > 0.001:
-				continue
-			var p_isla: Vector3 = mat_pasto_a_isla * datos[i].origin
-			if absf(p_isla.x) > radio_x or absf(p_isla.z) > radio_z:
-				continue
-			if p_isla.y < -prof_roca * 0.7 or p_isla.y > alt_sup + alt_max + 15.0:
-				continue
-
-			var pos_xz := Vector2(p_isla.x, p_isla.z)
-			var r_actual: float = pos_xz.length()
-			if r_actual < 0.01:
-				continue
-
-			var dist_al_borde: float = 999.0
-			var dir_local_xz := Vector2(pos_xz.x / r_actual, pos_xz.y / r_actual)
-
-			if tiene_eval_malla:
-				var info_b: Dictionary = isla.evaluar_punto_malla_superficie(pos_xz)
-				dist_al_borde = float(info_b.get("dist_borde", 999.0))
-				dir_local_xz = info_b.get("dir_afuera", dir_local_xz)
-				var jitter_c: float = (float((i * 53) % 37) / 37.0 - 0.5) * (margen * 0.28)
-				dist_al_borde += jitter_c
-			else:
-				var ang: float = atan2(pos_xz.y, pos_xz.x)
-				var r_borde: float = 0.0
-				if tiene_estimar:
-					r_borde = float(isla._estimar_radio_en_angulo(ang, perim_pts))
+		# Precomputar datos de segmentos del perímetro para evitar llamadas y Dictionary allocations por brizna
+		var seg_b0 := PackedVector2Array()
+		var seg_b1 := PackedVector2Array()
+		var seg_det := PackedFloat32Array()
+		var seg_norm_arista := PackedVector2Array()
+		var inv_ancho: float = 1.0 / maxf(ancho_isla, 0.01)
+		var inv_largo: float = 1.0 / maxf(largo_isla, 0.01)
+		if usar_sectores_exactos:
+			seg_b0.resize(n_seg)
+			seg_b1.resize(n_seg)
+			seg_det.resize(n_seg)
+			seg_norm_arista.resize(n_seg)
+			for s_i in range(n_seg):
+				var s_next: int = (s_i + 1) % n_seg
+				var p0: Vector3 = perim_pts[s_i]
+				var p1: Vector3 = perim_pts[s_next]
+				var b0_xz := Vector2(p0.x, p0.z)
+				var b1_xz := Vector2(p1.x, p1.z)
+				seg_b0[s_i] = b0_xz
+				seg_b1[s_i] = b1_xz
+				seg_det[s_i] = b0_xz.x * b1_xz.y - b0_xz.y * b1_xz.x
+				var edge_xz: Vector2 = b1_xz - b0_xz
+				var norm_arista := Vector2(edge_xz.y, -edge_xz.x)
+				if norm_arista.dot(b0_xz + b1_xz) < 0.0:
+					norm_arista = -norm_arista
+				if norm_arista.length_squared() > 0.00001:
+					norm_arista = norm_arista.normalized()
 				else:
-					var ca: float = cos(ang)
-					var sa: float = sin(ang)
-					var rx_b: float = ancho_isla * 0.5
-					var rz_b: float = largo_isla * 0.5
-					r_borde = (rx_b * rz_b) / maxf(sqrt(rx_b * rx_b * sa * sa + rz_b * rz_b * ca * ca), 0.01)
-				dist_al_borde = r_borde - r_actual
+					var mid_xz := (b0_xz + b1_xz) * 0.5
+					norm_arista = mid_xz / maxf(mid_xz.length(), 0.001)
+				seg_norm_arista[s_i] = norm_arista
 
-			if dist_al_borde < -0.35 or dist_al_borde > margen:
-				continue
+		# Recolectar índices candidatos dentro del AABB de la isla transformado a espacio del pasto
+		var candidatos_batches: Array = []
+		if usar_grid:
+			var p_min_x: float = INF
+			var p_max_x: float = -INF
+			var p_min_z: float = INF
+			var p_max_z: float = -INF
+			for sx in [-radio_x, radio_x]:
+				for sy in [y_min_isla, y_max_isla]:
+					for sz in [-radio_z, radio_z]:
+						var c_pasto: Vector3 = mat_isla_a_pasto * Vector3(sx, sy, sz)
+						if c_pasto.x < p_min_x: p_min_x = c_pasto.x
+						if c_pasto.x > p_max_x: p_max_x = c_pasto.x
+						if c_pasto.z < p_min_z: p_min_z = c_pasto.z
+						if c_pasto.z > p_max_z: p_max_z = c_pasto.z
+			var cx0: int = int(floorf(p_min_x * INV_CELL))
+			var cx1: int = int(floorf(p_max_x * INV_CELL))
+			var cz0: int = int(floorf(p_min_z * INV_CELL))
+			var cz1: int = int(floorf(p_max_z * INV_CELL))
+			for cx in range(cx0, cx1 + 1):
+				for cz in range(cz0, cz1 + 1):
+					var ck := Vector2i(cx, cz)
+					if grid.has(ck):
+						candidatos_batches.append(grid[ck])
+		else:
+			var all_idx: Array = []
+			all_idx.resize(total)
+			for idx_a in range(total):
+				all_idx[idx_a] = idx_a
+			candidatos_batches.append(all_idx)
 
-			var t_borde: float = clampf(1.0 - (maxf(dist_al_borde, 0.0) / margen), 0.0, 1.0)
-			var peso: float = t_borde * t_borde * (3.0 - 2.0 * t_borde)
-			if peso <= 0.001:
-				continue
+		var b_ix := Vector2(basis_isla_a_mundo.x.x, basis_isla_a_mundo.x.z)
+		var b_iz := Vector2(basis_isla_a_mundo.z.x, basis_isla_a_mundo.z.z)
+		var rx_b: float = ancho_isla * 0.5
+		var rz_b: float = largo_isla * 0.5
+		var n_seg_f: float = float(n_seg)
 
-			var dir_local := Vector3(dir_local_xz.x, 0.0, dir_local_xz.y)
-			var dir_mundo: Vector3 = (basis_isla_a_mundo * dir_local)
-			var dir_xz := Vector2(dir_mundo.x, dir_mundo.z)
-			if dir_xz.length_squared() > 0.0001:
-				dir_xz = dir_xz.normalized()
-			else:
-				dir_xz = dir_local_xz
+		for batch in candidatos_batches:
+			for i_var in batch:
+				var i: int = int(i_var)
+				if resultado[i].b > 0.001:
+					continue
+				var p_isla: Vector3 = mat_pasto_a_isla * datos[i].origin
+				if absf(p_isla.x) > radio_x or absf(p_isla.z) > radio_z:
+					continue
+				if p_isla.y < y_min_isla or p_isla.y > y_max_isla:
+					continue
 
-			resultado[i] = Color(
-				clampf(dir_xz.x * 0.5 + 0.5, 0.0, 1.0),
-				clampf(dir_xz.y * 0.5 + 0.5, 0.0, 1.0),
-				peso,
-				1.0
-			)
+				var pos_xz := Vector2(p_isla.x, p_isla.z)
+				var r_actual_sq: float = pos_xz.x * pos_xz.x + pos_xz.y * pos_xz.y
+				if r_actual_sq < 0.0001:
+					continue
+				var r_actual: float = sqrt(r_actual_sq)
+
+				var dist_al_borde: float = 999.0
+				var dir_local_xz := Vector2(pos_xz.x / r_actual, pos_xz.y / r_actual)
+
+				if usar_sectores_exactos:
+					var ang_param: float = fposmod(atan2(pos_xz.y * inv_largo, pos_xz.x * inv_ancho), TAU)
+					var fracc_ang: float = (ang_param / TAU) * n_seg_f
+					var idx_base: int = int(floorf(fracc_ang))
+					var i0: int = idx_base % n_seg
+					var b0_xz: Vector2 = seg_b0[i0]
+					var b1_xz: Vector2 = seg_b1[i0]
+					var det: float = seg_det[i0]
+					var u_sec: float = 0.0
+					var v_sec: float = 0.0
+					if absf(det) > 0.00001:
+						u_sec = maxf((pos_xz.x * b1_xz.y - pos_xz.y * b1_xz.x) / det, 0.0)
+						v_sec = maxf((b0_xz.x * pos_xz.y - b0_xz.y * pos_xz.x) / det, 0.0)
+					var t_radial: float = u_sec + v_sec
+					var s_ang: float = (v_sec / t_radial) if t_radial > 0.00001 else (fracc_ang - float(idx_base))
+					s_ang = clampf(s_ang, 0.0, 1.0)
+					var punto_borde_xz: Vector2 = b0_xz.lerp(b1_xz, s_ang)
+					var r_cuerda: float = punto_borde_xz.length()
+					dist_al_borde = (1.0 - t_radial) * r_cuerda
+					var jitter_c: float = (float((i * 53) % 37) / 37.0 - 0.5) * (margen * 0.28)
+					dist_al_borde += jitter_c
+					if dist_al_borde < -0.35 or dist_al_borde > margen:
+						continue
+					var dir_radial: Vector2 = punto_borde_xz / maxf(r_cuerda, 0.001)
+					dir_local_xz = (seg_norm_arista[i0] * 0.65 + dir_radial * 0.35).normalized()
+				elif usar_fallback_malla_vacia:
+					var jitter_fb: float = (float((i * 53) % 37) / 37.0 - 0.5) * (margen * 0.28)
+					dist_al_borde = 1.0 + jitter_fb
+					if dist_al_borde < -0.35 or dist_al_borde > margen:
+						continue
+				else:
+					var ang: float = atan2(pos_xz.y, pos_xz.x)
+					var r_borde: float = 0.0
+					if tiene_estimar:
+						r_borde = float(isla._estimar_radio_en_angulo(ang, perim_pts))
+					else:
+						var ca: float = cos(ang)
+						var sa: float = sin(ang)
+						r_borde = (rx_b * rz_b) / maxf(sqrt(rx_b * rx_b * sa * sa + rz_b * rz_b * ca * ca), 0.01)
+					dist_al_borde = r_borde - r_actual
+					if dist_al_borde < -0.35 or dist_al_borde > margen:
+						continue
+
+				var t_borde: float = clampf(1.0 - (maxf(dist_al_borde, 0.0) / margen), 0.0, 1.0)
+				var peso: float = t_borde * t_borde * (3.0 - 2.0 * t_borde)
+				if peso <= 0.001:
+					continue
+
+				var dir_xz: Vector2 = b_ix * dir_local_xz.x + b_iz * dir_local_xz.y
+				if dir_xz.length_squared() > 0.0001:
+					dir_xz = dir_xz.normalized()
+				else:
+					dir_xz = dir_local_xz
+
+				resultado[i] = Color(
+					clampf(dir_xz.x * 0.5 + 0.5, 0.0, 1.0),
+					clampf(dir_xz.y * 0.5 + 0.5, 0.0, 1.0),
+					peso,
+					1.0
+				)
+
+	if not _datos_modificados and not archivo_datos_pasto.is_empty():
+		if _cache_bordes_runtime.size() >= 16:
+			_cache_bordes_runtime.clear()
+		_cache_bordes_runtime[archivo_datos_pasto] = {"firma": firma, "data": resultado}
 
 	return resultado
+
+
+func _asegurar_multimesh_editor_propio(mesh_a_usar: Mesh = null) -> void:
+	if not _multimesh_propio_editor or multimesh == null:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
+		if mesh_a_usar != null:
+			mm.mesh = mesh_a_usar
+		elif multimesh != null and multimesh.mesh != null:
+			mm.mesh = multimesh.mesh
+		multimesh = mm
+		_multimesh_propio_editor = true
+	else:
+		if not multimesh.use_custom_data or multimesh.transform_format != MultiMesh.TRANSFORM_3D:
+			multimesh.instance_count = 0
+			multimesh.transform_format = MultiMesh.TRANSFORM_3D
+			multimesh.use_custom_data = true
+		if mesh_a_usar != null and multimesh.mesh != mesh_a_usar:
+			multimesh.mesh = mesh_a_usar
 
 
 func _actualizar_multimesh_pintado() -> void:
@@ -1812,43 +2064,94 @@ func _actualizar_multimesh_pintado() -> void:
 		generar()
 		return
 
-	if not multimesh.use_custom_data:
-		multimesh.instance_count = 0
-		multimesh.use_custom_data = true
+	_asegurar_multimesh_editor_propio()
 
-	var total = datos.size()
+	var total: int = datos.size()
 	var custom_bordes: PackedColorArray = _calcular_custom_data_bordes(datos)
+	var usar_cache_editor: bool = (not _datos_modificados and datos_pasto_pintado.is_empty() and recurso_datos != null and not archivo_datos_pasto.is_empty())
+	var alt_pasto_val: float = alto_pasto if alto_pasto != null else 0.5
+
+	if usar_cache_editor and _cache_editor_buffer.has(archivo_datos_pasto):
+		var entry: Dictionary = _cache_editor_buffer[archivo_datos_pasto]
+		var buf_cached := entry.get("buffer", PackedFloat32Array()) as PackedFloat32Array
+		if int(entry.get("firma", -1)) == _ultima_firma_bordes and int(entry.get("total", -1)) == total and is_equal_approx(float(entry.get("alto_pasto", -1.0)), alt_pasto_val) and buf_cached.size() == total * 16:
+			_buffer_pintado = buf_cached.duplicate()
+			var aabb_cached: AABB = entry["aabb"]
+			multimesh.instance_count = total
+			if total > 0:
+				multimesh.buffer = _buffer_pintado
+				multimesh.custom_aabb = aabb_cached
+				custom_aabb = aabb_cached
+			else:
+				multimesh.custom_aabb = AABB()
+				custom_aabb = AABB()
+			_grid_instancias.clear()
+			_grid_valido = false
+			return
+
 	_buffer_pintado.resize(total * 16)
-	var min_pos = Vector3(999999.0, 999999.0, 999999.0)
-	var max_pos = Vector3(-999999.0, -999999.0, -999999.0)
+	var min_pos := Vector3(999999.0, 999999.0, 999999.0)
+	var max_pos := Vector3(-999999.0, -999999.0, -999999.0)
 
 	for i in range(total):
-		var t = datos[i]
-		_escribir_instancia_en_buffer(_buffer_pintado, i, t, custom_bordes[i])
-		var ox = t.origin.x
-		var oy = t.origin.y
-		var oz = t.origin.z
-		if ox < min_pos.x: min_pos.x = ox
-		if ox > max_pos.x: max_pos.x = ox
-		if oy < min_pos.y: min_pos.y = oy
-		if oy > max_pos.y: max_pos.y = oy
-		if oz < min_pos.z: min_pos.z = oz
-		if oz > max_pos.z: max_pos.z = oz
+		var t: Transform3D = datos[i]
+		var c: Color = custom_bordes[i]
+		var b: Basis = t.basis
+		var o: Vector3 = t.origin
+		var base: int = i * 16
+		_buffer_pintado[base + 0] = b.x.x
+		_buffer_pintado[base + 1] = b.y.x
+		_buffer_pintado[base + 2] = b.z.x
+		_buffer_pintado[base + 3] = o.x
+		_buffer_pintado[base + 4] = b.x.y
+		_buffer_pintado[base + 5] = b.y.y
+		_buffer_pintado[base + 6] = b.z.y
+		_buffer_pintado[base + 7] = o.y
+		_buffer_pintado[base + 8] = b.x.z
+		_buffer_pintado[base + 9] = b.y.z
+		_buffer_pintado[base + 10] = b.z.z
+		_buffer_pintado[base + 11] = o.z
+		_buffer_pintado[base + 12] = c.r
+		_buffer_pintado[base + 13] = c.g
+		_buffer_pintado[base + 14] = c.b
+		_buffer_pintado[base + 15] = c.a
+		if o.x < min_pos.x: min_pos.x = o.x
+		if o.x > max_pos.x: max_pos.x = o.x
+		if o.y < min_pos.y: min_pos.y = o.y
+		if o.y > max_pos.y: max_pos.y = o.y
+		if o.z < min_pos.z: min_pos.z = o.z
+		if o.z > max_pos.z: max_pos.z = o.z
 
+	var aabb_p := AABB()
 	multimesh.instance_count = total
 	if total > 0:
 		multimesh.buffer = _buffer_pintado
-		var alt_extra = (alto_pasto if alto_pasto != null else 0.5) * 2.0 + 1.0
+		var alt_extra: float = alt_pasto_val * 2.0 + 1.0
 		min_pos -= Vector3(1.0, 0.5, 1.0)
 		max_pos += Vector3(1.0, alt_extra, 1.0)
-		var aabb_p = AABB(min_pos, max_pos - min_pos)
+		aabb_p = AABB(min_pos, max_pos - min_pos)
 		multimesh.custom_aabb = aabb_p
 		custom_aabb = aabb_p
 	else:
 		multimesh.custom_aabb = AABB()
 		custom_aabb = AABB()
 
-	_reconstruir_grid_espacial()
+	if usar_cache_editor:
+		if _cache_editor_buffer.size() >= 8:
+			_cache_editor_buffer.clear()
+		_cache_editor_buffer[archivo_datos_pasto] = {
+			"firma": _ultima_firma_bordes,
+			"total": total,
+			"alto_pasto": alt_pasto_val,
+			"buffer": _buffer_pintado.duplicate(),
+			"aabb": aabb_p
+		}
+
+	if datos_pasto_pintado.is_empty():
+		_grid_instancias.clear()
+		_grid_valido = false
+	else:
+		_reconstruir_grid_espacial()
 
 ## Exporta las instancias pintadas actuales a un archivo de recurso binario (.res)
 ## y limpia el arreglo en escena para dejar el archivo .tscn ultraligero.
@@ -1873,8 +2176,23 @@ func guardar_a_recurso_binario(ruta_archivo: String = "", restaurar_multimesh_en
 	
 	var res := RecursoDatosPasto.new()
 	res.transforms = (datos as Array[Transform3D]).duplicate()
+	var prev_mod := _datos_modificados
+	_datos_modificados = true
+	res.custom_bordes = _calcular_custom_data_bordes(res.transforms)
+	res.firma_bordes = _ultima_firma_bordes
+	_datos_modificados = prev_mod
 	var err := ResourceSaver.save(res, ruta_archivo)
 	if err == OK:
+		_cache_editor_buffer.erase(ruta_archivo)
+		_cache_bordes_runtime.erase(ruta_archivo)
+		_cache_chunks_runtime.erase(ruta_archivo)
+		if not archivo_datos_pasto.is_empty() and archivo_datos_pasto != ruta_archivo:
+			_cache_editor_buffer.erase(archivo_datos_pasto)
+			_cache_bordes_runtime.erase(archivo_datos_pasto)
+			_cache_chunks_runtime.erase(archivo_datos_pasto)
+		if recurso_datos != null:
+			_cache_editor_buffer.erase(recurso_datos)
+		_recurso_mtimes[ruta_archivo] = FileAccess.get_modified_time(ruta_archivo)
 		recurso_datos = res
 		archivo_datos_pasto = ruta_archivo
 		datos_pasto_pintado.clear()
@@ -1898,49 +2216,86 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 			multimesh.instance_count = 0
 		return
 
-	# Agrupar las transformaciones y sus datos de borde en una cuadrícula espacial (X, Z) de TAMANO_CHUNK
-	var custom_bordes: PackedColorArray = _calcular_custom_data_bordes(transforms)
-	var celdas: Dictionary = {}
-	var celdas_custom: Dictionary = {}
-	for idx_t in range(transforms.size()):
-		var t: Transform3D = transforms[idx_t]
-		var cx = int(floor(t.origin.x / TAMANO_CHUNK))
-		var cz = int(floor(t.origin.z / TAMANO_CHUNK))
-		var key = Vector2i(cx, cz)
-		if not celdas.has(key):
-			celdas[key] = []
-			celdas_custom[key] = []
-		celdas[key].append(t)
-		celdas_custom[key].append(custom_bordes[idx_t])
-
-	var h_pasto = alto_pasto if alto_pasto != null else 0.45
+	var h_pasto: float = alto_pasto if alto_pasto != null else 0.45
 	var mat_actual = material_override if material_override != null else material_fisico
 
-	for key in celdas:
-		var lista: Array = celdas[key]
-		var lista_custom: Array = celdas_custom[key]
-		var total_chunk = lista.size()
+	# Verificar si existen chunks preconstruidos en caché para este recurso y firma de bordes
+	var puede_cachear: bool = (not _datos_modificados) and (not archivo_datos_pasto.is_empty())
+	if puede_cachear and _cache_chunks_runtime.has(archivo_datos_pasto):
+		var c_chunks: Dictionary = _cache_chunks_runtime[archivo_datos_pasto]
+		var islas_cache: Array[Node] = _obtener_islas_escena() if curvar_en_bordes_isla else ([] as Array[Node])
+		var firma_actual: int = _calcular_firma_bordes(transforms, islas_cache)
+		_ultima_firma_bordes = firma_actual
+		if int(c_chunks.get("firma", -1)) == firma_actual and int(c_chunks.get("total", -1)) == transforms.size() and is_equal_approx(float(c_chunks.get("h_pasto", -1.0)), h_pasto) and c_chunks.get("mesh") == mesh_a_usar:
+			var items: Array = c_chunks["items"]
+			for item in items:
+				var chunk_inst = MultiMeshInstance3D.new()
+				chunk_inst.name = item["name"]
+				chunk_inst.position = item["pos"]
+				chunk_inst.custom_aabb = item["aabb"]
+				chunk_inst.multimesh = item["mm"]
+				chunk_inst.material_override = mat_actual
+				chunk_inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				chunk_inst.ignore_occlusion_culling = true
+				chunk_inst.extra_cull_margin = 0.5
+				chunk_inst.visibility_range_end = distancia_visibilidad_juego
+				chunk_inst.visibility_range_end_margin = 8.0
+				chunk_inst.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+				add_child(chunk_inst)
+				_chunks.append(chunk_inst)
+			if multimesh:
+				multimesh.instance_count = 0
+				multimesh.custom_aabb = AABB()
+			custom_aabb = AABB()
+			return
+
+	# Agrupar índices por celda espacial (X, Z) de TAMANO_CHUNK evitando duplicar arrays de Transform3D y Color
+	var custom_bordes: PackedColorArray = _calcular_custom_data_bordes(transforms)
+	var celdas_idx: Dictionary = {}
+	var inv_chunk: float = 1.0 / TAMANO_CHUNK
+	for idx_t in range(transforms.size()):
+		var orig: Vector3 = transforms[idx_t].origin
+		var key := Vector2i(int(floorf(orig.x * inv_chunk)), int(floorf(orig.z * inv_chunk)))
+		var bucket: Array
+		if celdas_idx.has(key):
+			bucket = celdas_idx[key]
+		else:
+			bucket = []
+			celdas_idx[key] = bucket
+		bucket.append(idx_t)
+
+	var items_cache: Array = []
+	for key in celdas_idx:
+		var idxs: Array = celdas_idx[key]
+		var total_chunk: int = idxs.size()
 		if total_chunk == 0:
 			continue
 
-		var min_p = Vector3(999999.0, 999999.0, 999999.0)
-		var max_p = Vector3(-999999.0, -999999.0, -999999.0)
+		var min_px: float = INF
+		var min_py: float = INF
+		var min_pz: float = INF
+		var max_px: float = -INF
+		var max_py: float = -INF
+		var max_pz: float = -INF
 
-		for i in range(total_chunk):
-			var t_orig: Transform3D = lista[i]
-			min_p.x = minf(min_p.x, t_orig.origin.x - 0.5)
-			min_p.y = minf(min_p.y, t_orig.origin.y - 0.5)
-			min_p.z = minf(min_p.z, t_orig.origin.z - 0.5)
-			max_p.x = maxf(max_p.x, t_orig.origin.x + 0.5)
-			max_p.y = maxf(max_p.y, t_orig.origin.y + h_pasto + 0.5)
-			max_p.z = maxf(max_p.z, t_orig.origin.z + 0.5)
+		for idx_var in idxs:
+			var orig: Vector3 = transforms[int(idx_var)].origin
+			if orig.x < min_px: min_px = orig.x
+			if orig.y < min_py: min_py = orig.y
+			if orig.z < min_pz: min_pz = orig.z
+			if orig.x > max_px: max_px = orig.x
+			if orig.y > max_py: max_py = orig.y
+			if orig.z > max_pz: max_pz = orig.z
 
-		var chunk_center = (min_p + max_p) * 0.5
-		var half_size = (max_p - min_p) * 0.5
-		var aabb_local = AABB(-half_size, max_p - min_p)
+		var min_p := Vector3(min_px - 0.5, min_py - 0.5, min_pz - 0.5)
+		var max_p := Vector3(max_px + 0.5, max_py + h_pasto + 0.5, max_pz + 0.5)
+		var chunk_center: Vector3 = (min_p + max_p) * 0.5
+		var half_size: Vector3 = (max_p - min_p) * 0.5
+		var aabb_local := AABB(-half_size, max_p - min_p)
 
+		var chunk_name := "PastoChunk_%d_%d" % [key.x, key.y]
 		var chunk_inst = MultiMeshInstance3D.new()
-		chunk_inst.name = "PastoChunk_%d_%d" % [key.x, key.y]
+		chunk_inst.name = chunk_name
 		chunk_inst.position = chunk_center
 
 		var mm = MultiMesh.new()
@@ -1949,11 +2304,14 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 		mm.mesh = mesh_a_usar
 		mm.instance_count = total_chunk
 
+		var buf := PackedFloat32Array()
+		buf.resize(total_chunk * 16)
 		for i in range(total_chunk):
-			var t: Transform3D = lista[i]
+			var idx_g: int = int(idxs[i])
+			var t: Transform3D = transforms[idx_g]
 			t.origin -= chunk_center
-			mm.set_instance_transform(i, t)
-			mm.set_instance_custom_data(i, lista_custom[i] as Color)
+			_escribir_instancia_en_buffer(buf, i, t, custom_bordes[idx_g])
+		mm.buffer = buf
 
 		mm.custom_aabb = aabb_local
 		chunk_inst.custom_aabb = aabb_local
@@ -1969,6 +2327,25 @@ func _construir_chunks_runtime(transforms: Array[Transform3D], mesh_a_usar: Mesh
 		add_child(chunk_inst)
 		_chunks.append(chunk_inst)
 
+		if puede_cachear:
+			items_cache.append({
+				"name": chunk_name,
+				"pos": chunk_center,
+				"aabb": aabb_local,
+				"mm": mm
+			})
+
+	if puede_cachear and _ultima_firma_bordes != 0:
+		if _cache_chunks_runtime.size() >= 16:
+			_cache_chunks_runtime.clear()
+		_cache_chunks_runtime[archivo_datos_pasto] = {
+			"firma": _ultima_firma_bordes,
+			"total": transforms.size(),
+			"h_pasto": h_pasto,
+			"mesh": mesh_a_usar,
+			"items": items_cache
+		}
+
 	# Vaciar el multimesh propio y AABB en runtime para permitir Frustum Culling limpio por chunks
 	if multimesh:
 		multimesh.instance_count = 0
@@ -1981,6 +2358,10 @@ func _crear_malla_pasto_procedural() -> ArrayMesh:
 	var h_cfg: float = alto_pasto if (alto_pasto != null and alto_pasto > 0.0) else 0.40
 	var w_cfg: float = ancho_pasto if (ancho_pasto != null and ancho_pasto > 0.0) else 0.16
 	var curva_cfg: float = curvatura_puntas if curvatura_puntas != null else 0.10
+
+	var m_key := "%d_%.4f_%.4f_%.4f" % [num_briznas, h_cfg, w_cfg, curva_cfg]
+	if _mesh_pasto_cache.has(m_key):
+		return _mesh_pasto_cache[m_key] as ArrayMesh
 
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -2065,7 +2446,11 @@ func _crear_malla_pasto_procedural() -> ArrayMesh:
 		st.set_uv(Vector2(0.5, 1.0))
 		st.add_vertex(p_tip)
 
-	return st.commit()
+	var m_res := st.commit()
+	if _mesh_pasto_cache.size() >= 32:
+		_mesh_pasto_cache.clear()
+	_mesh_pasto_cache[m_key] = m_res
+	return m_res
 
 func _sincronizar_todas_las_islas_y_bordes(recargar_desde_disco: bool = false) -> void:
 	if recargar_desde_disco and not archivo_datos_pasto.is_empty() and ResourceLoader.exists(archivo_datos_pasto):
@@ -2085,9 +2470,6 @@ func _sincronizar_todas_las_islas_y_bordes(recargar_desde_disco: bool = false) -
 
 func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
-		if not _curvatura_borde_editor_v3:
-			_curvatura_borde_editor_v3 = true
-			_sincronizar_todas_las_islas_y_bordes(true)
 		return
 
 	if not interactuar_con_personajes:

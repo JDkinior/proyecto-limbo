@@ -715,7 +715,36 @@ var _vertice_centro_cache: Vector3 = Vector3.ZERO
 var _global_transform_anterior: Transform3D = Transform3D.IDENTITY
 var _tris_roca_buffer: Array = []
 var _ultimo_estado_fantasma_mat: int = -1
-var _borde_uv_actualizado_v2: bool = false
+var _borde_uv_actualizado_v2: bool = true
+var _en_ready_inicial: bool = false
+
+static var _runtime_geom_cache: Dictionary = {}
+
+# Buffers planos temporales durante regenerar() para evitar Dictionary.get() en cada vértice
+var _esc_fast_activo: bool = false
+var _esc_min_x: float = 0.0
+var _esc_max_x: float = 0.0
+var _esc_min_z: float = 0.0
+var _esc_max_z: float = 0.0
+var _esc_pos: PackedVector2Array = PackedVector2Array()
+var _esc_r: PackedFloat32Array = PackedFloat32Array()
+var _esc_r2: PackedFloat32Array = PackedFloat32Array()
+var _esc_fuerza: PackedFloat32Array = PackedFloat32Array()
+var _esc_modo: PackedInt32Array = PackedInt32Array()
+var _esc_forma: PackedInt32Array = PackedInt32Array()
+var _esc_limitar: PackedByteArray = PackedByteArray()
+
+var _cam_fast_activo: bool = false
+var _cam_min_x: float = 0.0
+var _cam_max_x: float = 0.0
+var _cam_min_z: float = 0.0
+var _cam_max_z: float = 0.0
+var _cam_pos: PackedVector2Array = PackedVector2Array()
+var _cam_r: PackedFloat32Array = PackedFloat32Array()
+var _cam_inv_r2: PackedFloat32Array = PackedFloat32Array()
+var _cam_fuerza: PackedFloat32Array = PackedFloat32Array()
+var _cam_tipo: PackedInt32Array = PackedInt32Array()
+var _cam_borrar: PackedByteArray = PackedByteArray()
 
 # Preload de materiales y decoración por defecto
 const MAT_HIERBA_DEFAULT = preload("res://assets/materiales/entorno/m_isla_hierba.tres")
@@ -834,7 +863,9 @@ func _ready() -> void:
 		material_hierba = MAT_HIERBA_DEFAULT
 	if material_roca == null:
 		material_roca = MAT_ROCA_DEFAULT
+	_en_ready_inicial = true
 	regenerar()
+	_en_ready_inicial = false
 
 	_posicion_inicial_colapso = global_position
 	posicion_origen = global_position
@@ -930,7 +961,7 @@ func _notification(what: int) -> void:
 	if not Engine.is_editor_hint():
 		return
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
-		if _global_transform_anterior.basis.determinant() != 0.0:
+		if is_node_ready() and _global_transform_anterior.basis.determinant() != 0.0:
 			var delta_pos = global_position - _global_transform_anterior.origin
 			var rot_diff = global_transform.basis * _global_transform_anterior.basis.inverse()
 			if delta_pos.length_squared() > 0.00001 or not rot_diff.is_equal_approx(Basis()):
@@ -966,9 +997,6 @@ func _notificar_movimiento_pasto(ant: Transform3D, act: Transform3D) -> void:
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
-		if not _borde_uv_actualizado_v2:
-			_borde_uv_actualizado_v2 = true
-			regenerar()
 		return
 	if tipo_comportamiento == TipoComportamiento.COLAPSO:
 		_procesar_fisica_colapso(delta)
@@ -1144,7 +1172,49 @@ func regenerar() -> void:
 	_borde_uv_actualizado_v2 = true
 	_ultimo_estado_fantasma_mat = -1
 	_asegurar_nodos_hijos()
-	
+
+	var usar_cache_runtime: bool = not _esculpiendo_activo
+	var firma_bytes := PackedByteArray()
+	var firma_hash: int = 0
+	if usar_cache_runtime:
+		firma_bytes = _construir_firma_geometria_bytes()
+		firma_hash = hash(firma_bytes)
+		if _runtime_geom_cache.has(firma_hash):
+			var entry: Dictionary = _runtime_geom_cache[firma_hash]
+			if entry.get("bytes") == firma_bytes:
+				var cached_perim: Array[Vector3] = entry["perimetro_pts"]
+				if not _perimetro_pts_cache.is_empty():
+					_perimetro_pts_anterior = _perimetro_pts_cache.duplicate()
+				_perimetro_pts_cache = cached_perim
+				_vertice_centro_cache = entry["vertice_centro"]
+				_anillos_sup_cache = entry["anillos_sup"]
+				_col_caras_cache = entry["col_caras"]
+
+				var cached_mesh: ArrayMesh = entry["mesh"]
+				_mesh_instance.mesh = cached_mesh
+				_actualizar_materiales()
+				_mesh_instance.custom_aabb = entry["custom_aabb"]
+
+				if _collision_shape != null:
+					var cached_shape: ConcavePolygonShape3D = entry["col_shape"]
+					_collision_shape.shape = cached_shape
+					_collision_shape.disabled = (cached_shape == null)
+
+				if puede_ser_poseida or tipo_comportamiento == TipoComportamiento.POSEIBLE:
+					_adaptar_ojos_a_geometria()
+
+				if tipo_comportamiento == TipoComportamiento.COLAPSO:
+					_asegurar_area_colapso()
+				elif tipo_comportamiento == TipoComportamiento.ESPIRITUAL:
+					_asegurar_material_espiritual()
+
+				var rng_deco_cached = RandomNumberGenerator.new()
+				rng_deco_cached.seed = semilla + 303
+				_actualizar_decoracion(rng_deco_cached, cached_perim, entry["perimetro_radios"])
+				return
+
+	_compilar_trazos_rapidos()
+
 	# 1. Configurar generadores deterministas aislados por subsistema
 	# para garantizar determinismo geométrico absoluto: el esculpido o la pintura
 	# de caminos en la superficie jamás alterarán la forma de la roca o sus picos inferiores.
@@ -1551,8 +1621,26 @@ func regenerar() -> void:
 	if not _esculpiendo_activo:
 		_actualizar_decoracion(rng_decoracion, perimetro_pts, perimetro_radios)
 
+	_limpiar_trazos_rapidos()
+
+	if usar_cache_runtime and not firma_bytes.is_empty():
+		if _runtime_geom_cache.size() >= 64:
+			_runtime_geom_cache.clear()
+		var cached_shape: ConcavePolygonShape3D = (_collision_shape.shape as ConcavePolygonShape3D) if (_collision_shape != null and _collision_shape.shape is ConcavePolygonShape3D) else null
+		_runtime_geom_cache[firma_hash] = {
+			"bytes": firma_bytes,
+			"mesh": mesh,
+			"custom_aabb": _mesh_instance.custom_aabb,
+			"perimetro_pts": perimetro_pts,
+			"perimetro_radios": perimetro_radios,
+			"vertice_centro": vertice_centro,
+			"anillos_sup": anillos_sup_pts,
+			"col_caras": col_caras,
+			"col_shape": cached_shape
+		}
+
 	# 8. Sincronizar y adaptar generadores de pasto sobre esta isla (solo en editor al editar)
-	if Engine.is_editor_hint():
+	if Engine.is_editor_hint() and not _en_ready_inicial:
 		if _ultimo_trazo_radio > 0.0 and _ultimo_trazo_pos.x != INF:
 			_notificar_generadores_pasto(_ultimo_trazo_pos, _ultimo_trazo_radio)
 			_ultimo_trazo_radio = -1.0
@@ -1857,125 +1945,145 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 		return
 
 	var cos_umbral := cos(deg_to_rad(angulo_suavizado_roca))
-	var cos_max_par := cos(deg_to_rad(minf(angulo_suavizado_roca * 1.03, 56.0)))
+	var max_par_rad := deg_to_rad(minf(angulo_suavizado_roca * 1.03, 56.0))
+	var cos_max_par := cos(max_par_rad)
 	var k_smooth := clampf(intensidad_suavizado_roca, 0.0, 1.0)
 
 	# 1. Soldar vértices por posición espacial cuantizada (precisión de 1 mm)
 	var pos_to_vid := {}
 	var vert_pos: Array[Vector3] = []
-	var vert_tris: Array = [] # Array de Array[[tri_idx, corner_weight]]
 
-	var tri_vids: Array = []
-	var tri_normals: Array[Vector3] = []
-	var tri_areas: Array[float] = []
-	var tri_factors: Array[float] = []
-	var tri_es_tapa: Array[bool] = []
-	var tri_es_superficie: Array[bool] = []
-	var tri_es_satelite: Array[bool] = []
-	var tri_centros_sat: Array[Vector3] = []
-	var tri_ids_sat: Array[int] = []
+	var tri_v0 := PackedInt32Array()
+	var tri_v1 := PackedInt32Array()
+	var tri_v2 := PackedInt32Array()
+	tri_v0.resize(num_tris)
+	tri_v1.resize(num_tris)
+	tri_v2.resize(num_tris)
+
+	var tri_normals := PackedVector3Array()
+	tri_normals.resize(num_tris)
+	var tri_areas := PackedFloat32Array()
+	tri_areas.resize(num_tris)
+	var tri_factors := PackedFloat32Array()
+	tri_factors.resize(num_tris)
+	var tri_es_tapa := PackedByteArray()
+	tri_es_tapa.resize(num_tris)
+	var tri_es_superficie := PackedByteArray()
+	tri_es_superficie.resize(num_tris)
+	var tri_es_satelite := PackedByteArray()
+	tri_es_satelite.resize(num_tris)
+	var tri_centros_sat := PackedVector3Array()
+	tri_centros_sat.resize(num_tris)
+	var tri_ids_sat := PackedInt32Array()
+	tri_ids_sat.resize(num_tris)
+
 	var edge_to_tris := {}
 
 	for t in range(num_tris):
 		var item: Array = _tris_roca_buffer[t]
+		var item_len := item.size()
 		var a: Vector3 = item[0]
 		var b: Vector3 = item[1]
 		var c: Vector3 = item[2]
 		var n: Vector3 = item[3]
 		var f_extra: float = item[4]
-		var es_sat: bool = item[6] if item.size() > 6 else false
-		var centro_sat: Vector3 = item[7] if item.size() > 7 else Vector3.ZERO
-		var sat_idx: int = item[8] if item.size() > 8 else 0
-		var es_sup: bool = item[9] if item.size() > 9 else false
+		var es_sat: bool = item[6] if item_len > 6 else false
+		var centro_sat: Vector3 = item[7] if item_len > 7 else Vector3.ZERO
+		var sat_idx: int = item[8] if item_len > 8 else 0
+		var es_sup: bool = item[9] if item_len > 9 else false
 
-		var pts := [a, b, c]
-		var vids := [0, 0, 0]
-		for corner in range(3):
-			var p: Vector3 = pts[corner]
-			var key_v := Vector3i(roundi(p.x * 1000.0), roundi(p.y * 1000.0), roundi(p.z * 1000.0))
-			var vid: int
-			if pos_to_vid.has(key_v):
-				vid = pos_to_vid[key_v]
-			else:
-				vid = vert_pos.size()
-				pos_to_vid[key_v] = vid
-				vert_pos.append(p)
-				vert_tris.append([])
-			vids[corner] = vid
+		var ka := Vector3i(roundi(a.x * 1000.0), roundi(a.y * 1000.0), roundi(a.z * 1000.0))
+		var va: int
+		if pos_to_vid.has(ka):
+			va = pos_to_vid[ka]
+		else:
+			va = vert_pos.size()
+			pos_to_vid[ka] = va
+			vert_pos.append(a)
 
-		var ab := (b - a)
-		var ac := (c - a)
-		var bc := (c - b)
-		var area := maxf(ab.cross(ac).length() * 0.5, 0.0001)
+		var kb := Vector3i(roundi(b.x * 1000.0), roundi(b.y * 1000.0), roundi(b.z * 1000.0))
+		var vb: int
+		if pos_to_vid.has(kb):
+			vb = pos_to_vid[kb]
+		else:
+			vb = vert_pos.size()
+			pos_to_vid[kb] = vb
+			vert_pos.append(b)
 
-		var d_ab := ab.normalized()
-		var d_ac := ac.normalized()
-		var d_bc := bc.normalized()
-		var ang_a := acos(clampf(d_ab.dot(d_ac), -1.0, 1.0))
-		var ang_b := acos(clampf((-d_ab).dot(d_bc), -1.0, 1.0))
-		var ang_c := maxf(PI - ang_a - ang_b, 0.05)
-		var w_corners := [maxf(ang_a, 0.05), maxf(ang_b, 0.05), maxf(ang_c, 0.05)]
+		var kc := Vector3i(roundi(c.x * 1000.0), roundi(c.y * 1000.0), roundi(c.z * 1000.0))
+		var vc: int
+		if pos_to_vid.has(kc):
+			vc = pos_to_vid[kc]
+		else:
+			vc = vert_pos.size()
+			pos_to_vid[kc] = vc
+			vert_pos.append(c)
 
-		for corner in range(3):
-			vert_tris[vids[corner]].append([t, w_corners[corner]])
+		tri_v0[t] = va
+		tri_v1[t] = vb
+		tri_v2[t] = vc
 
+		var area := maxf((b - a).cross(c - a).length() * 0.5, 0.0001)
 		var y_mid := (a.y + b.y + c.y) / 3.0
 		var es_tapa := (n.y > 0.82) and (y_mid > altura_superficie - 0.45)
 
-		tri_vids.append(vids)
-		tri_normals.append(n)
-		tri_areas.append(area)
-		tri_factors.append(f_extra)
-		tri_es_tapa.append(es_tapa)
-		tri_es_superficie.append(es_sup)
-		tri_es_satelite.append(es_sat)
-		tri_centros_sat.append(centro_sat)
-		tri_ids_sat.append(sat_idx if es_sat else -1)
+		tri_normals[t] = n
+		tri_areas[t] = area
+		tri_factors[t] = f_extra
+		tri_es_tapa[t] = 1 if es_tapa else 0
+		tri_es_superficie[t] = 1 if es_sup else 0
+		tri_es_satelite[t] = 1 if es_sat else 0
+		tri_centros_sat[t] = centro_sat
+		tri_ids_sat[t] = sat_idx if es_sat else -1
 
-		for e in range(3):
-			var v1: int = vids[e]
-			var v2: int = vids[(e + 1) % 3]
-			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
-			if not edge_to_tris.has(e_key):
-				edge_to_tris[e_key] = []
-			edge_to_tris[e_key].append(t)
+		var ek0: int = (va << 20) | vb if va < vb else (vb << 20) | va
+		if edge_to_tris.has(ek0):
+			(edge_to_tris[ek0] as Array).append(t)
+		else:
+			edge_to_tris[ek0] = [t]
+
+		var ek1: int = (vb << 20) | vc if vb < vc else (vc << 20) | vb
+		if edge_to_tris.has(ek1):
+			(edge_to_tris[ek1] as Array).append(t)
+		else:
+			edge_to_tris[ek1] = [t]
+
+		var ek2: int = (vc << 20) | va if vc < va else (va << 20) | vc
+		if edge_to_tris.has(ek2):
+			(edge_to_tris[ek2] as Array).append(t)
+		else:
+			edge_to_tris[ek2] = [t]
 
 	# 1.5. Regularizar pliegues en Z (triángulos invertidos en Y por stagger_y entre anillos inferiores)
-	#      Cuando un triángulo profundo (bajo el anillo superior) tiene n.y > -0.05 pero al menos 2
-	#      de sus vecinos por arista apuntan hacia abajo (n.y < -0.20), se alinea con la pendiente
-	#      envolvente para evitar facetas invertidas aisladas a mitad del acantilado o en rocas satélite.
-	var reg_normals: Array[Vector3] = []
-	reg_normals.resize(num_tris)
+	var reg_normals := tri_normals.duplicate()
+	var y_umbral_pliegue := altura_superficie - 0.38
 	for t in range(num_tris):
-		reg_normals[t] = tri_normals[t]
-		if tri_es_tapa[t] or tri_normals[t].y <= -0.05:
+		if tri_es_tapa[t] != 0 or tri_normals[t].y <= -0.05:
 			continue
-		var vids_t: Array = tri_vids[t]
-		var y_tri := (vert_pos[vids_t[0]].y + vert_pos[vids_t[1]].y + vert_pos[vids_t[2]].y) / 3.0
-		if y_tri > altura_superficie - 0.38:
+		var va := tri_v0[t]
+		var vb := tri_v1[t]
+		var vc := tri_v2[t]
+		var y_tri := (vert_pos[va].y + vert_pos[vb].y + vert_pos[vc].y) / 3.0
+		if y_tri > y_umbral_pliegue:
 			continue
 		var down_cnt := 0
 		var down_sum := Vector3.ZERO
 		for e in range(3):
-			var v1: int = vids_t[e]
-			var v2: int = vids_t[(e + 1) % 3]
-			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
+			var v1: int = va if e == 0 else (vb if e == 1 else vc)
+			var v2: int = vb if e == 0 else (vc if e == 1 else va)
+			var e_key: int = (v1 << 20) | v2 if v1 < v2 else (v2 << 20) | v1
 			for t_nb in edge_to_tris[e_key]:
-				if t_nb != t and not tri_es_tapa[t_nb] and tri_normals[t_nb].y < -0.20:
+				if t_nb != t and tri_es_tapa[t_nb] == 0 and tri_normals[t_nb].y < -0.20:
 					down_cnt += 1
 					down_sum += tri_normals[t_nb] * tri_areas[t_nb]
 		if down_cnt >= 2 and down_sum.length_squared() > 0.0001:
 			reg_normals[t] = (tri_normals[t] * 0.10 + down_sum.normalized() * 0.90).normalized()
-	for t in range(num_tris):
-		tri_normals[t] = reg_normals[t]
+	tri_normals = reg_normals
 
 	# 2. Clasificar aristas entre triángulos adyacentes y agrupar por Complete-Linkage
-	#    (de menor ángulo diedro a mayor, garantizando que ningún par de caras en una misma
-	#    sección supere el ángulo umbral ni cruce una arista dura).
 	var smooth_edges: Array = []
 	var sharp_adj: Array = []
-	for t in range(num_tris):
-		sharp_adj.append({})
+	sharp_adj.resize(num_tris)
 
 	for e_key in edge_to_tris:
 		var t_list: Array = edge_to_tris[e_key]
@@ -1985,119 +2093,219 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 			for j in range(i + 1, n_list):
 				var t1: int = t_list[j]
 				if tri_es_tapa[t0] != tri_es_tapa[t1] or tri_es_superficie[t0] != tri_es_superficie[t1] or tri_ids_sat[t0] != tri_ids_sat[t1]:
-					sharp_adj[t0][t1] = true
-					sharp_adj[t1][t0] = true
+					if sharp_adj[t0] == null:
+						sharp_adj[t0] = [t1]
+					else:
+						(sharp_adj[t0] as Array).append(t1)
+					if sharp_adj[t1] == null:
+						sharp_adj[t1] = [t0]
+					else:
+						(sharp_adj[t1] as Array).append(t0)
 					continue
 				var dot_n := tri_normals[t0].dot(tri_normals[t1])
 				if dot_n >= cos_umbral:
 					smooth_edges.append([dot_n, t0, t1])
 				else:
-					sharp_adj[t0][t1] = true
-					sharp_adj[t1][t0] = true
+					if sharp_adj[t0] == null:
+						sharp_adj[t0] = [t1]
+					else:
+						(sharp_adj[t0] as Array).append(t1)
+					if sharp_adj[t1] == null:
+						sharp_adj[t1] = [t0]
+					else:
+						(sharp_adj[t1] as Array).append(t0)
 
 	smooth_edges.sort_custom(func(a: Array, b: Array) -> bool:
 		return a[0] > b[0]
 	)
 
-	var parent: Array[int] = []
+	var parent := PackedInt32Array()
+	parent.resize(num_tris)
 	var sec_members: Array = []
-	var sec_norm_sum: Array[Vector3] = []
+	sec_members.resize(num_tris)
+	var sec_sharp_members: Array = []
+	sec_sharp_members.resize(num_tris)
+	var sec_norm_sum := PackedVector3Array()
+	sec_norm_sum.resize(num_tris)
+	var cone_axis := PackedVector3Array()
+	cone_axis.resize(num_tris)
+	var cone_ang := PackedFloat32Array()
+	cone_ang.resize(num_tris)
+
 	for t in range(num_tris):
-		parent.append(t)
-		sec_members.append([t])
-		sec_norm_sum.append(tri_normals[t] * tri_areas[t])
+		parent[t] = t
+		sec_members[t] = [t]
+		if sharp_adj[t] != null:
+			sec_sharp_members[t] = [t]
+		var n_t := tri_normals[t]
+		sec_norm_sum[t] = n_t * tri_areas[t]
+		cone_axis[t] = n_t
+		cone_ang[t] = 0.0
 
 	for edge in smooth_edges:
-		var t0: int = edge[1]
-		var t1: int = edge[2]
-		var r0 := t0
+		var r0: int = edge[1]
 		while parent[r0] != r0:
+			parent[r0] = parent[parent[r0]]
 			r0 = parent[r0]
-		var r1 := t1
+		var r1: int = edge[2]
 		while parent[r1] != r1:
+			parent[r1] = parent[parent[r1]]
 			r1 = parent[r1]
 		if r0 == r1:
 			continue
 
-		var mem0: Array = sec_members[r0]
-		var mem1: Array = sec_members[r1]
+		# Verificar aristas duras solo entre miembros con aristas duras
 		var compatible := true
-		for m0 in mem0:
-			var s_map: Dictionary = sharp_adj[m0]
-			var n0: Vector3 = tri_normals[m0]
-			for m1 in mem1:
-				if s_map.has(m1) or n0.dot(tri_normals[m1]) < cos_max_par:
-					compatible = false
+		var sm0 = sec_sharp_members[r0]
+		var sm1 = sec_sharp_members[r1]
+		if sm0 != null and sm1 != null:
+			var sm0_arr: Array = sm0
+			var sm1_arr: Array = sm1
+			var check_arr: Array
+			var target_r: int
+			if sm0_arr.size() <= sm1_arr.size():
+				check_arr = sm0_arr
+				target_r = r1
+			else:
+				check_arr = sm1_arr
+				target_r = r0
+			for m_s in check_arr:
+				var nb_sharps: Array = sharp_adj[m_s]
+				for nb in nb_sharps:
+					var rn: int = nb
+					while parent[rn] != rn:
+						parent[rn] = parent[parent[rn]]
+						rn = parent[rn]
+					if rn == target_r:
+						compatible = false
+						break
+				if not compatible:
 					break
-			if not compatible:
-				break
 		if not compatible:
 			continue
 
+		# Filtro por cono envolvente de normales (acotación esférica exacta)
+		var ax0 := cone_axis[r0]
+		var ax1 := cone_axis[r1]
+		var ang0 := cone_ang[r0]
+		var ang1 := cone_ang[r1]
+		var ang_ax := acos(clampf(ax0.dot(ax1), -1.0, 1.0))
+
+		if ang_ax + ang0 + ang1 >= max_par_rad - 0.0001:
+			if ang_ax - ang0 - ang1 > max_par_rad + 0.0001:
+				continue
+			var mem0_chk: Array = sec_members[r0]
+			var mem1_chk: Array = sec_members[r1]
+			for m0 in mem0_chk:
+				var n0 := tri_normals[m0]
+				for m1 in mem1_chk:
+					if n0.dot(tri_normals[m1]) < cos_max_par:
+						compatible = false
+						break
+				if not compatible:
+					break
+			if not compatible:
+				continue
+
+		var mem0: Array = sec_members[r0]
+		var mem1: Array = sec_members[r1]
 		if mem0.size() < mem1.size():
 			var tmp := r0
 			r0 = r1
 			r1 = tmp
 			mem0 = sec_members[r0]
 			mem1 = sec_members[r1]
+			var tmp_ax := ax0
+			ax0 = ax1
+			ax1 = tmp_ax
+			var tmp_ang := ang0
+			ang0 = ang1
+			ang1 = tmp_ang
+
 		parent[r1] = r0
 		sec_norm_sum[r0] += sec_norm_sum[r1]
-		for m1 in mem1:
-			mem0.append(m1)
+		mem0.append_array(mem1)
 		sec_members[r1] = []
 
-	# 3. Absorber triángulos huérfanos aislados (secciones de 1 solo triángulo producto de
-	#    diagonales o transiciones) en la sección vecina más compatible para evitar facetas sueltas
-	var tri_sec: Array[int] = []
+		if sec_sharp_members[r1] != null:
+			if sec_sharp_members[r0] == null:
+				sec_sharp_members[r0] = sec_sharp_members[r1]
+			else:
+				(sec_sharp_members[r0] as Array).append_array(sec_sharp_members[r1] as Array)
+			sec_sharp_members[r1] = null
+
+		var new_ax := ax0 + ax1
+		if new_ax.length_squared() < 0.000001:
+			cone_ang[r0] = PI
+		else:
+			new_ax = new_ax.normalized()
+			var da0 := acos(clampf(new_ax.dot(ax0), -1.0, 1.0))
+			var da1 := acos(clampf(new_ax.dot(ax1), -1.0, 1.0))
+			cone_axis[r0] = new_ax
+			cone_ang[r0] = maxf(da0 + ang0, da1 + ang1) + 0.000001
+
+	# 3. Absorber triángulos huérfanos aislados
+	var tri_sec := PackedInt32Array()
 	tri_sec.resize(num_tris)
 	for t in range(num_tris):
 		var r := t
 		while parent[r] != r:
+			parent[r] = parent[parent[r]]
 			r = parent[r]
 		tri_sec[t] = r
 
 	var cos_orphan_min := cos(deg_to_rad(minf(angulo_suavizado_roca + 24.0, 78.0)))
 	for t in range(num_tris):
-		var r_curr: int = tri_sec[t]
+		var r_curr := tri_sec[t]
 		while parent[r_curr] != r_curr:
 			r_curr = parent[r_curr]
-		if sec_members[r_curr].size() != 1:
+		if (sec_members[r_curr] as Array).size() != 1:
 			continue
 		var best_sec := -1
 		var best_dot := cos_orphan_min
-		var vids_t: Array = tri_vids[t]
+		var va := tri_v0[t]
+		var vb := tri_v1[t]
+		var vc := tri_v2[t]
+		var t_tapa := tri_es_tapa[t]
+		var t_sup := tri_es_superficie[t]
+		var t_sat := tri_ids_sat[t]
+		var n_t := tri_normals[t]
 		for e in range(3):
-			var v1: int = vids_t[e]
-			var v2: int = vids_t[(e + 1) % 3]
-			var e_key: int = (mini(v1, v2) << 20) | maxi(v1, v2)
-			var n_tris: Array = edge_to_tris[e_key]
-			for t_nb in n_tris:
-				if t_nb == t or tri_es_tapa[t_nb] != tri_es_tapa[t] or tri_es_superficie[t_nb] != tri_es_superficie[t] or tri_ids_sat[t_nb] != tri_ids_sat[t]:
+			var v1: int = va if e == 0 else (vb if e == 1 else vc)
+			var v2: int = vb if e == 0 else (vc if e == 1 else va)
+			var e_key: int = (v1 << 20) | v2 if v1 < v2 else (v2 << 20) | v1
+			for t_nb in edge_to_tris[e_key]:
+				if t_nb == t or tri_es_tapa[t_nb] != t_tapa or tri_es_superficie[t_nb] != t_sup or tri_ids_sat[t_nb] != t_sat:
 					continue
-				var r_nb: int = tri_sec[t_nb]
+				var r_nb := tri_sec[t_nb]
 				while parent[r_nb] != r_nb:
 					r_nb = parent[r_nb]
 				var n_nb_sec := sec_norm_sum[r_nb].normalized()
-				var d_nb := tri_normals[t].dot(n_nb_sec)
+				var d_nb := n_t.dot(n_nb_sec)
 				if d_nb > best_dot:
 					best_dot = d_nb
 					best_sec = r_nb
 		if best_sec != -1 and best_sec != r_curr:
 			parent[r_curr] = best_sec
 			sec_norm_sum[best_sec] += sec_norm_sum[r_curr]
-			sec_members[best_sec].append(t)
+			(sec_members[best_sec] as Array).append(t)
 			sec_members[r_curr] = []
 			tri_sec[t] = best_sec
 
-	# 4. Calcular propiedades geométricas de cada sección (normal media, centroide, radio, factor)
-	var sec_mean_normal := {}
-	var sec_centroid := {}
-	var sec_radius := {}
-	var sec_factor := {}
+	# 4. Calcular propiedades geométricas de cada sección
+	var sec_mean_normal := PackedVector3Array()
+	sec_mean_normal.resize(num_tris)
+	var sec_centroid := PackedVector3Array()
+	sec_centroid.resize(num_tris)
+	var sec_radius := PackedFloat32Array()
+	sec_radius.resize(num_tris)
+	var sec_factor := PackedFloat32Array()
+	sec_factor.resize(num_tris)
 
 	for t in range(num_tris):
 		var r := tri_sec[t]
 		while parent[r] != r:
+			parent[r] = parent[parent[r]]
 			r = parent[r]
 		tri_sec[t] = r
 
@@ -2114,121 +2322,137 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 		var a_sum := 0.0
 		var f_sum := 0.0
 		for tm in mem:
-			var area_m: float = tri_areas[tm]
-			var vids_m: Array = tri_vids[tm]
-			var c_tri: Vector3 = (vert_pos[vids_m[0]] + vert_pos[vids_m[1]] + vert_pos[vids_m[2]]) / 3.0
+			var area_m := tri_areas[tm]
+			var c_tri := (vert_pos[tri_v0[tm]] + vert_pos[tri_v1[tm]] + vert_pos[tri_v2[tm]]) / 3.0
 			c_sum += c_tri * area_m
 			a_sum += area_m
 			f_sum += tri_factors[tm] * area_m
-		var c_sec: Vector3 = c_sum / maxf(a_sum, 0.0001)
+		var inv_a := 1.0 / maxf(a_sum, 0.0001)
+		var c_sec := c_sum * inv_a
 		sec_centroid[r] = c_sec
-		sec_factor[r] = f_sum / maxf(a_sum, 0.0001)
+		sec_factor[r] = f_sum * inv_a
 
-		var r_max := 0.25
+		var r_max_sq := 0.25 * 0.25
 		for tm in mem:
-			var vids_m: Array = tri_vids[tm]
-			for vid_c in vids_m:
-				var d_c := vert_pos[vid_c].distance_to(c_sec)
-				if d_c > r_max:
-					r_max = d_c
-		sec_radius[r] = r_max
+			var d0 := vert_pos[tri_v0[tm]].distance_squared_to(c_sec)
+			if d0 > r_max_sq: r_max_sq = d0
+			var d1 := vert_pos[tri_v1[tm]].distance_squared_to(c_sec)
+			if d1 > r_max_sq: r_max_sq = d1
+			var d2 := vert_pos[tri_v2[tm]].distance_squared_to(c_sec)
+			if d2 > r_max_sq: r_max_sq = d2
+		sec_radius[r] = sqrt(r_max_sq)
 
-	# 4.5. Calcular normales de vértice ponderadas por ángulo interior de esquina (algoritmo exacto
-	#      de Blender Auto Smooth: invariante a la diagonalización de quads, eliminando el sesgo 2:1)
+	# 4.5. Calcular normales de vértice ponderadas por ángulo interior de esquina
 	var sv_angle_norm := {}
 	var sv_neighbors := {}
 	for t in range(num_tris):
-		var sec_id: int = tri_sec[t]
-		var vids: Array = tri_vids[t]
-		var n_t: Vector3 = tri_normals[t]
-		var p0: Vector3 = vert_pos[vids[0]]
-		var p1: Vector3 = vert_pos[vids[1]]
-		var p2: Vector3 = vert_pos[vids[2]]
+		var sec_id := tri_sec[t]
+		var va := tri_v0[t]
+		var vb := tri_v1[t]
+		var vc := tri_v2[t]
+		var n_t := tri_normals[t]
+		var p0 := vert_pos[va]
+		var p1 := vert_pos[vb]
+		var p2 := vert_pos[vc]
 		var e01 := (p1 - p0).normalized()
 		var e02 := (p2 - p0).normalized()
-		var e10 := -e01
 		var e12 := (p2 - p1).normalized()
-		var e20 := -e02
-		var e21 := -e12
-		var w_angles := [
-			acos(clampf(e01.dot(e02), -1.0, 1.0)),
-			acos(clampf(e10.dot(e12), -1.0, 1.0)),
-			acos(clampf(e20.dot(e21), -1.0, 1.0))
-		]
-		for c_i in range(3):
-			var vid: int = vids[c_i]
-			var sv_key: int = (sec_id << 20) | vid
-			var w_a: float = maxf(w_angles[c_i], 0.05)
-			if sv_angle_norm.has(sv_key):
-				sv_angle_norm[sv_key] += n_t * w_a
-			else:
-				sv_angle_norm[sv_key] = n_t * w_a
-				sv_neighbors[sv_key] = []
-		for c_i in range(3):
-			var sv_a: int = (sec_id << 20) | int(vids[c_i])
-			var sv_b: int = (sec_id << 20) | int(vids[(c_i + 1) % 3])
-			var nb_a: Array = sv_neighbors[sv_a]
-			if not nb_a.has(sv_b):
-				nb_a.append(sv_b)
-			var nb_b: Array = sv_neighbors[sv_b]
-			if not nb_b.has(sv_a):
-				nb_b.append(sv_a)
+		var w0 := maxf(acos(clampf(e01.dot(e02), -1.0, 1.0)), 0.05)
+		var w1 := maxf(acos(clampf((-e01).dot(e12), -1.0, 1.0)), 0.05)
+		var w2 := maxf(acos(clampf((-e02).dot(-e12), -1.0, 1.0)), 0.05)
+
+		var sv0: int = (sec_id << 20) | va
+		var sv1: int = (sec_id << 20) | vb
+		var sv2: int = (sec_id << 20) | vc
+
+		if sv_angle_norm.has(sv0):
+			sv_angle_norm[sv0] += n_t * w0
+		else:
+			sv_angle_norm[sv0] = n_t * w0
+			sv_neighbors[sv0] = []
+		if sv_angle_norm.has(sv1):
+			sv_angle_norm[sv1] += n_t * w1
+		else:
+			sv_angle_norm[sv1] = n_t * w1
+			sv_neighbors[sv1] = []
+		if sv_angle_norm.has(sv2):
+			sv_angle_norm[sv2] += n_t * w2
+		else:
+			sv_angle_norm[sv2] = n_t * w2
+			sv_neighbors[sv2] = []
+
+		var nb0: Array = sv_neighbors[sv0]
+		var nb1: Array = sv_neighbors[sv1]
+		var nb2: Array = sv_neighbors[sv2]
+		if not nb0.has(sv1): nb0.append(sv1)
+		if not nb1.has(sv0): nb1.append(sv0)
+		if not nb1.has(sv2): nb1.append(sv2)
+		if not nb2.has(sv1): nb2.append(sv1)
+		if not nb2.has(sv0): nb2.append(sv0)
+		if not nb0.has(sv2): nb0.append(sv2)
 
 	for sv_key in sv_angle_norm.keys():
-		var n_a: Vector3 = sv_angle_norm[sv_key].normalized()
+		var n_a: Vector3 = (sv_angle_norm[sv_key] as Vector3).normalized()
 		if n_a.length_squared() < 0.0001:
 			n_a = sec_mean_normal[sv_key >> 20]
 		sv_angle_norm[sv_key] = n_a
 
-	# Suavizado Laplaciano ligero dentro de cada sección para continuidad C1 perfecta
+	# Suavizado Laplaciano ligero dentro de cada sección
 	var sv_smooth_norm := {}
 	for sv_key in sv_angle_norm.keys():
 		var n_center: Vector3 = sv_angle_norm[sv_key]
-		var n_nb_sum := Vector3.ZERO
 		var nbs: Array = sv_neighbors[sv_key]
-		for nb_key in nbs:
-			n_nb_sum += sv_angle_norm[nb_key]
-		if nbs.size() > 0:
-			var n_avg := (n_center * 0.68 + (n_nb_sum / float(nbs.size())) * 0.32).normalized()
-			sv_smooth_norm[sv_key] = n_avg
+		var n_nb_cnt := nbs.size()
+		if n_nb_cnt > 0:
+			var n_nb_sum := Vector3.ZERO
+			for nb_key in nbs:
+				n_nb_sum += sv_angle_norm[nb_key] as Vector3
+			sv_smooth_norm[sv_key] = (n_center * 0.68 + (n_nb_sum / float(n_nb_cnt)) * 0.32).normalized()
 		else:
 			sv_smooth_norm[sv_key] = n_center
 
 	# 5. Evaluar normales y sombreado volumétrico por cada par (sec_id, vid)
 	var cache_sec_vert := {}
+	var cache_vert_peso_camino := {}
+	var cache_vert_prof_borde := {}
 	var prof_max := maxf(profundidad_roca, 0.1)
 	var base_piedra := Color(0.312, 0.358, 0.735, 1.0)
 	var base_roca := COLOR_ROCA_BASE.lerp(base_piedra, 0.94 * k_smooth)
 	var dir_luz_vol := Vector3(0.38, 0.62, 0.68).normalized()
 	var dir_rim := Vector3(-0.78, 0.36, 0.51).normalized()
+	var n_sats: float = maxf(float(cantidad_rocas_satelite - 1), 1.0)
 
-	var order := [0, 2, 1]
 	for t in range(num_tris):
-		var sec_id: int = tri_sec[t]
-		var vids: Array = tri_vids[t]
-		var n_sec: Vector3 = sec_mean_normal[sec_id]
-		var c_sec: Vector3 = sec_centroid[sec_id]
-		var r_sec: float = sec_radius[sec_id]
-		var f_sec: float = sec_factor[sec_id]
+		var sec_id := tri_sec[t]
+		var va := tri_v0[t]
+		var vb := tri_v1[t]
+		var vc := tri_v2[t]
+		var n_sec := sec_mean_normal[sec_id]
+		var c_sec := sec_centroid[sec_id]
+		var r_sec := sec_radius[sec_id]
+		var f_sec := sec_factor[sec_id]
+		var tri_n := tri_normals[t]
+		var is_sat := tri_es_satelite[t] != 0
+		var is_sup := tri_es_superficie[t] != 0
+		var c_sat := tri_centros_sat[t]
+		var sat_id := tri_ids_sat[t]
 
-		for idx_corner in order:
-			var vid: int = vids[idx_corner]
+		for k_ord in range(3):
+			var vid: int = va if k_ord == 0 else (vc if k_ord == 1 else vb)
 			var sv_key: int = (sec_id << 20) | vid
 			var sv_data: Array
 			if cache_sec_vert.has(sv_key):
 				sv_data = cache_sec_vert[sv_key]
 			else:
-				var v_p: Vector3 = vert_pos[vid]
+				var v_p := vert_pos[vid]
 				var n_angle: Vector3 = sv_smooth_norm[sv_key]
 
 				var rel_p := (v_p - c_sec) / r_sec
-				# Base sólida en la normal del vértice (n_angle), modulada suavemente hacia la normal de sección y abombamiento 3D
 				var n_vol := (n_sec * 0.20 + Vector3(rel_p.x * 0.08, rel_p.y * 0.12, rel_p.z * 0.08) * k_smooth)
 				var n_final := (n_angle * 0.82 + n_vol * 0.18).normalized()
 				if n_final.length_squared() < 0.0001:
 					n_final = n_angle
 
-				# Sombreado volumétrico 3D entre secciones (n_sec) y dentro de cada sección (n_angle - n_sec)
 				var y_eval := lerpf(c_sec.y, v_p.y, 0.48)
 				var t_prof := clampf(-y_eval / prof_max, 0.0, 1.0)
 				var f_prof := lerpf(0.95, 0.64, pow(t_prof, 0.85))
@@ -2237,7 +2461,6 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 				var dot_intra := dn_sec.dot(dir_rim) * 0.62 + rel_p.dot(dir_rim) * 0.14
 				var f_hemi := clampf(0.82 + dot_sec * 0.26 + n_sec.y * 0.12 + dot_intra * k_smooth, 0.50, 1.16)
 
-				# Oclusión bajo el dosel de la isla para caras profundas orientadas hacia arriba (rocas satélite)
 				var f_dosel := 1.0
 				var b_sun_comp := 1.0
 				if n_sec.x * 0.56 + n_sec.z * 0.83 > 0.72 and n_sec.y > -0.55:
@@ -2248,11 +2471,6 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 					b_sun_comp = lerpf(b_sun_comp, 0.74, t_d)
 
 				var mult := f_prof * f_hemi * f_dosel * f_sec
-				var is_sat: bool = tri_es_satelite[t]
-				var c_sat: Vector3 = tri_centros_sat[t]
-				var sat_id: int = tri_ids_sat[t]
-
-				var n_sats: float = maxf(float(cantidad_rocas_satelite - 1), 1.0)
 				var fase_sat: float = 0.05 + 0.35 * (float(sat_id) / n_sats)
 
 				var col_v := Color(
@@ -2265,27 +2483,37 @@ func _procesar_suavizado_automatico_roca(st: SurfaceTool) -> void:
 				sv_data = [n_final, col_v, is_sat, c_sat]
 				cache_sec_vert[sv_key] = sv_data
 
-			var p_vert: Vector3 = vert_pos[vid]
+			var p_vert := vert_pos[vid]
 			var n_emit: Vector3 = sv_data[0]
-			var tri_n: Vector3 = tri_normals[t]
 			if n_emit.dot(tri_n) < 0.35:
 				n_emit = (n_emit * 0.30 + tri_n * 0.70).normalized()
 
 			var col_emit := sv_data[1] as Color
 			if not sv_data[2]:
-				col_emit.a = 1.0 if tri_es_superficie[t] else 0.55
+				col_emit.a = 1.0 if is_sup else 0.55
 			st.set_color(col_emit)
 			st.set_normal(n_emit)
 			if sv_data[2]:
 				var c_sat_vert: Vector3 = sv_data[3]
 				st.set_uv(Vector2(p_vert.y - c_sat_vert.y, 0.0))
 				st.set_uv2(Vector2(p_vert.x - c_sat_vert.x, p_vert.z - c_sat_vert.z))
-			elif tri_es_superficie[t]:
-				var peso_p: Vector4 = _evaluar_peso_camino(Vector2(p_vert.x, p_vert.z))
+			elif is_sup:
+				var peso_p: Vector4
+				if cache_vert_peso_camino.has(vid):
+					peso_p = cache_vert_peso_camino[vid]
+				else:
+					peso_p = _evaluar_peso_camino(Vector2(p_vert.x, p_vert.z))
+					cache_vert_peso_camino[vid] = peso_p
 				st.set_uv(Vector2(peso_p.z, peso_p.w))
 				st.set_uv2(Vector2(peso_p.x, peso_p.y))
 			else:
-				st.set_uv(Vector2(_obtener_profundidad_borde_acantilado(p_vert), 0.0))
+				var prof_b: float
+				if cache_vert_prof_borde.has(vid):
+					prof_b = cache_vert_prof_borde[vid]
+				else:
+					prof_b = _obtener_profundidad_borde_acantilado(p_vert)
+					cache_vert_prof_borde[vid] = prof_b
+				st.set_uv(Vector2(prof_b, 0.0))
 				st.set_uv2(Vector2.ZERO)
 			st.add_vertex(p_vert)
 
@@ -2472,7 +2700,171 @@ func _evaluar_relieve_procedural(pos_xz: Vector2) -> float:
 	return delta_h
 
 
+func _construir_firma_geometria_bytes() -> PackedByteArray:
+	var mat_id: String = material_roca.resource_path if (material_roca != null and not material_roca.resource_path.is_empty()) else (str(material_roca.get_instance_id()) if material_roca != null else "")
+	return var_to_bytes([
+		ancho, largo, profundidad_roca,
+		irregularidad_contorno, segmentos_perimetro, anillos_roca, anillos_superficie, intensidad_variacion, semilla,
+		cantidad_picos_rocosos, dispersion_picos, facetado_triangular_irregular, suavizado_automatico_roca, angulo_suavizado_roca, intensidad_suavizado_roca,
+		generar_pasto, pasto_distancia, altura_superficie, variacion_superficie,
+		habilitar_mesetas_superficie, estilo_mesetas_superficie, cantidad_niveles_meseta, altura_desnivel_mesetas, nitidez_escalon_mesetas, angulo_mesetas, escala_mesetas,
+		generar_faldon_pasto, longitud_faldon_pasto, vuelo_faldon_pasto,
+		habilitar_montanas, estilo_montana, altura_montana, radio_montana, posicion_montana, cantidad_picos_montana, escalonamiento_terrazas, niveles_terraza, rugosidad_montana, roca_en_pendientes, angulo_corte_roca,
+		generar_rocas_satelite, cantidad_rocas_satelite,
+		mat_id,
+		deformaciones_escultura,
+		trazos_pintura_caminos
+	])
+
+
+func _compilar_trazos_rapidos() -> void:
+	var n_esc: int = deformaciones_escultura.size()
+	if n_esc > 0:
+		_esc_pos.resize(n_esc)
+		_esc_r.resize(n_esc)
+		_esc_r2.resize(n_esc)
+		_esc_fuerza.resize(n_esc)
+		_esc_modo.resize(n_esc)
+		_esc_forma.resize(n_esc)
+		_esc_limitar.resize(n_esc)
+		var min_x: float = INF
+		var max_x: float = -INF
+		var min_z: float = INF
+		var max_z: float = -INF
+		for i in range(n_esc):
+			var d: Dictionary = deformaciones_escultura[i]
+			var pos_c: Vector2 = d.get("pos", Vector2.ZERO)
+			var r: float = float(d.get("radio", 3.0))
+			var modo: int = int(d.get("modo", 0))
+			_esc_pos[i] = pos_c
+			_esc_r[i] = r
+			_esc_r2[i] = r * r
+			_esc_fuerza[i] = float(d.get("fuerza", 1.0))
+			_esc_modo[i] = modo
+			_esc_forma[i] = int(d.get("forma", 0))
+			_esc_limitar[i] = 1 if (bool(d.get("limitar_a_cero", false)) or (modo == 4)) else 0
+			min_x = minf(min_x, pos_c.x - r)
+			max_x = maxf(max_x, pos_c.x + r)
+			min_z = minf(min_z, pos_c.y - r)
+			max_z = maxf(max_z, pos_c.y + r)
+		_esc_min_x = min_x
+		_esc_max_x = max_x
+		_esc_min_z = min_z
+		_esc_max_z = max_z
+		_esc_fast_activo = true
+	else:
+		_esc_fast_activo = false
+
+	var n_cam_raw: int = trazos_pintura_caminos.size()
+	if n_cam_raw > 0:
+		_cam_pos.resize(n_cam_raw)
+		_cam_r.resize(n_cam_raw)
+		_cam_inv_r2.resize(n_cam_raw)
+		_cam_fuerza.resize(n_cam_raw)
+		_cam_tipo.resize(n_cam_raw)
+		_cam_borrar.resize(n_cam_raw)
+		var min_cx: float = INF
+		var max_cx: float = -INF
+		var min_cz: float = INF
+		var max_cz: float = -INF
+		var count_cam: int = 0
+		for i in range(n_cam_raw):
+			var t: Dictionary = trazos_pintura_caminos[i]
+			var r: float = float(t.get("radio", 2.0))
+			if r <= 0.0001:
+				continue
+			var raw_pos = t.get("pos", Vector2.ZERO)
+			var pos_c := Vector2.ZERO
+			if raw_pos is Vector2:
+				pos_c = raw_pos
+			elif raw_pos is Dictionary:
+				pos_c = Vector2(float(raw_pos.get("x", 0.0)), float(raw_pos.get("y", 0.0)))
+			_cam_pos[count_cam] = pos_c
+			_cam_r[count_cam] = r
+			_cam_inv_r2[count_cam] = 1.0 / (r * r)
+			_cam_fuerza[count_cam] = float(t.get("fuerza", 0.65))
+			_cam_tipo[count_cam] = int(t.get("tipo", 0))
+			_cam_borrar[count_cam] = 1 if bool(t.get("borrar", false)) else 0
+			min_cx = minf(min_cx, pos_c.x - r)
+			max_cx = maxf(max_cx, pos_c.x + r)
+			min_cz = minf(min_cz, pos_c.y - r)
+			max_cz = maxf(max_cz, pos_c.y + r)
+			count_cam += 1
+		if count_cam < n_cam_raw:
+			_cam_pos.resize(count_cam)
+			_cam_r.resize(count_cam)
+			_cam_inv_r2.resize(count_cam)
+			_cam_fuerza.resize(count_cam)
+			_cam_tipo.resize(count_cam)
+			_cam_borrar.resize(count_cam)
+		_cam_min_x = min_cx
+		_cam_max_x = max_cx
+		_cam_min_z = min_cz
+		_cam_max_z = max_cz
+		_cam_fast_activo = true
+	else:
+		_cam_fast_activo = false
+
+
+func _limpiar_trazos_rapidos() -> void:
+	_esc_fast_activo = false
+	_cam_fast_activo = false
+
+
 func _evaluar_deformaciones_escultura(pos_xz: Vector2, h_relieve_base: float = 0.0) -> float:
+	if _esc_fast_activo:
+		if pos_xz.x <= _esc_min_x or pos_xz.x >= _esc_max_x or pos_xz.y <= _esc_min_z or pos_xz.y >= _esc_max_z:
+			return 0.0
+		var delta_total_fast := 0.0
+		var n_esc := _esc_pos.size()
+		for i in range(n_esc):
+			var pos_c: Vector2 = _esc_pos[i]
+			var r: float = _esc_r[i]
+			var dx := pos_xz.x - pos_c.x
+			if absf(dx) >= r:
+				continue
+			var dz := pos_xz.y - pos_c.y
+			if absf(dz) >= r:
+				continue
+			var d2 := dx * dx + dz * dz
+			if d2 >= _esc_r2[i]:
+				continue
+
+			var t := sqrt(d2) / r
+			var falloff := 0.0
+			match _esc_forma[i]:
+				0:
+					falloff = 1.0 - t
+				1:
+					falloff = 1.0 if t < 0.55 else (1.0 - (t - 0.55) / 0.45)
+				2:
+					falloff = (1.0 - t * t) * (1.0 - t * t)
+
+			var paso := _esc_fuerza[i] * falloff
+			var modo: int = _esc_modo[i]
+			var limitar_a_cero: bool = (_esc_limitar[i] != 0)
+			match modo:
+				0:
+					delta_total_fast += paso
+				1:
+					if limitar_a_cero:
+						var target_delta := -h_relieve_base if (h_relieve_base > 0.0) else 0.0
+						if delta_total_fast > target_delta:
+							var blend := clampf(paso * 1.5, 0.0, 1.0)
+							delta_total_fast = maxf(target_delta, lerpf(delta_total_fast, target_delta, blend))
+					else:
+						delta_total_fast -= paso
+				2:
+					delta_total_fast += paso * 0.5
+				3:
+					delta_total_fast = lerpf(delta_total_fast, 0.0, clampf(paso * 0.5, 0.0, 0.8))
+				4:
+					var target_delta4 := -h_relieve_base if (h_relieve_base > 0.0) else 0.0
+					if delta_total_fast > target_delta4:
+						var blend4 := clampf(paso * 1.5, 0.0, 1.0)
+						delta_total_fast = maxf(target_delta4, lerpf(delta_total_fast, target_delta4, blend4))
+		return delta_total_fast
+
 	var delta_total = 0.0
 	for d in deformaciones_escultura:
 		var pos_c: Vector2 = d.get("pos", Vector2.ZERO)
@@ -2577,6 +2969,64 @@ func deshacer_ultimo_trazo() -> void:
 ## SISTEMA DE PINTURA DE CAMINOS Y SUPERFICIES (HEIGHT BLEND)
 ## ==============================================================================
 func _evaluar_peso_camino(pos_xz: Vector2) -> Vector4:
+	if _cam_fast_activo:
+		var n_cam := _cam_pos.size()
+		if n_cam == 0:
+			return Vector4.ZERO
+		if pos_xz.x <= _cam_min_x or pos_xz.x >= _cam_max_x or pos_xz.y <= _cam_min_z or pos_xz.y >= _cam_max_z:
+			return Vector4.ZERO
+		var ftc: float = 0.0
+		var fto: float = 0.0
+		var froca: float = 0.0
+		var fpasto: float = 0.0
+		for i in range(n_cam):
+			var pos_c: Vector2 = _cam_pos[i]
+			var r: float = _cam_r[i]
+			var dx := pos_xz.x - pos_c.x
+			if absf(dx) >= r:
+				continue
+			var dz := pos_xz.y - pos_c.y
+			if absf(dz) >= r:
+				continue
+			var d2 := dx * dx + dz * dz
+			if d2 >= r * r:
+				continue
+			var falloff := 1.0 - (d2 * _cam_inv_r2[i])
+			falloff = falloff * falloff
+			var f := _cam_fuerza[i]
+			var tipo := _cam_tipo[i]
+			if _cam_borrar[i] != 0 or tipo == 4:
+				var factor_borrado := clampf(f * 2.5 * falloff, 0.0, 1.0)
+				ftc = maxf(0.0, ftc * (1.0 - factor_borrado))
+				fto = maxf(0.0, fto * (1.0 - factor_borrado))
+				froca = maxf(0.0, froca * (1.0 - factor_borrado))
+				fpasto = maxf(0.0, fpasto * (1.0 - factor_borrado))
+			elif tipo == 0:
+				var delta := f * falloff
+				ftc = clampf(ftc + delta, 0.0, 1.0)
+				fto = maxf(0.0, fto * (1.0 - delta))
+				froca = maxf(0.0, froca * (1.0 - delta))
+				fpasto = maxf(0.0, fpasto * (1.0 - delta))
+			elif tipo == 1:
+				var delta := f * falloff
+				fto = clampf(fto + delta, 0.0, 1.0)
+				ftc = maxf(0.0, ftc * (1.0 - delta))
+				froca = maxf(0.0, froca * (1.0 - delta))
+				fpasto = maxf(0.0, fpasto * (1.0 - delta))
+			elif tipo == 2:
+				var delta := f * falloff
+				froca = clampf(froca + delta, 0.0, 1.0)
+				ftc = maxf(0.0, ftc * (1.0 - delta))
+				fto = maxf(0.0, fto * (1.0 - delta))
+				fpasto = maxf(0.0, fpasto * (1.0 - delta))
+			elif tipo == 3:
+				var delta := f * falloff
+				fpasto = clampf(fpasto + delta, 0.0, 1.0)
+				ftc = maxf(0.0, ftc * (1.0 - delta))
+				fto = maxf(0.0, fto * (1.0 - delta))
+				froca = maxf(0.0, froca * (1.0 - delta))
+		return Vector4(clampf(ftc, 0.0, 1.0), clampf(fto, 0.0, 1.0), clampf(froca, 0.0, 1.0), clampf(fpasto, 0.0, 1.0))
+
 	if trazos_pintura_caminos.is_empty():
 		return Vector4.ZERO
 	var peso_tc: float = 0.0
@@ -3149,6 +3599,12 @@ func _inicializar_modo_espiritual() -> void:
 	actualizar_comportamiento(false)
 
 
+func activar_por_luz(activo: bool) -> void:
+	actualizar_comportamiento(activo)
+
+func activar_mecanismo(activo: bool) -> void:
+	actualizar_comportamiento(activo)
+
 func actualizar_comportamiento(activo: bool) -> void:
 	if tipo_comportamiento != TipoComportamiento.ESPIRITUAL:
 		return
@@ -3457,6 +3913,12 @@ func _restaurar_colapso() -> void:
 	_actualizar_materiales()
 	plataforma_restaurada.emit()
 
+
+func aplicar_estasis(congelado: bool) -> void:
+	if congelado:
+		congelar_estasis()
+	else:
+		descongelar_estasis()
 
 func congelar_estasis(_duracion: float = 0.0) -> void:
 	esta_congelada = true

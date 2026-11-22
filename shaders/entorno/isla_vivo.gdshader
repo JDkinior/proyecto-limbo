@@ -6,7 +6,7 @@ render_mode cull_back, diffuse_lambert, specular_schlick_ggx;
 // en pendientes suaves/mesetas para interpretar vegetación en la distancia sin costo de rendimiento.
 
 group_uniforms ColoresRoca;
-uniform vec4 tinte_roca : source_color = vec4(0.76, 0.75, 0.78, 1.0);
+uniform vec4 tinte_roca : source_color = vec4(0.52, 0.52, 0.68, 1.0);
 uniform float rugosidad_roca : hint_range(0.0, 1.0) = 0.90;
 
 group_uniforms LevitacionSatelites;
@@ -131,17 +131,6 @@ void vertex() {
 }
 
 void fragment() {
-	// Color base de roca a partir del color por vértice procedural (conserva variación low-poly pura)
-	vec3 col_roca = mix(COLOR.rgb * tinte_roca.rgb, tinte_roca.rgb, 0.72);
-	
-	// Luminosidad del color por vértice para modular la gradación del pasto con facetas
-	float lum = dot(COLOR.rgb, vec3(0.299, 0.587, 0.114));
-	float t = clamp((lum - 0.18) / 0.34, 0.0, 1.0);
-	
-	vec3 col_final = col_roca;
-	float rough_final = rugosidad_roca;
-	float factor_pasto = 0.0;
-
 	// Normal en espacio de mundo para detectar planos horizontales y terrazas superiores
 	// Protegida contra longitud cero para evitar NaN (pixeles negros en la GPU)
 	float n_len_sq = dot(NORMAL, NORMAL);
@@ -149,6 +138,27 @@ void fragment() {
 	vec3 wn_unnorm = (INV_VIEW_MATRIX * vec4(safe_norm, 0.0)).xyz;
 	float wn_len_sq = dot(wn_unnorm, wn_unnorm);
 	vec3 world_normal = wn_len_sq > 0.0001 ? wn_unnorm * inversesqrt(wn_len_sq) : vec3(0.0, 1.0, 0.0);
+
+	// Luminosidad lineal del color por vértice para modular tonos suaves de roca y pasto
+	float lum = dot(COLOR.rgb, vec3(0.299, 0.587, 0.114));
+	float t = clamp((lum - 0.06) / 0.16, 0.0, 1.0);
+
+	// Gradiente suave de 3 tonos (oscura, media, brillante) calibrado a la iluminación/niebla del nivel.
+	// Usa rango estrecho de lum y proyección angular de baja frecuencia sobre world_normal para dar
+	// variación tonal suavizada visible entre secciones incluso en sombra total, sin bandas ni textura.
+	float var_lum = smoothstep(0.055, 0.125, lum);
+	float orient_suave = 0.5 + 0.5 * sin(world_normal.x * 2.8 + world_normal.z * 2.2 - world_normal.y * 1.9);
+	float factor_tono = smoothstep(0.18, 0.82, mix(var_lum, orient_suave, 0.62));
+	vec3 col_oscura = tinte_roca.rgb * vec3(0.56, 0.65, 1.15);
+	vec3 col_media = tinte_roca.rgb;
+	vec3 col_brillante = tinte_roca.rgb * vec3(1.28, 1.14, 0.80);
+	vec3 col_roca = (factor_tono < 0.5)
+		? mix(col_oscura, col_media, factor_tono * 2.0)
+		: mix(col_media, col_brillante, (factor_tono - 0.5) * 2.0);
+	
+	vec3 col_final = col_roca;
+	float rough_final = rugosidad_roca;
+	float factor_pasto = 0.0;
 	// Aislamiento estricto de la base superior:
 	// La superficie de la base tiene COLOR.a = 1.0 y v_es_superficie = 1.0.
 	// El acantilado tiene COLOR.a <= 0.55 y los satélites COLOR.a < 0.50.
