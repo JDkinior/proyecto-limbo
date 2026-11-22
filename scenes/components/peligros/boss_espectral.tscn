@@ -1,0 +1,103 @@
+[gd_scene format=3 uid="uid://bgge3u86gubjn"]
+
+[ext_resource type="Script" uid="uid://0sjfrit6spq6" path="res://scripts/components/peligros/boss_espectral.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://bm8o5sa74stru" path="res://assets/modelos/personajes/boss_espectral.glb" id="2_boss_espectral"]
+[ext_resource type="PackedScene" uid="uid://cfyg1j7rgf3kc" path="res://assets/modelos/personajes/boss_armadura.glb" id="3_boss_armadura"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_cuerpo"]
+height = 4.6125
+radius = 2.296
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_66tph"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.35, 0.92, 1, 0.72)
+
+[sub_resource type="TorusMesh" id="TorusMesh_halo_cabeza"]
+inner_radius = 0.72
+outer_radius = 0.96
+rings = 28
+ring_segments = 8
+
+[sub_resource type="Gradient" id="Gradient_particula_radial"]
+offsets = PackedFloat32Array(0, 0.85, 1)
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0.9, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_particula_radial"]
+gradient = SubResource("Gradient_particula_radial")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_particulas_boss"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("GradientTexture2D_particula_radial")
+billboard_mode = 3
+billboard_keep_scale = true
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="QuadMesh" id="QuadMesh_particula_boss"]
+material = SubResource("StandardMaterial3D_particulas_boss")
+size = Vector2(0.24, 0.24)
+
+[sub_resource type="Curve" id="Curve_escala_boss"]
+_data = [Vector2(0, 0.25), 0.0, 1.4, 0, 0, Vector2(0.4, 0.95), 0.2, 0.2, 0, 0, Vector2(1, 0.05), -1.6, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_color_boss"]
+offsets = PackedFloat32Array(0, 0.25, 0.75, 1)
+colors = PackedColorArray(1, 0.14, 0.18, 0.95, 0.95, 0.05, 0.08, 0.9, 0.65, 0.03, 0.05, 0.55, 0.25, 0.01, 0.02, 0)
+
+[node name="BossEspectral" type="CharacterBody3D" unique_id=1607463040 groups=["bosses_espectrales"]]
+collision_layer = 0
+collision_mask = 0
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=294817260]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7425, 0)
+shape = SubResource("CylinderShape3D_cuerpo")
+disabled = true
+
+[node name="Visual" type="Node3D" parent="." unique_id=631792137]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.05, 0)
+
+[node name="ModeloEspectral" parent="Visual" unique_id=19699275 instance=ExtResource("2_boss_espectral")]
+transform = Transform3D(2.05, 0, 0, 0, 2.05, 0, 0, 0, 2.05, 0, 0, 0)
+visible = false
+
+[node name="ModeloArmadura" parent="Visual" unique_id=9842703 instance=ExtResource("3_boss_armadura")]
+transform = Transform3D(2.05, 0, 0, 0, 2.05, 0, 0, 0, 2.05, 0, 0, 0)
+
+[node name="HaloObjetivoCabeza" type="MeshInstance3D" parent="Visual" unique_id=855172029]
+transform = Transform3D(1.9475, 0, 0, 0, 1, 0, 0, 0, 1.9475, 0, 2.378, 0)
+visible = false
+material_override = SubResource("StandardMaterial3D_66tph")
+mesh = SubResource("TorusMesh_halo_cabeza")
+
+[node name="ParticulasZonaBoss" type="CPUParticles3D" parent="." unique_id=467448889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+layers = 5
+emitting = false
+amount = 28
+lifetime = 4.2
+mesh = SubResource("QuadMesh_particula_boss")
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 0.25
+emission_ring_radius = 4.2
+emission_ring_inner_radius = 1.6
+emission_ring_cone_angle = 90.0
+direction = Vector3(0, 1, 0)
+spread = 20.0
+gravity = Vector3(0, 0.12, 0)
+initial_velocity_min = 0.45
+initial_velocity_max = 0.95
+scale_amount_min = 0.65
+scale_amount_max = 1.35
+scale_amount_curve = SubResource("Curve_escala_boss")
+color_ramp = SubResource("Gradient_color_boss")

@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/components/peligros/plataforma_coliseo.gd" id="1_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_polvo"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_color = Color(0.86, 0.78, 0.62, 0.65)
+
+[sub_resource type="SphereMesh" id="SphereMesh_polvo"]
+material = SubResource("StandardMaterial3D_polvo")
+radius = 0.14
+height = 0.28
+radial_segments = 6
+rings = 3
+
+[sub_resource type="Curve" id="Curve_escala_polvo"]
+_data = [Vector2(0, 0.4), 0.0, 2.0, 0, 0, Vector2(0.45, 1.0), 0.0, 0.0, 0, 0, Vector2(1, 0.0), -1.8, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_color_polvo"]
+offsets = PackedFloat32Array(0, 0.35, 1)
+colors = PackedColorArray(0.95, 0.85, 0.65, 0.0, 0.9, 0.78, 0.56, 0.85, 0.65, 0.55, 0.42, 0.0)
+
+[node name="PlataformaColiseo" type="AnimatableBody3D" groups=["plataformas_coliseo"]]
+collision_layer = 1
+collision_mask = 0
+sync_to_physics = true
+script = ExtResource("1_script")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Capitel" type="MeshInstance3D" parent="Visual"]
+layers = 1
+
+[node name="Fuste" type="MeshInstance3D" parent="Visual"]
+layers = 1
+
+[node name="AroRunico" type="MeshInstance3D" parent="Visual"]
+layers = 1
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="ParticulasPolvo" type="CPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+layers = 1
+emitting = false
+amount = 16
+lifetime = 0.85
+one_shot = true
+explosiveness = 0.9
+mesh = SubResource("SphereMesh_polvo")
+emission_shape = 6
+emission_ring_axis = Vector3(0, 1, 0)
+emission_ring_height = 0.1
+emission_ring_radius = 1.9
+emission_ring_inner_radius = 1.3
+direction = Vector3(0, 1, 0)
+spread = 35.0
+gravity = Vector3(0, 1.2, 0)
+initial_velocity_min = 0.6
+initial_velocity_max = 1.8
+scale_amount_curve = SubResource("Curve_escala_polvo")
+color_ramp = SubResource("Gradient_color_polvo")
