@@ -13,6 +13,7 @@ signal signal_desactivado
 @export var radio_deteccion_switch: float = 1.2 # Radio de contacto del propio interruptor
 
 var esta_activo: bool = false
+var _iluminado_por_farol: bool = false
 var mesh_node: MeshInstance3D = null
 var _fantasma_cache: Node = null
 var _material_cache: StandardMaterial3D = null
@@ -21,9 +22,9 @@ const COLOR_INACTIVO := Color(0.7, 0.3, 0.9, 0.4)
 const COLOR_AZUL_ACTIVO := Color(0.1, 0.75, 1.0, 0.9)
 
 func _ready() -> void:
-	# No requiere colisiones físicas del cuerpo del personaje,
-	# ya que calculamos la interacción mediante distancia matemática al aura.
-	collision_layer = 0
+	# Capa 3 (Plano Espiritual) para permitir detección por el haz de FarolEspiritual
+	# sin generar colisión física con jugadores ni enemigos.
+	collision_layer = 1 << 2
 	collision_mask = 0
 	
 	mesh_node = get_node_or_null("MeshInstance3D") as MeshInstance3D
@@ -75,16 +76,27 @@ func _process(_delta: float) -> void:
 			if distancia_horizontal <= radio_total_deteccion and diferencia_y <= 2.5:
 				algun_aura_tocando = true
 				
-	# Emitir cambios de estado
-	if algun_aura_tocando != esta_activo:
-		esta_activo = algun_aura_tocando
-		_actualizar_material(esta_activo)
-		if esta_activo:
-			signal_activado.emit()
-			print("[InterruptorAura] ¡Activado! El aura del Fantasma está en contacto.")
-		else:
-			signal_desactivado.emit()
-			print("[InterruptorAura] ¡Desactivado! El aura se ha encogido o disipado.")
+	# Emitir cambios de estado (por contacto de aura o por luz del FarolEspiritual)
+	var nuevo_estado: bool = algun_aura_tocando or _iluminado_por_farol
+	if nuevo_estado != esta_activo:
+		cambiar_estado(nuevo_estado)
+
+func activar_por_luz(activo: bool) -> void:
+	_iluminado_por_farol = activo
+	if _iluminado_por_farol and not esta_activo:
+		cambiar_estado(true)
+
+func cambiar_estado(activo: bool) -> void:
+	if activo == esta_activo:
+		return
+	esta_activo = activo
+	_actualizar_material(esta_activo)
+	if esta_activo:
+		signal_activado.emit()
+		print("[InterruptorAura] ¡Activado! El aura o haz espiritual está en contacto.")
+	else:
+		signal_desactivado.emit()
+		print("[InterruptorAura] ¡Desactivado! El aura o haz espiritual se disipó.")
 
 func _actualizar_material(activo: bool) -> void:
 	if not is_instance_valid(mesh_node) or not is_instance_valid(_material_cache):

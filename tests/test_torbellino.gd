@@ -379,3 +379,40 @@ func test_adaptacion_escala_vertical() -> void:
 	assert_gt(p_vortice.amount, base_amount, "Deben generarse más partículas a lo largo de la altura")
 	
 	tree.root.remove_child(instance)
+
+
+func test_torbellino_mecanismo_puerta() -> void:
+	var scene = load("res://scenes/components/peligros/torbellino.tscn")
+	var instance = track(scene.instantiate()) as Torbellino
+	assert_ne(instance, null, "Debe instanciarse Torbellino")
+
+	var p_vortice = instance.get_node("ParticulasVortice") as CPUParticles3D
+	assert_true(p_vortice.local_coords, "ParticulasVortice debe usar local_coords = true para moverse con el torbellino")
+
+	var disp = track(Node3D.new())
+	disp.add_user_signal("signal_activado")
+	disp.add_user_signal("signal_desactivado")
+
+	instance.position = Vector3(8.0, 4.3, -5.9)
+	instance._pos_inicial_mov = Vector3(8.0, 4.3, -5.9)
+	instance.se_mueve = true
+	instance.desplazamiento = Vector3(8.0, 0.0, 0.0)
+	instance.disparador_objetivo = disp
+	instance.distancia_desplazamiento = 10.0
+	instance.direccion_desplazamiento = Vector3(1.0, 0.0, 0.0)
+	instance.tiempo_transicion = 1.0
+	instance._inicializar_disparadores()
+
+	assert_true(instance._tiene_disparadores, "Debe detectar que tiene disparador asignado")
+
+	# Con disparador asignado, la patrulla automática no debe desplazar al torbellino
+	instance._procesar_movimiento_patrulla(1.0)
+	assert_eq(instance.position, Vector3(8.0, 4.3, -5.9), "La patrulla no debe mover el torbellino si tiene disparadores")
+
+	# Al activar el disparador, se mueve en direccion_desplazamiento * distancia_desplazamiento
+	disp.emit_signal("signal_activado")
+	assert_eq(instance.position, Vector3(18.0, 4.3, -5.9), "Al activarse el disparador debe desplazarse dejando pasar")
+
+	# Al desactivar el disparador, regresa a la posición inicial
+	disp.emit_signal("signal_desactivado")
+	assert_eq(instance.position, Vector3(8.0, 4.3, -5.9), "Al desactivarse el disparador debe regresar a su posición inicial")

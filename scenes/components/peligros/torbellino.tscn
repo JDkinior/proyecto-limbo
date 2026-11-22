@@ -101,6 +101,7 @@ mesh = SubResource("CylinderMesh_vortice")
 [node name="ParticulasVortice" type="CPUParticles3D" parent="." unique_id=437020266]
 transform = Transform3D(0.87344563, 0, -0.48692173, 0, 1, 0, 0.48692173, 0, 0.87344563, 0, 0, 0)
 extra_cull_margin = 4.0
+local_coords = true
 amount = 12
 lifetime = 1.6
 randomness = 0.3

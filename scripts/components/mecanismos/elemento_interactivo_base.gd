@@ -115,6 +115,19 @@ func rpc_sincronizar_estado(activo: bool) -> void:
 	actualizar_comportamiento(activo)
 	print("[%s] Sincronización P2P: Estado general actualizado a -> %s" % [name, "ACTIVO" if activo else "INACTIVO"])
 
+## Activa o desactiva el elemento desde un haz de luz (FarolEspiritual) u otro mecanismo.
+func activar_por_luz(activo: bool) -> void:
+	activar_mecanismo(activo)
+
+## Activa o desactiva directamente el elemento respetando la sincronización P2P.
+func activar_mecanismo(activo: bool) -> void:
+	if activo == esta_activo:
+		return
+	if multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer):
+		rpc_sincronizar_estado.rpc(activo)
+	else:
+		rpc_sincronizar_estado(activo)
+
 # Método virtual para ser sobrescrito por clases hijas (puerta y plataforma)
 func actualizar_comportamiento(_activo: bool) -> void:
 	pass

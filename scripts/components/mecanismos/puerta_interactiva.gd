@@ -101,3 +101,35 @@ func actualizar_comportamiento(activo: bool) -> void:
 	tween.finished.connect(func():
 		_detener_vibracion_puerta_actual(true, factor_prox)
 	)
+
+var _esta_congelada_estasis: bool = false
+
+## Actualiza el desplazamiento de la puerta de forma proporcional (0.0 a 1.0) desde un EngranajeEspiritual.
+func establecer_progreso(progreso: float) -> void:
+	actualizar_progreso_engranaje(progreso)
+
+func actualizar_progreso_engranaje(progreso: float) -> void:
+	if _esta_congelada_estasis:
+		return
+	var p := clampf(progreso, 0.0, 1.0)
+	var objetivo := posicion_inicial + (direccion_desplazamiento.normalized() * distancia_desplazamiento * p)
+	global_position = objetivo
+	if is_instance_valid(collision_shape):
+		collision_shape.disabled = p >= 0.85
+	esta_activo = p >= 0.85
+
+func aplicar_estasis(congelado: bool) -> void:
+	if congelado:
+		congelar_estasis()
+	else:
+		descongelar_estasis()
+
+func congelar_estasis(_duracion: float = 0.0) -> void:
+	_esta_congelada_estasis = true
+	if tween and tween.is_valid():
+		tween.pause()
+
+func descongelar_estasis() -> void:
+	_esta_congelada_estasis = false
+	if tween and tween.is_valid():
+		tween.play()

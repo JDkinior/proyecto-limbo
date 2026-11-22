@@ -60,8 +60,19 @@ func _actualizar_apariencia() -> void:
 func _es_reino_fantasma() -> bool:
 	if Engine.is_editor_hint():
 		return false
-		
-	# 1. Cámara activa del viewport
+
+	# 1. RedManager es la fuente autoritativa (incluye vista fija independiente de R3)
+	if is_instance_valid(RedManager):
+		if RedManager.has_method("es_reino_espiritual_activo"):
+			return RedManager.es_reino_espiritual_activo()
+		if RedManager.es_un_jugador and "personaje_activo_solo" in RedManager:
+			return RedManager.personaje_activo_solo == "fantasma"
+		if "peer_personajes" in RedManager:
+			var mi_id = RedManager.get_mi_peer_id()
+			if RedManager.peer_personajes.has(mi_id):
+				return RedManager.peer_personajes[mi_id] == "fantasma"
+
+	# 2. Fallback por cámara activa del viewport si RedManager no está disponible
 	var cam = get_viewport().get_camera_3d() if is_inside_tree() else null
 	if is_instance_valid(cam):
 		if cam.name.contains("Transicion"):
@@ -73,18 +84,7 @@ func _es_reino_fantasma() -> bool:
 			if nodo.is_in_group("vivos") or nodo.name.to_lower().contains("jugador") or nodo.name.to_lower().contains("vivo"):
 				return false
 			nodo = nodo.get_parent()
-			
-	# 2. RedManager (un jugador y multijugador)
-	if is_instance_valid(RedManager):
-		if RedManager.has_method("es_reino_espiritual_activo"):
-			return RedManager.es_reino_espiritual_activo()
-		if RedManager.es_un_jugador and "personaje_activo_solo" in RedManager:
-			return RedManager.personaje_activo_solo == "fantasma"
-		if "peer_personajes" in RedManager:
-			var mi_id = RedManager.get_mi_peer_id()
-			if RedManager.peer_personajes.has(mi_id):
-				return RedManager.peer_personajes[mi_id] == "fantasma"
-				
+
 	return false
 
 func _aplicar_apariencia_espiritual(es_espiritual: bool) -> void:

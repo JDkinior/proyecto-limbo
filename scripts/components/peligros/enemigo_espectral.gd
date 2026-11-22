@@ -51,6 +51,8 @@ enum Estado {
 			indicador_anillo_spawn.visible = valor
 ## Plataforma o isla asignada a este enemigo. Si no se asigna, se detecta automáticamente bajo sus pies.
 @export var plataforma_asignada: Node3D = null
+## Si es verdadero (usado por los mini espectros del Jefe), espera anclado sobre su plataforma asignada.
+@export var modo_guardia_plataforma: bool = false
 ## Distancia en metros a la que el enemigo elimina al Vivo por contacto íntimo
 @export var distancia_ataque: float = 1.2
 ## Distancia a la que el enemigo se detiene, se hace visible y anticipa su ataque
@@ -118,6 +120,7 @@ var _temporizador_ataque: float = 0.0
 var _temporizador_permanencia: float = 0.0
 var _fase_anticipacion_terminada: bool = false
 var _esta_tangible: bool = false
+var _iluminado_por_farol: bool = false
 var _tiempo_acumulado: float = 0.0
 var _mat_cuerpo: Material = null
 var _mat_rojo: StandardMaterial3D = null
@@ -356,6 +359,13 @@ func _actualizar_dimensiones_zona() -> void:
 func _resolver_plataforma_inicial() -> void:
 	if is_instance_valid(plataforma_asignada):
 		_plataforma_detectada = plataforma_asignada
+	if modo_guardia_plataforma and is_instance_valid(plataforma_asignada):
+		_sincronizar_guardia_plataforma()
+		if is_inside_tree():
+			global_position = _posicion_origen
+		else:
+			position = _posicion_origen
+		return
 
 	if not is_inside_tree() or get_world_3d() == null:
 		return
@@ -594,6 +604,19 @@ func _asignar_capas_recursivo(nodo: Node, mascara_capas: int) -> void:
 	for hijo in nodo.get_children():
 		_asignar_capas_recursivo(hijo, mascara_capas)
 
+func _sincronizar_guardia_plataforma() -> bool:
+	if not modo_guardia_plataforma:
+		return false
+	if not is_instance_valid(plataforma_asignada) or (plataforma_asignada.has_method("esta_destruida") and plataforma_asignada.esta_destruida()):
+		if is_inside_tree() and estado_actual != Estado.DERROTADO:
+			_crear_rafaga_particulas(global_position, Color(0.75, 0.25, 1.0), 12, 1.0, 2.6, 1.0)
+		_al_ser_derrotado()
+		return true
+	var pos_p := plataforma_asignada.global_position if (is_inside_tree() and plataforma_asignada.is_inside_tree()) else plataforma_asignada.position
+	_posicion_origen = pos_p + Vector3(0.0, altura_flotacion, 0.0)
+	_y_objetivo = _posicion_origen.y
+	return false
+
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
@@ -602,6 +625,9 @@ func _physics_process(delta: float) -> void:
 func procesar_ciclo_ia(delta: float) -> void:
 	_tiempo_visible_restante = maxf(_tiempo_visible_restante - delta, 0.0)
 	if estado_actual == Estado.DERROTADO or estado_actual == Estado.GOLPE_LETAL:
+		return
+
+	if _sincronizar_guardia_plataforma():
 		return
 
 	var vivo = _obtener_jugador_vivo()
@@ -634,20 +660,21 @@ func procesar_ciclo_ia(delta: float) -> void:
 			estado_cambiado.emit(estado_actual)
 		return
 
-	# 3. VERIFICACIÓN DE PLATAFORMA: Si el Vivo abandonó la plataforma, desvanecer y reiniciar
-	_tiempo_cache_plataforma -= delta
-	if _tiempo_cache_plataforma <= 0.0:
-		_tiempo_cache_plataforma = 0.15
-		_cache_en_plataforma = _esta_vivo_en_misma_plataforma(vivo)
-	if _cache_en_plataforma:
-		_tiempo_fuera_plataforma = 0.0
-	else:
-		# Histéresis: un salto corto fuera del borde no hace que se escondan
-		_tiempo_fuera_plataforma += delta
-		if _tiempo_fuera_plataforma >= TIEMPO_GRACIA_FUERA_PLATAFORMA:
+	# 3. VERIFICACIÓN DE PLATAFORMA: Si no está en guardia fija y el Vivo abandonó la plataforma, desvanecer y reiniciar
+	if not modo_guardia_plataforma:
+		_tiempo_cache_plataforma -= delta
+		if _tiempo_cache_plataforma <= 0.0:
+			_tiempo_cache_plataforma = 0.15
+			_cache_en_plataforma = _esta_vivo_en_misma_plataforma(vivo)
+		if _cache_en_plataforma:
 			_tiempo_fuera_plataforma = 0.0
-			_desvanecer_a_origen(true)
-			return
+		else:
+			# Histéresis: un salto corto fuera del borde no hace que se escondan
+			_tiempo_fuera_plataforma += delta
+			if _tiempo_fuera_plataforma >= TIEMPO_GRACIA_FUERA_PLATAFORMA:
+				_tiempo_fuera_plataforma = 0.0
+				_desvanecer_a_origen(true)
+				return
 
 	_tiempo_acumulado += delta
 	_animar_flotacion_y_manos(delta)
@@ -658,11 +685,23 @@ func procesar_ciclo_ia(delta: float) -> void:
 	_actualizar_comportamiento_ia(vivo, delta)
 	if is_inside_tree():
 		move_and_slide()
-		# Anti-elevación: nunca se acumula altura por empujes entre espectros
+		# Anti-elevación / anclaje vertical sobre plataforma
 		if estado_actual != Estado.DERROTADO and estado_actual != Estado.GOLPE_LETAL:
-			global_position.y = move_toward(global_position.y, _y_objetivo, 6.0 * delta)
-			if velocity.y > 0.0 and global_position.y > _y_objetivo + 0.05:
+			if modo_guardia_plataforma:
+				global_position.y = _y_objetivo
 				velocity.y = 0.0
+				if is_instance_valid(plataforma_asignada):
+					var pos_p := plataforma_asignada.global_position if plataforma_asignada.is_inside_tree() else plataforma_asignada.position
+					var r_lim: float = maxf((float(plataforma_asignada.get("radio_plataforma")) if "radio_plataforma" in plataforma_asignada else 1.2) - 0.15, 0.55)
+					var off_xz := Vector2(global_position.x - pos_p.x, global_position.z - pos_p.z)
+					if off_xz.length() > r_lim:
+						off_xz = off_xz.normalized() * r_lim
+						global_position.x = pos_p.x + off_xz.x
+						global_position.z = pos_p.z + off_xz.y
+			else:
+				global_position.y = move_toward(global_position.y, _y_objetivo, 6.0 * delta)
+				if velocity.y > 0.0 and global_position.y > _y_objetivo + 0.05:
+					velocity.y = 0.0
 		if estado_actual != Estado.DERROTADO and estado_actual != Estado.GOLPE_LETAL:
 			for i in get_slide_collision_count():
 				var col = get_slide_collision(i)
@@ -672,6 +711,9 @@ func procesar_ciclo_ia(delta: float) -> void:
 					if col.get_normal().y < -0.35:
 						recibir_impacto_pisoton(collider as CharacterBody3D)
 						break
+	elif modo_guardia_plataforma:
+		position.y = _y_objetivo
+		velocity.y = 0.0
 
 ## ─────────────────────────────────────────────────────────────────────────────
 ## VERIFICACIÓN DE PERMANENCIA EN LA MISMA PLATAFORMA
@@ -961,8 +1003,12 @@ func _iniciar_secuencia_spawns() -> void:
 			_spawnear_clon(i)
 		)
 
+static var _escena_clon_cache: PackedScene = null
+
 func _spawnear_clon(indice: int) -> void:
-	var escena = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	if _escena_clon_cache == null:
+		_escena_clon_cache = load("res://scenes/components/peligros/enemigo_espectral.tscn")
+	var escena = _escena_clon_cache
 	if escena == null:
 		return
 
@@ -1288,9 +1334,12 @@ func _hundir_en_tierra_y_desvanecer(animado: bool = true) -> void:
 ## ─────────────────────────────────────────────────────────────────────────────
 ## VERIFICACIÓN DE CONTACTO CON EL AURA DEL FANTASMA
 ## ─────────────────────────────────────────────────────────────────────────────
+func activar_por_luz(activo: bool) -> void:
+	_iluminado_por_farol = activo
+
 func _verificar_tangibilidad_con_aura(delta: float) -> void:
 	var f = _obtener_fantasma()
-	var en_contacto = false
+	var en_contacto = _iluminado_por_farol
 
 	if is_instance_valid(f):
 		var aura: Node = null
@@ -1656,6 +1705,19 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 	if _verificar_contraataque_vivo(vivo):
 		return
 
+	if modo_guardia_plataforma and is_instance_valid(plataforma_asignada):
+		var pos_p := plataforma_asignada.global_position if (is_inside_tree() and plataforma_asignada.is_inside_tree()) else plataforma_asignada.position
+		var radio_plat: float = float(plataforma_asignada.get("radio_plataforma")) if "radio_plataforma" in plataforma_asignada else 1.2
+		var dist_vivo_plat := Vector2(pos_vivo.x - pos_p.x, pos_vivo.z - pos_p.z).length()
+		var vivo_en_esta_plat := (dist_vivo_plat <= (radio_plat + 1.15)) and (absf(pos_vivo.y - pos_p.y) <= 2.4)
+		if not vivo_en_esta_plat:
+			var ang_esp := _tiempo_acumulado * 1.4 + float(_indice_clon)
+			var obj_esp := Vector3(pos_p.x + cos(ang_esp) * 0.28, _y_objetivo, pos_p.z + sin(ang_esp) * 0.28)
+			velocity = (obj_esp - pos_propia) * 3.5
+			if is_instance_valid(particulas_pasto):
+				particulas_pasto.emitting = true
+			return
+
 	var dir_desplazamiento = _calcular_direccion_cooperativa(pos_vivo, pos_propia, dir_hacia_vivo)
 	dir_desplazamiento.y = 0.0
 	if dir_desplazamiento.length_squared() > 0.01:
@@ -1695,6 +1757,8 @@ func _actualizar_comportamiento_ia(vivo: Node3D, delta: float) -> void:
 ## que cada uno tome el flanco más cercano.
 ## Mantiene la altura de flotación sobre el suelo real (terreno irregular).
 func _actualizar_altura_suelo(delta: float) -> void:
+	if modo_guardia_plataforma:
+		return
 	_tiempo_raycast_suelo -= delta
 	if _tiempo_raycast_suelo > 0.0 or not is_inside_tree() or get_world_3d() == null:
 		return
@@ -1928,9 +1992,22 @@ func _extender_manos_agarre(prog: float) -> void:
 
 func _consumar_golpe_letal(vivo: Node3D) -> void:
 	jugador_eliminado.emit(vivo)
-	_desvaneciendo = true
-	_propagar_hundimiento()
-	_hundir_en_tierra_y_desvanecer(true)
+	if modo_guardia_plataforma:
+		_animando_transicion_vertical = false
+		_cancelar_anticipacion_ataque()
+		collision_layer = 4
+		collision_mask = 1
+		if is_instance_valid(nodo_visual):
+			nodo_visual.scale = _escala_base_visual
+		velocity = Vector3.ZERO
+		if is_inside_tree():
+			global_position = _posicion_origen
+		else:
+			position = _posicion_origen
+	else:
+		_desvaneciendo = true
+		_propagar_hundimiento()
+		_hundir_en_tierra_y_desvanecer(true)
 	if not is_instance_valid(vivo):
 		return
 	if not is_inside_tree() or not "_escala_base_vivo" in vivo:

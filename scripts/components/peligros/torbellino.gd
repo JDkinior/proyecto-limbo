@@ -34,6 +34,20 @@ signal fantasma_expulsado(fantasma: Node3D)
 @export var tiempo_espera_extremos: float = 0.5 ## Tiempo de pausa (segundos) en cada extremo antes de retornar
 @export var movimiento_suave: bool = true ## Aceleración y frenado suave en los extremos
 
+@export_group("Mecanismo / Puerta")
+## Disparador principal (ej. BotonPresion o InterruptorAura) que mueve el torbellino para dejar pasar.
+@export var disparador_objetivo: Node3D = null
+## Lista adicional de disparadores si requiere múltiples interruptores.
+@export var disparadores_objetivo: Array[Node3D] = []
+## Condición lógica cuando hay múltiples disparadores (O = cualquiera, Y = todos).
+@export var condicion_combinacion: ElementoInteractivoBase.CondicionCombinacion = ElementoInteractivoBase.CondicionCombinacion.CONDICION_O
+## Distancia que se desplaza el torbellino al activarse el disparador.
+@export var distancia_desplazamiento: float = 10.0
+## Dirección en la que se desplaza el torbellino al activarse el disparador.
+@export var direccion_desplazamiento: Vector3 = Vector3.RIGHT
+## Tiempo en segundos que tarda la transición de apertura/cierre.
+@export var tiempo_transicion: float = 1.0
+
 @export_group("Visuales")
 @export var velocidad_rotacion_visual: float = 240.0
 @export var oscilacion_altura: float = 0.25
@@ -68,6 +82,12 @@ var _progreso_patrulla: float = 0.0
 var _direccion_patrulla: float = 1.0
 var _timer_espera: float = 0.0
 
+var _disparadores_resueltos: Array[Node3D] = []
+var _estados_disparadores: Dictionary = {}
+var _tiene_disparadores: bool = false
+var _mecanismo_activo: bool = false
+var _tween_mecanismo: Tween = null
+
 # --- Variables de Adaptación a Escala ---
 var _datos_base_guardados: bool = false
 var _escala_previa: Vector3 = Vector3.ONE
@@ -99,7 +119,7 @@ func _ready() -> void:
 	_escala_previa = scale
 
 	# Asegurar configuración anti-culling para evitar que las rocas y hojas desaparezcan repentinamente
-	for p in [particulas_atraccion, particulas_atraccion_2, particulas_atraccion_3, particulas_hojas, particulas_hojas_2]:
+	for p in [particulas_vortice, particulas_atraccion, particulas_atraccion_2, particulas_atraccion_3, particulas_hojas, particulas_hojas_2]:
 		if is_instance_valid(p):
 			p.local_coords = true
 			p.ignore_occlusion_culling = true
@@ -121,6 +141,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	_configurar_areas()
+	_inicializar_disparadores()
 
 func _guardar_datos_base() -> void:
 	if _datos_base_guardados:
@@ -267,6 +288,8 @@ func _physics_process(delta: float) -> void:
 	_procesar_succion_continua(delta)
 
 func _procesar_movimiento_patrulla(delta: float) -> void:
+	if _tiene_disparadores:
+		return
 	if not se_mueve or desplazamiento == Vector3.ZERO:
 		return
 
@@ -404,9 +427,11 @@ func _exit_tree() -> void:
 	var vib = _get_vibration_manager()
 	if is_instance_valid(vib):
 		vib.detener_succion_torbellino()
+		if vib.has_method("detener_vibracion_puerta"):
+			vib.detener_vibracion_puerta("torbellino_" + str(get_instance_id()), false)
 
 func _get_vibration_manager() -> Node:
-	if Engine.is_editor_hint():
+	if Engine.is_editor_hint() or not is_inside_tree():
 		return null
 	return get_node_or_null("/root/VibrationManager")
 
@@ -461,3 +486,121 @@ func _es_candidato_valido(nodo: Node) -> bool:
 	if afecta_solo_fantasmas:
 		return nodo.is_in_group("fantasmas") or nodo.name.to_lower().contains("fantasma")
 	return nodo.is_in_group("jugadores")
+
+
+func _resolver_nodo(valor: Variant) -> Node3D:
+	if valor == null:
+		return null
+	if valor is Node3D:
+		return valor
+	if valor is NodePath and not valor.is_empty():
+		return get_node_or_null(valor) as Node3D
+	return null
+
+
+func _inicializar_disparadores() -> void:
+	_disparadores_resueltos.clear()
+	_estados_disparadores.clear()
+
+	var disp_unico: Node3D = _resolver_nodo(disparador_objetivo)
+	if disp_unico != null:
+		_disparadores_resueltos.append(disp_unico)
+
+	for d in disparadores_objetivo:
+		var nodo_d: Node3D = _resolver_nodo(d)
+		if nodo_d != null and not _disparadores_resueltos.has(nodo_d):
+			_disparadores_resueltos.append(nodo_d)
+
+	for disp in _disparadores_resueltos:
+		_estados_disparadores[disp] = false
+		var cb_activado := Callable(self, "_on_disparador_estado_cambiado").bind(disp, true)
+		var cb_desactivado := Callable(self, "_on_disparador_estado_cambiado").bind(disp, false)
+		if disp.has_signal("signal_activado") and not disp.is_connected("signal_activado", cb_activado):
+			disp.connect("signal_activado", cb_activado)
+		if disp.has_signal("signal_desactivado") and not disp.is_connected("signal_desactivado", cb_desactivado):
+			disp.connect("signal_desactivado", cb_desactivado)
+
+	_tiene_disparadores = not _disparadores_resueltos.is_empty()
+
+
+func _on_disparador_estado_cambiado(disparador: Node3D, nuevo_estado: bool) -> void:
+	_estados_disparadores[disparador] = nuevo_estado
+	_evaluar_estado_mecanismo()
+
+
+func _evaluar_estado_mecanismo() -> void:
+	if _estados_disparadores.is_empty():
+		return
+
+	var resultado: bool = false
+	if condicion_combinacion == ElementoInteractivoBase.CondicionCombinacion.CONDICION_O:
+		for estado in _estados_disparadores.values():
+			if estado == true:
+				resultado = true
+				break
+	elif condicion_combinacion == ElementoInteractivoBase.CondicionCombinacion.CONDICION_Y:
+		resultado = true
+		for estado in _estados_disparadores.values():
+			if estado == false:
+				resultado = false
+				break
+
+	if resultado != _mecanismo_activo:
+		_mecanismo_activo = resultado
+		if is_inside_tree() and multiplayer and multiplayer.has_multiplayer_peer() and not (multiplayer.multiplayer_peer is OfflineMultiplayerPeer) and multiplayer.get_peers().size() > 0:
+			rpc_sincronizar_estado.rpc(_mecanismo_activo)
+		else:
+			rpc_sincronizar_estado(_mecanismo_activo)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func rpc_sincronizar_estado(activo: bool) -> void:
+	_mecanismo_activo = activo
+	actualizar_comportamiento(activo)
+
+
+func _calcular_factor_proximidad_jugador() -> float:
+	if not is_inside_tree():
+		return 0.0
+	var distancia_min: float = 999.0
+	for pj in get_tree().get_nodes_in_group("jugadores"):
+		if pj is Node3D:
+			var es_activo: bool = pj.has_method("es_activo") and pj.es_activo()
+			var d: float = global_position.distance_to(pj.global_position)
+			if es_activo:
+				distancia_min = minf(distancia_min, d)
+			elif distancia_min > 50.0:
+				distancia_min = minf(distancia_min, d)
+	if distancia_min > 24.0:
+		return 0.0
+	return clampf(1.0 - ((distancia_min - 5.0) / 19.0), 0.15, 1.0)
+
+
+func actualizar_comportamiento(activo: bool) -> void:
+	if _tween_mecanismo and _tween_mecanismo.is_valid():
+		_tween_mecanismo.kill()
+
+	var posicion_objetivo: Vector3 = _pos_inicial_mov
+	if activo:
+		var dir_norm: Vector3 = direccion_desplazamiento.normalized() if not direccion_desplazamiento.is_zero_approx() else Vector3.RIGHT
+		posicion_objetivo = _pos_inicial_mov + (dir_norm * distancia_desplazamiento)
+
+	var vib: Node = _get_vibration_manager()
+	var id_mecanismo: String = "torbellino_" + str(get_instance_id())
+	var factor_prox: float = _calcular_factor_proximidad_jugador()
+	if factor_prox > 0.0 and is_instance_valid(vib) and vib.has_method("iniciar_vibracion_puerta"):
+		vib.iniciar_vibracion_puerta(id_mecanismo, tiempo_transicion, factor_prox)
+
+	if not is_inside_tree():
+		position = posicion_objetivo
+		return
+
+	_tween_mecanismo = create_tween()
+	_tween_mecanismo.set_ease(Tween.EASE_OUT)
+	_tween_mecanismo.set_trans(Tween.TRANS_QUAD)
+	_tween_mecanismo.tween_property(self, "position", posicion_objetivo, tiempo_transicion)
+	_tween_mecanismo.finished.connect(func():
+		var vib_fin: Node = _get_vibration_manager()
+		if is_instance_valid(vib_fin) and vib_fin.has_method("detener_vibracion_puerta"):
+			vib_fin.detener_vibracion_puerta(id_mecanismo, true, factor_prox)
+	)
